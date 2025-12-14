@@ -1,0 +1,47 @@
+{# Template pour Agent Analyst - Analyse quantitative de performance #}
+Analyze the following trading strategy performance:
+
+Strategy: {{ strategy_name }}
+{% if strategy_description -%}
+Description: {{ strategy_description }}
+{% endif -%}
+Data: {{ data_symbol }} {{ data_timeframe }}
+Date Range: {{ data_date_range }}
+Total Data Points: {{ data_rows }}
+
+Iteration: {{ iteration }}
+
+Current Parameters:
+{% for param_name, param_value in current_params.items() %}
+  {{ param_name }}: {{ param_value }}
+{% endfor %}
+
+{% if current_metrics -%}
+{{ current_metrics.to_summary_str() }}
+{% endif %}
+
+{% if train_metrics and test_metrics -%}
+Walk-Forward Analysis:
+  Train Period Sharpe: {{ train_metrics.sharpe_ratio|format_float(3) }}
+  Test Period Sharpe: {{ test_metrics.sharpe_ratio|format_float(3) }}
+  Train Return: {{ train_metrics.total_return|format_percent }}
+  Test Return: {{ test_metrics.total_return|format_percent }}
+  Overfitting Ratio: {{ overfitting_ratio|format_float(2) }}
+  (Ratio > 1.5 indicates potential overfitting)
+{% endif %}
+
+{% if iteration_history -%}
+Previous Iterations ({{ iteration_history|length }}):
+{% for hist in iteration_history[-3:] %}
+  Iter {{ hist.get('iteration', loop.index) }}: Sharpe={{ hist.get('sharpe_ratio', 0)|format_float(2) }}, Return={{ hist.get('total_return', 0)|format_percent }}
+{% endfor %}
+{% endif %}
+
+Optimization Objectives:
+  Target Metric: {{ optimization_target }}
+  Minimum Sharpe Ratio: {{ min_sharpe }}
+  Maximum Drawdown: {{ max_drawdown_limit|format_percent }}
+  Minimum Trades: {{ min_trades }}
+  Max Overfitting Ratio: {{ max_overfitting_ratio }}
+
+Provide your analysis in the required JSON format.

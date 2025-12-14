@@ -1,0 +1,48 @@
+{# Template pour Agent Strategist - Propositions d'optimisation #}
+Generate parameter optimization proposals for the following strategy:
+
+Strategy: {{ strategy_name }}
+Iteration: {{ iteration }}
+
+Current Parameters and Constraints:
+{% for spec in param_specs %}
+  {{ spec.name }}: {{ current_params.get(spec.name, spec.current_value) }} (min={{ spec.min_value }}, max={{ spec.max_value }}, step={{ spec.step }})
+{% endfor %}
+
+{% if current_metrics -%}
+Current Performance:
+  Sharpe Ratio: {{ current_metrics.sharpe_ratio|format_float(3) }}
+  Total Return: {{ current_metrics.total_return|format_percent }}
+  Max Drawdown: {{ current_metrics.max_drawdown|format_percent }}
+  Win Rate: {{ current_metrics.win_rate|format_percent }}
+  Total Trades: {{ current_metrics.total_trades }}
+{% endif %}
+
+{% if overfitting_ratio > 0 -%}
+Overfitting Ratio: {{ overfitting_ratio|format_float(2) }}
+{% if overfitting_ratio > 1.5 %}
+  ⚠️ HIGH overfitting risk - prioritize robustness!
+{% endif %}
+{% endif %}
+
+{% if analyst_report -%}
+Analyst Report Summary:
+{{ analyst_report[:1500] }}
+{% endif %}
+
+{% if best_metrics and best_params -%}
+Best Configuration So Far:
+  Sharpe: {{ best_metrics.sharpe_ratio|format_float(3) }}
+{% for param_name, param_value in best_params.items() %}
+  {{ param_name }}: {{ param_value }}
+{% endfor %}
+{% endif %}
+
+Optimization Objectives:
+  Target: {{ optimization_target }}
+  Min Sharpe: {{ min_sharpe }}
+  Max Drawdown: {{ max_drawdown_limit|format_percent }}
+  Min Trades: {{ min_trades }}
+
+Generate 3-5 parameter proposals in the required JSON format.
+IMPORTANT: All parameter values MUST respect the min/max constraints!

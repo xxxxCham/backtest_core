@@ -1,0 +1,376 @@
+"""
+Backtest Core - Strategy Base Class
+===================================
+
+Classe de base pour toutes les stratégies de trading.
+Définit l'interface standard que le moteur de backtest attend.
+
+Architecture préparée pour:
+1. Exécution autonome par le moteur de backtest
+2. Future intégration avec agents LLM (DynamicStrategy)
+3. Système de presets et granularité
+"""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Type
+
+import numpy as np
+import pandas as pd
+
+from utils.parameters import ParameterSpec, Preset
+
+
+@dataclass
+class StrategyResult:
+    """
+    Résultat d'une exécution de stratégie.
+
+    Attributes:
+        signals: Série de signaux (1=long, -1=short, 0=flat)
+        entry_prices: Prix d'entrée suggérés (optionnel)
+        stop_losses: Niveaux de stop-loss (optionnel)
+        take_profits: Niveaux de take-profit (optionnel)
+        indicators: Dict des indicateurs calculés
+        metadata: Informations additionnelles
+        params_used: Paramètres utilisés pour l'exécution
+    """
+    signals: pd.Series
+    entry_prices: Optional[np.ndarray] = None
+    stop_losses: Optional[np.ndarray] = None
+    take_profits: Optional[np.ndarray] = None
+    indicators: Dict[str, Any] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    params_used: Dict[str, Any] = field(default_factory=dict)
+
+
+class StrategyBase(ABC):
+    """
+    Classe de base abstraite pour les stratégies de trading.
+
+    Toute stratégie doit hériter de cette classe et implémenter:
+    - required_indicators: liste des indicateurs nécessaires
+    - generate_signals(): génération des signaux de trading
+
+    Architecture conçue pour:
+    1. Être utilisée de manière autonome par le moteur de backtest
+    2. Permettre une future intégration avec des agents LLM
+    3. Supporter différents styles de trading (trend, mean-reversion, etc.)
+
+    Example:
+        class MyStrategy(StrategyBase):
+            @property
+            def required_indicators(self):
+                return ["bollinger", "rsi"]
+
+            def generate_signals(self, df, indicators, params):
+                # Logique de génération de signaux
+                ...
+    """
+
+    def __init__(self, name: str = "BaseStrategy"):
+        """
+        Initialise la stratégie.
+
+        Args:
+            name: Nom identifiant la stratégie
+        """
+        self.name = name
+        self._last_result: Optional[StrategyResult] = None
+
+    @property
+    @abstractmethod
+    def required_indicators(self) -> List[str]:
+        """
+        Liste des indicateurs techniques requis par la stratégie.
+
+        Le moteur de backtest utilisera cette liste pour calculer
+        automatiquement les indicateurs nécessaires avant d'appeler
+        generate_signals().
+
+        Returns:
+            Liste de noms d'indicateurs (ex: ["bollinger", "atr"])
+        """
+        pass
+
+    @property
+    def default_params(self) -> Dict[str, Any]:
+        """
+        Paramètres par défaut de la stratégie.
+
+        Peut être surchargé par les classes filles pour définir
+        des valeurs par défaut spécifiques.
+        """
+        return {}
+
+    @property
+    def param_ranges(self) -> Dict[str, tuple]:
+        """
+        Plages de paramètres pour l'optimisation.
+
+        Format: {"param_name": (min_value, max_value)}
+        Génère automatiquement depuis parameter_specs si disponible.
+        Peut être surchargé par les classes filles.
+        """
+        # Auto-générer depuis parameter_specs si disponible
+        if hasattr(self, 'parameter_specs') and self.parameter_specs:
+            return {
+                name: (spec.min_val, spec.max_val)
+                for name, spec in self.parameter_specs.items()
+            }
+        return {}
+
+    @abstractmethod
+    def generate_signals(
+        self,
+        df: pd.DataFrame,
+        indicators: Dict[str, Any],
+        params: Dict[str, Any]
+    ) -> pd.Series:
+        """
+        Génère les signaux de trading.
+
+        Args:
+            df: DataFrame OHLCV avec colonnes (open, high, low, close, volume)
+            indicators: Dict des indicateurs précalculés
+                       Ex: {"bollinger": (upper, middle, lower), "atr": atr_array}
+            params: Paramètres de la stratégie
+                   Ex: {"entry_z": 2.0, "k_sl": 1.5}
+
+        Returns:
+            pd.Series de signaux indexée par le temps:
+            - 1: Signal d'achat (entrer long)
+            - -1: Signal de vente (entrer short)
+            - 0: Aucun signal (rester flat ou maintenir position)
+
+        Notes:
+            - La série retournée doit avoir le même index que df
+            - Les signaux représentent des intentions d'entrée/sortie
+            - La gestion des positions est faite par le moteur de backtest
+        """
+        pass
+
+    def run(
+        self,
+        df: pd.DataFrame,
+        indicators: Dict[str, Any],
+        params: Optional[Dict[str, Any]] = None
+    ) -> StrategyResult:
+        """
+        Exécute la stratégie et retourne le résultat complet.
+
+        Cette méthode wrapper facilite l'utilisation et stocke
+        le résultat pour inspection ultérieure.
+
+        Args:
+            df: DataFrame OHLCV
+            indicators: Dict des indicateurs calculés
+            params: Paramètres (utilise default_params si None)
+
+        Returns:
+            StrategyResult avec signaux et métadonnées
+        """
+        # Fusionner avec params par défaut
+        final_params = {**self.default_params, **(params or {})}
+
+        # Générer les signaux
+        signals = self.generate_signals(df, indicators, final_params)
+
+        # Construire le résultat
+        result = StrategyResult(
+            signals=signals,
+            indicators=indicators,
+            metadata={
+                "strategy_name": self.name,
+                "params": final_params,
+                "n_signals_long": int((signals == 1).sum()),
+                "n_signals_short": int((signals == -1).sum()),
+                "period": f"{df.index[0]} → {df.index[-1]}"
+            }
+        )
+
+        self._last_result = result
+        return result
+
+    def validate_params(self, params: Dict[str, Any]) -> Tuple[bool, List[str]]:
+        """
+        Valide les paramètres fournis.
+
+        Peut être surchargé pour ajouter une validation spécifique.
+
+        Args:
+            params: Paramètres à valider
+
+        Returns:
+            Tuple (is_valid, list_of_errors)
+        """
+        errors = []
+
+        # Validation de base (à surcharger)
+        if params.get("leverage", 1) <= 0:
+            errors.append("leverage doit être > 0")
+        if params.get("leverage", 1) > 20:
+            errors.append("leverage doit être <= 20")
+
+        return len(errors) == 0, errors
+
+    def describe(self) -> str:
+        """
+        Retourne une description de la stratégie.
+        """
+        return f"""
+Strategy: {self.name}
+Required Indicators: {', '.join(self.required_indicators)}
+Default Parameters: {self.default_params}
+"""
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}(name='{self.name}')>"
+
+    # =========================================================================
+    # HOOKS POUR INTÉGRATION FUTURE LLM
+    # =========================================================================
+    # Ces méthodes sont des points d'extension pour les agents LLM.
+    # Elles ne font rien par défaut mais peuvent être surchargées
+    # par des stratégies dynamiques générées par LLM.
+
+    @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        """
+        Spécifications détaillées des paramètres pour UI et optimisation.
+
+        Surchargez cette propriété pour définir les bornes, types et
+        descriptions de chaque paramètre. Utilisé par:
+        - L'UI pour générer des sliders/inputs
+        - L'optimiseur pour le sweep paramétrique
+        - Les agents LLM pour proposer des modifications
+
+        Returns:
+            Dict[param_name, ParameterSpec]
+        """
+        return {}
+
+    def get_preset(self) -> Optional[Preset]:
+        """
+        Retourne le preset associé à cette stratégie (si disponible).
+
+        Returns:
+            Preset ou None
+        """
+        return None
+
+    def on_backtest_start(self, context: Dict[str, Any]) -> None:
+        """
+        Hook appelé au début du backtest.
+
+        Point d'extension pour les agents LLM qui veulent
+        initialiser un état ou modifier le contexte.
+
+        Args:
+            context: Contexte du backtest (symbol, timeframe, etc.)
+        """
+        pass
+
+    def on_backtest_end(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Hook appelé à la fin du backtest.
+
+        Point d'extension pour les agents LLM qui veulent
+        analyser les résultats ou proposer des améliorations.
+
+        Args:
+            results: Résultats du backtest (métriques, trades, etc.)
+
+        Returns:
+            Résultats potentiellement enrichis avec des suggestions
+        """
+        return results
+
+    def suggest_improvements(
+        self,
+        results: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Suggère des améliorations basées sur les résultats.
+
+        Cette méthode sera utilisée par les agents LLM pour
+        proposer des ajustements de paramètres ou de logique.
+        Par défaut retourne None (pas de suggestion).
+
+        Args:
+            results: Résultats du backtest
+
+        Returns:
+            Dict de suggestions ou None
+            Format attendu: {"params": {...}, "rationale": "..."}
+        """
+        return None
+
+    @classmethod
+    def from_config(cls, config: Dict[str, Any]) -> "StrategyBase":
+        """
+        Factory method pour créer une stratégie depuis une config.
+
+        Permet aux agents LLM de générer des configurations JSON
+        qui seront instanciées en stratégies.
+
+        Args:
+            config: Configuration dict avec 'name', 'params', etc.
+
+        Returns:
+            Instance de stratégie
+        """
+        # Par défaut, retourne une instance simple
+        # Les sous-classes peuvent surcharger pour une logique plus complexe
+        return cls()
+
+
+# =============================================================================
+# REGISTRE DES STRATÉGIES
+# =============================================================================
+
+_STRATEGY_REGISTRY: Dict[str, Type[StrategyBase]] = {}
+
+
+def register_strategy(name: str):
+    """
+    Décorateur pour enregistrer une stratégie dans le registre.
+
+    Usage:
+        @register_strategy("bollinger_atr")
+        class BollingerATRStrategy(StrategyBase):
+            ...
+    """
+    def decorator(cls: Type[StrategyBase]):
+        _STRATEGY_REGISTRY[name] = cls
+        return cls
+    return decorator
+
+
+def get_strategy(name: str) -> Type[StrategyBase]:
+    """Récupère une classe de stratégie par son nom."""
+    if name not in _STRATEGY_REGISTRY:
+        available = ", ".join(_STRATEGY_REGISTRY.keys())
+        raise ValueError(f"Stratégie '{name}' non trouvée. Disponibles: {available}")
+    return _STRATEGY_REGISTRY[name]
+
+
+def list_strategies() -> List[str]:
+    """Liste les stratégies enregistrées."""
+    return list(_STRATEGY_REGISTRY.keys())
+
+
+def create_strategy(name: str, **kwargs) -> StrategyBase:
+    """Crée une instance de stratégie par son nom."""
+    strategy_cls = get_strategy(name)
+    return strategy_cls(**kwargs)
+
+
+__all__ = [
+    "StrategyBase",
+    "StrategyResult",
+    "register_strategy",
+    "get_strategy",
+    "list_strategies",
+    "create_strategy",
+]

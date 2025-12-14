@@ -1,0 +1,52 @@
+{# Template pour Agent Critic - Évaluation critique des propositions #}
+Critically evaluate the following optimization proposals:
+
+Strategy: {{ strategy_name }}
+Iteration: {{ iteration }}
+
+{% if current_metrics -%}
+Current Performance Baseline:
+  Sharpe Ratio: {{ current_metrics.sharpe_ratio|format_float(3) }}
+  Max Drawdown: {{ current_metrics.max_drawdown|format_percent }}
+  Win Rate: {{ current_metrics.win_rate|format_percent }}
+  Total Trades: {{ current_metrics.total_trades }}
+{% endif %}
+
+{% if overfitting_ratio > 0 -%}
+Current Overfitting Ratio: {{ overfitting_ratio|format_float(2) }}
+{% if overfitting_ratio > 1.5 %}
+  ⚠️ Already showing overfitting signs!
+{% endif %}
+{% endif %}
+
+{% if analyst_report -%}
+Analyst Summary: {{ analyst_report[:500] }}
+{% endif %}
+
+=== PROPOSALS TO EVALUATE ===
+{% for proposal in strategist_proposals %}
+
+--- Proposal {{ proposal.get('id', loop.index) }}: {{ proposal.get('name', 'Unnamed') }} ---
+Priority: {{ proposal.get('priority', 'N/A') }}
+Risk Level: {{ proposal.get('risk_level', 'N/A') }}
+Parameters:
+{% for param_name, param_value in proposal.get('parameters', {}).items() %}
+  {{ param_name }}: {{ current_params.get(param_name, 'N/A') }} → {{ param_value }}
+{% endfor %}
+Rationale: {{ proposal.get('rationale', 'N/A') }}
+{% if proposal.get('expected_impact') %}
+Expected Impact: Sharpe {{ proposal.expected_impact.get('sharpe_ratio', 'N/A') }}
+{% endif %}
+{% endfor %}
+
+Parameter Constraints:
+{% for spec in param_specs %}
+  {{ spec.name }}: min={{ spec.min_value }}, max={{ spec.max_value }}
+{% endfor %}
+
+Optimization Objectives:
+  Min Sharpe: {{ min_sharpe }}
+  Max Drawdown: {{ max_drawdown_limit|format_percent }}
+  Max Overfitting Ratio: {{ max_overfitting_ratio }}
+
+Evaluate each proposal critically and respond in the required JSON format.

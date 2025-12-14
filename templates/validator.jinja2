@@ -1,0 +1,66 @@
+{# Template pour Agent Validator - Décision finale #}
+Make the final validation decision for this optimization:
+
+Strategy: {{ strategy_name }}
+Iteration: {{ iteration }} / (max iterations in session)
+
+=== OBJECTIVE CRITERIA CHECK ===
+{% for criterion, passed in objective_check.items() %}
+  {{ criterion }}: {% if passed %}✅ PASS{% else %}❌ FAIL{% endif %}
+{% endfor %}
+
+All criteria met: {% if objective_check.values()|select|list|length == objective_check|length %}YES{% else %}NO{% endif %}
+
+{% if current_metrics -%}
+=== CURRENT PERFORMANCE ===
+Sharpe Ratio: {{ current_metrics.sharpe_ratio|format_float(3) }} (min: {{ min_sharpe }})
+Max Drawdown: {{ current_metrics.max_drawdown|format_percent }} (max: {{ max_drawdown_limit|format_percent }})
+Win Rate: {{ current_metrics.win_rate|format_percent }}
+Total Trades: {{ current_metrics.total_trades }} (min: {{ min_trades }})
+Profit Factor: {{ current_metrics.profit_factor|format_float(2) }}
+{% endif %}
+
+{% if overfitting_ratio > 0 -%}
+=== WALK-FORWARD VALIDATION ===
+Overfitting Ratio: {{ overfitting_ratio|format_float(2) }} (max: {{ max_overfitting_ratio }})
+{% if train_metrics and test_metrics %}
+Train Sharpe: {{ train_metrics.sharpe_ratio|format_float(3) }}
+Test Sharpe: {{ test_metrics.sharpe_ratio|format_float(3) }}
+{% endif %}
+{% endif %}
+
+{% if analyst_report -%}
+=== ANALYST REPORT ===
+{{ analyst_report[:800] }}
+{% endif %}
+
+{% if strategist_proposals -%}
+=== PROPOSALS EVALUATED ===
+{% for proposal in strategist_proposals[:3] %}
+
+Proposal {{ proposal.get('id') }}: {{ proposal.get('name') }}
+{% if proposal.get('critic_evaluation') %}
+  Critic: {{ proposal.critic_evaluation.get('recommendation', 'N/A') }}
+  Overfitting Score: {{ proposal.critic_evaluation.get('overfitting_score', 'N/A') }}/100
+  Robustness Score: {{ proposal.critic_evaluation.get('robustness_score', 'N/A') }}/100
+{% endif %}
+{% endfor %}
+{% endif %}
+
+{% if critic_concerns -%}
+=== CRITIC CONCERNS ===
+{% for concern in critic_concerns[:5] %}
+  - {{ concern }}
+{% endfor %}
+{% endif %}
+
+{% if iteration_history -%}
+=== ITERATION HISTORY ===
+Total iterations: {{ iteration_history|length }}
+{% if best_metrics %}
+Best Sharpe achieved: {{ best_metrics.sharpe_ratio|format_float(3) }}
+{% endif %}
+{% endif %}
+
+Make your final decision in the required JSON format.
+Remember: Be conservative. When in doubt, ITERATE rather than APPROVE.
