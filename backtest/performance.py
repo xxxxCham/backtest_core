@@ -142,25 +142,72 @@ def max_drawdown(equity: pd.Series) -> float:
 def sharpe_ratio(
     returns: pd.Series,
     risk_free: float = 0.0,
-    periods_per_year: int = 365 * 24  # Horaire par défaut
+    periods_per_year: int = 252,  # Jours de trading par défaut
+    method: str = "daily_resample",  # "standard", "trading_days" ou "daily_resample"
+    equity: Optional[pd.Series] = None  # Nécessaire pour daily_resample
 ) -> float:
     """
     Calcule le ratio de Sharpe annualisé.
 
+    IMPORTANT: Pour éviter les biais liés aux returns "sparse" (equity qui ne change
+    qu'aux trades), cette fonction peut resampler l'equity en fréquence quotidienne.
+
     Args:
-        returns: Série de rendements
-        risk_free: Taux sans risque annuel
-        periods_per_year: Nombre de périodes par an
+        returns: Série de rendements (fractionnaires, ex: 0.01 = 1%)
+        risk_free: Taux sans risque annuel (défaut: 0.0)
+        periods_per_year: Nombre de périodes par an pour l'annualisation
+                         (défaut: 252 jours de trading)
+        method: Méthode de calcul:
+                - "standard": Utilise tous les returns (peut donner des valeurs aberrantes)
+                - "trading_days": Filtre les returns nuls (incomplet, non recommandé)
+                - "daily_resample": Resample equity en quotidien (RECOMMANDÉ, standard industrie)
+        equity: Série d'equity (requis si method="daily_resample")
 
     Returns:
-        Ratio de Sharpe
+        Ratio de Sharpe annualisé
+
+    Notes:
+        - Si std == 0 (rendements constants), retourne 0.0 pour éviter division par zéro
+        - Si < 2 observations non-nulles, retourne 0.0 (Sharpe non calculable)
+        - La méthode "daily_resample" est recommandée et évite tous les biais liés
+          aux equity sparse (qui ne changent qu'aux trades)
     """
     if returns.empty:
         return 0.0
 
+    # Méthode daily_resample : resample equity en quotidien
+    if method == "daily_resample":
+        if equity is None or equity.empty:
+            logger.warning("daily_resample nécessite equity, fallback sur standard")
+            method = "standard"
+        else:
+            # Resample equity en fréquence quotidienne
+            if not isinstance(equity.index, pd.DatetimeIndex):
+                logger.warning("equity.index n'est pas DatetimeIndex, fallback sur standard")
+                method = "standard"
+            else:
+                # Resample en prenant la dernière valeur de chaque jour
+                equity_daily = equity.resample('D').last().dropna()
+
+                if len(equity_daily) < 2:
+                    return 0.0
+
+                # Calculer returns quotidiens
+                returns = equity_daily.pct_change().dropna()
+
+                # Continuer avec la méthode standard sur ces returns quotidiens
+                method = "standard"
+                # periods_per_year reste 252 (jours de trading)
+
     returns_clean = returns.dropna()
     if returns_clean.empty or len(returns_clean) < 2:
         return 0.0
+
+    # Filtrer les returns nuls si méthode trading_days
+    if method == "trading_days":
+        returns_clean = returns_clean[returns_clean != 0.0]
+        if len(returns_clean) < 2:
+            return 0.0
 
     # Taux sans risque par période
     rf_period = risk_free / periods_per_year
@@ -170,6 +217,8 @@ def sharpe_ratio(
     std_returns = returns_clean.std(ddof=1)
 
     if std_returns <= 1e-10:
+        # Volatilité nulle : rendements constants
+        # Convention: Sharpe = 0 plutôt que inf
         return 0.0
 
     # Annualisation
@@ -181,17 +230,51 @@ def sharpe_ratio(
 def sortino_ratio(
     returns: pd.Series,
     risk_free: float = 0.0,
-    periods_per_year: int = 365 * 24
+    periods_per_year: int = 252,
+    method: str = "daily_resample",
+    equity: Optional[pd.Series] = None
 ) -> float:
     """
     Calcule le ratio de Sortino (ne pénalise que la volatilité baissière).
+
+    Args:
+        returns: Série de rendements
+        risk_free: Taux sans risque annuel
+        periods_per_year: Nombre de périodes par an pour l'annualisation
+        method: "standard", "trading_days" ou "daily_resample"
+        equity: Série d'equity (requis si method="daily_resample")
+
+    Returns:
+        Ratio de Sortino annualisé
     """
     if returns.empty:
         return 0.0
 
+    # Méthode daily_resample : resample equity en quotidien
+    if method == "daily_resample":
+        if equity is None or equity.empty:
+            logger.warning("daily_resample nécessite equity, fallback sur standard")
+            method = "standard"
+        else:
+            if not isinstance(equity.index, pd.DatetimeIndex):
+                logger.warning("equity.index n'est pas DatetimeIndex, fallback sur standard")
+                method = "standard"
+            else:
+                equity_daily = equity.resample('D').last().dropna()
+                if len(equity_daily) < 2:
+                    return 0.0
+                returns = equity_daily.pct_change().dropna()
+                method = "standard"
+
     returns_clean = returns.dropna()
     if returns_clean.empty:
         return 0.0
+
+    # Filtrer returns nuls si méthode trading_days
+    if method == "trading_days":
+        returns_clean = returns_clean[returns_clean != 0.0]
+        if len(returns_clean) < 2:
+            return 0.0
 
     rf_period = risk_free / periods_per_year
     excess_returns = returns_clean - rf_period
@@ -233,21 +316,33 @@ def calculate_metrics(
     returns: pd.Series,
     trades_df: pd.DataFrame,
     initial_capital: float = 10000.0,
-    periods_per_year: int = 365 * 24 * 60,  # Minutes par défaut
-    include_tier_s: bool = False
+    periods_per_year: int = 252,  # Jours de trading par défaut
+    include_tier_s: bool = False,
+    sharpe_method: str = "trading_days"  # "standard" ou "trading_days"
 ) -> Dict[str, Any]:
     """
     Calcule toutes les métriques de performance.
 
     Args:
         equity: Courbe d'équité
-        returns: Série de rendements
+        returns: Série de rendements (par barre)
         trades_df: DataFrame des trades
         initial_capital: Capital initial
-        periods_per_year: Périodes par an pour annualisation
+        periods_per_year: Périodes par an pour annualisation du Sharpe
+                         (défaut: 252 jours de trading, standard industrie)
+        include_tier_s: Inclure métriques Tier S avancées
+        sharpe_method: Méthode de calcul du Sharpe/Sortino:
+                      - "trading_days": Filtre les returns nuls (recommandé pour equity sparse)
+                      - "standard": Utilise tous les returns (peut donner valeurs aberrantes)
 
     Returns:
         Dict de toutes les métriques
+
+    Notes:
+        - Le Sharpe/Sortino sont calculés avec periods_per_year=252 par défaut
+          (jours de trading), indépendamment du timeframe des données
+        - La méthode "trading_days" évite les biais liés aux equity "sparse"
+          (qui ne changent qu'aux trades, créant beaucoup de returns nuls)
     """
     metrics = {}
 
@@ -277,8 +372,18 @@ def calculate_metrics(
     metrics["annualized_return"] = annualized_return
 
     # === Métriques de risque ===
-    metrics["sharpe_ratio"] = sharpe_ratio(returns, periods_per_year=periods_per_year)
-    metrics["sortino_ratio"] = sortino_ratio(returns, periods_per_year=periods_per_year)
+    metrics["sharpe_ratio"] = sharpe_ratio(
+        returns,
+        periods_per_year=periods_per_year,
+        method=sharpe_method,
+        equity=equity  # Passer equity pour daily_resample
+    )
+    metrics["sortino_ratio"] = sortino_ratio(
+        returns,
+        periods_per_year=periods_per_year,
+        method=sharpe_method,
+        equity=equity  # Passer equity pour daily_resample
+    )
     metrics["max_drawdown"] = max_drawdown(equity) * 100  # En %
 
     # Volatilité annualisée
@@ -404,10 +509,20 @@ class PerformanceCalculator:
         self,
         returns: pd.Series,
         trades_df: pd.DataFrame,
-        periods_per_year: int = 365 * 24 * 60
+        periods_per_year: int = 252,
+        sharpe_method: str = "trading_days"
     ) -> Dict[str, Any]:
         """
         Calcule un résumé complet des performances.
+
+        Args:
+            returns: Série de rendements
+            trades_df: DataFrame des trades
+            periods_per_year: Périodes par an (défaut: 252 jours de trading)
+            sharpe_method: Méthode de calcul Sharpe ("trading_days" ou "standard")
+
+        Returns:
+            Dict des métriques calculées
         """
         # Calculer l'équité
         eq = equity_curve(returns, self.initial_capital)
@@ -419,7 +534,8 @@ class PerformanceCalculator:
             trades_df=trades_df,
             initial_capital=self.initial_capital,
             periods_per_year=periods_per_year,
-            include_tier_s=self.include_tier_s
+            include_tier_s=self.include_tier_s,
+            sharpe_method=sharpe_method
         )
 
         self._last_metrics = metrics

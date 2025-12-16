@@ -251,15 +251,23 @@ class BacktestEngine:
 
             # 8. Calculer les métriques
             self.counters.start("metrics")
-            periods_per_year = self._get_periods_per_year(timeframe)
+            # Utiliser 252 jours de trading pour Sharpe (standard industrie)
+            # Méthode daily_resample pour éviter biais avec equity sparse
             metrics = calculate_metrics(
                 equity=equity,
                 returns=returns,
                 trades_df=trades_df,
                 initial_capital=self.initial_capital,
-                periods_per_year=periods_per_year
+                periods_per_year=252,  # Jours de trading standard
+                sharpe_method="daily_resample"  # Resample equity en quotidien
             )
             self.counters.stop("metrics")
+
+            # Logger la méthode de calcul pour debug
+            self.logger.debug(
+                "sharpe_calc method=daily_resample periods_per_year=252 timeframe=%s",
+                timeframe
+            )
 
             # 9. Construire les métadonnées
             self.counters.stop("total")
