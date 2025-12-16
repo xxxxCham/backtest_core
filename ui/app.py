@@ -521,6 +521,74 @@ Interface avec validation des paramètres et feedback utilisateur.
 Le système de granularité limite le nombre de valeurs testables.
 """)
 
+# ============================================================================
+# BOUTONS DE CONTRÔLE
+# ============================================================================
+
+# Initialiser l'état d'exécution dans session_state
+if "is_running" not in st.session_state:
+    st.session_state.is_running = False
+if "stop_requested" not in st.session_state:
+    st.session_state.stop_requested = False
+
+# Zone des boutons de contrôle
+st.markdown("---")
+col_btn1, col_btn2, col_spacer = st.columns([2, 2, 6])
+
+with col_btn1:
+    run_button = st.button(
+        "🚀 Lancer le Backtest",
+        type="primary",
+        disabled=st.session_state.is_running,
+        use_container_width=True,
+        key="btn_run_backtest"
+    )
+
+with col_btn2:
+    stop_button = st.button(
+        "⛔ Arrêt d'urgence",
+        type="secondary",
+        disabled=not st.session_state.is_running,
+        use_container_width=True,
+        key="btn_stop_backtest"
+    )
+
+# Si arrêt demandé
+if stop_button:
+    st.session_state.stop_requested = True
+    st.session_state.is_running = False
+
+    # Nettoyage RAM/VRAM
+    import gc
+    gc.collect()
+
+    # Nettoyage CUDA si disponible
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            st.success("✅ VRAM GPU vidée")
+    except ImportError:
+        pass
+
+    # Nettoyage CuPy si disponible
+    try:
+        import cupy as cp
+        mempool = cp.get_default_memory_pool()
+        pinned_mempool = cp.get_default_pinned_memory_pool()
+        mempool.free_all_blocks()
+        pinned_mempool.free_all_blocks()
+    except ImportError:
+        pass
+
+    st.success("✅ RAM système vidée")
+    st.info("💡 Système prêt pour un nouveau test")
+    st.session_state.stop_requested = False
+    st.rerun()
+
+st.markdown("---")
+
 
 # ============================================================================
 # SIDEBAR - CONFIGURATION
@@ -633,35 +701,96 @@ st.sidebar.caption(strategy_descriptions.get(strategy_key, ""))
 
 
 # --- Section Mode (AVANT les paramètres pour savoir quel mode afficher) ---
-st.sidebar.subheader("🔄 Mode")
+st.sidebar.subheader("🔄 Mode d'exécution")
 
-optimization_mode = st.sidebar.radio(
-    "Mode d'exécution",
-    ["Grille de Paramètres", "Backtest Simple", "🤖 Optimisation LLM"],
-    index=0,  # Grille par défaut
-    help="Grille = plages min/max/step | Simple = 1 combinaison | LLM = optimisation autonome par agents IA"
-)
+# Initialiser le mode par défaut dans session_state
+if "optimization_mode" not in st.session_state:
+    st.session_state.optimization_mode = "Backtest Simple"
+
+# Style CSS pour les boutons de mode
+st.sidebar.markdown("""
+<style>
+    .mode-button {
+        width: 100%;
+        padding: 12px 16px;
+        margin: 6px 0;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .mode-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .mode-inactive {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        opacity: 0.6;
+    }
+    .mode-active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        opacity: 1;
+        border-color: #ffd700;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Créer les boutons de mode
+modes = [
+    ("Backtest Simple", "📊", "1 combinaison de paramètres"),
+    ("Grille de Paramètres", "🔢", "Exploration min/max/step"),
+    ("🤖 Optimisation LLM", "🧠", "Agents IA autonomes")
+]
+
+for mode_name, icon, description in modes:
+    button_key = f"mode_btn_{mode_name}"
+    is_active = st.session_state.optimization_mode == mode_name
+
+    col1, col2 = st.sidebar.columns([1, 10])
+    with col1:
+        st.write(icon)
+    with col2:
+        if st.button(
+            mode_name,
+            key=button_key,
+            help=description,
+            use_container_width=True,
+            type="primary" if is_active else "secondary"
+        ):
+            st.session_state.optimization_mode = mode_name
+            st.rerun()
+
+# Récupérer le mode sélectionné
+optimization_mode = st.session_state.optimization_mode
+
+st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
 
 # Définir max_combos avec valeur par défaut
-max_combos = 50  # Valeur par défaut
-n_workers = 12  # Valeur par défaut
+max_combos = 2000000  # Valeur par défaut augmentée
+n_workers = 30  # Valeur par défaut augmentée
 
 if optimization_mode == "Grille de Paramètres":
     max_combos = st.sidebar.number_input(
         "Max combinaisons",
         min_value=10,
-        max_value=1000000,
-        value=10000,
-        step=1000,
-        help="Limite pour éviter les temps d'exécution trop longs (10 - 1,000,000)"
+        max_value=2000000,
+        value=2000000,
+        step=10000,
+        help="Limite pour éviter les temps d'exécution trop longs (10 - 2,000,000)"
     )
-    
+
     n_workers = st.sidebar.slider(
         "Workers parallèles",
         min_value=1,
         max_value=32,
-        value=12,
-        help="Nombre de processus parallèles pour l'optimisation (12 recommandé)"
+        value=30,
+        help="Nombre de processus parallèles pour l'optimisation (30 recommandé)"
     )
 
 # --- Configuration LLM (si mode LLM sélectionné) ---
@@ -673,7 +802,36 @@ role_model_config = None  # Configuration multi-modèles par rôle
 if optimization_mode == "🤖 Optimisation LLM":
     st.sidebar.markdown("---")
     st.sidebar.subheader("🧠 Configuration LLM")
-    
+
+    # === NOUVELLE SECTION: Paramètres d'exécution ===
+    st.sidebar.markdown("---")
+    st.sidebar.caption("**⚙️ Paramètres d'exécution**")
+
+    max_combos = st.sidebar.number_input(
+        "Max combinaisons",
+        min_value=10,
+        max_value=2000000,
+        value=2000000,
+        step=10000,
+        help="Nombre maximum de backtests que le LLM peut lancer (10 - 2,000,000)",
+        key="llm_max_combos"
+    )
+
+    n_workers = st.sidebar.slider(
+        "Workers parallèles",
+        min_value=1,
+        max_value=32,
+        value=30,
+        help="Nombre de backtests exécutés en parallèle (30 recommandé)",
+        key="llm_n_workers"
+    )
+
+    st.sidebar.caption(
+        f"🔧 Parallélisation: jusqu'à {n_workers} backtests simultanés"
+    )
+    # === FIN NOUVELLE SECTION ===
+    st.sidebar.markdown("---")
+
     if not LLM_AVAILABLE:
         st.sidebar.error("❌ Module LLM non disponible")
         st.sidebar.caption(f"Erreur: {LLM_IMPORT_ERROR}")
@@ -989,18 +1147,15 @@ initial_capital = st.sidebar.number_input(
 )
 
 
-# --- Bouton Exécution ---
-st.sidebar.markdown("---")
-run_button = st.sidebar.button(
-    "🚀 Lancer le Backtest", type="primary", width="stretch"
-)
-
-
 # ============================================================================
 # ZONE PRINCIPALE - EXÉCUTION ET RÉSULTATS
 # ============================================================================
 
 if run_button:
+    # Activer le flag d'exécution
+    st.session_state.is_running = True
+    st.session_state.stop_requested = False
+
     # Validation globale des paramètres
     is_valid, errors = validate_all_params(params)
 
@@ -1009,6 +1164,7 @@ if run_button:
             show_status("error", "Paramètres invalides")
             for err in errors:
                 st.error(f"  • {err}")
+        st.session_state.is_running = False
         st.stop()
 
     # Étape 1: Chargement des données
@@ -1025,6 +1181,7 @@ if run_button:
                     "💡 Vérifiez les fichiers dans "
                     "`D:\\ThreadX_big\\data\\crypto\\processed\\parquet\\`"
                 )
+            st.session_state.is_running = False
             st.stop()
 
         with status_container:
@@ -1044,6 +1201,7 @@ if run_button:
         if result is None:
             with status_container:
                 show_status("error", f"Échec backtest: {result_msg}")
+            st.session_state.is_running = False
             st.stop()
 
         with status_container:
@@ -1099,6 +1257,7 @@ if run_button:
 
             except Exception as e:
                 show_status("error", f"Échec génération grille: {e}")
+                st.session_state.is_running = False
                 st.stop()
 
         # Exécution de la grille (parallèle si workers > 1)
@@ -1221,6 +1380,7 @@ if run_button:
             )
         else:
             show_status("error", "Aucun résultat valide")
+            st.session_state.is_running = False
             st.stop()
 
     elif optimization_mode == "🤖 Optimisation LLM":
@@ -1229,11 +1389,13 @@ if run_button:
         if not LLM_AVAILABLE:
             show_status("error", "Module agents LLM non disponible")
             st.code(LLM_IMPORT_ERROR)
+            st.session_state.is_running = False
             st.stop()
-        
+
         if llm_config is None:
             show_status("error", "Configuration LLM incomplète")
             st.info("Configurez le provider LLM dans la sidebar")
+            st.session_state.is_running = False
             st.stop()
         
         # Récupérer les bornes des paramètres pour la stratégie
@@ -1306,6 +1468,7 @@ if run_button:
             except Exception as e:
                 show_status("error", f"Échec connexion LLM: {e}")
                 st.code(traceback.format_exc())
+                st.session_state.is_running = False
                 st.stop()
         
         # Exécuter l'optimisation
@@ -1338,12 +1501,15 @@ if run_button:
                     category="thinking"
                 )
 
-                # Lancer l'optimisation autonome
+                # Informer l'utilisateur de la configuration
+                st.caption(f"🔧 Limite: {max_combos:,} backtests max, {n_workers} workers")
+
+                # Lancer l'optimisation autonome avec limite
                 session = strategist.optimize(
                     executor=executor,
                     initial_params=params,
                     param_bounds=param_bounds,
-                    max_iterations=llm_max_iterations,
+                    max_iterations=min(llm_max_iterations, max_combos),  # Limiter par max_combos
                     min_sharpe=2.0,  # Objectif ambitieux
                 )
 
@@ -1425,11 +1591,13 @@ if run_button:
         except Exception as e:
             show_status("error", f"Erreur optimisation LLM: {e}")
             st.code(traceback.format_exc())
+            st.session_state.is_running = False
             st.stop()
 
     else:
         # Mode non reconnu
         show_status("error", f"Mode non reconnu: {optimization_mode}")
+        st.session_state.is_running = False
         st.stop()
 
     # ============================================================================
@@ -1564,12 +1732,15 @@ if run_button:
     elif result is not None:
         st.info("Aucun trade exécuté pendant cette période")
 
+    # Réinitialiser le flag d'exécution à la fin
+    st.session_state.is_running = False
+
 else:
     # ============================================================================
     # ÉCRAN D'ACCUEIL
     # ============================================================================
 
-    st.info("👈 Configurez puis cliquez sur **Lancer le Backtest**")
+    st.info("👆 Configurez dans la sidebar puis cliquez sur **🚀 Lancer le Backtest**")
 
     # Onglets d'information
     tab1, tab2, tab3, tab4 = st.tabs(
