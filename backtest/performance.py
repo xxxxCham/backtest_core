@@ -172,12 +172,16 @@ def sharpe_ratio(
         - La méthode "daily_resample" est recommandée et évite tous les biais liés
           aux equity sparse (qui ne changent qu'aux trades)
     """
-    if returns.empty:
+    # Gérer numpy array et pandas Series
+    if isinstance(returns, np.ndarray):
+        if returns.size == 0:
+            return 0.0
+    elif hasattr(returns, 'empty') and returns.empty:
         return 0.0
 
     # Méthode daily_resample : resample equity en quotidien
     if method == "daily_resample":
-        if equity is None or equity.empty:
+        if equity is None or (hasattr(equity, 'empty') and equity.empty):
             logger.warning("daily_resample nécessite equity, fallback sur standard")
             method = "standard"
         else:
@@ -199,8 +203,13 @@ def sharpe_ratio(
                 method = "standard"
                 # periods_per_year reste 252 (jours de trading)
 
-    returns_clean = returns.dropna()
-    if returns_clean.empty or len(returns_clean) < 2:
+    # Gérer numpy array et pandas Series pour dropna
+    if isinstance(returns, np.ndarray):
+        returns_clean = returns[~np.isnan(returns)]
+    else:
+        returns_clean = returns.dropna()
+    
+    if len(returns_clean) < 2:
         return 0.0
 
     # Filtrer les returns nuls si méthode trading_days
@@ -216,13 +225,32 @@ def sharpe_ratio(
     mean_excess = excess_returns.mean()
     std_returns = returns_clean.std(ddof=1)
 
-    if std_returns <= 1e-10:
-        # Volatilité nulle : rendements constants
-        # Convention: Sharpe = 0 plutôt que inf
+    # ⚠️ GARDE EPSILON RENFORCÉE pour éviter Sharpe aberrants
+    # Si variance trop faible (<0.1% annualisé), considérer comme constant
+    min_annual_vol = 0.001  # 0.1% minimum de volatilité annualisée
+    min_period_std = min_annual_vol / np.sqrt(periods_per_year)
+    
+    if std_returns < min_period_std:
+        # Volatilité trop faible : rendements quasi-constants
+        # ⚠️ Retourner 0 au lieu de Sharpe aberrant (±50, ±100, etc.)
+        logger.debug(
+            "sharpe_ratio_zero_volatility std=%.6f < min=%.6f, returns=%s samples",
+            std_returns, min_period_std, len(returns_clean)
+        )
         return 0.0
 
     # Annualisation
     sharpe = (mean_excess * np.sqrt(periods_per_year)) / std_returns
+    
+    # ⚠️ PLAFONNEMENT pour éviter valeurs aberrantes dues à variance instable
+    # En réalité, un Sharpe >10 est extrêmement rare (hedge funds top: 3-5)
+    MAX_SHARPE = 20.0
+    if abs(sharpe) > MAX_SHARPE:
+        logger.warning(
+            "sharpe_ratio_clamped value=%.2f clamped_to=±%.1f std=%.6f mean=%.6f samples=%s",
+            sharpe, MAX_SHARPE, std_returns, mean_excess, len(returns_clean)
+        )
+        sharpe = np.sign(sharpe) * MAX_SHARPE
 
     return float(sharpe)
 
@@ -318,7 +346,7 @@ def calculate_metrics(
     initial_capital: float = 10000.0,
     periods_per_year: int = 252,  # Jours de trading par défaut
     include_tier_s: bool = False,
-    sharpe_method: str = "trading_days"  # "standard" ou "trading_days"
+    sharpe_method: str = "daily_resample"  # "standard", "trading_days" ou "daily_resample"
 ) -> Dict[str, Any]:
     """
     Calcule toutes les métriques de performance.
@@ -332,7 +360,8 @@ def calculate_metrics(
                          (défaut: 252 jours de trading, standard industrie)
         include_tier_s: Inclure métriques Tier S avancées
         sharpe_method: Méthode de calcul du Sharpe/Sortino:
-                      - "trading_days": Filtre les returns nuls (recommandé pour equity sparse)
+                      - "daily_resample": Resample equity en quotidien (RECOMMANDÉ, standard industrie)
+                      - "trading_days": Filtre les returns nuls (incomplet, non recommandé)
                       - "standard": Utilise tous les returns (peut donner valeurs aberrantes)
 
     Returns:
@@ -341,7 +370,7 @@ def calculate_metrics(
     Notes:
         - Le Sharpe/Sortino sont calculés avec periods_per_year=252 par défaut
           (jours de trading), indépendamment du timeframe des données
-        - La méthode "trading_days" évite les biais liés aux equity "sparse"
+        - La méthode "daily_resample" évite les biais liés aux equity "sparse"
           (qui ne changent qu'aux trades, créant beaucoup de returns nuls)
     """
     metrics = {}
@@ -510,7 +539,7 @@ class PerformanceCalculator:
         returns: pd.Series,
         trades_df: pd.DataFrame,
         periods_per_year: int = 252,
-        sharpe_method: str = "trading_days"
+        sharpe_method: str = "daily_resample"
     ) -> Dict[str, Any]:
         """
         Calcule un résumé complet des performances.
@@ -519,7 +548,7 @@ class PerformanceCalculator:
             returns: Série de rendements
             trades_df: DataFrame des trades
             periods_per_year: Périodes par an (défaut: 252 jours de trading)
-            sharpe_method: Méthode de calcul Sharpe ("trading_days" ou "standard")
+            sharpe_method: Méthode de calcul Sharpe ("daily_resample", "trading_days" ou "standard")
 
         Returns:
             Dict des métriques calculées
