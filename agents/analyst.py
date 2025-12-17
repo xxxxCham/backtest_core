@@ -18,7 +18,7 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ValidationError, Field, validator
+from pydantic import BaseModel, ValidationError, Field, field_validator
 
 from .base_agent import (
     AgentContext,
@@ -66,12 +66,16 @@ class AnalysisResponse(BaseModel):
     proceed_to_optimization: bool
     reasoning: str = Field(..., min_length=10)
     
-    @validator('strengths', 'weaknesses', 'concerns', 'recommendations', each_item=True)
+    @field_validator('strengths', 'weaknesses', 'concerns', 'recommendations', mode='after')
+    @classmethod
     def validate_non_empty_strings(cls, v):
         """Valide que les items de liste ne sont pas vides."""
-        if not v or not v.strip():
-            raise ValueError("Les items de liste ne doivent pas être vides")
-        return v.strip()
+        if isinstance(v, list):
+            for item in v:
+                if isinstance(item, str) and not item.strip():
+                    raise ValueError("Les items de liste ne doivent pas être vides")
+            return [item.strip() if isinstance(item, str) else item for item in v]
+        return v
 
 
 class AnalystAgent(BaseAgent):
@@ -260,7 +264,7 @@ Respond ONLY in valid JSON format with this exact structure:
         """
         try:
             # Validation Pydantic - lève ValidationError si invalide
-            validated = AnalysisResponse.parse_obj(analysis)
+            validated = AnalysisResponse.model_validate(analysis)
             
             # Validation réussie
             logger.debug(

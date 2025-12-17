@@ -123,10 +123,10 @@ class EMACrossStrategy(StrategyBase):
         fast_above_prev = fast_above_shifted.where(fast_above_shifted.notna(), False)
 
         # Golden Cross: fast passe au-dessus de slow
-        golden_cross = fast_above & ~fast_above_prev
+        golden_cross = fast_above & fast_above_prev.eq(False)
 
         # Death Cross: fast passe en dessous de slow
-        death_cross = ~fast_above & fast_above_prev
+        death_cross = fast_above.eq(False) & fast_above_prev
 
         signals[golden_cross] = 1.0
         signals[death_cross] = -1.0

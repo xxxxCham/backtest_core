@@ -10,12 +10,27 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+import numpy as np
 import pandas as pd
 
 
 # =============================================================================
 # UTILITAIRES
 # =============================================================================
+
+# Système d'alias pour métriques CLI
+METRIC_ALIASES = {
+    "sharpe": "sharpe_ratio",
+    "sortino": "sortino_ratio",
+    # Accepter aussi les formes complètes
+    "sharpe_ratio": "sharpe_ratio",
+    "sortino_ratio": "sortino_ratio",
+}
+
+def normalize_metric_name(metric: str) -> str:
+    """Normalise le nom d'une métrique CLI en nom interne."""
+    return METRIC_ALIASES.get(metric, metric)
+
 
 class Colors:
     """Codes couleurs ANSI pour le terminal."""
@@ -652,10 +667,13 @@ def cmd_sweep(args) -> int:
             else:
                 metrics = dict(result.metrics)
             
+            # Normaliser le nom de la métrique
+            metric_key = normalize_metric_name(args.metric)
+            
             results.append({
                 "params": params,
                 "metrics": metrics,
-                "score": metrics.get(f"{args.metric}_ratio" if args.metric in ["sharpe", "sortino"] else args.metric, 0),
+                "score": metrics.get(metric_key, 0),
             })
         except Exception as e:
             if args.verbose:
@@ -668,8 +686,8 @@ def cmd_sweep(args) -> int:
     if not args.quiet:
         print("\r" + " " * 50 + "\r", end="")
     
-    # Trier par score
-    metric_key = f"{args.metric}_ratio" if args.metric in ["sharpe", "sortino"] else args.metric
+    # Trier par score (métrique déjà normalisée)
+    metric_key = normalize_metric_name(args.metric)
     reverse = args.metric != "max_drawdown"  # Plus bas = mieux pour drawdown
     
     results.sort(key=lambda x: x.get("score", 0), reverse=reverse)
@@ -1093,8 +1111,8 @@ def cmd_optuna(args) -> int:
                     print(f"    Valeurs: {sol['values']}")
                     print()
         else:
-            # Mono-objectif
-            metric_key = f"{args.metric}_ratio" if args.metric in ["sharpe", "sortino"] else args.metric
+            # Mono-objectif (normaliser la métrique)
+            metric_key = normalize_metric_name(args.metric)
             direction = "minimize" if args.metric == "max_drawdown" else "maximize"
             
             result = optimizer.optimize(

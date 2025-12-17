@@ -221,7 +221,7 @@ class ExecutionEngine:
             # Calcul vectorisé avec pandas rolling (100x plus rapide)
             returns_series = pd.Series(returns)
             volatility_series = returns_series.rolling(window=window, min_periods=window).std()
-            self._volatility = volatility_series.fillna(method='bfill').values
+            self._volatility = volatility_series.bfill().values
             
             # Normaliser (0-1 scale basé sur percentiles)
             if np.max(self._volatility) > 0:
@@ -245,7 +245,7 @@ class ExecutionEngine:
             # Calcul vectorisé avec pandas rolling (100x plus rapide)
             volumes_series = pd.Series(volumes)
             avg_volume = volumes_series.rolling(window=window, min_periods=window).mean()
-            avg_volume = avg_volume.fillna(method='bfill').values
+            avg_volume = avg_volume.bfill().values
             
             # Éviter division par zéro
             avg_volume = np.where(avg_volume == 0, 1.0, avg_volume)

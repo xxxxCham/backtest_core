@@ -140,7 +140,7 @@ class TestAnalysisResponse:
     
     def test_valid_analysis_complete(self, valid_analysis_data):
         """Test avec analyse complète valide."""
-        analysis = AnalysisResponse.parse_obj(valid_analysis_data)
+        analysis = AnalysisResponse.model_validate(valid_analysis_data)
         
         assert analysis.summary == valid_analysis_data["summary"]
         assert analysis.performance_rating == "GOOD"
@@ -158,7 +158,7 @@ class TestAnalysisResponse:
         del valid_analysis_data["summary"]
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any(err["loc"] == ("summary",) for err in errors)
@@ -168,7 +168,7 @@ class TestAnalysisResponse:
         valid_analysis_data["performance_rating"] = "INVALID_RATING"
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any("performance_rating" in str(err["loc"]) for err in errors)
@@ -180,7 +180,7 @@ class TestAnalysisResponse:
         valid_analysis_data["risk_rating"] = "SUPER_HIGH"
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any("risk_rating" in str(err["loc"]) for err in errors)
@@ -190,7 +190,7 @@ class TestAnalysisResponse:
         valid_analysis_data["overfitting_risk"] = "MAYBE"
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any("overfitting_risk" in str(err["loc"]) for err in errors)
@@ -200,7 +200,7 @@ class TestAnalysisResponse:
         valid_analysis_data["strengths"] = []
         
         # Devrait passer car default_factory=list
-        analysis = AnalysisResponse.parse_obj(valid_analysis_data)
+        analysis = AnalysisResponse.model_validate(valid_analysis_data)
         assert analysis.strengths == []
     
     def test_empty_string_in_strengths(self, valid_analysis_data):
@@ -208,7 +208,7 @@ class TestAnalysisResponse:
         valid_analysis_data["strengths"] = ["Good metric", "", "Another strength"]
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         # Le validateur custom doit rejeter les strings vides
@@ -219,7 +219,7 @@ class TestAnalysisResponse:
         valid_analysis_data["weaknesses"] = ["Valid weakness", "   ", "Another weakness"]
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert len(errors) > 0
@@ -229,7 +229,7 @@ class TestAnalysisResponse:
         del valid_analysis_data["key_metrics_assessment"]
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any(err["loc"] == ("key_metrics_assessment",) for err in errors)
@@ -240,7 +240,7 @@ class TestAnalysisResponse:
         del valid_analysis_data["key_metrics_assessment"]["profit_factor"]
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any("profit_factor" in str(err["loc"]) for err in errors)
@@ -250,7 +250,7 @@ class TestAnalysisResponse:
         valid_analysis_data["proceed_to_optimization"] = "maybe"  # Pas convertible en bool
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any("proceed_to_optimization" in str(err["loc"]) for err in errors)
@@ -260,7 +260,7 @@ class TestAnalysisResponse:
         valid_analysis_data["summary"] = "Short"  # < 10 caractères
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any(err["loc"] == ("summary",) for err in errors)
@@ -272,7 +272,7 @@ class TestAnalysisResponse:
         valid_analysis_data["reasoning"] = "Ok"  # < 10 caractères
         
         with pytest.raises(ValidationError) as exc_info:
-            AnalysisResponse.parse_obj(valid_analysis_data)
+            AnalysisResponse.model_validate(valid_analysis_data)
         
         errors = exc_info.value.errors()
         assert any(err["loc"] == ("reasoning",) for err in errors)
@@ -283,7 +283,7 @@ class TestAnalysisResponse:
         
         for rating in valid_ratings:
             valid_analysis_data["performance_rating"] = rating
-            analysis = AnalysisResponse.parse_obj(valid_analysis_data)
+            analysis = AnalysisResponse.model_validate(valid_analysis_data)
             assert analysis.performance_rating == rating
     
     def test_all_valid_risk_ratings(self, valid_analysis_data):
@@ -292,7 +292,7 @@ class TestAnalysisResponse:
         
         for rating in valid_ratings:
             valid_analysis_data["risk_rating"] = rating
-            analysis = AnalysisResponse.parse_obj(valid_analysis_data)
+            analysis = AnalysisResponse.model_validate(valid_analysis_data)
             assert analysis.risk_rating == rating
     
     def test_all_valid_overfitting_risks(self, valid_analysis_data):
@@ -301,7 +301,7 @@ class TestAnalysisResponse:
         
         for risk in valid_risks:
             valid_analysis_data["overfitting_risk"] = risk
-            analysis = AnalysisResponse.parse_obj(valid_analysis_data)
+            analysis = AnalysisResponse.model_validate(valid_analysis_data)
             assert analysis.overfitting_risk == risk
 
 

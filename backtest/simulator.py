@@ -311,25 +311,23 @@ def calculate_equity_curve(
     if trades_df.empty:
         return equity
 
+    # ⚠️ FIX: Harmoniser les timezones AVANT la boucle
+    exit_ts_series = pd.to_datetime(trades_df["exit_ts"])
+    if hasattr(df.index, 'tz') and df.index.tz is not None:
+        if exit_ts_series.dt.tz is None:
+            # exit_ts naive, df.index aware → localiser
+            exit_ts_series = exit_ts_series.dt.tz_localize(df.index.tz)
+        elif exit_ts_series.dt.tz != df.index.tz:
+            # Timezones différentes → convertir
+            exit_ts_series = exit_ts_series.dt.tz_convert(df.index.tz)
+
     capital = initial_capital
 
-    for _, trade in trades_df.iterrows():
-        exit_ts = trade["exit_ts"]
+    for idx, (_, trade) in enumerate(trades_df.iterrows()):
+        exit_ts = exit_ts_series.iloc[idx]
         pnl = trade["pnl"]
 
-        # Pendant le trade, l'équité varie avec le P&L latent
-        # Pour simplifier, on met à jour à la sortie
-        # Convertir exit_ts au même type que l'index
-        if hasattr(df.index, 'tz') and df.index.tz is not None:
-            # Index avec timezone
-            if not hasattr(exit_ts, 'tz') or exit_ts.tz is None:
-                exit_ts = pd.Timestamp(exit_ts, tz=df.index.tz)
-            else:
-                exit_ts = pd.Timestamp(exit_ts).tz_convert(df.index.tz)
-        else:
-            # Index sans timezone
-            exit_ts = pd.Timestamp(exit_ts).tz_localize(None) if hasattr(exit_ts, 'tz') and exit_ts.tz else pd.Timestamp(exit_ts)
-
+        # Mettre à jour l'équité à partir de la sortie du trade
         mask = (df.index >= exit_ts)
         capital += pnl
         equity[mask] = capital

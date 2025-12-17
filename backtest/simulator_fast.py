@@ -448,6 +448,15 @@ def calculate_equity_fast(
     exit_ts = pd.to_datetime(trades_df["exit_ts"])
     pnls = trades_df["pnl"].values.astype(np.float64)
     
+    # ⚠️ FIX: Harmoniser les timezones (exit_ts naive → UTC si df.index a UTC)
+    if hasattr(df.index, 'tz') and df.index.tz is not None:
+        if exit_ts.dt.tz is None:
+            # exit_ts est naive, df.index est aware → localiser exit_ts
+            exit_ts = exit_ts.dt.tz_localize(df.index.tz)
+        elif exit_ts.dt.tz != df.index.tz:
+            # Timezones différentes → convertir exit_ts vers celle de df.index
+            exit_ts = exit_ts.dt.tz_convert(df.index.tz)
+    
     # Créer lookup rapide
     ts_to_idx = {ts: i for i, ts in enumerate(df.index)}
     exit_indices = np.array([ts_to_idx.get(ts, n_bars - 1) for ts in exit_ts], dtype=np.int64)

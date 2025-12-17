@@ -192,9 +192,9 @@ Exemples:
     )
     sweep_parser.add_argument(
         "-m", "--metric",
-        choices=["sharpe", "sortino", "total_return", "max_drawdown", "win_rate", "profit_factor"],
+        choices=["sharpe", "sharpe_ratio", "sortino", "sortino_ratio", "total_return", "max_drawdown", "win_rate", "profit_factor"],
         default="sharpe",
-        help="Métrique d'optimisation (défaut: sharpe)"
+        help="Métrique d'optimisation. Accepte sharpe/sharpe_ratio, sortino/sortino_ratio (défaut: sharpe)"
     )
     sweep_parser.add_argument(
 

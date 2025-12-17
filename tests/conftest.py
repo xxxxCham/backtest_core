@@ -8,9 +8,14 @@ Configuration pytest pour résoudre les imports correctement.
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
+
+# Enregistrer les marks personnalisés
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: marque les tests lents qui peuvent être sautés"
+    )
 
 # Ajouter la racine du projet au path pour les imports
 ROOT_DIR = Path(__file__).parent.parent
@@ -21,6 +26,8 @@ if str(ROOT_DIR) not in sys.path:
 @pytest.fixture
 def sample_ohlcv():
     """Génère des données OHLCV de test."""
+    import numpy as np  # Import local pour éviter le rechargement
+    
     np.random.seed(42)
     n = 100
 

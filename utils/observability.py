@@ -34,7 +34,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar
@@ -71,7 +71,7 @@ class JSONFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         log_obj = {
-            "ts": datetime.utcnow().isoformat() + "Z",
+            "ts": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -531,7 +531,7 @@ def build_diagnostic_summary(
 
     return DiagnosticPack(
         run_id=run_id,
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat(),
         strategy=request.get("strategy"),
         symbol=request.get("symbol"),
         timeframe=request.get("timeframe"),

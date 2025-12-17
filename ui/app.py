@@ -13,7 +13,9 @@ Lancer avec: streamlit run ui/app.py
 
 import ast
 import sys
+import time
 import traceback
+from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -219,6 +221,157 @@ PARAM_CONSTRAINTS = {
 # ============================================================================
 # FONCTIONS UTILITAIRES
 # ============================================================================
+
+
+class ProgressMonitor:
+    """
+    Moniteur de progression en temps réel pour les backtests.
+
+    Calcule la vitesse d'exécution et estime le temps restant en utilisant
+    une moyenne glissante sur les 3 dernières secondes.
+    """
+
+    def __init__(self, total_runs: int):
+        """
+        Initialise le moniteur.
+
+        Args:
+            total_runs: Nombre total d'itérations à effectuer
+        """
+        self.total_runs = total_runs
+        self.runs_completed = 0
+        self.start_time = time.perf_counter()
+        self.timestamps = deque(maxlen=3)  # 3 derniers horodatages
+        self.last_update_time = self.start_time
+
+    def update(self, runs_completed: int) -> Dict[str, Any]:
+        """
+        Met à jour le moniteur avec le nombre d'itérations complétées.
+
+        Args:
+            runs_completed: Nombre d'itérations complétées
+
+        Returns:
+            Dict avec les métriques calculées
+        """
+        self.runs_completed = runs_completed
+        current_time = time.perf_counter()
+
+        # Ajouter timestamp actuel
+        self.timestamps.append(current_time)
+
+        # Calculer la vitesse (moyenne glissante sur 3 timestamps)
+        if len(self.timestamps) >= 2:
+            time_span = self.timestamps[-1] - self.timestamps[0]
+            runs_in_span = min(len(self.timestamps), runs_completed)
+
+            if time_span > 0:
+                iteration_speed_per_sec = runs_in_span / time_span
+                iteration_speed_per_min = iteration_speed_per_sec * 60
+            else:
+                iteration_speed_per_sec = 0
+                iteration_speed_per_min = 0
+        else:
+            iteration_speed_per_sec = 0
+            iteration_speed_per_min = 0
+
+        # Temps écoulé total
+        elapsed_time = current_time - self.start_time
+
+        # Estimation du temps restant
+        remaining_runs = self.total_runs - runs_completed
+        if iteration_speed_per_sec > 0 and remaining_runs > 0:
+            time_remaining_sec = remaining_runs / iteration_speed_per_sec
+        else:
+            time_remaining_sec = 0
+
+        # Progression
+        progress = runs_completed / self.total_runs if self.total_runs > 0 else 0
+
+        self.last_update_time = current_time
+
+        return {
+            "progress": progress,
+            "runs_completed": runs_completed,
+            "total_runs": self.total_runs,
+            "speed_per_min": iteration_speed_per_min,
+            "speed_per_sec": iteration_speed_per_sec,
+            "elapsed_time_sec": elapsed_time,
+            "time_remaining_sec": time_remaining_sec,
+        }
+
+    def format_time(self, seconds: float) -> str:
+        """
+        Formate un temps en secondes en format lisible.
+
+        Args:
+            seconds: Temps en secondes
+
+        Returns:
+            String formaté (ex: "2h 15m 30s")
+        """
+        if seconds <= 0:
+            return "0s"
+
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+
+        parts = []
+        if hours > 0:
+            parts.append(f"{hours}h")
+        if minutes > 0:
+            parts.append(f"{minutes}m")
+        if secs > 0 or not parts:
+            parts.append(f"{secs}s")
+
+        return " ".join(parts)
+
+
+def render_progress_monitor(monitor: ProgressMonitor, placeholder) -> None:
+    """
+    Affiche le moniteur de progression en temps réel.
+
+    Args:
+        monitor: Instance du ProgressMonitor
+        placeholder: Placeholder Streamlit pour l'affichage
+    """
+    metrics = monitor.update(monitor.runs_completed)
+
+    with placeholder.container():
+        # Barre de progression
+        st.progress(metrics["progress"])
+
+        # Métriques en colonnes
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric(
+                "Progression",
+                f"{metrics['runs_completed']}/{metrics['total_runs']}",
+                f"{metrics['progress']*100:.1f}%"
+            )
+
+        with col2:
+            st.metric(
+                "Vitesse",
+                f"{metrics['speed_per_min']:.1f}/min",
+                f"{metrics['speed_per_sec']:.2f}/s"
+            )
+
+        with col3:
+            elapsed_str = monitor.format_time(metrics['elapsed_time_sec'])
+            st.metric(
+                "Temps écoulé",
+                elapsed_str
+            )
+
+        with col4:
+            remaining_str = monitor.format_time(metrics['time_remaining_sec'])
+            st.metric(
+                "Temps restant",
+                remaining_str
+            )
 
 
 def show_status(status_type: str, message: str, details: Optional[str] = None):
@@ -1263,8 +1416,14 @@ if run_button:
         # Exécution de la grille (parallèle si workers > 1)
         results_list = []
         param_combos_map = {}  # Pour retrouver le dict original
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+
+        # Créer le moniteur de progression
+        monitor = ProgressMonitor(total_runs=len(param_grid))
+        monitor_placeholder = st.empty()
+
+        # Affichage initial du moniteur
+        st.markdown("### 📊 Progression en temps réel")
+        render_progress_monitor(monitor, monitor_placeholder)
         
         # Fonction pour un seul backtest (pour parallélisation)
         def run_single_backtest(param_combo):
@@ -1309,44 +1468,45 @@ if run_button:
         # Exécution parallèle ou séquentielle selon n_workers
         if n_workers > 1 and len(param_grid) > 1:
             from concurrent.futures import ThreadPoolExecutor, as_completed
-            
-            status_text.text(f"Exécution parallèle avec {n_workers} workers...")
-            
+
             with ThreadPoolExecutor(max_workers=n_workers) as executor:
                 # Soumettre tous les jobs
                 future_to_params = {
-                    executor.submit(run_single_backtest, combo): combo 
+                    executor.submit(run_single_backtest, combo): combo
                     for combo in param_grid
                 }
-                
+
                 completed = 0
                 for future in as_completed(future_to_params):
                     completed += 1
-                    status_text.text(f"Test {completed}/{len(param_grid)} (parallèle, {n_workers} workers)")
-                    progress_bar.progress(completed / len(param_grid))
-                    
+
+                    # Mettre à jour le moniteur
+                    monitor.runs_completed = completed
+                    render_progress_monitor(monitor, monitor_placeholder)
+
                     result = future.result()
                     params_str = result.get("params", "")
                     param_combos_map[params_str] = result.get("params_dict", {})
-                    
+
                     # Retirer params_dict du résultat final
                     result_clean = {k: v for k, v in result.items() if k != "params_dict"}
                     results_list.append(result_clean)
         else:
             # Exécution séquentielle
             for i, param_combo in enumerate(param_grid):
-                status_text.text(f"Test {i+1}/{len(param_grid)}")
-                progress_bar.progress((i + 1) / len(param_grid))
+                # Mettre à jour le moniteur
+                monitor.runs_completed = i + 1
+                render_progress_monitor(monitor, monitor_placeholder)
 
                 result = run_single_backtest(param_combo)
                 params_str = result.get("params", "")
                 param_combos_map[params_str] = result.get("params_dict", {})
-                
+
                 result_clean = {k: v for k, v in result.items() if k != "params_dict"}
                 results_list.append(result_clean)
 
-        progress_bar.empty()
-        status_text.empty()
+        # Nettoyer l'affichage du moniteur
+        monitor_placeholder.empty()
 
         # Afficher résultats grille
         with status_container:
@@ -1475,8 +1635,9 @@ if run_button:
         st.markdown("---")
         st.markdown("### 📊 Progression de l'optimisation")
 
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+        # Créer le moniteur de progression (LLM: on suit les itérations)
+        max_iterations = min(llm_max_iterations, max_combos)
+        llm_monitor_placeholder = st.empty()
 
         # Créer deux colonnes: log itérations + stream pensées
         col_logs, col_thinking = st.columns([1, 1])
@@ -1502,14 +1663,14 @@ if run_button:
                 )
 
                 # Informer l'utilisateur de la configuration
-                st.caption(f"🔧 Limite: {max_combos:,} backtests max, {n_workers} workers")
+                st.caption(f"🔧 Limite: {max_combos:,} backtests max, {n_workers} workers, {max_iterations} itérations max")
 
                 # Lancer l'optimisation autonome avec limite
                 session = strategist.optimize(
                     executor=executor,
                     initial_params=params,
                     param_bounds=param_bounds,
-                    max_iterations=min(llm_max_iterations, max_combos),  # Limiter par max_combos
+                    max_iterations=max_iterations,  # Limiter par max_combos
                     min_sharpe=2.0,  # Objectif ambitieux
                 )
 
@@ -1520,8 +1681,12 @@ if run_button:
                     category="conclusion"
                 )
 
-                progress_bar.progress(1.0)
-                status_text.success(f"✅ Optimisation terminée en {session.current_iteration} itérations")
+                # Afficher le résultat final dans le moniteur
+                llm_monitor = ProgressMonitor(total_runs=max_iterations)
+                llm_monitor.runs_completed = session.current_iteration
+                render_progress_monitor(llm_monitor, llm_monitor_placeholder)
+
+                st.success(f"✅ Optimisation terminée en {session.current_iteration} itérations")
 
                 # Afficher l'historique des itérations
                 with iteration_log:

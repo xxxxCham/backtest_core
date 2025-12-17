@@ -478,8 +478,9 @@ class GPUIndicatorCalculator:
                 avg_gain[i] = alpha * gains[i-1] + (1 - alpha) * avg_gain[i-1]
                 avg_loss[i] = alpha * losses[i-1] + (1 - alpha) * avg_loss[i-1]
         
-        # RSI
-        rs = xp.where(avg_loss != 0, avg_gain / avg_loss, 100)
+        # RSI (éviter division par zéro avec np.errstate)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rs = xp.where(avg_loss != 0, avg_gain / avg_loss, 100)
         rsi = 100 - (100 / (1 + rs))
         
         # NaN pour les premières valeurs

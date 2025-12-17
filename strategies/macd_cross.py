@@ -142,10 +142,10 @@ class MACDCrossStrategy(StrategyBase):
         macd_above_prev = macd_above_shifted.where(macd_above_shifted.notna(), False)
 
         # Golden Cross: MACD passe au-dessus de Signal
-        golden_cross = macd_above & ~macd_above_prev
+        golden_cross = macd_above & macd_above_prev.eq(False)
 
         # Death Cross: MACD passe en dessous de Signal
-        death_cross = ~macd_above & macd_above_prev
+        death_cross = macd_above.eq(False) & macd_above_prev
 
         signals[golden_cross] = 1.0
         signals[death_cross] = -1.0
