@@ -1,2 +1,2 @@
 # backtest_core
-Préviens quantitatif algorithmique
+Prévision quantitative algorithmique
