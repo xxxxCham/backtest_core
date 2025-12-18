@@ -2,10 +2,10 @@
 Préviens quantitatif algorithmique
 
 ## Installation
-Pré-requis : Windows 11 Pro (24H2), Python 3.11+ et PowerShell. Placez les sources dans `D:\BackTestCore` et utilisez un environnement virtuel `.venv` pour isoler les dépendances.
+Pré-requis : Windows 11 Pro (24H2), Python 3.11+ et PowerShell. Placez les sources dans `D:\backtest_core` et utilisez un environnement virtuel `.venv` pour isoler les dépendances.
 
 ```powershell
-Set-Location D:\BackTestCore
+Set-Location D:\backtest_core
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -16,7 +16,7 @@ if (Test-Path requirements.txt) { pip install -r requirements.txt } else { pip i
 1. Activez l’environnement virtuel :
 
    ```powershell
-   Set-Location D:\BackTestCore
+   Set-Location D:\backtest_core
    .\.venv\Scripts\Activate.ps1
    ```
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 Exécution dans PowerShell :
 
 ```powershell
-Set-Location D:\BackTestCore
+Set-Location D:\backtest_core
 .\.venv\Scripts\Activate.ps1
 python .\backtest_example.py
 ```
