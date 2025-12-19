@@ -321,7 +321,8 @@ class ProgressMonitor:
         self.total_runs = total_runs
         self.runs_completed = 0
         self.start_time = time.perf_counter()
-        self.timestamps = deque(maxlen=3)  # 3 derniers horodatages
+        # Historique : [(timestamp, runs_completed), ...]
+        self.history = deque(maxlen=3)  # 3 derniers points de mesure
         self.last_update_time = self.start_time
 
     def update(self, runs_completed: int) -> Dict[str, Any]:
@@ -337,15 +338,16 @@ class ProgressMonitor:
         self.runs_completed = runs_completed
         current_time = time.perf_counter()
 
-        # Ajouter timestamp actuel
-        self.timestamps.append(current_time)
+        # Ajouter (timestamp, runs_completed) à l'historique
+        self.history.append((current_time, runs_completed))
 
-        # Calculer la vitesse (moyenne glissante sur 3 timestamps)
-        if len(self.timestamps) >= 2:
-            time_span = self.timestamps[-1] - self.timestamps[0]
-            runs_in_span = min(len(self.timestamps), runs_completed)
+        # Calculer la vitesse (moyenne glissante sur l'historique)
+        if len(self.history) >= 2:
+            # Temps et runs entre premier et dernier point de l'historique
+            time_span = self.history[-1][0] - self.history[0][0]
+            runs_in_span = self.history[-1][1] - self.history[0][1]
 
-            if time_span > 0:
+            if time_span > 0 and runs_in_span > 0:
                 iteration_speed_per_sec = runs_in_span / time_span
                 iteration_speed_per_min = iteration_speed_per_sec * 60
             else:
@@ -435,8 +437,8 @@ def render_progress_monitor(monitor: ProgressMonitor, placeholder) -> None:
         with col2:
             st.metric(
                 "Vitesse",
-                f"{metrics['speed_per_min']:.1f}/min",
-                f"{metrics['speed_per_sec']:.2f}/s"
+                f"{metrics['speed_per_min']:.1f} runs/min",
+                f"{metrics['speed_per_sec']:.2f} runs/s"
             )
 
         with col3:
