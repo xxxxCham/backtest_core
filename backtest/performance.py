@@ -139,116 +139,110 @@ def max_drawdown(equity: pd.Series) -> float:
     return float(dd.min()) if not dd.empty else 0.0
 
 
+
+
 def sharpe_ratio(
     returns: pd.Series,
     risk_free: float = 0.0,
-    periods_per_year: int = 252,  # Jours de trading par défaut
+    periods_per_year: int = 252,  # Jours de trading par defaut
     method: str = "daily_resample",  # "standard", "trading_days" ou "daily_resample"
-    equity: Optional[pd.Series] = None  # Nécessaire pour daily_resample
+    equity: Optional[pd.Series] = None  # Necessaire pour daily_resample
 ) -> float:
-    """
-    Calcule le ratio de Sharpe annualisé.
+    '''
+    Calcule le ratio de Sharpe annualise.
 
-    IMPORTANT: Pour éviter les biais liés aux returns "sparse" (equity qui ne change
-    qu'aux trades), cette fonction peut resampler l'equity en fréquence quotidienne.
-
-    Args:
-        returns: Série de rendements (fractionnaires, ex: 0.01 = 1%)
-        risk_free: Taux sans risque annuel (défaut: 0.0)
-        periods_per_year: Nombre de périodes par an pour l'annualisation
-                         (défaut: 252 jours de trading)
-        method: Méthode de calcul:
-                - "standard": Utilise tous les returns (peut donner des valeurs aberrantes)
-                - "trading_days": Filtre les returns nuls (incomplet, non recommandé)
-                - "daily_resample": Resample equity en quotidien (RECOMMANDÉ, standard industrie)
-        equity: Série d'equity (requis si method="daily_resample")
-
-    Returns:
-        Ratio de Sharpe annualisé
-
-    Notes:
-        - Si std == 0 (rendements constants), retourne 0.0 pour éviter division par zéro
-        - Si < 2 observations non-nulles, retourne 0.0 (Sharpe non calculable)
-        - La méthode "daily_resample" est recommandée et évite tous les biais liés
-          aux equity sparse (qui ne changent qu'aux trades)
-    """
-    # Gérer numpy array et pandas Series
-    if isinstance(returns, np.ndarray):
-        if returns.size == 0:
-            return 0.0
-    elif hasattr(returns, 'empty') and returns.empty:
+    Pour limiter les biais des equity curves "sparse", la methode daily_resample
+    peut resampler l'equity en quotidien avant de calculer les rendements.
+    Des gardes supplmentaires evitent les valeurs aberrantes lorsque seules
+    quelques trades non nuls sont disponibles.
+    '''
+    returns_series = returns.copy() if isinstance(returns, pd.Series) else pd.Series(returns)
+    if returns_series.empty:
         return 0.0
 
-    # Méthode daily_resample : resample equity en quotidien
     if method == "daily_resample":
-        if equity is None or (hasattr(equity, 'empty') and equity.empty):
-            logger.warning("daily_resample nécessite equity, fallback sur standard")
+        if equity is None or (hasattr(equity, "empty") and equity.empty):
+            logger.warning("daily_resample necessite equity, fallback sur standard")
+            method = "standard"
+        elif not isinstance(equity.index, pd.DatetimeIndex):
+            logger.warning("equity.index n'est pas DatetimeIndex, fallback sur standard")
             method = "standard"
         else:
-            # Resample equity en fréquence quotidienne
-            if not isinstance(equity.index, pd.DatetimeIndex):
-                logger.warning("equity.index n'est pas DatetimeIndex, fallback sur standard")
-                method = "standard"
+            equity_daily = equity.resample('D').last().dropna()
+            if len(equity_daily) >= 2:
+                returns_series = equity_daily.pct_change().dropna()
+                periods_per_year = 252  # Annualisation coherente avec des returns quotidiens
             else:
-                # Resample en prenant la dernière valeur de chaque jour
-                equity_daily = equity.resample('D').last().dropna()
+                logger.debug(
+                    "sharpe_ratio_insufficient_daily_data days=%s, fallback to provided returns",
+                    len(equity_daily),
+                )
+            method = "standard"
 
-                if len(equity_daily) < 2:
-                    return 0.0
+    returns_clean = (
+        pd.Series(returns_series, dtype=np.float64)
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+    )
 
-                # Calculer returns quotidiens
-                returns = equity_daily.pct_change().dropna()
-
-                # Continuer avec la méthode standard sur ces returns quotidiens
-                method = "standard"
-                # periods_per_year reste 252 (jours de trading)
-
-    # Gérer numpy array et pandas Series pour dropna
-    if isinstance(returns, np.ndarray):
-        returns_clean = returns[~np.isnan(returns)]
-    else:
-        returns_clean = returns.dropna()
-    
-    if len(returns_clean) < 2:
-        return 0.0
-
-    # Filtrer les returns nuls si méthode trading_days
-    if method == "trading_days":
-        returns_clean = returns_clean[returns_clean != 0.0]
-        if len(returns_clean) < 2:
-            return 0.0
-
-    # Taux sans risque par période
-    rf_period = risk_free / periods_per_year
-
-    excess_returns = returns_clean - rf_period
-    mean_excess = excess_returns.mean()
-    std_returns = returns_clean.std(ddof=1)
-
-    # ⚠️ GARDE EPSILON RENFORCÉE pour éviter Sharpe aberrants
-    # Si variance trop faible (<0.1% annualisé), considérer comme constant
-    min_annual_vol = 0.001  # 0.1% minimum de volatilité annualisée
-    min_period_std = min_annual_vol / np.sqrt(periods_per_year)
-    
-    if std_returns < min_period_std:
-        # Volatilité trop faible : rendements quasi-constants
-        # ⚠️ Retourner 0 au lieu de Sharpe aberrant (±50, ±100, etc.)
+    MIN_SAMPLES_FOR_SHARPE = 3  # Minimum pour un std ddof=1 un minimum de stabilite
+    MIN_NON_ZERO_RETURNS = 3    # Eviter ratios irreels avec 1-2 trades
+    if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
         logger.debug(
-            "sharpe_ratio_zero_volatility std=%.6f < min=%.6f, returns=%s samples",
-            std_returns, min_period_std, len(returns_clean)
+            "sharpe_ratio_insufficient_samples samples=%s < min=%s, returning 0.0",
+            len(returns_clean),
+            MIN_SAMPLES_FOR_SHARPE,
         )
         return 0.0
 
-    # Annualisation
-    sharpe = (mean_excess * np.sqrt(periods_per_year)) / std_returns
-    
-    # ⚠️ PLAFONNEMENT pour éviter valeurs aberrantes dues à variance instable
-    # En réalité, un Sharpe >10 est extrêmement rare (hedge funds top: 3-5)
+    if method == "trading_days":
+        returns_clean = returns_clean[returns_clean != 0.0]
+        if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
+            logger.debug(
+                "sharpe_ratio_insufficient_samples_after_filter samples=%s < min=%s, returning 0.0",
+                len(returns_clean),
+                MIN_SAMPLES_FOR_SHARPE,
+            )
+            return 0.0
+    non_zero_count = int((returns_clean != 0.0).sum())
+    if non_zero_count < MIN_NON_ZERO_RETURNS:
+        logger.debug(
+            "sharpe_ratio_insufficient_non_zero non_zero=%s < min=%s, returning 0.0",
+            non_zero_count,
+            MIN_NON_ZERO_RETURNS,
+        )
+        return 0.0
+
+    periods_per_year = periods_per_year or 0
+    rf_period = risk_free / periods_per_year if periods_per_year else 0.0
+
+    excess_returns = returns_clean - rf_period
+    mean_excess = excess_returns.mean()
+    std_returns = float(returns_clean.std(ddof=1))
+
+    min_annual_vol = 0.001  # 0.1% minimum de volatilite annualisee
+    min_period_std = min_annual_vol / np.sqrt(periods_per_year or 1)
+
+    if not np.isfinite(std_returns) or std_returns < min_period_std:
+        logger.debug(
+            "sharpe_ratio_zero_volatility std=%.6f < min=%.6f, returns=%s samples",
+            std_returns,
+            min_period_std,
+            len(returns_clean),
+        )
+        return 0.0
+
+    sharpe = (mean_excess * np.sqrt(periods_per_year)) / std_returns if periods_per_year else 0.0
+
     MAX_SHARPE = 20.0
     if abs(sharpe) > MAX_SHARPE:
         logger.warning(
-            "sharpe_ratio_clamped value=%.2f clamped_to=±%.1f std=%.6f mean=%.6f samples=%s",
-            sharpe, MAX_SHARPE, std_returns, mean_excess, len(returns_clean)
+            "sharpe_ratio_clamped value=%.2f clamped_to=+/-%.1f std=%.6f mean=%.6f samples=%s",
+            sharpe,
+            MAX_SHARPE,
+            std_returns,
+            mean_excess,
+            len(returns_clean),
         )
         sharpe = np.sign(sharpe) * MAX_SHARPE
 
@@ -293,6 +287,8 @@ def sortino_ratio(
                     return 0.0
                 returns = equity_daily.pct_change().dropna()
                 method = "standard"
+                # ⚠️ IMPORTANT: Après resample quotidien, forcer periods_per_year = 252 (jours de trading)
+                periods_per_year = 252
 
     returns_clean = returns.dropna()
     if returns_clean.empty:
