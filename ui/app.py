@@ -349,13 +349,13 @@ class ProgressMonitor:
 
             if time_span > 0 and runs_in_span > 0:
                 iteration_speed_per_sec = runs_in_span / time_span
-                iteration_speed_per_min = iteration_speed_per_sec * 60
+                iteration_speed_per_2sec = iteration_speed_per_sec * 2
             else:
                 iteration_speed_per_sec = 0
-                iteration_speed_per_min = 0
+                iteration_speed_per_2sec = 0
         else:
             iteration_speed_per_sec = 0
-            iteration_speed_per_min = 0
+            iteration_speed_per_2sec = 0
 
         # Temps écoulé total
         elapsed_time = current_time - self.start_time
@@ -376,7 +376,7 @@ class ProgressMonitor:
             "progress": progress,
             "runs_completed": runs_completed,
             "total_runs": self.total_runs,
-            "speed_per_min": iteration_speed_per_min,
+            "speed_per_2sec": iteration_speed_per_2sec,
             "speed_per_sec": iteration_speed_per_sec,
             "elapsed_time_sec": elapsed_time,
             "time_remaining_sec": time_remaining_sec,
@@ -438,7 +438,7 @@ def render_progress_monitor(monitor: ProgressMonitor, placeholder) -> None:
             st.metric(
                 "Vitesse",
                 f"{metrics['speed_per_sec']:.2f} runs/s",
-                f"{metrics['speed_per_min']:.1f} runs/min"
+                f"{metrics['speed_per_2sec']:.1f} runs/2s"
             )
 
         with col3:
