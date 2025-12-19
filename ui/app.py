@@ -437,8 +437,8 @@ def render_progress_monitor(monitor: ProgressMonitor, placeholder) -> None:
         with col2:
             st.metric(
                 "Vitesse",
-                f"{metrics['speed_per_min']:.1f} runs/min",
-                f"{metrics['speed_per_sec']:.2f} runs/s"
+                f"{metrics['speed_per_sec']:.2f} runs/s",
+                f"{metrics['speed_per_min']:.1f} runs/min"
             )
 
         with col3:
@@ -1596,12 +1596,18 @@ if run_button:
                 }
 
                 completed = 0
+                last_render_time = time.perf_counter()
+
                 for future in as_completed(future_to_params):
                     completed += 1
-
-                    # Mettre à jour le moniteur
                     monitor.runs_completed = completed
-                    render_progress_monitor(monitor, monitor_placeholder)
+
+                    # Throttling : ne mettre à jour l'affichage que toutes les 0.5s
+                    current_time = time.perf_counter()
+                    if current_time - last_render_time >= 0.5:
+                        render_progress_monitor(monitor, monitor_placeholder)
+                        last_render_time = current_time
+                        time.sleep(0.01)  # Laisser Streamlit rafraîchir
 
                     result = future.result()
                     params_str = result.get("params", "")
@@ -1610,12 +1616,22 @@ if run_button:
                     # Retirer params_dict du résultat final
                     result_clean = {k: v for k, v in result.items() if k != "params_dict"}
                     results_list.append(result_clean)
+
+                # Dernier render pour afficher 100%
+                render_progress_monitor(monitor, monitor_placeholder)
         else:
             # Exécution séquentielle
+            last_render_time = time.perf_counter()
+
             for i, param_combo in enumerate(param_grid):
-                # Mettre à jour le moniteur
                 monitor.runs_completed = i + 1
-                render_progress_monitor(monitor, monitor_placeholder)
+
+                # Throttling : ne mettre à jour l'affichage que toutes les 0.5s
+                current_time = time.perf_counter()
+                if current_time - last_render_time >= 0.5:
+                    render_progress_monitor(monitor, monitor_placeholder)
+                    last_render_time = current_time
+                    time.sleep(0.01)  # Laisser Streamlit rafraîchir
 
                 result = run_single_backtest(param_combo)
                 params_str = result.get("params", "")
@@ -1623,6 +1639,9 @@ if run_button:
 
                 result_clean = {k: v for k, v in result.items() if k != "params_dict"}
                 results_list.append(result_clean)
+
+            # Dernier render pour afficher 100%
+            render_progress_monitor(monitor, monitor_placeholder)
 
         # Nettoyer l'affichage du moniteur
         monitor_placeholder.empty()
