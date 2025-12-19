@@ -1,0 +1,76 @@
+"""
+Backtest Core - Volume Weighted Average Price (VWAP)
+====================================================
+
+VWAP = prix moyen pondéré par le volume sur une période.
+Référence institutionnelle pour évaluer si le prix est au-dessus/en-dessous de la moyenne.
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+
+@dataclass
+class VWAPSettings:
+    """Paramètres VWAP."""
+    anchored: bool = False  # Si True, ancré au début des données
+    period: Optional[int] = None  # Si fourni, VWAP glissant
+
+
+def vwap(
+    high: pd.Series | np.ndarray,
+    low: pd.Series | np.ndarray,
+    close: pd.Series | np.ndarray,
+    volume: pd.Series | np.ndarray,
+    period: Optional[int] = None,
+) -> np.ndarray:
+    """
+    Calcule VWAP (Volume Weighted Average Price).
+
+    Args:
+        high: Prix hauts
+        low: Prix bas
+        close: Prix de clôture
+        volume: Volume
+        period: Période glissante (None = ancré depuis début)
+
+    Returns:
+        Valeurs VWAP
+    """
+    if isinstance(high, pd.Series):
+        high = high.values
+    if isinstance(low, pd.Series):
+        low = low.values
+    if isinstance(close, pd.Series):
+        close = close.values
+    if isinstance(volume, pd.Series):
+        volume = volume.values
+
+    # Typical Price
+    typical_price = (high + low + close) / 3.0
+    tp_volume = typical_price * volume
+
+    if period is None:
+        # VWAP ancré (depuis début)
+        cumulative_tp_volume = np.cumsum(tp_volume)
+        cumulative_volume = np.cumsum(volume)
+        vwap_values = np.where(
+            cumulative_volume != 0,
+            cumulative_tp_volume / cumulative_volume,
+            typical_price
+        )
+    else:
+        # VWAP glissant
+        tp_series = pd.Series(tp_volume)
+        vol_series = pd.Series(volume)
+        rolling_tp = tp_series.rolling(window=period).sum().values
+        rolling_vol = vol_series.rolling(window=period).sum().values
+        vwap_values = np.where(rolling_vol != 0, rolling_tp / rolling_vol, typical_price)
+
+    return vwap_values
+
+
+__all__ = ["vwap", "VWAPSettings"]
