@@ -1653,6 +1653,27 @@ if run_button:
             )
 
         results_df = pd.DataFrame(results_list)
+
+        # 🔍 DEBUG: Logging pour investiguer le bug "37.5 trades"
+        if "trades" in results_df.columns:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("=" * 80)
+            logger.info("🔍 DEBUG GRID SEARCH - Analyse de la colonne 'trades'")
+            logger.info(f"   Type: {results_df['trades'].dtype}")
+            logger.info(f"   Shape: {results_df['trades'].shape}")
+            logger.info(f"   Premières valeurs: {results_df['trades'].head(10).tolist()}")
+            logger.info(f"   Stats: min={results_df['trades'].min()}, max={results_df['trades'].max()}, mean={results_df['trades'].mean():.2f}")
+
+            # Vérifier si il y a des floats
+            trades_values = results_df['trades'].values
+            fractional = [x for x in trades_values if isinstance(x, float) and not x.is_integer()]
+            if fractional:
+                logger.warning(f"   ⚠️  {len(fractional)} valeurs fractionnaires détectées: {fractional[:5]}")
+            else:
+                logger.info("   ✅ Toutes les valeurs sont des entiers")
+            logger.info("=" * 80)
+
         error_column = results_df.get("error")
         if error_column is not None:
             valid_results = results_df[error_column.isna()]
@@ -1665,6 +1686,19 @@ if run_button:
             )
 
             st.subheader("🏆 Top 10 Combinaisons")
+
+            # 🔍 Afficher les infos de debug dans l'UI (optionnel)
+            with st.expander("🔍 Debug Info - Types de données"):
+                st.text(f"Nombre de résultats: {len(valid_results)}")
+                st.text("Types des colonnes:")
+                st.text(str(valid_results.dtypes))
+                if "trades" in valid_results.columns:
+                    st.text("\nStatistiques 'trades':")
+                    st.text(f"  Type: {valid_results['trades'].dtype}")
+                    st.text(f"  Min: {valid_results['trades'].min()}")
+                    st.text(f"  Max: {valid_results['trades'].max()}")
+                    st.text(f"  Mean: {valid_results['trades'].mean():.2f}")
+
             st.dataframe(valid_results.head(10), width="stretch")
 
             # Relancer avec le meilleur
