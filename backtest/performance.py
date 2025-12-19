@@ -377,16 +377,17 @@ def calculate_metrics(
         total_pnl = final_equity - initial_capital
         total_return_pct = (total_pnl / initial_capital) * 100
 
-        # Rendement annualisé
-        n_periods = len(equity)
-        if n_periods > 1 and final_equity > 0:
-            years = n_periods / periods_per_year
-            if years > 0:
-                annualized_return = ((final_equity / initial_capital) ** (1 / years) - 1) * 100
-            else:
-                annualized_return = 0.0
-        else:
-            annualized_return = 0.0
+        # Rendement annualisé (calendrier si index datetime)
+        annualized_return = 0.0
+        years = 0.0
+        if isinstance(equity.index, pd.DatetimeIndex) and len(equity) > 1:
+            elapsed_days = (equity.index[-1] - equity.index[0]).total_seconds() / 86400
+            years = elapsed_days / 365 if elapsed_days > 0 else 0.0
+        elif periods_per_year and len(equity) > 1:
+            years = len(equity) / periods_per_year
+
+        if years > 0 and final_equity > 0:
+            annualized_return = ((final_equity / initial_capital) ** (1 / years) - 1) * 100
     else:
         total_pnl = 0.0
         total_return_pct = 0.0
@@ -412,8 +413,16 @@ def calculate_metrics(
     metrics["max_drawdown"] = max_drawdown(equity) * 100  # En %
 
     # Volatilité annualisée
-    if not returns.empty:
-        vol = returns.std() * np.sqrt(periods_per_year) * 100
+    volatility_returns = returns
+    vol_annualization = periods_per_year
+    if sharpe_method == "daily_resample" and isinstance(equity.index, pd.DatetimeIndex):
+        daily_equity = equity.resample("D").last().dropna()
+        if len(daily_equity) >= 2:
+            volatility_returns = daily_equity.pct_change().dropna()
+            vol_annualization = 252
+
+    if not volatility_returns.empty and vol_annualization:
+        vol = volatility_returns.std(ddof=1) * np.sqrt(vol_annualization) * 100
         metrics["volatility_annual"] = vol
     else:
         metrics["volatility_annual"] = 0.0
@@ -422,24 +431,41 @@ def calculate_metrics(
     if not equity.empty:
         dd = drawdown_series(equity)
         if (dd < 0).any():
-            # Trouver les périodes en drawdown
-            in_dd = dd < 0
-            # Compter les barres consécutives
-            dd_lengths = []
-            current = 0
-            for val in in_dd:
-                if val:
-                    current += 1
-                else:
-                    if current > 0:
-                        dd_lengths.append(current)
-                    current = 0
-            if current > 0:
-                dd_lengths.append(current)
+            if isinstance(dd.index, pd.DatetimeIndex):
+                dd_periods = []
+                start_ts = None
+                last_ts = None
+                for ts, in_dd in (dd < 0).items():
+                    if in_dd and start_ts is None:
+                        start_ts = ts
+                    elif not in_dd and start_ts is not None:
+                        end_ts = last_ts if last_ts is not None else ts
+                        dd_periods.append(end_ts - start_ts)
+                        start_ts = None
+                    last_ts = ts
+                if start_ts is not None and last_ts is not None:
+                    dd_periods.append(last_ts - start_ts)
 
-            max_dd_bars = max(dd_lengths) if dd_lengths else 0
-            # Convertir en jours (approximatif selon timeframe)
-            metrics["max_drawdown_duration_days"] = max_dd_bars / (24 * 60)  # Assume 1m
+                metrics["max_drawdown_duration_days"] = (
+                    max((p.total_seconds() / 86400 for p in dd_periods))
+                    if dd_periods else 0.0
+                )
+            else:
+                in_dd = dd < 0
+                dd_lengths = []
+                current = 0
+                for val in in_dd:
+                    if val:
+                        current += 1
+                    else:
+                        if current > 0:
+                            dd_lengths.append(current)
+                        current = 0
+                if current > 0:
+                    dd_lengths.append(current)
+
+                max_dd_bars = max(dd_lengths) if dd_lengths else 0
+                metrics["max_drawdown_duration_days"] = max_dd_bars / (periods_per_year or 1)
         else:
             metrics["max_drawdown_duration_days"] = 0.0
     else:

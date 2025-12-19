@@ -429,38 +429,77 @@ def calculate_equity_fast(
     initial_capital: float = 10000.0
 ) -> pd.Series:
     """
-    Calcule la courbe d'équité de manière optimisée.
-    
+    Calcule la courbe d'équité avec mark-to-market.
+
+    IMPORTANT: Inclut le P&L non réalisé des positions ouvertes.
+
     Args:
         df: DataFrame OHLCV (pour l'index)
         trades_df: DataFrame des trades
         initial_capital: Capital initial
-        
+
     Returns:
-        pd.Series de l'équité
+        pd.Series de l'équité avec mark-to-market
     """
     n_bars = len(df)
-    
+
     if trades_df.empty:
         return pd.Series(initial_capital, index=df.index, dtype=np.float64)
-    
-    # Mapper les timestamps d'exit aux indices
+
+    # Préparer les timestamps et harmoniser les timezones
+    entry_ts = pd.to_datetime(trades_df["entry_ts"])
     exit_ts = pd.to_datetime(trades_df["exit_ts"])
-    pnls = trades_df["pnl"].values.astype(np.float64)
-    
-    # Créer lookup rapide
+
+    # Harmoniser les timezones avec df.index
+    if hasattr(df.index, 'tz') and df.index.tz is not None:
+        if entry_ts.dt.tz is None:
+            entry_ts = entry_ts.dt.tz_localize(df.index.tz)
+        elif entry_ts.dt.tz != df.index.tz:
+            entry_ts = entry_ts.dt.tz_convert(df.index.tz)
+
+        if exit_ts.dt.tz is None:
+            exit_ts = exit_ts.dt.tz_localize(df.index.tz)
+        elif exit_ts.dt.tz != df.index.tz:
+            exit_ts = exit_ts.dt.tz_convert(df.index.tz)
+
+    # Créer lookup rapide timestamp → index
     ts_to_idx = {ts: i for i, ts in enumerate(df.index)}
+
+    # Convertir en indices
+    entry_indices = np.array([ts_to_idx.get(ts, 0) for ts in entry_ts], dtype=np.int64)
     exit_indices = np.array([ts_to_idx.get(ts, n_bars - 1) for ts in exit_ts], dtype=np.int64)
-    
-    if HAS_NUMBA:
-        equity_arr = _calculate_equity_numba(n_bars, exit_indices, pnls, initial_capital)
-    else:
-        # Version numpy
-        equity_arr = np.full(n_bars, initial_capital, dtype=np.float64)
-        capital_changes = np.zeros(n_bars, dtype=np.float64)
-        np.add.at(capital_changes, exit_indices, pnls)
-        equity_arr = initial_capital + np.cumsum(capital_changes)
-    
+
+    # Extraire données des trades
+    pnls = trades_df["pnl"].values.astype(np.float64)
+    entry_prices = trades_df["price_entry"].values.astype(np.float64)
+    sizes = trades_df["size"].values.astype(np.float64)
+    sides = trades_df.get("side", pd.Series(["LONG"] * len(trades_df))).values
+
+    # Prix close pour mark-to-market
+    close_prices = df['close'].values.astype(np.float64)
+
+    # Calculer equity barre par barre avec mark-to-market
+    equity_arr = np.full(n_bars, initial_capital, dtype=np.float64)
+
+    for bar_idx in range(n_bars):
+        # Capital réalisé (somme des P&L des trades clôturés)
+        closed_mask = exit_indices <= bar_idx
+        realized_pnl = pnls[closed_mask].sum() if np.any(closed_mask) else 0.0
+
+        # P&L non réalisé des positions ouvertes
+        open_mask = (entry_indices <= bar_idx) & (exit_indices > bar_idx)
+        unrealized_pnl = 0.0
+
+        if np.any(open_mask):
+            current_price = close_prices[bar_idx]
+            for i in np.where(open_mask)[0]:
+                if sides[i] == 'LONG':
+                    unrealized_pnl += (current_price - entry_prices[i]) * sizes[i]
+                else:  # SHORT
+                    unrealized_pnl += (entry_prices[i] - current_price) * sizes[i]
+
+        equity_arr[bar_idx] = initial_capital + realized_pnl + unrealized_pnl
+
     return pd.Series(equity_arr, index=df.index, dtype=np.float64)
 
 

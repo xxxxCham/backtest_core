@@ -296,7 +296,9 @@ def calculate_equity_curve(
     initial_capital: float = 10000.0
 ) -> pd.Series:
     """
-    Calcule la courbe d'équité à partir des trades.
+    Calcule la courbe d'équité avec mark-to-market.
+
+    IMPORTANT: Inclut le P&L non réalisé des positions ouvertes.
 
     Args:
         df: DataFrame OHLCV (pour l'index temporel)
@@ -304,33 +306,58 @@ def calculate_equity_curve(
         initial_capital: Capital initial
 
     Returns:
-        pd.Series de l'équité au cours du temps
+        pd.Series de l'équité avec mark-to-market
     """
     equity = pd.Series(initial_capital, index=df.index, dtype=np.float64)
 
     if trades_df.empty:
         return equity
 
-    # ⚠️ FIX: Harmoniser les timezones AVANT la boucle
+    # Harmoniser les timezones
+    entry_ts_series = pd.to_datetime(trades_df["entry_ts"])
     exit_ts_series = pd.to_datetime(trades_df["exit_ts"])
+
     if hasattr(df.index, 'tz') and df.index.tz is not None:
+        if entry_ts_series.dt.tz is None:
+            entry_ts_series = entry_ts_series.dt.tz_localize(df.index.tz)
+        elif entry_ts_series.dt.tz != df.index.tz:
+            entry_ts_series = entry_ts_series.dt.tz_convert(df.index.tz)
+
         if exit_ts_series.dt.tz is None:
-            # exit_ts naive, df.index aware → localiser
             exit_ts_series = exit_ts_series.dt.tz_localize(df.index.tz)
         elif exit_ts_series.dt.tz != df.index.tz:
-            # Timezones différentes → convertir
             exit_ts_series = exit_ts_series.dt.tz_convert(df.index.tz)
 
-    capital = initial_capital
+    # Capital réalisé
+    realized_capital = initial_capital
 
-    for idx, (_, trade) in enumerate(trades_df.iterrows()):
-        exit_ts = exit_ts_series.iloc[idx]
-        pnl = trade["pnl"]
+    # Parcourir chaque barre pour calculer equity avec mark-to-market
+    for bar_idx, bar_time in enumerate(df.index):
+        current_price = df['close'].iloc[bar_idx]
 
-        # Mettre à jour l'équité à partir de la sortie du trade
-        mask = (df.index >= exit_ts)
-        capital += pnl
-        equity[mask] = capital
+        # Trades fermés à cette barre
+        closed_trades = trades_df[exit_ts_series <= bar_time]
+        if not closed_trades.empty:
+            realized_capital = initial_capital + closed_trades['pnl'].sum()
+
+        # Positions ouvertes
+        open_trades = trades_df[
+            (entry_ts_series <= bar_time) & (exit_ts_series > bar_time)
+        ]
+
+        unrealized_pnl = 0.0
+        if not open_trades.empty:
+            for _, trade in open_trades.iterrows():
+                entry_price = trade['price_entry']
+                size = trade['size']
+                side = trade.get('side', 'LONG')
+
+                if side == 'LONG':
+                    unrealized_pnl += (current_price - entry_price) * size
+                else:  # SHORT
+                    unrealized_pnl += (entry_price - current_price) * size
+
+        equity.iloc[bar_idx] = realized_capital + unrealized_pnl
 
     return equity
 
