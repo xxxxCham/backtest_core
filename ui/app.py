@@ -1677,11 +1677,7 @@ if run_button:
         
         # Créer le logger d'orchestration
         session_id = generate_session_id()
-        orchestration_logger = OrchestrationLogger(
-            session_id=session_id,
-            strategy_name=strategy_key,
-            save_dir="_runs"
-        )
+        orchestration_logger = OrchestrationLogger(session_id=session_id)
         
         # Récupérer les bornes des paramètres pour la stratégie
         try:

@@ -38,7 +38,11 @@ logger = logging.getLogger(__name__)
 try:
     import cupy as cp
     HAS_CUPY = True
-    logger.info(f"CuPy disponible: version {cp.__version__}")
+    try:
+        version = cp.__version__
+    except AttributeError:
+        version = "unknown"
+    logger.info(f"CuPy disponible: version {version}")
 except ImportError:
     HAS_CUPY = False
     cp = None
