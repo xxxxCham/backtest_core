@@ -60,7 +60,7 @@ class MACrossoverStrategy(StrategyBase):
                 min_val=5,
                 max_val=50,
                 default=10,
-                param_type=int,
+                param_type="int",
                 description="Période SMA rapide"
             ),
             "slow_period": ParameterSpec(
@@ -68,7 +68,7 @@ class MACrossoverStrategy(StrategyBase):
                 min_val=20,
                 max_val=200,
                 default=30,
-                param_type=int,
+                param_type="int",
                 description="Période SMA lente"
             ),
             "leverage": ParameterSpec(
@@ -76,7 +76,7 @@ class MACrossoverStrategy(StrategyBase):
                 min_val=1,
                 max_val=10,
                 default=1,
-                param_type=int,
+                param_type="int",
                 description="Levier de trading"
             ),
         }
@@ -115,14 +115,13 @@ class MACrossoverStrategy(StrategyBase):
 
         # Détecter les croisements
         fast_above = sma_fast > sma_slow
-        fast_above_shifted = fast_above.shift(1)
-        fast_above_prev = fast_above_shifted.where(fast_above_shifted.notna(), False)
+        fast_above_prev = fast_above.shift(1).fillna(False)
 
         # Golden Cross: SMA rapide passe au-dessus de SMA lente
-        golden_cross = fast_above & fast_above_prev.eq(False)
+        golden_cross = fast_above & ~fast_above_prev
 
         # Death Cross: SMA rapide passe en-dessous de SMA lente
-        death_cross = fast_above.eq(False) & fast_above_prev
+        death_cross = ~fast_above & fast_above_prev
 
         signals[golden_cross] = 1.0
         signals[death_cross] = -1.0

@@ -61,7 +61,7 @@ class ATRChannelStrategy(StrategyBase):
                 min_val=7,
                 max_val=30,
                 default=14,
-                param_type=int,
+                param_type="int",
                 description="Période ATR et EMA"
             ),
             "atr_mult": ParameterSpec(
@@ -69,7 +69,7 @@ class ATRChannelStrategy(StrategyBase):
                 min_val=1.0,
                 max_val=4.0,
                 default=2.0,
-                param_type=float,
+                param_type="float",
                 description="Multiplicateur ATR pour les bandes"
             ),
             "leverage": ParameterSpec(
@@ -77,7 +77,7 @@ class ATRChannelStrategy(StrategyBase):
                 min_val=1,
                 max_val=10,
                 default=1,
-                param_type=int,
+                param_type="int",
                 description="Levier de trading"
             ),
         }

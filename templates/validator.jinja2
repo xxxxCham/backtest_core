@@ -1,66 +1,159 @@
 {# Template pour Agent Validator - Décision finale #}
-Make the final validation decision for this optimization:
+{# Version 2.0 - Optimisé avec critères explicites et format JSON complet #}
 
+Make the final validation decision for this optimization session.
+
+## CONTEXT
 Strategy: {{ strategy_name }}
-Iteration: {{ iteration }} / (max iterations in session)
+Iteration: {{ iteration }}
 
-=== OBJECTIVE CRITERIA CHECK ===
+## OBJECTIVE CRITERIA CHECK
+| Criterion | Status | Details |
+|-----------|--------|---------|
 {% for criterion, passed in objective_check.items() %}
-  {{ criterion }}: {% if passed %}✅ PASS{% else %}❌ FAIL{% endif %}
+| {{ criterion }} | {% if passed %}✅ PASS{% else %}❌ FAIL{% endif %} | - |
 {% endfor %}
 
-All criteria met: {% if objective_check.values()|select|list|length == objective_check|length %}YES{% else %}NO{% endif %}
+**All criteria met:** {% if objective_check.values()|select|list|length == objective_check|length %}✅ YES{% else %}❌ NO ({{ objective_check.values()|reject|list|length }} failing){% endif %}
 
 {% if current_metrics -%}
-=== CURRENT PERFORMANCE ===
-Sharpe Ratio: {{ current_metrics.sharpe_ratio|format_float(3) }} (min: {{ min_sharpe }})
-Max Drawdown: {{ current_metrics.max_drawdown|format_percent }} (max: {{ max_drawdown_limit|format_percent }})
-Win Rate: {{ current_metrics.win_rate|format_percent }}
-Total Trades: {{ current_metrics.total_trades }} (min: {{ min_trades }})
-Profit Factor: {{ current_metrics.profit_factor|format_float(2) }}
+## CURRENT PERFORMANCE
+| Metric | Value | Target | Status |
+|--------|-------|--------|--------|
+| Sharpe Ratio | {{ current_metrics.sharpe_ratio|format_float(3) }} | ≥ {{ min_sharpe }} | {% if current_metrics.sharpe_ratio >= min_sharpe %}✅{% else %}❌{% endif %} |
+| Sortino Ratio | {{ current_metrics.sortino_ratio|format_float(3) if current_metrics.sortino_ratio else 'N/A' }} | - | - |
+| Max Drawdown | {{ current_metrics.max_drawdown|format_percent }} | ≤ {{ max_drawdown_limit|format_percent }} | {% if current_metrics.max_drawdown|abs <= max_drawdown_limit %}✅{% else %}❌{% endif %} |
+| Win Rate | {{ current_metrics.win_rate|format_percent }} | - | - |
+| Profit Factor | {{ current_metrics.profit_factor|format_float(2) if current_metrics.profit_factor else 'N/A' }} | ≥ 1.0 | - |
+| SQN | {{ current_metrics.sqn|format_float(2) if current_metrics.sqn else 'N/A' }} | ≥ 2.0 | - |
+| Total Trades | {{ current_metrics.total_trades }} | ≥ {{ min_trades }} | {% if current_metrics.total_trades >= min_trades %}✅{% else %}❌{% endif %} |
 {% endif %}
 
-{% if overfitting_ratio > 0 -%}
-=== WALK-FORWARD VALIDATION ===
-Overfitting Ratio: {{ overfitting_ratio|format_float(2) }} (max: {{ max_overfitting_ratio }})
+{% if overfitting_ratio is defined and overfitting_ratio > 0 -%}
+## WALK-FORWARD VALIDATION
+| Metric | Value | Limit | Status |
+|--------|-------|-------|--------|
+| Overfitting Ratio | {{ overfitting_ratio|format_float(2) }} | ≤ {{ max_overfitting_ratio|default(1.5) }} | {% if overfitting_ratio <= max_overfitting_ratio|default(1.5) %}✅{% else %}❌{% endif %} |
 {% if train_metrics and test_metrics %}
-Train Sharpe: {{ train_metrics.sharpe_ratio|format_float(3) }}
-Test Sharpe: {{ test_metrics.sharpe_ratio|format_float(3) }}
+| Train Sharpe | {{ train_metrics.sharpe_ratio|format_float(3) }} | - | - |
+| Test Sharpe | {{ test_metrics.sharpe_ratio|format_float(3) }} | - | - |
+| Train Return | {{ train_metrics.total_return|format_percent }} | - | - |
+| Test Return | {{ test_metrics.total_return|format_percent }} | - | - |
 {% endif %}
+{% endif %}
+
+{% if current_params -%}
+## CURRENT PARAMETERS
+{% for param_name, param_value in current_params.items() %}
+- `{{ param_name }}`: {{ param_value }}
+{% endfor %}
 {% endif %}
 
 {% if analyst_report -%}
-=== ANALYST REPORT ===
-{{ analyst_report[:800] }}
+## ANALYST SUMMARY
+{{ analyst_report[:1000] }}{% if analyst_report|length > 1000 %}...{% endif %}
+
 {% endif %}
 
 {% if strategist_proposals -%}
-=== PROPOSALS EVALUATED ===
+## PROPOSALS EVALUATED (top 3)
 {% for proposal in strategist_proposals[:3] %}
 
-Proposal {{ proposal.get('id') }}: {{ proposal.get('name') }}
+### Proposal {{ proposal.get('id') }}: {{ proposal.get('name', 'Unnamed') }}
 {% if proposal.get('critic_evaluation') %}
-  Critic: {{ proposal.critic_evaluation.get('recommendation', 'N/A') }}
-  Overfitting Score: {{ proposal.critic_evaluation.get('overfitting_score', 'N/A') }}/100
-  Robustness Score: {{ proposal.critic_evaluation.get('robustness_score', 'N/A') }}/100
+| Evaluation | Score |
+|------------|-------|
+| Recommendation | {{ proposal.critic_evaluation.get('recommendation', 'N/A') }} |
+| Overfitting Score | {{ proposal.critic_evaluation.get('overfitting_score', 'N/A') }}/100 |
+| Robustness Score | {{ proposal.critic_evaluation.get('robustness_score', 'N/A') }}/100 |
 {% endif %}
 {% endfor %}
 {% endif %}
 
-{% if critic_concerns -%}
-=== CRITIC CONCERNS ===
+{% if critic_concerns and critic_concerns|length > 0 -%}
+## CRITIC CONCERNS
 {% for concern in critic_concerns[:5] %}
-  - {{ concern }}
+- ⚠️ {{ concern }}
 {% endfor %}
 {% endif %}
 
-{% if iteration_history -%}
-=== ITERATION HISTORY ===
-Total iterations: {{ iteration_history|length }}
+{% if iteration_history and iteration_history|length > 0 -%}
+## ITERATION HISTORY
+- Total iterations: {{ iteration_history|length }}
 {% if best_metrics %}
-Best Sharpe achieved: {{ best_metrics.sharpe_ratio|format_float(3) }}
-{% endif %}
+- Best Sharpe achieved: {{ best_metrics.sharpe_ratio|format_float(3) }}
+- Best Drawdown: {{ best_metrics.max_drawdown|format_percent }}
 {% endif %}
 
-Make your final decision in the required JSON format.
-Remember: Be conservative. When in doubt, ITERATE rather than APPROVE.
+**Recent Progress:**
+{% for hist in iteration_history[-3:] %}
+- Iter {{ hist.get('iteration', loop.index) }}: Sharpe={{ hist.get('sharpe_ratio', 0)|format_float(2) }}, Return={{ hist.get('total_return', 0)|format_percent }}{% if hist.get('decision') %} → {{ hist.get('decision') }}{% endif %}
+
+{% endfor %}
+{% endif %}
+
+## DECISION GUIDELINES
+
+### APPROVE if:
+- ALL objective criteria pass (sharpe ≥ min, drawdown ≤ max, trades ≥ min)
+- Overfitting ratio ≤ {{ max_overfitting_ratio|default(1.5) }}
+- Critic approved at least one proposal
+- High confidence in robustness
+
+### ITERATE if:
+- Shows potential but criteria not fully met
+- Clear improvement path exists
+- Overfitting is manageable
+
+### REJECT if:
+- Fundamental strategy issues identified
+- No improvement over multiple iterations
+- Severe overfitting that cannot be fixed
+
+### ABORT if:
+- System malfunction or data quality issues
+
+## REQUIRED OUTPUT FORMAT
+Return ONLY valid JSON (no markdown, no extra text):
+```json
+{
+    "decision": "APPROVE|REJECT|ITERATE|ABORT",
+    "confidence": 0-100,
+    "summary": "Brief summary of decision rationale",
+
+    "criteria_check": {
+        "sharpe_meets_minimum": true,
+        "drawdown_within_limit": true,
+        "overfitting_acceptable": true,
+        "sufficient_trades": true,
+        "critic_approved": true
+    },
+
+    "agent_synthesis": {
+        "analyst_key_points": ["point1", "point2"],
+        "strategist_contribution": "summary of proposals",
+        "critic_concerns_addressed": true
+    },
+
+    "if_approved": {
+        "final_parameters": {"param": value},
+        "expected_performance": {"sharpe": X, "drawdown": Y},
+        "deployment_notes": ["note1"],
+        "monitoring_recommendations": ["rec1"]
+    },
+
+    "if_iterate": {
+        "focus_areas": ["area1", "area2"],
+        "suggested_approach": "what to try next",
+        "max_more_iterations": 3
+    },
+
+    "if_rejected": {
+        "primary_reasons": ["reason1"],
+        "fundamental_issues": ["issue1"],
+        "recommendations": ["alternative approach"]
+    },
+
+    "final_report": "Comprehensive final report paragraph"
+}
+```

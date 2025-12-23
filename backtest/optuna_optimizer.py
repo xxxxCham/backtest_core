@@ -140,7 +140,7 @@ Best Parameters:
 
 Best Metrics:
   Sharpe: {self.best_metrics.get('sharpe_ratio', 'N/A')}
-  Total Return: {self.best_metrics.get('total_return', 'N/A')}
+  Total Return: {self.best_metrics.get('total_return_pct', 'N/A')}
   Max Drawdown: {self.best_metrics.get('max_drawdown', 'N/A')}
 """
 
@@ -199,6 +199,9 @@ class OptunaOptimizer:
         constraints: Optional[List[Tuple[str, str, str]]] = None,
         seed: int = 42,
         early_stop_patience: Optional[int] = None,
+        config: Optional["Config"] = None,
+        symbol: str = "UNKNOWN",
+        timeframe: str = "1m",
     ):
         """
         Initialise l'optimiseur.
@@ -213,6 +216,9 @@ class OptunaOptimizer:
                 Format: [("param1", ">", "param2"), ...]
             seed: Seed pour reproductibilité
             early_stop_patience: Arrêt anticipé après N trials sans amélioration (None = désactivé)
+            config: Configuration du moteur (frais, slippage, etc.)
+            symbol: Symbole pour les metadonnees
+            timeframe: Timeframe pour les metadonnees
         """
         if not OPTUNA_AVAILABLE:
             raise ImportError(
@@ -226,6 +232,9 @@ class OptunaOptimizer:
         self.constraints = constraints or []
         self.seed = seed
         self.early_stop_patience = early_stop_patience
+        self.config = config
+        self.symbol = symbol
+        self.timeframe = timeframe
         self.run_id = generate_run_id()
 
         # Parser l'espace des paramètres
@@ -383,10 +392,13 @@ class OptunaOptimizer:
         """
         # Créer l'engine une seule fois
         if self._engine is None:
-            self._engine = BacktestEngine(
-                initial_capital=self.initial_capital,
-                run_id=self.run_id,
-            )
+            engine_kwargs = {
+                "initial_capital": self.initial_capital,
+                "run_id": self.run_id,
+            }
+            if self.config is not None:
+                engine_kwargs["config"] = self.config
+            self._engine = BacktestEngine(**engine_kwargs)
 
         def objective(trial: "optuna.Trial") -> float:
             # Suggérer les paramètres
@@ -405,6 +417,8 @@ class OptunaOptimizer:
                     df=self.data,
                     strategy=self.strategy_name,
                     params=params,
+                    symbol=self.symbol,
+                    timeframe=self.timeframe,
                 )
 
                 # Extraire la métrique
@@ -619,10 +633,13 @@ class OptunaOptimizer:
 
         # Créer l'engine
         if self._engine is None:
-            self._engine = BacktestEngine(
-                initial_capital=self.initial_capital,
-                run_id=self.run_id,
-            )
+            engine_kwargs = {
+                "initial_capital": self.initial_capital,
+                "run_id": self.run_id,
+            }
+            if self.config is not None:
+                engine_kwargs["config"] = self.config
+            self._engine = BacktestEngine(**engine_kwargs)
 
         def multi_objective(trial: "optuna.Trial") -> List[float]:
             # Suggérer les paramètres
@@ -642,6 +659,8 @@ class OptunaOptimizer:
                     df=self.data,
                     strategy=self.strategy_name,
                     params=params,
+                    symbol=self.symbol,
+                    timeframe=self.timeframe,
                 )
 
                 values = [result.metrics.get(m, 0) for m in metrics]

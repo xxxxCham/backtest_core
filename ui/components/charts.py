@@ -30,6 +30,12 @@ logger = get_logger(__name__)
 
 PLOTLY_CHART_CONFIG = {"scrollZoom": True}
 
+def _apply_axis_interaction(fig: go.Figure, lock_x: bool = False) -> None:
+    """Enable zoom on Y while keeping X interactive when needed."""
+    fig.update_layout(dragmode="zoom")
+    fig.update_xaxes(fixedrange=lock_x)
+    fig.update_yaxes(fixedrange=False)
+
 
 def _normalize_trades_df(trades_df: pd.DataFrame) -> pd.DataFrame:
     """Normalize trade column names for chart rendering."""
@@ -142,6 +148,7 @@ def render_equity_and_drawdown(
     fig.update_xaxes(gridcolor="rgba(128,128,128,0.1)")
     fig.update_yaxes(title_text="$", gridcolor="rgba(128,128,128,0.1)", row=1, col=1)
     fig.update_yaxes(title_text="%", gridcolor="rgba(128,128,128,0.1)", row=2, col=1)
+    _apply_axis_interaction(fig)
 
     st.plotly_chart(
         fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
@@ -250,6 +257,7 @@ def render_ohlcv_with_trades(
             )
 
     _apply_chart_layout(fig, height=height, y_title="Prix (USD)")
+    _apply_axis_interaction(fig)
     st.plotly_chart(
         fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
     )
@@ -678,12 +686,14 @@ def render_ohlcv_with_trades_and_indicators(
         )
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
+        _apply_axis_interaction(fig)
         st.plotly_chart(
             fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
         )
         return
 
     _apply_chart_layout(fig, height=height, y_title="Prix (USD)")
+    _apply_axis_interaction(fig)
     st.plotly_chart(
         fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
     )
@@ -760,7 +770,10 @@ def render_ohlcv_with_indicators(
             )
 
     _apply_chart_layout(fig, height=height, y_title="Prix (USD)")
-    st.plotly_chart(fig, width='stretch', key=key)
+    _apply_axis_interaction(fig)
+    st.plotly_chart(
+        fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+    )
 
 
 def render_equity_curve(
@@ -811,7 +824,10 @@ def render_equity_curve(
     )
 
     _apply_chart_layout(fig, height=height, y_title="Équité ($)")
-    st.plotly_chart(fig, width='stretch', key=key)
+    _apply_axis_interaction(fig)
+    st.plotly_chart(
+        fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+    )
 
 
 def render_comparison_chart(
@@ -866,7 +882,10 @@ def render_comparison_chart(
     fig.update_xaxes(gridcolor="rgba(128,128,128,0.1)")
     fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
 
-    st.plotly_chart(fig, width='stretch', key=key)
+    _apply_axis_interaction(fig)
+    st.plotly_chart(
+        fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+    )
 
 
 def render_strategy_param_diagram(
@@ -1047,7 +1066,10 @@ def render_strategy_param_diagram(
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
 
-        st.plotly_chart(fig, width="stretch", key=key)
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
         st.caption(
             "Parametres: "
             f"bb_period={bb_period}, bb_std={bb_std:.2f}, entry_z={entry_z:.2f}, "
@@ -1121,7 +1143,10 @@ def render_strategy_param_diagram(
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
 
-        st.plotly_chart(fig, width="stretch", key=key)
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
         st.caption(f"Parametres: fast_period={fast_period}, slow_period={slow_period}")
         st.markdown(
             "- fast_period: vitesse de la moyenne rapide.\n"
@@ -1190,7 +1215,10 @@ def render_strategy_param_diagram(
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
 
-        st.plotly_chart(fig, width="stretch", key=key)
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
         st.caption(
             f"Parametres: fast_period={fast_period}, slow_period={slow_period}, "
             f"signal_period={signal_period}"
@@ -1275,7 +1303,10 @@ def render_strategy_param_diagram(
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
 
-        st.plotly_chart(fig, width="stretch", key=key)
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
         st.caption(
             f"Parametres: rsi_period={rsi_period}, oversold={oversold:.0f}, overbought={overbought:.0f}"
         )
@@ -1352,7 +1383,10 @@ def render_strategy_param_diagram(
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
 
-        st.plotly_chart(fig, width="stretch", key=key)
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
         st.caption(
             f"Parametres: atr_period={atr_period}, atr_mult={atr_mult:.2f}"
         )

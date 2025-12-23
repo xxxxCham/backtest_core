@@ -13,6 +13,7 @@ from .commands import (
     cmd_backtest,
     cmd_export,
     cmd_info,
+    cmd_indicators,
     cmd_list,
     cmd_optuna,
     cmd_sweep,
@@ -91,6 +92,19 @@ Exemples:
         action="store_true",
         help="Sortie au format JSON"
     )
+
+    # === INDICATORS (alias list indicators) ===
+    indicators_parser = subparsers.add_parser(
+        "indicators",
+        parents=[common_parser],
+        help="Lister les indicateurs disponibles",
+        description="Alias de: list indicators"
+    )
+    indicators_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Sortie au format JSON"
+    )
     
     # === INFO ===
     info_parser = subparsers.add_parser(
@@ -132,6 +146,26 @@ Exemples:
         help="Chemin vers le fichier de données OHLCV"
     )
     backtest_parser.add_argument(
+        "--start",
+        type=str,
+        help="Date de debut (format ISO)"
+    )
+    backtest_parser.add_argument(
+        "--end",
+        type=str,
+        help="Date de fin (format ISO)"
+    )
+    backtest_parser.add_argument(
+        "--symbol",
+        type=str,
+        help="Symbole (override si non present dans le nom du fichier)"
+    )
+    backtest_parser.add_argument(
+        "--timeframe",
+        type=str,
+        help="Timeframe (override si non present dans le nom du fichier)"
+    )
+    backtest_parser.add_argument(
         "-p", "--params",
         type=str,
         default="{}",
@@ -150,6 +184,11 @@ Exemples:
         help="Frais en basis points (défaut: 10 = 0.1%%)"
     )
     backtest_parser.add_argument(
+        "--slippage-bps",
+        type=float,
+        help="Slippage en basis points (defaut: config)"
+    )
+    backtest_parser.add_argument(
         "-o", "--output",
         type=str,
         help="Fichier de sortie pour les résultats"
@@ -166,7 +205,8 @@ Exemples:
         "sweep",
         parents=[common_parser],
         help="Optimisation paramétrique",
-        description="Lance une optimisation sur grille de paramètres"
+        description="Lance une optimisation sur grille de paramètres",
+        aliases=["optimize"]
     )
     sweep_parser.add_argument(
         "-s", "--strategy",
@@ -177,6 +217,26 @@ Exemples:
         "-d", "--data",
         required=True,
         help="Chemin vers le fichier de données OHLCV"
+    )
+    sweep_parser.add_argument(
+        "--start",
+        type=str,
+        help="Date de debut (format ISO)"
+    )
+    sweep_parser.add_argument(
+        "--end",
+        type=str,
+        help="Date de fin (format ISO)"
+    )
+    sweep_parser.add_argument(
+        "--symbol",
+        type=str,
+        help="Symbole (override si non present dans le nom du fichier)"
+    )
+    sweep_parser.add_argument(
+        "--timeframe",
+        type=str,
+        help="Timeframe (override si non present dans le nom du fichier)"
     )
     sweep_parser.add_argument(
         "-g", "--granularity",
@@ -219,6 +279,11 @@ Exemples:
         type=int,
         default=10,
         help="Frais en basis points (défaut: 10)"
+    )
+    sweep_parser.add_argument(
+        "--slippage-bps",
+        type=float,
+        help="Slippage en basis points (defaut: config)"
     )
     sweep_parser.add_argument(
         "--top",
@@ -264,7 +329,7 @@ Exemples:
     )
     export_parser.add_argument(
         "-f", "--format",
-        choices=["html", "pdf", "excel", "csv"],
+        choices=["html", "excel", "csv"],
         default="html",
         help="Format d'export (défaut: html)"
     )
@@ -295,6 +360,26 @@ Exemples:
         "-d", "--data",
         required=True,
         help="Chemin vers le fichier de données OHLCV"
+    )
+    optuna_parser.add_argument(
+        "--start",
+        type=str,
+        help="Date de debut (format ISO)"
+    )
+    optuna_parser.add_argument(
+        "--end",
+        type=str,
+        help="Date de fin (format ISO)"
+    )
+    optuna_parser.add_argument(
+        "--symbol",
+        type=str,
+        help="Symbole (override si non present dans le nom du fichier)"
+    )
+    optuna_parser.add_argument(
+        "--timeframe",
+        type=str,
+        help="Timeframe (override si non present dans le nom du fichier)"
     )
     optuna_parser.add_argument(
         "-n", "--n-trials",
@@ -361,6 +446,11 @@ Exemples:
         type=int,
         default=10,
         help="Frais en basis points (défaut: 10)"
+    )
+    optuna_parser.add_argument(
+        "--slippage-bps",
+        type=float,
+        help="Slippage en basis points (defaut: config)"
     )
     optuna_parser.add_argument(
         "--top",
@@ -449,9 +539,11 @@ def main(args: Optional[list] = None) -> int:
     # Dispatcher vers la commande appropriée
     commands = {
         "list": cmd_list,
+        "indicators": cmd_indicators,
         "info": cmd_info,
         "backtest": cmd_backtest,
         "sweep": cmd_sweep,
+        "optimize": cmd_sweep,
         "optuna": cmd_optuna,
         "validate": cmd_validate,
         "export": cmd_export,

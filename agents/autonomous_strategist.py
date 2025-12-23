@@ -332,7 +332,7 @@ Actions:
                 agent="AutonomousStrategist",
                 params=initial_params,
                 results={
-                    "pnl": baseline_result.total_pnl,
+                    "pnl": baseline_result.total_return,
                     "sharpe": baseline_result.sharpe_ratio,
                     "return": baseline_result.total_return,
                 },
@@ -447,7 +447,7 @@ Actions:
                         agent="AutonomousStrategist",
                         params=next_params,
                         results={
-                            "pnl": result.total_pnl,
+                            "pnl": result.total_return,
                             "sharpe": result.sharpe_ratio,
                             "return": result.total_return,
                         },

@@ -22,9 +22,11 @@ import pandas as pd
 METRIC_ALIASES = {
     "sharpe": "sharpe_ratio",
     "sortino": "sortino_ratio",
+    "total_return": "total_return_pct",
     # Accepter aussi les formes complètes
     "sharpe_ratio": "sharpe_ratio",
     "sortino_ratio": "sortino_ratio",
+    "total_return_pct": "total_return_pct",
 }
 
 def normalize_metric_name(metric: str) -> str:
@@ -102,6 +104,24 @@ def format_table(headers: List[str], rows: List[List[str]], padding: int = 2) ->
     return "\n".join(lines)
 
 
+def _apply_date_filter(df: pd.DataFrame, start: str | None, end: str | None) -> pd.DataFrame:
+    """Filtre un DataFrame OHLCV par date (UTC)."""
+    if not start and not end:
+        return df
+
+    if start is not None:
+        start_ts = pd.Timestamp(start, tz="UTC")
+        df = df[df.index >= start_ts]
+    if end is not None:
+        end_ts = pd.Timestamp(end, tz="UTC")
+        df = df[df.index <= end_ts]
+
+    if df.empty:
+        raise ValueError(f"Aucune donnée dans la période {start} - {end}")
+
+    return df
+
+
 # =============================================================================
 # COMMANDE: LIST
 # =============================================================================
@@ -125,6 +145,12 @@ def cmd_list(args) -> int:
     return 0
 
 
+def cmd_indicators(args) -> int:
+    """Alias: list indicators."""
+    args.resource = "indicators"
+    return cmd_list(args)
+
+
 def _list_strategies(args) -> int:
     """Liste les stratégies."""
     from strategies import list_strategies, get_strategy
@@ -136,10 +162,11 @@ def _list_strategies(args) -> int:
         for name in strategies:
             strat = get_strategy(name)
             if strat:
+                instance = strat()
                 data.append({
                     "name": name,
-                    "description": getattr(strat, "description", ""),
-                    "indicators": getattr(strat, "required_indicators", []),
+                    "description": getattr(instance, "description", ""),
+                    "indicators": getattr(instance, "required_indicators", []),
                 })
         print(json.dumps(data, indent=2))
         return 0
@@ -440,6 +467,11 @@ def cmd_backtest(args) -> int:
     from data.loader import _read_file, _normalize_ohlcv
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
+    try:
+        df = _apply_date_filter(df, args.start, args.end)
+    except ValueError as e:
+        print_error(str(e))
+        return 1
     
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
@@ -450,7 +482,10 @@ def cmd_backtest(args) -> int:
     
     # Créer la configuration avec les frais
     from utils.config import Config
-    config = Config(fees_bps=args.fees_bps)
+    config_kwargs = {"fees_bps": args.fees_bps}
+    if args.slippage_bps is not None:
+        config_kwargs["slippage_bps"] = args.slippage_bps
+    config = Config(**config_kwargs)
     
     engine = BacktestEngine(
         initial_capital=args.capital,
@@ -460,8 +495,8 @@ def cmd_backtest(args) -> int:
     # Extraire symbol et timeframe du nom de fichier (ex: BTCUSDC_1h.parquet)
     stem = data_path.stem
     parts = stem.split("_")
-    symbol = parts[0] if parts else "UNKNOWN"
-    timeframe = parts[1] if len(parts) > 1 else "1h"
+    symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
+    timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
     
     result = engine.run(
         df=df,
@@ -476,6 +511,8 @@ def cmd_backtest(args) -> int:
         print()
         print_header("Résultats")
         _print_metrics(result.metrics)
+        if result.meta.get("period_start") and result.meta.get("period_end"):
+            print(f"    Period: {result.meta['period_start']} -> {result.meta['period_end']}")
         print(f"\n  Trades: {len(result.trades)}")
     
     # Export si demandé
@@ -509,6 +546,7 @@ def cmd_backtest(args) -> int:
             "params": params,
             "capital": args.capital,
             "fees_bps": args.fees_bps,
+            "meta": result.meta,
             "metrics": metrics_dict,
             "n_trades": len(result.trades),
             "trades": trades_list,
@@ -532,12 +570,18 @@ def _print_metrics(metrics):
     """Affiche les métriques de performance."""
     m = metrics.to_dict() if hasattr(metrics, "to_dict") else metrics
     
+    total_return_pct = m.get("total_return_pct")
+    if total_return_pct is None:
+        total_return_pct = m.get("total_return", 0) * 100
+    max_drawdown_pct = m.get("max_drawdown", 0)
+    win_rate_pct = m.get("win_rate", 0)
+
     print(f"  {Colors.BOLD}Performance:{Colors.RESET}")
-    print(f"    Total Return: {m.get('total_return', 0)*100:+.2f}%")
+    print(f"    Total Return: {total_return_pct:+.2f}%")
     print(f"    Sharpe Ratio: {m.get('sharpe_ratio', 0):.3f}")
     print(f"    Sortino Ratio: {m.get('sortino_ratio', 0):.3f}")
-    print(f"    Max Drawdown: {m.get('max_drawdown', 0)*100:.2f}%")
-    print(f"    Win Rate: {m.get('win_rate', 0)*100:.1f}%")
+    print(f"    Max Drawdown: {max_drawdown_pct:.2f}%")
+    print(f"    Win Rate: {win_rate_pct:.1f}%")
     print(f"    Profit Factor: {m.get('profit_factor', 0):.2f}")
 
 
@@ -628,6 +672,11 @@ def cmd_sweep(args) -> int:
     from data.loader import _read_file, _normalize_ohlcv
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
+    try:
+        df = _apply_date_filter(df, args.start, args.end)
+    except ValueError as e:
+        print_error(str(e))
+        return 1
     
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
@@ -637,12 +686,15 @@ def cmd_sweep(args) -> int:
     # Extraire symbol et timeframe du nom de fichier
     stem = data_path.stem
     parts = stem.split("_")
-    symbol = parts[0] if parts else "UNKNOWN"
-    timeframe = parts[1] if len(parts) > 1 else "1h"
+    symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
+    timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
     
     # Créer la configuration avec les frais
     from utils.config import Config
-    config = Config(fees_bps=args.fees_bps)
+    config_kwargs = {"fees_bps": args.fees_bps}
+    if args.slippage_bps is not None:
+        config_kwargs["slippage_bps"] = args.slippage_bps
+    config = Config(**config_kwargs)
     
     # Exécuter le sweep
     results = []
@@ -700,8 +752,8 @@ def cmd_sweep(args) -> int:
             print(f"\n  {Colors.BOLD}#{i+1}{Colors.RESET}")
             print(f"    Paramètres: {r['params']}")
             print(f"    Sharpe: {r['metrics'].get('sharpe_ratio', 0):.3f}")
-            print(f"    Return: {r['metrics'].get('total_return', 0)*100:+.2f}%")
-            print(f"    Drawdown: {r['metrics'].get('max_drawdown', 0)*100:.2f}%")
+            print(f"    Return: {r['metrics'].get('total_return_pct', 0):+.2f}%")
+            print(f"    Drawdown: {r['metrics'].get('max_drawdown', 0):.2f}%")
     
     # Export
     if args.output:
@@ -1015,6 +1067,11 @@ def cmd_optuna(args) -> int:
     from data.loader import _read_file, _normalize_ohlcv
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
+    try:
+        df = _apply_date_filter(df, args.start, args.end)
+    except ValueError as e:
+        print_error(str(e))
+        return 1
     
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
@@ -1059,12 +1116,15 @@ def cmd_optuna(args) -> int:
     # Extraire symbol et timeframe
     stem = data_path.stem
     parts = stem.split("_")
-    symbol = parts[0] if parts else "UNKNOWN"
-    timeframe = parts[1] if len(parts) > 1 else "1h"
+    symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
+    timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
     
     # Créer l'optimiseur
     from utils.config import Config
-    config = Config(fees_bps=args.fees_bps)
+    config_kwargs = {"fees_bps": args.fees_bps}
+    if args.slippage_bps is not None:
+        config_kwargs["slippage_bps"] = args.slippage_bps
+    config = Config(**config_kwargs)
     
     optimizer = OptunaOptimizer(
         strategy_name=strategy_name,
@@ -1073,6 +1133,10 @@ def cmd_optuna(args) -> int:
         constraints=constraints,
         initial_capital=args.capital,
         early_stop_patience=args.early_stop_patience,
+        config=config,
+        symbol=symbol,
+        timeframe=timeframe,
+        seed=args.seed,
     )
     
     if not args.quiet:
@@ -1085,7 +1149,7 @@ def cmd_optuna(args) -> int:
     try:
         if args.multi_objective:
             # Multi-objectif (Pareto)
-            metrics = args.metric.split(",")
+            metrics = [normalize_metric_name(m.strip()) for m in args.metric.split(",")]
             directions = []
             for m in metrics:
                 if m in ["max_drawdown"]:
@@ -1137,7 +1201,7 @@ def cmd_optuna(args) -> int:
                 print(f"    {args.metric}: {result.best_value:.4f}")
                 if result.best_metrics:
                     print(f"    Sharpe: {result.best_metrics.get('sharpe_ratio', 'N/A'):.3f}")
-                    print(f"    Return: {result.best_metrics.get('total_return', 0)*100:+.2f}%")
+                    print(f"    Return: {result.best_metrics.get('total_return_pct', 0):+.2f}%")
                     print(f"    Drawdown: {result.best_metrics.get('max_drawdown', 0)*100:.2f}%")
                 print()
                 

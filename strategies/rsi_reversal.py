@@ -61,7 +61,7 @@ class RSIReversalStrategy(StrategyBase):
                 min_val=5,
                 max_val=30,
                 default=14,
-                param_type=int,
+                param_type="int",
                 description="Période du RSI"
             ),
             "oversold_level": ParameterSpec(
@@ -69,7 +69,7 @@ class RSIReversalStrategy(StrategyBase):
                 min_val=10,
                 max_val=40,
                 default=30,
-                param_type=int,
+                param_type="int",
                 description="Seuil de survente"
             ),
             "overbought_level": ParameterSpec(
@@ -77,7 +77,7 @@ class RSIReversalStrategy(StrategyBase):
                 min_val=60,
                 max_val=90,
                 default=70,
-                param_type=int,
+                param_type="int",
                 description="Seuil de surachat"
             ),
             "leverage": ParameterSpec(
@@ -85,7 +85,7 @@ class RSIReversalStrategy(StrategyBase):
                 min_val=1,
                 max_val=10,
                 default=1,
-                param_type=int,
+                param_type="int",
                 description="Levier de trading"
             ),
         }

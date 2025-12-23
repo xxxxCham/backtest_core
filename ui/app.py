@@ -22,9 +22,11 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from itertools import product
+
+import numpy as np
 import pandas as pd
 import streamlit as st
-import numpy as np
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -33,21 +35,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 IMPORT_ERROR = ""  # Initialisé avant le try/except
 try:
     from backtest.engine import BacktestEngine, RunResult
-    from backtest.performance import drawdown_series
     from data.loader import discover_available_data, load_ohlcv
     from indicators.registry import calculate_indicator
     from strategies.base import get_strategy, list_strategies
-    from strategies.indicators_mapping import (
-        get_required_indicators,
-        get_all_indicators,
-        get_strategy_info,
-    )
+    from strategies.indicators_mapping import get_strategy_info
     from utils.parameters import (
-        calculate_combinations,
         compute_search_space_stats,
-        generate_param_grid,
-        parameter_values,
-        SearchSpaceStats,
         ParameterSpec,
         list_strategy_versions,
         load_strategy_version,
@@ -66,17 +59,14 @@ try:
     from agents.integration import (
         create_optimizer_from_engine,
         create_orchestrator_with_backtest,
-        run_backtest_for_agent,
         get_strategy_param_bounds,
         get_strategy_param_space,
     )
     from agents.llm_client import LLMConfig, LLMProvider, create_llm_client
-    from agents.autonomous_strategist import AutonomousStrategist, OptimizationSession
-    from agents.backtest_executor import BacktestExecutor
+    from agents.autonomous_strategist import AutonomousStrategist
     from agents.ollama_manager import (
         ensure_ollama_running,
         is_ollama_available,
-        list_ollama_models,
     )
     from agents.model_config import (
         RoleModelConfig,
@@ -108,6 +98,7 @@ try:
         render_orchestration_logs,
         render_orchestration_summary_table,
     )
+    from ui.deep_trace_viewer import render_deep_trace_viewer  # Pour onglet avancé mode LLM
     LLM_AVAILABLE = True
 except ImportError as e:
     LLM_IMPORT_ERROR = str(e)
@@ -1631,11 +1622,11 @@ st.sidebar.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Créer les boutons de mode
+# Créer les boutons de mode (Deep Trace intégré dans mode LLM)
 modes = [
     ("Backtest Simple", "📊", "1 combinaison de paramètres"),
     ("Grille de Paramètres", "🔢", "Exploration min/max/step"),
-    ("🤖 Optimisation LLM", "🧠", "Agents IA autonomes")
+    ("🤖 Optimisation LLM", "🧠", "Agents IA + Deep Trace intégré"),
 ]
 
 for mode_name, icon, description in modes:
@@ -1753,7 +1744,7 @@ if optimization_mode == "🤖 Optimisation LLM":
         )
 
         def _extract_model_params_b(model_name: str) -> Optional[float]:
-            match = re.search(r"(\\d+(?:\\.\\d+)?)b", model_name.lower())
+            match = re.search(r"(\d+(?:\.\d+)?)b", model_name.lower())
             if match:
                 return float(match.group(1))
             return None
@@ -1763,6 +1754,12 @@ if optimization_mode == "🤖 Optimisation LLM":
             if size is None:
                 return False
             return size < limit
+
+        def _is_model_over_limit(model_name: str, limit: float) -> bool:
+            size = _extract_model_params_b(model_name)
+            if size is None:
+                return False
+            return size >= limit
 
         if "Ollama" in llm_provider:
             # Vérifier la connexion Ollama
@@ -1800,13 +1797,30 @@ if optimization_mode == "🤖 Optimisation LLM":
                     key="llm_limit_small_models",
                     help="Filtre la liste par taille et exclut deepseek-r1:70b"
                 )
+                llm_limit_large_models = st.sidebar.checkbox(
+                    "Limiter selection aleatoire a >=20B",
+                    value=False,
+                    key="llm_limit_large_models",
+                    help="Filtre la liste par taille (>=20B uniquement)"
+                )
 
-                excluded_models = {"deepseek-r1:70b"}
-                available_model_names = [
-                    m for m in available_model_names if m not in excluded_models
-                ]
+                effective_small_filter = llm_limit_small_models
+                effective_large_filter = llm_limit_large_models
+                if effective_small_filter and effective_large_filter:
+                    st.sidebar.warning(
+                        "Filtres <20B et >=20B actifs: >=20B prioritaire."
+                    )
+                    effective_small_filter = False
 
-                if llm_limit_small_models:
+                excluded_models = set()
+                if not effective_large_filter:
+                    excluded_models = {"deepseek-r1:70b"}
+                if excluded_models:
+                    available_model_names = [
+                        m for m in available_model_names if m not in excluded_models
+                    ]
+
+                if effective_small_filter:
                     filtered = [
                         m for m in available_model_names if _is_model_under_limit(m, 20)
                     ]
@@ -1816,6 +1830,22 @@ if optimization_mode == "🤖 Optimisation LLM":
                         st.sidebar.warning(
                             "Aucun modele <20B detecte, filtre desactive."
                         )
+
+                if effective_large_filter:
+                    filtered = [
+                        m for m in available_model_names if _is_model_over_limit(m, 20)
+                    ]
+                    if filtered:
+                        available_model_names = filtered
+                    else:
+                        available_model_names = []
+                        st.sidebar.warning(
+                            "Aucun modele >=20B detecte."
+                        )
+                if effective_large_filter and not available_model_names:
+                    st.sidebar.error(
+                        "Selection >=20B activee mais aucun modele compatible."
+                    )
 
                 # Categoriser pour l'affichage
                 light_models = [m.name for m in available_models_list if m.category == ModelCategory.LIGHT]
@@ -1849,10 +1879,13 @@ if optimization_mode == "🤖 Optimisation LLM":
                 # ANALYST - Modèles rapides recommandés
                 st.sidebar.markdown("**Analyst** (analyse rapide)")
                 analyst_defaults = [name_to_display.get(m, m) for m in role_model_config.analyst.models if m in available_model_names]
+                analyst_default_options = analyst_defaults[:3] if analyst_defaults else model_options_display[:2]
+                if not model_options_display:
+                    analyst_default_options = []
                 analyst_selection = st.sidebar.multiselect(
                     "Modeles Analyst",
                     model_options_display,
-                    default=analyst_defaults[:3] if analyst_defaults else model_options_display[:2],
+                    default=analyst_default_options,
                     key="analyst_models",
                     help="Modeles rapides recommandes pour l'analyse"
                 )
@@ -1860,10 +1893,13 @@ if optimization_mode == "🤖 Optimisation LLM":
                 # STRATEGIST - Modèles moyens
                 st.sidebar.markdown("**Strategist** (propositions)")
                 strategist_defaults = [name_to_display.get(m, m) for m in role_model_config.strategist.models if m in available_model_names]
+                strategist_default_options = strategist_defaults[:3] if strategist_defaults else model_options_display[:2]
+                if not model_options_display:
+                    strategist_default_options = []
                 strategist_selection = st.sidebar.multiselect(
                     "Modeles Strategist",
                     model_options_display,
-                    default=strategist_defaults[:3] if strategist_defaults else model_options_display[:2],
+                    default=strategist_default_options,
                     key="strategist_models",
                     help="Modeles moyens pour la creativite"
                 )
@@ -1871,10 +1907,13 @@ if optimization_mode == "🤖 Optimisation LLM":
                 # CRITIC - Modèles puissants
                 st.sidebar.markdown("**Critic** (evaluation critique)")
                 critic_defaults = [name_to_display.get(m, m) for m in role_model_config.critic.models if m in available_model_names]
+                critic_default_options = critic_defaults[:3] if critic_defaults else model_options_display[:2]
+                if not model_options_display:
+                    critic_default_options = []
                 critic_selection = st.sidebar.multiselect(
                     "Modeles Critic",
                     model_options_display,
-                    default=critic_defaults[:3] if critic_defaults else model_options_display[:2],
+                    default=critic_default_options,
                     key="critic_models",
                     help="Modeles puissants pour la reflexion"
                 )
@@ -1882,10 +1921,13 @@ if optimization_mode == "🤖 Optimisation LLM":
                 # VALIDATOR - Modèles puissants
                 st.sidebar.markdown("**Validator** (decision finale)")
                 validator_defaults = [name_to_display.get(m, m) for m in role_model_config.validator.models if m in available_model_names]
+                validator_default_options = validator_defaults[:3] if validator_defaults else model_options_display[:2]
+                if not model_options_display:
+                    validator_default_options = []
                 validator_selection = st.sidebar.multiselect(
                     "Modeles Validator",
                     model_options_display,
-                    default=validator_defaults[:3] if validator_defaults else model_options_display[:2],
+                    default=validator_default_options,
                     key="validator_models",
                     help="Modeles puissants pour decisions finales"
                 )
@@ -1901,11 +1943,15 @@ if optimization_mode == "🤖 Optimisation LLM":
                     help="Les modeles lourds ne seront utilises qu'apres cette iteration"
                 )
 
-                # Mettre a jour la configuration
-                role_model_config.analyst.models = [display_to_name.get(m, m) for m in analyst_selection]
-                role_model_config.strategist.models = [display_to_name.get(m, m) for m in strategist_selection]
-                role_model_config.critic.models = [display_to_name.get(m, m) for m in critic_selection]
-                role_model_config.validator.models = [display_to_name.get(m, m) for m in validator_selection]
+                # Mettre a jour la configuration (filtrer strictement la selection)
+                def _normalize_selection(selection: List[str]) -> List[str]:
+                    names = [display_to_name.get(m, m) for m in selection]
+                    return [n for n in names if n in available_model_names]
+
+                role_model_config.analyst.models = _normalize_selection(analyst_selection)
+                role_model_config.strategist.models = _normalize_selection(strategist_selection)
+                role_model_config.critic.models = _normalize_selection(critic_selection)
+                role_model_config.validator.models = _normalize_selection(validator_selection)
 
                 # Appliquer le seuil des modeles lourds
                 for assignment in [role_model_config.analyst, role_model_config.strategist,
@@ -1926,6 +1972,8 @@ if optimization_mode == "🤖 Optimisation LLM":
                     llm_model = role_model_config.analyst.models[0]
                 elif available_model_names:
                     llm_model = available_model_names[0]
+                elif effective_large_filter:
+                    llm_model = None
                 else:
                     llm_model = "deepseek-r1:8b"
 
@@ -1954,11 +2002,14 @@ if optimization_mode == "🤖 Optimisation LLM":
                 value="http://localhost:11434",
                 help="Adresse du serveur Ollama"
             )
-            llm_config = LLMConfig(
-                provider=LLMProvider.OLLAMA,
-                model=llm_model,
-                ollama_host=ollama_host
-            )
+            if llm_model:
+                llm_config = LLMConfig(
+                    provider=LLMProvider.OLLAMA,
+                    model=llm_model,
+                    ollama_host=ollama_host
+                )
+            else:
+                llm_config = None
         else:
             openai_key = st.sidebar.text_input(
                 "Clé API OpenAI",
@@ -2246,6 +2297,7 @@ else:
 # ZONE PRINCIPALE - EXÉCUTION ET RÉSULTATS
 # ============================================================================
 
+# Modes normaux (Simple/Grid/LLM)
 result = st.session_state.get("last_run_result")
 winner_params = st.session_state.get("last_winner_params")
 winner_metrics = st.session_state.get("last_winner_metrics")
@@ -2331,9 +2383,6 @@ if run_button:
         with st.spinner("📊 Génération de la grille..."):
             try:
                 # Générer la grille à partir des param_ranges définis par l'utilisateur
-                import numpy as np
-                from itertools import product
-
                 param_grid = []
                 param_names = list(param_ranges.keys())
 
@@ -3011,10 +3060,25 @@ if run_button:
                     # Afficher le viewer complet des logs d'orchestration
                     with orchestration_placeholder:
                         st.markdown("---")
-                        render_full_orchestration_viewer(
-                            orchestration_logger=orchestration_logger,
-                            max_entries=50
-                        )
+
+                        # Onglets: Vue simple + Deep Trace avancé
+                        tab_simple, tab_deep = st.tabs([
+                            "📋 Logs d'orchestration",
+                            "🔍 Deep Trace (avancé)"
+                        ])
+
+                        with tab_simple:
+                            render_full_orchestration_viewer(
+                                orchestration_logger=orchestration_logger,
+                                max_entries=50
+                            )
+
+                        with tab_deep:
+                            # Afficher le Deep Trace Viewer complet
+                            if LLM_AVAILABLE:
+                                render_deep_trace_viewer(logger=orchestration_logger)
+                            else:
+                                st.warning("Module LLM non disponible pour Deep Trace avancé")
 
                     # Résultats finaux
                     st.markdown("---")

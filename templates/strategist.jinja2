@@ -1,48 +1,113 @@
 {# Template pour Agent Strategist - Propositions d'optimisation #}
-Generate parameter optimization proposals for the following strategy:
+{# Version 2.0 - Optimisé pour cohérence avec AgentContext et métriques Tier S #}
 
+Generate parameter optimization proposals for the strategy.
+
+## CONTEXT
 Strategy: {{ strategy_name }}
 Iteration: {{ iteration }}
 
-Current Parameters and Constraints:
+## PARAMETERS (current | bounds | step)
 {% for spec in param_specs %}
-  {{ spec.name }}: {{ current_params.get(spec.name, spec.current_value) }} (min={{ spec.min_value }}, max={{ spec.max_value }}, step={{ spec.step }})
+- {{ spec.name }}: {{ current_params.get(spec.name, spec.current_value) }} | [{{ spec.min_value }} - {{ spec.max_value }}] step={{ spec.step }}
 {% endfor %}
 
 {% if current_metrics -%}
-Current Performance:
-  Sharpe Ratio: {{ current_metrics.sharpe_ratio|format_float(3) }}
-  Total Return: {{ current_metrics.total_return|format_percent }}
-  Max Drawdown: {{ current_metrics.max_drawdown|format_percent }}
-  Win Rate: {{ current_metrics.win_rate|format_percent }}
-  Total Trades: {{ current_metrics.total_trades }}
+## CURRENT PERFORMANCE
+| Metric | Value | Target |
+|--------|-------|--------|
+| Sharpe Ratio | {{ current_metrics.sharpe_ratio|format_float(3) }} | ≥ {{ min_sharpe }} |
+| Sortino Ratio | {{ current_metrics.sortino_ratio|format_float(3) if current_metrics.sortino_ratio else 'N/A' }} | - |
+| Total Return | {{ current_metrics.total_return|format_percent }} | - |
+| Max Drawdown | {{ current_metrics.max_drawdown|format_percent }} | ≤ {{ max_drawdown_limit|format_percent }} |
+| Win Rate | {{ current_metrics.win_rate|format_percent }} | - |
+| Profit Factor | {{ current_metrics.profit_factor|format_float(2) if current_metrics.profit_factor else 'N/A' }} | - |
+| SQN | {{ current_metrics.sqn|format_float(2) if current_metrics.sqn else 'N/A' }} | ≥ 2.0 |
+| Total Trades | {{ current_metrics.total_trades }} | ≥ {{ min_trades }} |
 {% endif %}
 
-{% if overfitting_ratio > 0 -%}
-Overfitting Ratio: {{ overfitting_ratio|format_float(2) }}
-{% if overfitting_ratio > 1.5 %}
-  ⚠️ HIGH overfitting risk - prioritize robustness!
+{% if overfitting_ratio is defined and overfitting_ratio > 0 -%}
+## OVERFITTING RISK
+- Current Ratio: {{ overfitting_ratio|format_float(2) }}
+- Limit: {{ max_overfitting_ratio|default(1.5) }}
+- Status: {% if overfitting_ratio > max_overfitting_ratio|default(1.5) %}⚠️ HIGH RISK{% elif overfitting_ratio > 1.0 %}🟡 MODERATE{% else %}✅ LOW{% endif %}
+{% if overfitting_ratio > max_overfitting_ratio|default(1.5) %}
+
+**WARNING**: Overfitting risk is HIGH. Favor robustness:
+- Prefer smaller parameter changes
+- Avoid extreme values at boundaries
+- Consider widening trade filters
 {% endif %}
 {% endif %}
 
-{% if analyst_report -%}
-Analyst Report Summary:
-{{ analyst_report[:1500] }}
-{% endif %}
+{% if iteration_history and iteration_history|length > 0 -%}
+## ITERATION HISTORY (last 3)
+{% for hist in iteration_history[-3:] %}
+- Iter {{ hist.get('iteration', loop.index) }}: Sharpe={{ hist.get('sharpe_ratio', 0)|format_float(2) }}, Return={{ hist.get('total_return', 0)|format_percent }}{% if hist.get('params') %} | {{ hist.get('params', {})|tojson }}{% endif %}
 
-{% if best_metrics and best_params -%}
-Best Configuration So Far:
-  Sharpe: {{ best_metrics.sharpe_ratio|format_float(3) }}
-{% for param_name, param_value in best_params.items() %}
-  {{ param_name }}: {{ param_value }}
 {% endfor %}
 {% endif %}
 
-Optimization Objectives:
-  Target: {{ optimization_target }}
-  Min Sharpe: {{ min_sharpe }}
-  Max Drawdown: {{ max_drawdown_limit|format_percent }}
-  Min Trades: {{ min_trades }}
+{% if best_metrics and best_params -%}
+## BEST RESULT SO FAR
+| Metric | Value |
+|--------|-------|
+| Sharpe | {{ best_metrics.sharpe_ratio|format_float(3) }} |
+| Sortino | {{ best_metrics.sortino_ratio|format_float(3) if best_metrics.sortino_ratio else 'N/A' }} |
+| Drawdown | {{ best_metrics.max_drawdown|format_percent }} |
+| Trades | {{ best_metrics.total_trades }} |
 
-Generate 3-5 parameter proposals in the required JSON format.
-IMPORTANT: All parameter values MUST respect the min/max constraints!
+Best Parameters:
+{% for param_name, param_value in best_params.items() %}
+- {{ param_name }}: {{ param_value }}
+{% endfor %}
+{% endif %}
+
+{% if analyst_report -%}
+## ANALYST INSIGHTS
+{{ analyst_report[:1200] }}{% if analyst_report|length > 1200 %}...{% endif %}
+
+{% endif %}
+
+## OPTIMIZATION OBJECTIVES
+- **Primary Target**: {{ optimization_target }}
+- **Min Sharpe Ratio**: {{ min_sharpe }}
+- **Max Drawdown (absolute)**: {{ max_drawdown_limit|format_percent }}
+- **Min Trades**: {{ min_trades }}
+- **Max Overfitting Ratio**: {{ max_overfitting_ratio|default(1.5) }}
+
+## INSTRUCTIONS
+1. Propose **3-5 parameter sets** ordered by priority (conservative → aggressive)
+2. **Respect bounds strictly**: each param must be within [min, max]
+3. **Respect step**: if step is defined, values must be multiples of step from min
+4. **Avoid extreme boundaries** unless justified by robustness improvement
+5. **Do NOT modify**: capital, fees, seed, or non-strategy parameters
+6. **Consider parameter interactions**: e.g., fast_period < slow_period
+
+## REQUIRED OUTPUT FORMAT
+Return ONLY valid JSON with this exact structure (no markdown, no extra text):
+```json
+{
+    "analysis_summary": "Brief summary of key findings from analyst",
+    "optimization_strategy": "Your overall approach for this iteration",
+    "proposals": [
+        {
+            "id": 1,
+            "name": "Conservative Adjustment",
+            "priority": "HIGH",
+            "risk_level": "LOW",
+            "parameters": {"param_name": value},
+            "changes_from_current": {"param_name": {"from": X, "to": Y, "change_pct": Z}},
+            "rationale": "Why this should improve performance",
+            "expected_impact": {
+                "sharpe_ratio": "+X% to +Y%",
+                "drawdown": "reduced|similar|increased",
+                "trade_frequency": "lower|similar|higher"
+            },
+            "risks": ["risk1", "risk2"]
+        }
+    ],
+    "constraints_respected": true,
+    "fallback_recommendation": "What to do if proposals fail"
+}
+```

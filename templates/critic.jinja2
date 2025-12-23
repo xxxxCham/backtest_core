@@ -1,52 +1,118 @@
 {# Template pour Agent Critic - Évaluation critique des propositions #}
-Critically evaluate the following optimization proposals:
+{# Version 2.0 - Optimisé avec métriques Tier S et format JSON explicite #}
 
+Critically evaluate the following optimization proposals.
+
+## CONTEXT
 Strategy: {{ strategy_name }}
 Iteration: {{ iteration }}
 
 {% if current_metrics -%}
-Current Performance Baseline:
-  Sharpe Ratio: {{ current_metrics.sharpe_ratio|format_float(3) }}
-  Max Drawdown: {{ current_metrics.max_drawdown|format_percent }}
-  Win Rate: {{ current_metrics.win_rate|format_percent }}
-  Total Trades: {{ current_metrics.total_trades }}
+## BASELINE PERFORMANCE
+| Metric | Value | Target |
+|--------|-------|--------|
+| Sharpe Ratio | {{ current_metrics.sharpe_ratio|format_float(3) }} | ≥ {{ min_sharpe }} |
+| Sortino Ratio | {{ current_metrics.sortino_ratio|format_float(3) if current_metrics.sortino_ratio else 'N/A' }} | - |
+| Max Drawdown | {{ current_metrics.max_drawdown|format_percent }} | ≤ {{ max_drawdown_limit|format_percent }} |
+| Win Rate | {{ current_metrics.win_rate|format_percent }} | - |
+| Profit Factor | {{ current_metrics.profit_factor|format_float(2) if current_metrics.profit_factor else 'N/A' }} | - |
+| SQN | {{ current_metrics.sqn|format_float(2) if current_metrics.sqn else 'N/A' }} | ≥ 2.0 |
+| Total Trades | {{ current_metrics.total_trades }} | ≥ {{ min_trades }} |
 {% endif %}
 
-{% if overfitting_ratio > 0 -%}
-Current Overfitting Ratio: {{ overfitting_ratio|format_float(2) }}
-{% if overfitting_ratio > 1.5 %}
-  ⚠️ Already showing overfitting signs!
+{% if overfitting_ratio is defined and overfitting_ratio > 0 -%}
+## OVERFITTING STATUS
+- Current Ratio: {{ overfitting_ratio|format_float(2) }}
+- Limit: {{ max_overfitting_ratio|default(1.5) }}
+- Status: {% if overfitting_ratio > max_overfitting_ratio|default(1.5) %}⚠️ **HIGH RISK** - Be very skeptical of aggressive proposals{% elif overfitting_ratio > 1.0 %}🟡 MODERATE{% else %}✅ LOW{% endif %}
+
 {% endif %}
+
+{% if iteration_history and iteration_history|length > 0 -%}
+## ITERATION HISTORY (trend analysis)
+{% for hist in iteration_history[-3:] %}
+- Iter {{ hist.get('iteration', loop.index) }}: Sharpe={{ hist.get('sharpe_ratio', 0)|format_float(2) }}{% if hist.get('status') %} [{{ hist.get('status') }}]{% endif %}
+
+{% endfor %}
 {% endif %}
 
 {% if analyst_report -%}
-Analyst Summary: {{ analyst_report[:500] }}
+## ANALYST FINDINGS
+{{ analyst_report[:800] }}{% if analyst_report|length > 800 %}...{% endif %}
+
 {% endif %}
 
-=== PROPOSALS TO EVALUATE ===
+## PROPOSALS TO EVALUATE
 {% for proposal in strategist_proposals %}
 
---- Proposal {{ proposal.get('id', loop.index) }}: {{ proposal.get('name', 'Unnamed') }} ---
-Priority: {{ proposal.get('priority', 'N/A') }}
-Risk Level: {{ proposal.get('risk_level', 'N/A') }}
-Parameters:
+### Proposal {{ proposal.get('id', loop.index) }}: {{ proposal.get('name', 'Unnamed') }}
+| Attribute | Value |
+|-----------|-------|
+| Priority | {{ proposal.get('priority', 'N/A') }} |
+| Risk Level | {{ proposal.get('risk_level', 'N/A') }} |
+
+**Parameter Changes (current → proposed):**
 {% for param_name, param_value in proposal.get('parameters', {}).items() %}
-  {{ param_name }}: {{ current_params.get(param_name, 'N/A') }} → {{ param_value }}
+- `{{ param_name }}`: {{ current_params.get(param_name, 'N/A') }} → **{{ param_value }}**{% set change = param_value - current_params.get(param_name, param_value) %}{% if change != 0 %} ({{ '+' if change > 0 else '' }}{{ change }}){% endif %}
+
 {% endfor %}
-Rationale: {{ proposal.get('rationale', 'N/A') }}
+
+**Rationale:** {{ proposal.get('rationale', 'N/A') }}
 {% if proposal.get('expected_impact') %}
-Expected Impact: Sharpe {{ proposal.expected_impact.get('sharpe_ratio', 'N/A') }}
+**Expected Impact:**
+- Sharpe: {{ proposal.expected_impact.get('sharpe_ratio', 'N/A') }}
+- Drawdown: {{ proposal.expected_impact.get('drawdown', 'N/A') }}
+- Trade Frequency: {{ proposal.expected_impact.get('trade_frequency', 'N/A') }}
+{% endif %}
+{% if proposal.get('risks') %}
+**Stated Risks:** {{ proposal.get('risks')|join(', ') }}
 {% endif %}
 {% endfor %}
 
-Parameter Constraints:
+## PARAMETER CONSTRAINTS
 {% for spec in param_specs %}
-  {{ spec.name }}: min={{ spec.min_value }}, max={{ spec.max_value }}
+- `{{ spec.name }}`: [{{ spec.min_value }} - {{ spec.max_value }}] step={{ spec.step }}
 {% endfor %}
 
-Optimization Objectives:
-  Min Sharpe: {{ min_sharpe }}
-  Max Drawdown: {{ max_drawdown_limit|format_percent }}
-  Max Overfitting Ratio: {{ max_overfitting_ratio }}
+## EVALUATION CRITERIA
+| Objective | Threshold |
+|-----------|-----------|
+| Min Sharpe Ratio | {{ min_sharpe }} |
+| Max Drawdown | {{ max_drawdown_limit|format_percent }} |
+| Min Trades | {{ min_trades }} |
+| Max Overfitting | {{ max_overfitting_ratio|default(1.5) }} |
 
-Evaluate each proposal critically and respond in the required JSON format.
+## RED FLAGS TO CHECK
+1. **Boundary values**: Parameters at exact min/max (likely overfitting)
+2. **Overly specific values**: e.g., 17.3 instead of 15 or 20
+3. **Large impact claims**: >20% Sharpe improvement is suspicious
+4. **Step violations**: Values not aligned with step increments
+5. **Inconsistency**: Conflicts with analyst findings
+6. **Regime dependency**: Works only in specific market conditions
+
+## REQUIRED OUTPUT FORMAT
+Return ONLY valid JSON (no markdown, no extra text):
+```json
+{
+    "overall_assessment": "Brief critical summary of all proposals",
+    "market_regime_concerns": ["concern1", "concern2"],
+    "statistical_concerns": ["concern1", "concern2"],
+    "proposal_evaluations": [
+        {
+            "proposal_id": 1,
+            "overfitting_score": 0-100,
+            "robustness_score": 0-100,
+            "recommendation": "APPROVE|MODIFY|REJECT",
+            "critical_issues": ["issue1"],
+            "warnings": ["warning1"],
+            "suggested_modifications": ["mod1"],
+            "reasoning": "Detailed reasoning"
+        }
+    ],
+    "approved_proposals": [1, 2],
+    "rejected_proposals": [3],
+    "best_proposal_id": 1,
+    "proceed_with_testing": true,
+    "final_concerns": ["Any remaining concerns"]
+}
+```

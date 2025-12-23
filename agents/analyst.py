@@ -51,7 +51,7 @@ class KeyMetricsAssessment(BaseModel):
 
 class AnalysisResponse(BaseModel):
     """Structure de la réponse d'analyse du LLM.
-    
+
     Utilise Pydantic pour validation robuste et typée.
     """
     summary: str = Field(..., min_length=10)
@@ -65,7 +65,7 @@ class AnalysisResponse(BaseModel):
     recommendations: List[str] = Field(default_factory=list)
     proceed_to_optimization: bool
     reasoning: str = Field(..., min_length=10)
-    
+
     @field_validator('strengths', 'weaknesses', 'concerns', 'recommendations', mode='after')
     @classmethod
     def validate_non_empty_strings(cls, v):
@@ -81,7 +81,7 @@ class AnalysisResponse(BaseModel):
 class AnalystAgent(BaseAgent):
     """
     Agent Analyst - Expert en analyse quantitative.
-    
+
     Analyse:
     - Performance absolue (rendement, sharpe, etc.)
     - Risque (drawdown, volatilité, etc.)
@@ -89,11 +89,11 @@ class AnalystAgent(BaseAgent):
     - Overfitting (train vs test)
     - Tendances historiques (si plusieurs itérations)
     """
-    
+
     @property
     def role(self) -> AgentRole:
         return AgentRole.ANALYST
-    
+
     @property
     def system_prompt(self) -> str:
         return """You are a senior quantitative analyst specializing in algorithmic trading strategy evaluation.
@@ -136,27 +136,27 @@ Respond ONLY in valid JSON format with this exact structure:
     "proceed_to_optimization": true/false,
     "reasoning": "Why proceed or not proceed"
 }"""
-    
+
     def execute(self, context: AgentContext) -> AgentResult:
         """
         Exécute l'analyse quantitative.
-        
+
         Args:
             context: Contexte avec métriques
-            
+
         Returns:
             Rapport d'analyse
         """
         start_time = time.time()
-        
+
         # Construire le prompt utilisateur
         user_prompt = self._build_analysis_prompt(context)
-        
+
         # Appeler le LLM
         response = self._call_llm(user_prompt, json_mode=True, temperature=0.3)
-        
+
         execution_time = (time.time() - start_time) * 1000
-        
+
         # Vérifier la réponse
         if not response.content:
             return AgentResult.failure_result(
@@ -165,7 +165,7 @@ Respond ONLY in valid JSON format with this exact structure:
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
-        
+
         # Parser la réponse LLM avec try/except robuste
         try:
             analysis = response.parse_json()
@@ -184,7 +184,7 @@ Respond ONLY in valid JSON format with this exact structure:
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
-        
+
         # Valider la structure
         try:
             validation_errors = self._validate_analysis(analysis)
@@ -203,7 +203,7 @@ Respond ONLY in valid JSON format with this exact structure:
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
-        
+
         # Créer le résultat
         return AgentResult.success_result(
             self.role,
@@ -224,10 +224,23 @@ Respond ONLY in valid JSON format with this exact structure:
             llm_calls=1,
             raw_llm_response=response,
         )
-    
+
     def _build_analysis_prompt(self, context: AgentContext) -> str:
         """Construit le prompt d'analyse via template Jinja2."""
-        
+
+        # Convertir MetricsSnapshot en dict pour le template
+        current_metrics_dict = None
+        if context.current_metrics:
+            current_metrics_dict = context.current_metrics.to_dict()
+
+        train_metrics_dict = None
+        if context.train_metrics:
+            train_metrics_dict = context.train_metrics.to_dict()
+
+        test_metrics_dict = None
+        if context.test_metrics:
+            test_metrics_dict = context.test_metrics.to_dict()
+
         # Préparer le dictionnaire de contexte pour le template
         template_context = {
             "strategy_name": context.strategy_name,
@@ -238,41 +251,42 @@ Respond ONLY in valid JSON format with this exact structure:
             "data_rows": context.data_rows,
             "iteration": context.iteration,
             "current_params": context.current_params,
-            "current_metrics": context.current_metrics,
-            "train_metrics": context.train_metrics,
-            "test_metrics": context.test_metrics,
+            "param_specs": context.param_specs,
+            "current_metrics": current_metrics_dict,
+            "train_metrics": train_metrics_dict,
+            "test_metrics": test_metrics_dict,
             "overfitting_ratio": context.overfitting_ratio,
+            "max_overfitting_ratio": context.max_overfitting_ratio,
             "iteration_history": context.iteration_history,
             "optimization_target": context.optimization_target,
             "min_sharpe": context.min_sharpe,
             "max_drawdown_limit": context.max_drawdown_limit,
             "min_trades": context.min_trades,
-            "max_overfitting_ratio": context.max_overfitting_ratio,
         }
-        
+
         # Rendre le template
         return render_prompt("analyst.jinja2", template_context)
-    
+
     def _validate_analysis(self, analysis: Dict[str, Any]) -> List[str]:
         """Valide la structure de l'analyse avec Pydantic.
-        
+
         Args:
             analysis: Dictionnaire JSON à valider
-            
+
         Returns:
             Liste d'erreurs (vide si validation réussie)
         """
         try:
             # Validation Pydantic - lève ValidationError si invalide
             validated = AnalysisResponse.model_validate(analysis)
-            
+
             # Validation réussie
             logger.debug(
                 f"Analyse validée avec succès: {validated.performance_rating} "
                 f"performance, {validated.risk_rating} risk"
             )
             return []  # Aucune erreur
-            
+
         except ValidationError as e:
             # Extraire les messages d'erreur Pydantic
             errors = []
@@ -280,14 +294,14 @@ Respond ONLY in valid JSON format with this exact structure:
                 field_path = " -> ".join(str(loc) for loc in error["loc"])
                 error_msg = error["msg"]
                 error_type = error["type"]
-                
+
                 errors.append(
                     f"Champ '{field_path}': {error_msg} (type: {error_type})"
                 )
-            
+
             logger.warning(f"Validation Pydantic échouée: {len(errors)} erreur(s)")
             return errors
-            
+
         except Exception as e:
             # Erreur inattendue
             logger.error(f"Erreur inattendue lors validation Pydantic: {e}")

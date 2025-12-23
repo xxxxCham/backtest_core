@@ -33,18 +33,18 @@ logger = logging.getLogger(__name__)
 class CriticAgent(BaseAgent):
     """
     Agent Critic - Expert en détection des risques.
-    
+
     Évalue:
     - Risque d'overfitting pour chaque proposition
     - Cohérence des changements proposés
     - Risques cachés ou non évidents
     - Faisabilité et robustesse
     """
-    
+
     @property
     def role(self) -> AgentRole:
         return AgentRole.CRITIC
-    
+
     @property
     def system_prompt(self) -> str:
         return """You are a senior risk analyst and trading strategy auditor with a skeptical mindset.
@@ -101,19 +101,19 @@ Respond ONLY in valid JSON format with this exact structure:
     "proceed_with_testing": true/false,
     "final_concerns": ["Any remaining concerns to flag"]
 }"""
-    
+
     def execute(self, context: AgentContext) -> AgentResult:
         """
         Évalue critiquement les propositions.
-        
+
         Args:
             context: Contexte avec propositions du Strategist
-            
+
         Returns:
             Évaluation critique
         """
         start_time = time.time()
-        
+
         # Vérifier qu'il y a des propositions
         if not context.strategist_proposals:
             return AgentResult.failure_result(
@@ -121,15 +121,15 @@ Respond ONLY in valid JSON format with this exact structure:
                 "Aucune proposition à évaluer",
                 execution_time_ms=0,
             )
-        
+
         # Construire le prompt
         user_prompt = self._build_critique_prompt(context)
-        
+
         # Appeler le LLM
         response = self._call_llm(user_prompt, json_mode=True, temperature=0.3)
-        
+
         execution_time = (time.time() - start_time) * 1000
-        
+
         # Vérifier la réponse
         if not response.content:
             return AgentResult.failure_result(
@@ -138,7 +138,7 @@ Respond ONLY in valid JSON format with this exact structure:
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
-        
+
         # Parser le JSON
         critique = response.parse_json()
         if critique is None:
@@ -148,17 +148,17 @@ Respond ONLY in valid JSON format with this exact structure:
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
-        
+
         # Valider la structure
         validation_errors = self._validate_critique(critique)
         if validation_errors:
             logger.warning(f"Critique partiellement invalide: {validation_errors}")
-        
+
         # Extraire les informations clés
         approved = critique.get("approved_proposals", [])
         rejected = critique.get("rejected_proposals", [])
         best_id = critique.get("best_proposal_id")
-        
+
         # Filtrer les propositions approuvées
         approved_proposals = []
         for prop in context.strategist_proposals:
@@ -173,14 +173,14 @@ Respond ONLY in valid JSON format with this exact structure:
                 prop["critic_evaluation"] = eval_data
                 prop["is_best"] = (prop_id == best_id)
                 approved_proposals.append(prop)
-        
+
         # Collecter les concerns
         concerns = (
             critique.get("market_regime_concerns", []) +
             critique.get("statistical_concerns", []) +
             critique.get("final_concerns", [])
         )
-        
+
         return AgentResult.success_result(
             self.role,
             content=critique.get("overall_assessment", ""),
@@ -198,40 +198,47 @@ Respond ONLY in valid JSON format with this exact structure:
             llm_calls=1,
             raw_llm_response=response,
         )
-    
+
     def _build_critique_prompt(self, context: AgentContext) -> str:
         """Construit le prompt de critique via template Jinja2."""
-        
+
+        # Convertir MetricsSnapshot en dict pour le template
+        current_metrics_dict = None
+        if context.current_metrics:
+            current_metrics_dict = context.current_metrics.to_dict()
+
         template_context = {
             "strategy_name": context.strategy_name,
             "iteration": context.iteration,
-            "current_metrics": context.current_metrics,
+            "current_metrics": current_metrics_dict,
             "overfitting_ratio": context.overfitting_ratio,
             "analyst_report": context.analyst_report,
             "strategist_proposals": context.strategist_proposals,
             "current_params": context.current_params,
             "param_specs": context.param_specs,
             "min_sharpe": context.min_sharpe,
+            "min_trades": context.min_trades,
             "max_drawdown_limit": context.max_drawdown_limit,
             "max_overfitting_ratio": context.max_overfitting_ratio,
+            "iteration_history": context.iteration_history,
         }
-        
+
         return render_prompt("critic.jinja2", template_context)
-    
+
     def _validate_critique(self, critique: Dict[str, Any]) -> List[str]:
         """Valide la structure de la critique."""
         errors = []
-        
+
         required_fields = [
             "overall_assessment",
             "proposal_evaluations",
             "proceed_with_testing",
         ]
-        
+
         for field in required_fields:
             if field not in critique:
                 errors.append(f"Champ manquant: {field}")
-        
+
         # Valider les évaluations
         evaluations = critique.get("proposal_evaluations", [])
         for eval_data in evaluations:
@@ -241,5 +248,5 @@ Respond ONLY in valid JSON format with this exact structure:
                 errors.append("recommendation manquante dans évaluation")
             elif eval_data["recommendation"] not in ["APPROVE", "MODIFY", "REJECT"]:
                 errors.append(f"recommendation invalide: {eval_data['recommendation']}")
-        
+
         return errors

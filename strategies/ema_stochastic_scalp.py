@@ -76,7 +76,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=20,
                 max_val=100,
                 default=50,
-                param_type=int,
+                param_type="int",
                 description="Période EMA rapide"
             ),
             "slow_ema": ParameterSpec(
@@ -84,7 +84,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=50,
                 max_val=200,
                 default=100,
-                param_type=int,
+                param_type="int",
                 description="Période EMA lente"
             ),
             "stoch_k": ParameterSpec(
@@ -92,7 +92,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=5,
                 max_val=21,
                 default=14,
-                param_type=int,
+                param_type="int",
                 description="Période Stochastic %K"
             ),
             "stoch_d": ParameterSpec(
@@ -100,7 +100,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=2,
                 max_val=9,
                 default=3,
-                param_type=int,
+                param_type="int",
                 description="Période Stochastic %D"
             ),
             "stoch_oversold": ParameterSpec(
@@ -108,7 +108,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=10,
                 max_val=30,
                 default=20,
-                param_type=int,
+                param_type="int",
                 description="Seuil survente Stochastic"
             ),
             "stoch_overbought": ParameterSpec(
@@ -116,7 +116,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=70,
                 max_val=90,
                 default=80,
-                param_type=int,
+                param_type="int",
                 description="Seuil surachat Stochastic"
             ),
             "leverage": ParameterSpec(
@@ -124,7 +124,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
                 min_val=1,
                 max_val=20,
                 default=10,
-                param_type=int,
+                param_type="int",
                 description="Levier de trading (scalping)"
             ),
         }

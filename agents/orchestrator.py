@@ -36,38 +36,38 @@ logger = logging.getLogger(__name__)
 @dataclass
 class OrchestratorConfig:
     """Configuration de l'Orchestrator."""
-    
+
     # Stratégie
     strategy_name: str = ""
     strategy_description: str = ""
-    
+
     # Données
     data_path: str = ""
-    
+
     # Paramètres initiaux
     initial_params: Dict[str, Any] = field(default_factory=dict)
     param_specs: List[ParameterConfig] = field(default_factory=list)
-    
+
     # Objectifs d'optimisation
     optimization_target: str = "sharpe_ratio"
     min_sharpe: float = 1.0
     max_drawdown_limit: float = 0.20
     min_trades: int = 30
     max_overfitting_ratio: float = 1.5
-    
+
     # Limites
     max_iterations: int = 10
     max_proposals_per_iteration: int = 5
-    
+
     # LLM
     llm_config: Optional[LLMConfig] = None
     role_model_config: Optional[RoleModelConfig] = None
-    
+
     # Walk-forward
     use_walk_forward: bool = True
     walk_forward_windows: int = 5
     train_ratio: float = 0.7
-    
+
     # Callbacks (optionnels)
     on_state_change: Optional[Callable[[AgentState, AgentState], None]] = None
     on_iteration_complete: Optional[Callable[[int, Dict], None]] = None
@@ -77,30 +77,30 @@ class OrchestratorConfig:
 @dataclass
 class OrchestratorResult:
     """Résultat final de l'orchestration."""
-    
+
     success: bool
     final_state: AgentState
     decision: str  # APPROVE, REJECT, ABORT
-    
+
     # Configuration finale
     final_params: Dict[str, Any] = field(default_factory=dict)
     final_metrics: Optional[MetricsSnapshot] = None
-    
+
     # Métriques d'exécution
     total_iterations: int = 0
     total_backtests: int = 0
     total_time_s: float = 0.0
     total_llm_tokens: int = 0
     total_llm_calls: int = 0
-    
+
     # Historique
     iteration_history: List[Dict[str, Any]] = field(default_factory=list)
     state_history: List[Dict[str, Any]] = field(default_factory=list)
-    
+
     # Rapport
     final_report: str = ""
     recommendations: List[str] = field(default_factory=list)
-    
+
     # Erreurs
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -109,13 +109,13 @@ class OrchestratorResult:
 class Orchestrator:
     """
     Orchestrator - Coordonne le workflow d'optimisation LLM.
-    
+
     Garanties:
     - Transitions validées via State Machine
     - Pas de boucles infinies (max_iterations)
     - Traçabilité complète
     - Gestion des erreurs gracieuse
-    
+
     Example:
         >>> config = OrchestratorConfig(
         ...     strategy_name="ema_cross",
@@ -128,44 +128,48 @@ class Orchestrator:
         >>> if result.success:
         ...     print(f"Optimized params: {result.final_params}")
     """
-    
+
     def __init__(self, config: OrchestratorConfig):
         """
         Initialise l'Orchestrator.
-        
+
         Args:
             config: Configuration complète
         """
         self.config = config
         self.session_id = str(uuid.uuid4())[:8]
-        
+
         # State Machine
         self.state_machine = StateMachine(max_iterations=config.max_iterations)
-        
+
         # LLM Client
         llm_config = config.llm_config or LLMConfig.from_env()
         self.llm_client = create_llm_client(llm_config)
-        
+
         # Agents
         self.analyst = AnalystAgent(self.llm_client)
         self.strategist = StrategistAgent(self.llm_client)
         self.critic = CriticAgent(self.llm_client)
         self.validator = ValidatorAgent(self.llm_client)
-        
+
         # Context partagé
         self.context = self._create_initial_context()
-        
+
         # Tracking
         self._start_time: Optional[float] = None
         self._backtests_count = 0
         self._errors: List[str] = []
         self._warnings: List[str] = []
-        
+
+        # Orchestration logger (optionnel, non bloquant)
+        self._orch_logger: Any = None
+        self._init_orchestration_logger()
+
         logger.info(
             f"Orchestrator initialisé: session={self.session_id}, "
             f"strategy={config.strategy_name}, max_iter={config.max_iterations}"
         )
-    
+
     def _create_initial_context(self) -> AgentContext:
         """Crée le contexte initial."""
         return AgentContext(
@@ -183,6 +187,44 @@ class Orchestrator:
             max_overfitting_ratio=self.config.max_overfitting_ratio,
         )
 
+    def _init_orchestration_logger(self) -> None:
+        """Initialise un logger d'orchestration s'il est disponible (non bloquant)."""
+        # Utilise un logger fourni dans la config si présent
+        if hasattr(self.config, "orchestration_logger") and self.config.orchestration_logger:
+            self._orch_logger = self.config.orchestration_logger
+            return
+        # Tentative de création depuis le module dédié (si disponible)
+        try:
+            from .orchestration_logger import OrchestrationLogger  # type: ignore
+            self._orch_logger = OrchestrationLogger(session_id=self.session_id)
+        except Exception:
+            self._orch_logger = None  # Mode dégradé: aucune trace persistée
+
+    def _log_event(self, event_type: str, **payload: Any) -> None:
+        """
+        Ajoute un événement d'orchestration de manière non bloquante.
+        Supporte plusieurs API possibles (log/add_event/append).
+        """
+        if not self._orch_logger:
+            return
+        try:
+            entry = {
+                "event_type": event_type,
+                "timestamp": datetime.now().isoformat(),
+                "session_id": self.session_id,
+                "iteration": getattr(self.state_machine, "iteration", 0),
+                **payload,
+            }
+            if hasattr(self._orch_logger, "log"):
+                self._orch_logger.log(event_type, entry)  # type: ignore[attr-defined]
+            elif hasattr(self._orch_logger, "add_event"):
+                self._orch_logger.add_event(event_type, entry)  # type: ignore[attr-defined]
+            elif hasattr(self._orch_logger, "append"):
+                self._orch_logger.append(entry)  # type: ignore[attr-defined]
+        except Exception as e:
+            # Ne jamais bloquer le flux pour la traçabilité
+            logger.debug("Orchestration log failed: %s", e)
+
     def _apply_role_model(self, role: str) -> Optional[str]:
         """Select and apply a model for the given role if configured."""
         config = self.config.role_model_config
@@ -199,37 +241,57 @@ class Orchestrator:
             self.llm_client.config.model = model_name
             logger.info("Role %s model set to %s", role, model_name)
         return model_name
-    
+
     def run(self) -> OrchestratorResult:
         """
         Exécute le workflow d'optimisation complet.
-        
+
         Returns:
             Résultat de l'orchestration
         """
         self._start_time = time.time()
+        self._log_event(
+            "run_start",
+            strategy=self.config.strategy_name,
+            max_iterations=self.config.max_iterations,
+            data_path=bool(self.config.data_path),
+        )
         logger.info(f"=== Démarrage orchestration {self.session_id} ===")
-        
+
         try:
             # Transition vers INIT → ANALYZE
             self._run_workflow()
-            
+
         except Exception as e:
             logger.error(f"Erreur orchestration: {e}", exc_info=True)
+            self._log_event("error", scope="orchestration", message=str(e))
             self.state_machine.fail(str(e), e)
             self._errors.append(str(e))
-        
+
         # Construire le résultat final
-        return self._build_result()
-    
+        result = self._build_result()
+        self._log_event(
+            "run_end",
+            success=result.success,
+            decision=result.decision,
+            total_iterations=result.total_iterations,
+            total_backtests=result.total_backtests,
+            total_time_s=result.total_time_s,
+            total_llm_calls=result.total_llm_calls,
+            total_llm_tokens=result.total_llm_tokens,
+            errors=len(result.errors),
+            warnings=len(result.warnings),
+        )
+        return result
+
     def _run_workflow(self) -> None:
         """Exécute la boucle principale du workflow."""
-        
+
         while not self.state_machine.is_terminal:
             current = self.state_machine.current_state
-            
+            self._log_event("state_enter", state=current.name)
             logger.info(f"État actuel: {current.name}")
-            
+
             # Dispatch selon l'état
             if current == AgentState.INIT:
                 self._handle_init()
@@ -247,21 +309,29 @@ class Orchestrator:
                 logger.error(f"État non géré: {current}")
                 self.state_machine.fail(f"État non géré: {current}")
                 break
-            
-            # Callback de changement d'état
+
+            # Callback + log de transition
             if self.config.on_state_change:
                 self.config.on_state_change(current, self.state_machine.current_state)
-    
+            self._log_event(
+                "state_change",
+                state_from=current.name,
+                state_to=self.state_machine.current_state.name,
+            )
+
     def _handle_init(self) -> None:
         """Gère l'état INIT - Initialisation et validation."""
+        self._log_event("phase_start", phase="INIT")
         logger.info("Phase INIT: Validation configuration et backtest initial")
-        
+
         # Valider la configuration
         validation = self._validate_config()
         if not validation.is_valid:
+            self._log_event("config_invalid", errors=validation.errors or [], message=validation.message)
             self.state_machine.fail(f"Configuration invalide: {validation.message}")
             return
-        
+        self._log_event("config_valid")
+
         # Exécuter le backtest initial
         try:
             initial_metrics = self._run_backtest(self.context.current_params)
@@ -269,88 +339,116 @@ class Orchestrator:
                 self.context.current_metrics = initial_metrics
                 self.context.best_metrics = initial_metrics
                 self.context.best_params = self.context.current_params.copy()
+                self._log_event(
+                    "initial_backtest_done",
+                    sharpe=initial_metrics.sharpe_ratio,
+                    total_return=initial_metrics.total_return,
+                    max_drawdown=initial_metrics.max_drawdown,
+                )
                 logger.info(
                     f"Backtest initial: Sharpe={initial_metrics.sharpe_ratio:.3f}, "
                     f"Return={initial_metrics.total_return:.2%}"
                 )
             else:
                 self._warnings.append("Backtest initial sans métriques")
+                self._log_event("warning", message="Backtest initial sans métriques")
         except Exception as e:
             self._warnings.append(f"Erreur backtest initial: {e}")
-        
+            self._log_event("warning", message=f"Erreur backtest initial: {e}")
+
         # Transition vers ANALYZE
         self.state_machine.transition_to(AgentState.ANALYZE)
-    
+
     def _handle_analyze(self) -> None:
         """Gère l'état ANALYZE - Exécution de l'Agent Analyst."""
+        self._log_event("phase_start", phase="ANALYZE")
         logger.info("Phase ANALYZE: Exécution Agent Analyst")
-        
+
         # Mettre à jour l'itération dans le contexte
         self.context.iteration = self.state_machine.iteration
-        
+
         # Exécuter l'Analyst
         self._apply_role_model("analyst")
+        self._log_event("agent_execute_start", role="analyst", model=self.llm_client.config.model)
+        t0 = time.time()
         result = self.analyst.execute(self.context)
-        
+        dt = int((time.time() - t0) * 1000)
+        self._log_event("agent_execute_end", role="analyst", success=result.success, latency_ms=dt)
+
         if not result.success:
             logger.error(f"Analyst échoué: {result.errors}")
+            self._log_event("error", scope="analyst", message=str(result.errors))
             self._errors.extend(result.errors)
             # Continuer quand même - l'analyse n'est pas bloquante
             self.context.analyst_report = "Analyse non disponible"
         else:
             # Stocker le rapport
             self.context.analyst_report = result.content
-            
+
             # Vérifier si on doit continuer l'optimisation
             proceed = result.data.get("proceed_to_optimization", True)
+            self._log_event("analyst_result", proceed=bool(proceed))
             if not proceed:
                 logger.info("Analyst recommande de ne pas optimiser")
                 self.state_machine.transition_to(AgentState.VALIDATE)
                 return
-        
+
         # Transition vers PROPOSE
         self.state_machine.transition_to(AgentState.PROPOSE)
-    
+
     def _handle_propose(self) -> None:
         """Gère l'état PROPOSE - Exécution de l'Agent Strategist."""
+        self._log_event("phase_start", phase="PROPOSE")
         logger.info("Phase PROPOSE: Exécution Agent Strategist")
-        
+
         # Exécuter le Strategist
         self._apply_role_model("strategist")
+        self._log_event("agent_execute_start", role="strategist", model=self.llm_client.config.model)
+        t0 = time.time()
         result = self.strategist.execute(self.context)
-        
+        dt = int((time.time() - t0) * 1000)
+        self._log_event("agent_execute_end", role="strategist", success=result.success, latency_ms=dt)
+
         if not result.success:
             logger.error(f"Strategist échoué: {result.errors}")
+            self._log_event("error", scope="strategist", message=str(result.errors))
             self._errors.extend(result.errors)
             # Sans propositions, on va directement à la validation
             self.context.strategist_proposals = []
             self.state_machine.transition_to(AgentState.VALIDATE)
             return
-        
+
         # Stocker les propositions
         proposals = result.data.get("proposals", [])
         self.context.strategist_proposals = proposals[:self.config.max_proposals_per_iteration]
-        
+        self._log_event("proposals_generated", count=len(self.context.strategist_proposals))
         logger.info(f"Strategist: {len(self.context.strategist_proposals)} propositions générées")
-        
+
         # Transition vers CRITIQUE
         self.state_machine.transition_to(AgentState.CRITIQUE)
-    
+
     def _handle_critique(self) -> None:
         """Gère l'état CRITIQUE - Exécution de l'Agent Critic."""
+        self._log_event("phase_start", phase="CRITIQUE")
         logger.info("Phase CRITIQUE: Exécution Agent Critic")
-        
+
         if not self.context.strategist_proposals:
             logger.warning("Aucune proposition à critiquer")
+            self._log_event("warning", message="Aucune proposition à critiquer")
             self.state_machine.transition_to(AgentState.VALIDATE)
             return
-        
+
         # Exécuter le Critic
         self._apply_role_model("critic")
+        self._log_event("agent_execute_start", role="critic", model=self.llm_client.config.model)
+        t0 = time.time()
         result = self.critic.execute(self.context)
-        
+        dt = int((time.time() - t0) * 1000)
+        self._log_event("agent_execute_end", role="critic", success=result.success, latency_ms=dt)
+
         if not result.success:
             logger.error(f"Critic échoué: {result.errors}")
+            self._log_event("error", scope="critic", message=str(result.errors))
             self._errors.extend(result.errors)
             # Continuer avec les propositions non filtrées
             self.context.critic_concerns = []
@@ -359,31 +457,41 @@ class Orchestrator:
             approved = result.data.get("approved_proposals", [])
             if approved:
                 self.context.strategist_proposals = approved
-            
+
             self.context.critic_assessment = result.content
             self.context.critic_concerns = result.data.get("concerns", [])
-            
+            self._log_event(
+                "critic_result",
+                approved_count=len(approved),
+                concerns_count=len(self.context.critic_concerns),
+            )
             logger.info(
                 f"Critic: {len(approved)} propositions approuvées, "
                 f"{len(self.context.critic_concerns)} concerns"
             )
-        
+
         # Tester les propositions approuvées
         self._test_proposals()
-        
+
         # Transition vers VALIDATE
         self.state_machine.transition_to(AgentState.VALIDATE)
-    
+
     def _handle_validate(self) -> None:
         """Gère l'état VALIDATE - Exécution de l'Agent Validator."""
+        self._log_event("phase_start", phase="VALIDATE")
         logger.info("Phase VALIDATE: Exécution Agent Validator")
-        
+
         # Exécuter le Validator
         self._apply_role_model("validator")
+        self._log_event("agent_execute_start", role="validator", model=self.llm_client.config.model)
+        t0 = time.time()
         result = self.validator.execute(self.context)
-        
+        dt = int((time.time() - t0) * 1000)
+        self._log_event("agent_execute_end", role="validator", success=result.success, latency_ms=dt)
+
         if not result.success:
             logger.error(f"Validator échoué: {result.errors}")
+            self._log_event("error", scope="validator", message=str(result.errors))
             self._errors.extend(result.errors)
             # Par défaut, on itère si le validator échoue
             decision = ValidationDecision.ITERATE
@@ -393,12 +501,13 @@ class Orchestrator:
                 decision = ValidationDecision(decision_str)
             except ValueError:
                 decision = ValidationDecision.ITERATE
-        
+
         logger.info(f"Validator décision: {decision.value}")
-        
+        self._log_event("validator_decision", decision=decision.value)
+
         # Enregistrer l'historique de l'itération
         self._record_iteration()
-        
+
         # Transition selon la décision
         if decision == ValidationDecision.APPROVE:
             self.state_machine.transition_to(AgentState.APPROVED)
@@ -413,121 +522,148 @@ class Orchestrator:
             else:
                 logger.info("Max iterations atteint, passage en REJECTED")
                 self.state_machine.transition_to(AgentState.REJECTED)
-    
+
     def _handle_iterate(self) -> None:
         """Gère l'état ITERATE - Préparation de l'itération suivante."""
+        self._log_event("phase_start", phase="ITERATE")
         logger.info("Phase ITERATE: Préparation itération suivante")
-        
+
         # Sélectionner la meilleure configuration testée
         best_tested = self._get_best_tested_config()
         if best_tested:
             self.context.current_params = best_tested["params"]
             if best_tested.get("metrics"):
                 self.context.current_metrics = best_tested["metrics"]
-                
+
                 # Mettre à jour le best si meilleur
-                if (self.context.best_metrics is None or 
+                if (self.context.best_metrics is None or
                     best_tested["metrics"].sharpe_ratio > self.context.best_metrics.sharpe_ratio):
                     self.context.best_metrics = best_tested["metrics"]
                     self.context.best_params = best_tested["params"].copy()
-        
+
         # Nettoyer les propositions
         self.context.strategist_proposals = []
         self.context.critic_concerns = []
-        
+
         # Callback itération complète
         if self.config.on_iteration_complete:
             self.config.on_iteration_complete(
                 self.state_machine.iteration,
                 {"metrics": self.context.current_metrics, "params": self.context.current_params}
             )
-        
+
         # Transition vers ANALYZE
         self.state_machine.transition_to(AgentState.ANALYZE)
-    
+
     def _validate_config(self) -> ValidationResult:
         """Valide la configuration initiale."""
         errors = []
-        
+
         if not self.config.strategy_name:
             errors.append("strategy_name requis")
-        
+
         if self.config.data_path:
             if not Path(self.config.data_path).exists():
                 errors.append(f"data_path n'existe pas: {self.config.data_path}")
         elif self.config.on_backtest_needed is None:
             errors.append("data_path requis")
-        
+
         if not self.config.param_specs:
             errors.append("param_specs requis (au moins un paramètre)")
-        
+
         if errors:
             return ValidationResult.failure("; ".join(errors), errors)
-        
+
         return ValidationResult.success()
-    
+
     def _run_backtest(self, params: Dict[str, Any]) -> Optional[MetricsSnapshot]:
         """
         Exécute un backtest avec les paramètres donnés.
-        
+
         Utilise le callback on_backtest_needed si fourni,
         sinon retourne None.
         """
         self._backtests_count += 1
-        
+        self._log_event("backtest_start", source="orchestrator", params=params)
+
         if self.config.on_backtest_needed:
             try:
                 result = self.config.on_backtest_needed(params)
                 if result:
-                    return MetricsSnapshot.from_dict(result)
+                    metrics = MetricsSnapshot.from_dict(result)
+                    self._log_event(
+                        "backtest_end",
+                        success=True,
+                        sharpe=metrics.sharpe_ratio,
+                        total_return=metrics.total_return,
+                        max_drawdown=metrics.max_drawdown,
+                    )
+                    return metrics
             except Exception as e:
                 logger.error(f"Erreur backtest: {e}")
                 self._warnings.append(f"Backtest échoué: {e}")
-        
+                self._log_event("backtest_end", success=False, error=str(e))
+
         return None
-    
+
     def _test_proposals(self) -> None:
         """Teste les propositions approuvées via backtest."""
         for proposal in self.context.strategist_proposals:
             params = proposal.get("parameters", {})
             if not params:
                 continue
-            
+
+            self._log_event(
+                "proposal_test_started",
+                proposal_id=proposal.get("id"),
+                proposal_name=proposal.get("name"),
+            )
             logger.info(f"Test proposition {proposal.get('id')}: {proposal.get('name')}")
-            
+
             metrics = self._run_backtest(params)
             if metrics:
                 proposal["tested_metrics"] = metrics.to_dict()
                 proposal["tested"] = True
-                
+                self._log_event(
+                    "proposal_test_ended",
+                    proposal_id=proposal.get("id"),
+                    tested=True,
+                    sharpe=metrics.sharpe_ratio,
+                    total_return=metrics.total_return,
+                )
                 logger.info(
                     f"  Résultat: Sharpe={metrics.sharpe_ratio:.3f}, "
                     f"Return={metrics.total_return:.2%}"
                 )
             else:
                 proposal["tested"] = False
-    
+                self._log_event(
+                    "proposal_test_ended",
+                    proposal_id=proposal.get("id"),
+                    tested=False,
+                )
+
     def _get_best_tested_config(self) -> Optional[Dict[str, Any]]:
         """Retourne la meilleure configuration testée."""
         best = None
         best_sharpe = float("-inf")
-        
+
         for proposal in self.context.strategist_proposals:
             if not proposal.get("tested"):
                 continue
-            
+
             metrics_dict = proposal.get("tested_metrics", {})
             sharpe = metrics_dict.get("sharpe_ratio", 0)
-            
+
             if sharpe > best_sharpe:
                 best_sharpe = sharpe
                 best = {
                     "params": proposal.get("parameters", {}),
                     "metrics": MetricsSnapshot.from_dict(metrics_dict),
                 }
-        
+
         return best
-    
+
     def _record_iteration(self) -> None:
         """Enregistre l'itération actuelle dans l'historique."""
         entry = {
@@ -535,23 +671,34 @@ class Orchestrator:
             "timestamp": datetime.now().isoformat(),
             "params": self.context.current_params.copy(),
         }
-        
+
         if self.context.current_metrics:
             entry.update({
                 "sharpe_ratio": self.context.current_metrics.sharpe_ratio,
                 "total_return": self.context.current_metrics.total_return,
                 "max_drawdown": self.context.current_metrics.max_drawdown,
             })
-        
+
         entry["proposals_count"] = len(self.context.strategist_proposals)
         entry["concerns_count"] = len(self.context.critic_concerns)
-        
+
         self.context.iteration_history.append(entry)
-    
+
+        # Journalisation non bloquante
+        self._log_event(
+            "iteration_recorded",
+            iteration=entry["iteration"],
+            sharpe=entry.get("sharpe_ratio"),
+            total_return=entry.get("total_return"),
+            max_drawdown=entry.get("max_drawdown"),
+            proposals_count=entry.get("proposals_count", 0),
+            concerns_count=entry.get("concerns_count", 0),
+        )
+
     def _build_result(self) -> OrchestratorResult:
         """Construit le résultat final."""
         elapsed = time.time() - self._start_time if self._start_time else 0
-        
+
         # Déterminer la décision finale
         final_state = self.state_machine.current_state
         if final_state == AgentState.APPROVED:
@@ -563,7 +710,7 @@ class Orchestrator:
         else:
             decision = "ABORT"
             success = False
-        
+
         # Statistiques LLM
         total_tokens = sum([
             self.analyst.stats["total_tokens"],
@@ -577,7 +724,7 @@ class Orchestrator:
             self.critic.stats["execution_count"],
             self.validator.stats["execution_count"],
         ])
-        
+
         return OrchestratorResult(
             success=success,
             final_state=final_state,

@@ -20,6 +20,31 @@ logger = get_logger(__name__)
 class OrchestrationActionType(Enum):
     """Types d'actions d'orchestration."""
 
+    # Cycle de vie orchestration
+    RUN_START = "run_start"
+    RUN_END = "run_end"
+    PHASE_START = "phase_start"
+
+    # Machine à états
+    STATE_ENTER = "state_enter"
+    STATE_CHANGE = "state_change"
+    STATE_EXIT = "state_exit"
+
+    # Agents LLM
+    AGENT_EXECUTE_START = "agent_execute_start"
+    AGENT_EXECUTE_END = "agent_execute_end"
+    ANALYST_RESULT = "analyst_result"
+    PROPOSALS_GENERATED = "proposals_generated"
+    CRITIC_RESULT = "critic_result"
+    VALIDATOR_DECISION = "validator_decision"
+
+    # Propositions et tests
+    PROPOSAL_TEST_STARTED = "proposal_test_started"
+    PROPOSAL_TEST_ENDED = "proposal_test_ended"
+
+    # Itérations
+    ITERATION_RECORDED = "iteration_recorded"
+
     # Analyse
     ANALYSIS_START = "analysis_start"
     ANALYSIS_COMPLETE = "analysis_complete"
@@ -37,6 +62,8 @@ class OrchestrationActionType(Enum):
     INDICATOR_VALIDATION = "indicator_validation"
 
     # Tests
+    BACKTEST_START = "backtest_start"
+    BACKTEST_END = "backtest_end"
     BACKTEST_LAUNCH = "backtest_launch"
     BACKTEST_COMPLETE = "backtest_complete"
     BACKTEST_FAILED = "backtest_failed"
@@ -46,11 +73,20 @@ class OrchestrationActionType(Enum):
     DECISION_STOP = "decision_stop"
     DECISION_CHANGE_APPROACH = "decision_change_approach"
 
-    # Agents
+    # Agents (legacy)
     AGENT_ANALYST_ACTION = "agent_analyst"
     AGENT_STRATEGIST_ACTION = "agent_strategist"
     AGENT_CRITIC_ACTION = "agent_critic"
     AGENT_VALIDATOR_ACTION = "agent_validator"
+
+    # Configuration et validation
+    CONFIG_VALID = "config_valid"
+    CONFIG_INVALID = "config_invalid"
+    INITIAL_BACKTEST_DONE = "initial_backtest_done"
+
+    # Warnings et erreurs
+    WARNING = "warning"
+    ERROR = "error"
 
 
 class OrchestrationStatus(Enum):
@@ -130,18 +166,33 @@ class OrchestrationLogEntry:
 
 
 class OrchestrationLogger:
-    """Logger centralisé pour l'orchestration LLM."""
+    """Logger centralisé pour l'orchestration LLM avec persistance JSONL."""
 
-    def __init__(self, session_id: Optional[str] = None):
+    def __init__(
+        self,
+        session_id: Optional[str] = None,
+        auto_save: bool = True,
+        save_path: Optional[Path] = None,
+    ):
         """
         Initialize le logger d'orchestration.
 
         Args:
             session_id: ID unique de session (généré auto si None)
+            auto_save: Si True, sauvegarde auto toutes les 10 entrées
+            save_path: Chemin personnalisé pour les logs (défaut: runs/{session_id}/trace.jsonl)
         """
         self.session_id = session_id or self._generate_session_id()
         self.logs: List[OrchestrationLogEntry] = []
         self.current_iteration = 0
+        self._auto_save = auto_save
+        self._save_path = save_path or Path("runs") / self.session_id / "trace.jsonl"
+        self._save_counter = 0
+        self._save_interval = 10  # Sauvegarder tous les 10 événements
+
+        # Créer le répertoire si nécessaire
+        if self._auto_save:
+            self._save_path.parent.mkdir(parents=True, exist_ok=True)
 
     def _generate_session_id(self) -> str:
         """Génère un ID de session unique."""
@@ -411,6 +462,55 @@ class OrchestrationLogger:
         self.current_iteration += 1
         logger.info(f"=== Iteration {self.current_iteration} START ===")
 
+    def log(self, event_type: str, data: Dict[str, Any]) -> None:
+        """
+        API générique pour logger un événement (compatible avec orchestrator).
+
+        Args:
+            event_type: Type d'événement (str)
+            data: Données de l'événement incluant tous les champs
+        """
+        # Essayer de mapper le type à un enum
+        try:
+            action_type = OrchestrationActionType(event_type)
+        except ValueError:
+            # Si non reconnu, utiliser WARNING avec le type en détail
+            action_type = OrchestrationActionType.WARNING
+            data = {"original_event_type": event_type, **data}
+
+        entry = OrchestrationLogEntry(
+            timestamp=data.get("timestamp", self._now()),
+            action_type=action_type,
+            agent=data.get("role") or data.get("agent"),
+            status=OrchestrationStatus.COMPLETED,  # Par défaut
+            details=data,
+            iteration=data.get("iteration", self.current_iteration),
+            session_id=data.get("session_id", self.session_id),
+        )
+        self.logs.append(entry)
+        self._maybe_auto_save()
+
+    def add_event(self, event_type: str, data: Dict[str, Any]) -> None:
+        """Alias pour log() (API alternative)."""
+        self.log(event_type, data)
+
+    def append(self, data: Dict[str, Any]) -> None:
+        """Alias pour log() qui extrait event_type du dict."""
+        event_type = data.get("event_type", "warning")
+        self.log(event_type, data)
+
+    def _maybe_auto_save(self) -> None:
+        """Sauvegarde automatiquement si le seuil est atteint."""
+        if not self._auto_save:
+            return
+        self._save_counter += 1
+        if self._save_counter >= self._save_interval:
+            try:
+                self.save_to_jsonl(self._save_path)
+                self._save_counter = 0
+            except Exception as e:
+                logger.debug(f"Auto-save failed: {e}")
+
     def get_logs_for_iteration(self, iteration: int) -> List[OrchestrationLogEntry]:
         """Récupère les logs d'une itération spécifique."""
         return [log for log in self.logs if log.iteration == iteration]
@@ -424,7 +524,12 @@ class OrchestrationLogger:
         return [log for log in self.logs if log.action_type == action_type]
 
     def save_to_file(self, filepath: Optional[Path] = None):
-        """Sauvegarde les logs dans un fichier JSON."""
+        """
+        Sauvegarde les logs dans un fichier JSON (legacy, préférer save_to_jsonl).
+
+        Args:
+            filepath: Chemin du fichier JSON (défaut: orchestration_logs_{session}.json)
+        """
         if filepath is None:
             filepath = Path(f"orchestration_logs_{self.session_id}.json")
 
@@ -439,6 +544,119 @@ class OrchestrationLogger:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
         logger.info(f"Logs saved to {filepath}")
+
+    def save_to_jsonl(self, filepath: Optional[Path] = None):
+        """
+        Sauvegarde les logs en format JSONL (une ligne par événement).
+
+        Args:
+            filepath: Chemin du fichier JSONL (défaut: runs/{session}/trace.jsonl)
+        """
+        if filepath is None:
+            filepath = self._save_path
+
+        # Créer le répertoire si nécessaire
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            # En-tête de métadonnées
+            header = {
+                "event_type": "session_header",
+                "session_id": self.session_id,
+                "total_iterations": self.current_iteration,
+                "total_logs": len(self.logs),
+                "timestamp": self._now(),
+            }
+            f.write(json.dumps(header, ensure_ascii=False) + "\n")
+
+            # Écrire chaque log sur une ligne
+            for log in self.logs:
+                f.write(json.dumps(log.to_dict(), ensure_ascii=False) + "\n")
+
+        logger.debug(f"Logs saved to {filepath} ({len(self.logs)} entries)")
+
+    @classmethod
+    def load_from_file(cls, filepath: Path) -> "OrchestrationLogger":
+        """
+        Charge les logs depuis un fichier JSON ou JSONL.
+
+        Args:
+            filepath: Chemin vers le fichier JSON/JSONL
+
+        Returns:
+            Instance OrchestrationLogger avec les logs chargés
+        """
+        if not filepath.exists():
+            raise FileNotFoundError(f"File not found: {filepath}")
+
+        # Détecter le format
+        with open(filepath, "r", encoding="utf-8") as f:
+            first_line = f.readline().strip()
+
+        if filepath.suffix == ".jsonl" or first_line.startswith('{"event_type"'):
+            return cls._load_from_jsonl(filepath)
+        else:
+            return cls._load_from_json(filepath)
+
+    @classmethod
+    def _load_from_jsonl(cls, filepath: Path) -> "OrchestrationLogger":
+        """Charge depuis un fichier JSONL."""
+        with open(filepath, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        if not lines:
+            raise ValueError("Empty JSONL file")
+
+        # Première ligne = header
+        header = json.loads(lines[0])
+        session_id = header.get("session_id", "unknown")
+
+        instance = cls(session_id=session_id, auto_save=False)
+        instance.current_iteration = header.get("total_iterations", 0)
+
+        # Charger les événements
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            data = json.loads(line)
+            entry = OrchestrationLogEntry(
+                timestamp=data["timestamp"],
+                action_type=OrchestrationActionType(data["action_type"]),
+                agent=data.get("agent"),
+                status=OrchestrationStatus(data["status"]),
+                details=data.get("details", {}),
+                iteration=data.get("iteration", 0),
+                session_id=data.get("session_id"),
+            )
+            instance.logs.append(entry)
+
+        logger.info(f"Loaded {len(instance.logs)} logs from {filepath}")
+        return instance
+
+    @classmethod
+    def _load_from_json(cls, filepath: Path) -> "OrchestrationLogger":
+        """Charge depuis un fichier JSON (legacy)."""
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        session_id = data.get("session_id", "unknown")
+        instance = cls(session_id=session_id, auto_save=False)
+        instance.current_iteration = data.get("total_iterations", 0)
+
+        for log_data in data.get("logs", []):
+            entry = OrchestrationLogEntry(
+                timestamp=log_data["timestamp"],
+                action_type=OrchestrationActionType(log_data["action_type"]),
+                agent=log_data.get("agent"),
+                status=OrchestrationStatus(log_data["status"]),
+                details=log_data.get("details", {}),
+                iteration=log_data.get("iteration", 0),
+                session_id=log_data.get("session_id"),
+            )
+            instance.logs.append(entry)
+
+        logger.info(f"Loaded {len(instance.logs)} logs from {filepath}")
+        return instance
 
     def generate_summary(self) -> str:
         """Génère un résumé textuel des logs."""

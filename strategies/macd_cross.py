@@ -62,7 +62,7 @@ class MACDCrossStrategy(StrategyBase):
                 min_val=5,
                 max_val=30,
                 default=12,
-                param_type=int,
+                param_type="int",
                 description="Période EMA rapide"
             ),
             "slow_period": ParameterSpec(
@@ -70,7 +70,7 @@ class MACDCrossStrategy(StrategyBase):
                 min_val=15,
                 max_val=50,
                 default=26,
-                param_type=int,
+                param_type="int",
                 description="Période EMA lente"
             ),
             "signal_period": ParameterSpec(
@@ -78,7 +78,7 @@ class MACDCrossStrategy(StrategyBase):
                 min_val=5,
                 max_val=20,
                 default=9,
-                param_type=int,
+                param_type="int",
                 description="Période ligne signal"
             ),
             "leverage": ParameterSpec(
@@ -86,7 +86,7 @@ class MACDCrossStrategy(StrategyBase):
                 min_val=1,
                 max_val=10,
                 default=1,
-                param_type=int,
+                param_type="int",
                 description="Levier de trading"
             ),
         }
@@ -153,16 +153,13 @@ class MACDCrossStrategy(StrategyBase):
         # Détecter les croisements
         # MACD au-dessus de Signal
         macd_above = macd_line > signal_line
-        macd_above_shifted = macd_above.shift(1)
-        macd_above_prev = macd_above_shifted.where(
-            macd_above_shifted.notna(), False
-        )
+        macd_above_prev = macd_above.shift(1).fillna(False)
 
         # Golden Cross: MACD passe au-dessus de Signal
-        golden_cross = macd_above & macd_above_prev.eq(False)
+        golden_cross = macd_above & ~macd_above_prev
 
         # Death Cross: MACD passe en dessous de Signal
-        death_cross = macd_above.eq(False) & macd_above_prev
+        death_cross = ~macd_above & macd_above_prev
 
         signals[golden_cross] = 1.0
         signals[death_cross] = -1.0
