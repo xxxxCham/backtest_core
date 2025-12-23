@@ -1,7 +1,10 @@
 # ✅ Système de Logs d'Orchestration LLM - Livré
 
-> **Date** : 18 décembre 2025  
-> **Version** : 1.8.2  
+NOTE: Delivery report (historical). Current references:
+`DETAILS_FONCTIONNEMENT.md` and `docs/ORCHESTRATION_LOGS.md`.
+
+> **Date** : 18 décembre 2025
+> **Version** : 1.8.2
 > **Status** : ✅ **COMPLET ET TESTÉ**
 
 ---
@@ -130,7 +133,8 @@ python test_ui_orchestration_integration.py
 ```
 
 **Résultats** :
-```
+
+```text
 ================================================================================
 ✅ TOUS LES TESTS RÉUSSIS!
 ================================================================================
@@ -145,7 +149,8 @@ TEST 5: Filtrage des logs                          ✅ PASS
 ### Logs Générés
 
 Exemple de sortie :
-```
+
+```text
 06:01:27 | INFO | [AutonomousStrategist] Analysis started - Iteration 0
 06:01:27 | INFO | [AutonomousStrategist] Backtest launched: 0/10
 06:01:27 | INFO | [AutonomousStrategist] Backtest #0 complete - PnL: 100.50, Sharpe: 1.20
@@ -165,6 +170,7 @@ streamlit run ui/app.py
 ```
 
 **Étapes** :
+
 1. Sélectionner "🤖 Optimisation LLM"
 2. Configurer le LLM (Ollama/OpenAI)
 3. Sélectionner stratégie et paramètres
@@ -206,7 +212,7 @@ logger.save_to_file()
 ## 📊 Statistiques
 
 | Métrique | Valeur |
-|----------|--------|
+| ---------- | ------ |
 | **Lignes de code ajoutées** | ~1,800 |
 | **Fichiers créés** | 4 |
 | **Fichiers modifiés** | 4 |
@@ -255,7 +261,7 @@ logger.save_to_file()
 
 Le système suit une architecture en couches :
 
-```
+```text
 UI Layer (Streamlit)
     ↓
 Viewer Layer (orchestration_viewer.py)
@@ -303,5 +309,5 @@ Pour toute question ou problème :
 
 ---
 
-*Livraison complète - 18 décembre 2025*  
+*Livraison complète - 18 décembre 2025*
 *Version 1.8.2 - backtest_core*

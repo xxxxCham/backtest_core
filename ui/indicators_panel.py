@@ -24,16 +24,31 @@ def group_indicators_by_category() -> Dict[str, List[str]]:
     # Définir les catégories
     categories = {
         "📈 Tendance": [
-            "ema", "sma", "adx", "macd", "aroon", "supertrend"
+            "ema",
+            "sma",
+            "adx",
+            "macd",
+            "aroon",
+            "supertrend",
+            "ichimoku",
+            "psar",
+            "vortex",
+            "pi_cycle",
+            "onchain_smoothing",
         ],
         "📊 Volatilité": [
-            "atr", "bollinger", "keltner", "donchian"
+            "atr",
+            "bollinger",
+            "keltner",
+            "donchian",
+            "standard_deviation",
+            "amplitude_hunter",
         ],
         "⚡ Momentum": [
             "rsi", "stochastic", "cci", "momentum", "roc", "williams_r"
         ],
         "📦 Volume": [
-            "vwap", "obv", "mfi"
+            "vwap", "obv", "mfi", "volume_oscillator"
         ],
     }
 

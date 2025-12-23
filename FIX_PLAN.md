@@ -1,21 +1,22 @@
 # FIX_PLAN
 
-1) Reparer les points d'entree
-- Ajouter un wrapper `main()` pour `ui/app.py` (appel `streamlit run ui/app.py`) ou retirer l'entree `backtest-ui` si non souhaitee.
-- Retirer ou remplacer l'entree `backtest-demo` (module `demo.quick_test` absent) pour eviter une console cassée.
-- Validation: `python -m backtest_core --help` et lancement manuel `streamlit run ui/app.py`.
+NOTE: Plan may be stale. For current operating details, see
+`DETAILS_FONCTIONNEMENT.md`.
 
-2) Durcir le chargement des donnees
-- Rendre le chemin principal configurable (doc claire sur BACKTEST_DATA_DIR) et loguer le fallback quand `D:/ThreadX_big` ou `data/sample_data` est utilise.
-- Ajouter une verification explicite de timezone (refuser auto-localisation silencieuse) et des colonnes optionnelles (slippage/fees) si necessaire.
-- Validation: chargement d'un fichier de demo `python - <<'PY' ...` et verif des logs.
+1) Entrypoints packaging
+- Réparer ou retirer les scripts pyproject cassés (`backtest-ui`, `backtest-demo`) en pointant vers une fonction existante ou en basculant sur un wrapper Streamlit explicite.
+- Validation: `python -m backtest_core --help` et `streamlit run ui/app.py` (ou nouvelle entrée).
 
-3) Moteur et metriques
-- Documenter le coupling avec `performance.device_backend` et prevoir un alias clair pour eviter la confusion avec `backtest.performance`.
-- Revoir `max_drawdown_duration_days` pour utiliser `_get_periods_per_year` ou un mapping timeframe->minutes.
-- Garder les nouveaux gardes Sharpe (>=3 echantillons et rendements non nuls) et etendre aux autres ratios si besoin.
-- Validation: `python -m pytest tests/test_sharpe_ratio.py`.
+2) Chargement des données
+- Journaliser le chemin réellement utilisé (`BACKTEST_DATA_DIR`/`TRADX_DATA_ROOT`/fallback) et rendre le fallback `D:/ThreadX_big` opt-in; option pour conserver la timezone existante au lieu de forcer UTC.
+- Ajouter des gardes (tri/déduplication) sur l’index avant normalisation et limiter le scan récursif.
+- Validation: `python - <<'PY'\nfrom data.loader import load_ohlcv\nprint(load_ohlcv('BTCUSDT','1h').head())\nPY` avec logs activés.
 
-4) Boucle de verification continue
-- Ajouter un job local (pre-commit ou script) qui lance les tests rapides et signale les warnings attendus (profil PowerShell, cache Pytest).
-- Commande proposee: `python -m pytest tests/test_sharpe_ratio.py`.
+3) Moteur et indicateurs
+- Remonter les erreurs d’indicateurs: `_calculate_indicators` devrait échouer si un calcul renvoie `None` ou lever l’exception d’origine (avec contexte).
+- Aligner les paramètres d’annualisation sur la méthode Sharpe choisie (ex: défaut 252 quand `sharpe_method=daily_resample`) et renforcer `_validate_inputs` (index datetime, trié, sans doublons).
+- Validation: `python -m pytest tests/test_sharpe_ratio.py tests/test_performance_metrics.py` puis un run CLI `python -m backtest_core backtest -s ema_cross -d data/sample_data/<file>.parquet -p "{}"`.
+
+4) Observabilité et garde-fous
+- Maintenir les tests rapides: `python -m pytest tests/test_sharpe_ratio.py tests/test_performance_metrics.py` (warning cache possible si `.pytest_cache` non inscriptible).
+- Documenter les logs bruyants PowerShell (profil conda/uv) et conserver un check CLI minimal (`python -m backtest_core list strategies`) après chaque modif majeure.

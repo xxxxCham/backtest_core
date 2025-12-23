@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field, fields, is_dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from enum import Enum
 from datetime import datetime
@@ -21,6 +21,14 @@ try:
     STREAMLIT_AVAILABLE = True
 except ImportError:
     STREAMLIT_AVAILABLE = False
+
+try:
+    from indicators.registry import calculate_indicator, get_indicator, list_indicators
+    REGISTRY_AVAILABLE = True
+except Exception:
+    REGISTRY_AVAILABLE = False
+
+from utils.indicator_ranges import get_indicator_param_specs, load_indicator_ranges
 
 
 class IndicatorType(Enum):
@@ -83,6 +91,14 @@ DEFAULT_INDICATOR_CONFIGS: Dict[str, Dict[str, Any]] = {
     "atr": {"type": IndicatorType.OSCILLATOR, "color": "#e91e63"},
     "obv": {"type": IndicatorType.VOLUME, "color": "#2196f3"},
     "vwap": {"type": IndicatorType.OVERLAY, "color": "#ffeb3b"},
+    "volume_oscillator": {"type": IndicatorType.VOLUME, "color": "#8bc34a"},
+    "standard_deviation": {"type": IndicatorType.OSCILLATOR, "color": "#795548"},
+    "fibonacci_levels": {"type": IndicatorType.OVERLAY, "color": "#ff9800"},
+    "pivot_points": {"type": IndicatorType.OVERLAY, "color": "#9e9e9e"},
+    "onchain_smoothing": {"type": IndicatorType.OVERLAY, "color": "#03a9f4"},
+    "fear_greed": {"type": IndicatorType.OSCILLATOR, "color": "#ffc107", "levels": [20, 80]},
+    "pi_cycle": {"type": IndicatorType.OVERLAY, "color": "#ff5722"},
+    "amplitude_hunter": {"type": IndicatorType.OSCILLATOR, "color": "#00bcd4"},
 }
 
 
@@ -447,6 +463,210 @@ class IndicatorExplorer:
         return summary
 
 
+def _clamp_value(value: float, min_val: float, max_val: float) -> float:
+    if value is None:
+        return min_val
+    return max(min_val, min(max_val, value))
+
+
+def _is_int_spec(spec: Dict[str, Any]) -> bool:
+    min_val = spec.get("min")
+    max_val = spec.get("max")
+    default = spec.get("default")
+    step = spec.get("step")
+    values = [min_val, max_val, default]
+    if any(val is None for val in values):
+        return False
+    if not all(isinstance(val, int) for val in values):
+        return False
+    return step is None or isinstance(step, int)
+
+
+def _render_param_widget_from_spec(
+    indicator_name: str,
+    param_name: str,
+    spec: Dict[str, Any],
+    key_prefix: str,
+) -> Any:
+    label = spec.get("label", param_name)
+    description = spec.get("description", "")
+    default = spec.get("default")
+    options = spec.get("options")
+    param_type = spec.get("type")
+    widget_key = f"{key_prefix}_{indicator_name}_{param_name}"
+
+    if options:
+        options_list = list(options)
+        if default not in options_list and options_list:
+            default = options_list[0]
+        index = options_list.index(default) if default in options_list else 0
+        return st.selectbox(
+            label,
+            options_list,
+            index=index,
+            key=widget_key,
+            help=description,
+        )
+
+    if param_type == "string":
+        return st.text_input(
+            label,
+            value="" if default is None else str(default),
+            key=widget_key,
+            help=description,
+        )
+
+    if param_type == "bool" or isinstance(default, bool):
+        return st.checkbox(
+            label,
+            value=bool(default),
+            key=widget_key,
+            help=description,
+        )
+
+    min_val = spec.get("min")
+    max_val = spec.get("max")
+    step = spec.get("step")
+
+    if min_val is None or max_val is None:
+        if isinstance(default, int):
+            return st.number_input(
+                label,
+                value=int(default),
+                step=1,
+                key=widget_key,
+                help=description,
+            )
+        step_value = float(step) if step is not None else 0.1
+        return st.number_input(
+            label,
+            value=float(default) if default is not None else 0.0,
+            step=step_value,
+            key=widget_key,
+            help=description,
+        )
+
+    if _is_int_spec(spec):
+        min_val = int(min_val)
+        max_val = int(max_val)
+        default_value = int(_clamp_value(default, min_val, max_val))
+        step_value = int(step) if step is not None else 1
+        return st.slider(
+            label,
+            min_val,
+            max_val,
+            value=default_value,
+            step=step_value,
+            key=widget_key,
+            help=description,
+        )
+
+    min_val = float(min_val)
+    max_val = float(max_val)
+    default_value = float(_clamp_value(default, min_val, max_val))
+    if step is not None:
+        return st.slider(
+            label,
+            min_val,
+            max_val,
+            value=default_value,
+            step=float(step),
+            key=widget_key,
+            help=description,
+        )
+    return st.slider(
+        label,
+        min_val,
+        max_val,
+        value=default_value,
+        key=widget_key,
+        help=description,
+    )
+
+
+def _build_params_from_specs(
+    indicator_name: str,
+    key_prefix: str,
+    param_specs: Dict[str, Dict[str, Any]],
+    allowed_params: Optional[set[str]] = None,
+) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    for param_name, spec in param_specs.items():
+        if allowed_params is not None and param_name not in allowed_params:
+            continue
+        params[param_name] = _render_param_widget_from_spec(
+            indicator_name,
+            param_name,
+            spec,
+            key_prefix,
+        )
+    return params
+
+
+def _build_params_from_settings(
+    indicator_name: str,
+    key_prefix: str,
+    settings_class: Optional[type],
+    exclude: Optional[set[str]] = None,
+) -> Dict[str, Any]:
+    if not settings_class or not is_dataclass(settings_class):
+        return {}
+
+    exclude = exclude or set()
+    params: Dict[str, Any] = {}
+    for param in fields(settings_class):
+        if param.name in exclude:
+            continue
+        if param.default is not MISSING:
+            default = param.default
+        elif param.default_factory is not MISSING:  # type: ignore[comparison-overlap]
+            default = param.default_factory()  # type: ignore[misc]
+        else:
+            continue
+
+        widget_key = f"{key_prefix}_{indicator_name}_{param.name}"
+        label = param.name
+
+        if isinstance(default, bool):
+            params[param.name] = st.checkbox(
+                label,
+                value=default,
+                key=widget_key,
+            )
+        elif isinstance(default, int):
+            params[param.name] = st.number_input(
+                label,
+                value=default,
+                step=1,
+                key=widget_key,
+            )
+        elif isinstance(default, float):
+            params[param.name] = st.number_input(
+                label,
+                value=default,
+                step=0.1,
+                key=widget_key,
+            )
+        elif isinstance(default, str):
+            params[param.name] = st.text_input(
+                label,
+                value=default,
+                key=widget_key,
+            )
+
+    return params
+
+
+def _normalize_indicator_result(indicator_name: str, result: Any) -> Any:
+    if isinstance(result, tuple):
+        if indicator_name.lower() == "bollinger" and len(result) == 3:
+            return {"upper": result[0], "middle": result[1], "lower": result[2]}
+        if indicator_name.lower() == "stochastic" and len(result) == 2:
+            return {"k": result[0], "d": result[1]}
+        return {f"line_{idx + 1}": value for idx, value in enumerate(result)}
+    return result
+
+
 def render_indicator_explorer(
     df: pd.DataFrame,
     available_indicators: Optional[Dict[str, Callable]] = None,
@@ -466,14 +686,21 @@ def render_indicator_explorer(
     if not STREAMLIT_AVAILABLE:
         return None
     
-    # Import du registre d'indicateurs si disponible
-    try:
-        from indicators.registry import INDICATOR_REGISTRY
-        if available_indicators is None:
-            available_indicators = dict(INDICATOR_REGISTRY)
-    except ImportError:
+    indicator_ranges = load_indicator_ranges()
+    use_registry = REGISTRY_AVAILABLE and available_indicators is None
+    indicator_infos: Dict[str, Any] = {}
+
+    if use_registry:
+        indicator_names = list_indicators()
+        for name in indicator_names:
+            info = get_indicator(name)
+            if info is not None:
+                indicator_infos[name] = info
+        available_indicators = {name: info.function for name, info in indicator_infos.items()}
+    else:
         if available_indicators is None:
             available_indicators = {}
+        indicator_names = list(available_indicators.keys())
     
     st.subheader("📊 Explorateur d'Indicateurs")
     
@@ -502,7 +729,7 @@ def render_indicator_explorer(
     overlay_indicators = []
     oscillator_indicators = []
     
-    for name in available_indicators.keys():
+    for name in indicator_names:
         default_config = DEFAULT_INDICATOR_CONFIGS.get(name.lower(), {})
         ind_type = default_config.get("type", IndicatorType.OVERLAY)
         if ind_type == IndicatorType.OSCILLATOR:
@@ -545,41 +772,57 @@ def render_indicator_explorer(
                     st.warning(f"Indicateur {ind_name} non disponible")
                     continue
                 
-                # Paramètres par défaut selon l'indicateur
+                # Paramètres depuis indicator_ranges.toml (fallback settings_class)
                 params = {}
-                
-                if "period" in ind_name.lower() or ind_name.lower() in ["sma", "ema", "rsi", "atr"]:
-                    params["period"] = st.slider(
-                        f"Période",
-                        5, 200, 14,
-                        key=f"{key}_{ind_name}_period",
+                param_specs = get_indicator_param_specs(ind_name, indicator_ranges)
+                info = indicator_infos.get(ind_name)
+                if info is None and REGISTRY_AVAILABLE:
+                    info = get_indicator(ind_name)
+
+                allowed_params = None
+                if info and info.settings_class and is_dataclass(info.settings_class):
+                    allowed_params = {field.name for field in fields(info.settings_class)}
+
+                if param_specs:
+                    params.update(
+                        _build_params_from_specs(
+                            ind_name,
+                            key,
+                            param_specs,
+                            allowed_params=allowed_params,
+                        )
                     )
-                elif ind_name.lower() == "bollinger":
-                    params["window"] = st.slider("Window", 5, 50, 20, key=f"{key}_{ind_name}_window")
-                    params["num_std"] = st.slider("Std Dev", 1.0, 4.0, 2.0, 0.1, key=f"{key}_{ind_name}_std")
-                elif ind_name.lower() == "macd":
-                    params["fast_period"] = st.slider("Fast", 5, 20, 12, key=f"{key}_{ind_name}_fast")
-                    params["slow_period"] = st.slider("Slow", 15, 50, 26, key=f"{key}_{ind_name}_slow")
-                    params["signal_period"] = st.slider("Signal", 5, 20, 9, key=f"{key}_{ind_name}_signal")
-                elif ind_name.lower() == "stochastic":
-                    params["k_period"] = st.slider("K Period", 5, 30, 14, key=f"{key}_{ind_name}_k")
-                    params["d_period"] = st.slider("D Period", 1, 10, 3, key=f"{key}_{ind_name}_d")
+
+                if info and info.settings_class:
+                    params.update(
+                        _build_params_from_settings(
+                            ind_name,
+                            key,
+                            info.settings_class,
+                            exclude=set(params.keys()),
+                        )
+                    )
                 
                 # Calculer l'indicateur
                 try:
-                    # Préparer les données
-                    if "volume" in df.columns:
-                        result = indicator_fn(
-                            df["high"].values,
-                            df["low"].values,
-                            df["close"].values,
-                            **params
-                        ) if ind_name.lower() not in ["sma", "ema", "rsi", "momentum", "roc"] else indicator_fn(
-                            df["close"].values,
-                            **params
-                        )
+                    if use_registry and REGISTRY_AVAILABLE:
+                        result = calculate_indicator(ind_name, df, params)
                     else:
-                        result = indicator_fn(df["close"].values, **params)
+                        # Préparer les données pour les indicateurs custom
+                        if "volume" in df.columns:
+                            result = indicator_fn(
+                                df["high"].values,
+                                df["low"].values,
+                                df["close"].values,
+                                **params
+                            ) if ind_name.lower() not in ["sma", "ema", "rsi", "momentum", "roc"] else indicator_fn(
+                                df["close"].values,
+                                **params
+                            )
+                        else:
+                            result = indicator_fn(df["close"].values, **params)
+
+                    result = _normalize_indicator_result(ind_name, result)
                     
                     # Déterminer le type
                     default_config = DEFAULT_INDICATOR_CONFIGS.get(ind_name.lower(), {})

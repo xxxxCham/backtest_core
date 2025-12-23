@@ -85,11 +85,23 @@ class BollingerATRStrategy(StrategyBase):
                 param_type="float",
                 description="Écarts-types pour les bandes"
             ),
+            "entry_z": ParameterSpec(
+                name="entry_z",
+                min_val=1.0, max_val=3.0, default=2.0,
+                param_type="float",
+                description="Seuil z-score pour entree"
+            ),
             "atr_period": ParameterSpec(
                 name="atr_period",
                 min_val=7, max_val=21, default=14,
                 param_type="int",
                 description="Période de l'ATR"
+            ),
+            "atr_percentile": ParameterSpec(
+                name="atr_percentile",
+                min_val=10, max_val=60, default=30,
+                param_type="int",
+                description="Percentile volatilite minimum (ATR)"
             ),
             "k_sl": ParameterSpec(
                 name="k_sl",
@@ -108,6 +120,21 @@ class BollingerATRStrategy(StrategyBase):
     def get_preset(self) -> Optional[Preset]:
         """Retourne le preset Safe Ranges associé."""
         return SAFE_RANGES_PRESET
+
+    def get_indicator_params(
+        self,
+        indicator_name: str,
+        params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Mappe les parametres de la strategie vers les indicateurs."""
+        if indicator_name == "bollinger":
+            return {
+                "period": int(params.get("bb_period", 20)),
+                "std_dev": float(params.get("bb_std", 2.0)),
+            }
+        if indicator_name == "atr":
+            return {"period": int(params.get("atr_period", 14))}
+        return super().get_indicator_params(indicator_name, params)
 
     def generate_signals(
         self,
@@ -150,11 +177,19 @@ class BollingerATRStrategy(StrategyBase):
         close = df["close"]
 
         # === Signaux Bollinger (Mean Reversion) ===
-        # Long: prix <= bande inférieure (oversold)
-        long_condition = close <= lower
+        bb_std = float(params.get("bb_std", 2.0))
+        if bb_std <= 0:
+            bb_std = 2.0
+        entry_z = float(params.get("entry_z", bb_std))
+        sigma = (upper - middle) / bb_std
+        entry_upper = middle + (sigma * entry_z)
+        entry_lower = middle - (sigma * entry_z)
 
-        # Short: prix >= bande supérieure (overbought)
-        short_condition = close >= upper
+        # Long: prix <= seuil bas (oversold)
+        long_condition = close <= entry_lower
+
+        # Short: prix >= seuil haut (overbought)
+        short_condition = close >= entry_upper
 
         signals[long_condition] = 1.0
         signals[short_condition] = -1.0

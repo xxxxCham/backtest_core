@@ -52,7 +52,7 @@ class EMAStochasticScalpStrategy(StrategyBase):
     @property
     def required_indicators(self) -> List[str]:
         """Indicateurs requis par la stratégie."""
-        return ["stochastic", "atr"]
+        return ["stochastic"]
 
     @property
     def default_params(self) -> Dict[str, Any]:
@@ -202,6 +202,20 @@ class EMAStochasticScalpStrategy(StrategyBase):
         signals[short_signal] = -1.0
 
         return signals
+
+    def get_indicator_params(
+        self,
+        indicator_name: str,
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Mappe les parametres de la strategie vers les indicateurs."""
+        if indicator_name == "stochastic":
+            return {
+                "k_period": int(params.get("stoch_k", 14)),
+                "d_period": int(params.get("stoch_d", 3)),
+                "smooth_k": 3,
+            }
+        return super().get_indicator_params(indicator_name, params)
 
     def _calculate_stochastic(
         self, df: pd.DataFrame, k_period: int, d_period: int

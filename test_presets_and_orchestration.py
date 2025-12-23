@@ -151,8 +151,8 @@ def test_full_workflow():
     from utils.preset_validation import validate_preset_against_strategy
     from utils.parameters import get_preset
 
-    preset = get_preset("bollinger_dual")
-    result = validate_preset_against_strategy(preset, "bollinger_dual")
+    preset = get_preset("bollinger_atr")
+    result = validate_preset_against_strategy(preset, "bollinger_atr")
 
     print(f"   {result.summary()}")
 
@@ -163,7 +163,7 @@ def test_full_workflow():
     # 3. Simuler une séquence d'optimisation
     print("\n3. Simulation d'une séquence d'optimisation")
 
-    logger.log_strategy_selection("Analyst", "bollinger_dual", "Double condition efficace")
+    logger.log_strategy_selection("Analyst", "bollinger_atr", "Mean reversion Bollinger + ATR")
 
     logger.log_backtest_launch(
         "Executor",

@@ -7,6 +7,7 @@ de manière interactive et structurée.
 """
 
 from typing import List, Optional
+from html import escape
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -147,6 +148,7 @@ def _render_log_entry(log: OrchestrationLogEntry):
     # Emoji et couleur selon le statut
     emoji = log._get_emoji()
     status_color = _get_status_color(log.status)
+    text_color = _get_contrast_text_color(status_color)
 
     # Timestamp
     try:
@@ -155,16 +157,41 @@ def _render_log_entry(log: OrchestrationLogEntry):
         timestamp = log.timestamp[:8]  # Fallback
 
     # Agent badge
-    agent_badge = f"**[{log.agent}]**" if log.agent else ""
+    model_name = ""
+    if isinstance(log.details, dict):
+        model_name = log.details.get("model") or ""
+    agent_label = log.agent or ""
+    if model_name:
+        agent_label = f"{agent_label} · {model_name}" if agent_label else model_name
+    agent_badge = (
+        f"<strong style='color: {text_color};'>[{escape(agent_label)}]</strong>"
+        if agent_label
+        else ""
+    )
 
     # Action type
-    action_type = log.action_type.value.replace("_", " ").title()
+    action_type = escape(log.action_type.value.replace("_", " ").title())
 
     # Construire la ligne principale
-    main_line = f"{emoji} `{timestamp}` {agent_badge} {action_type}"
+    timestamp_html = (
+        "<code style='color: {text_color}; background-color: rgba(0,0,0,0.08); "
+        "padding: 1px 4px; border-radius: 3px;'>"
+        "{timestamp}</code>"
+    ).format(text_color=text_color, timestamp=escape(timestamp))
+    parts = [emoji, timestamp_html, agent_badge, action_type]
+    main_line = " ".join(part for part in parts if part)
 
     # Afficher
-    st.markdown(f"<div style='background-color: {status_color}; padding: 8px; border-radius: 5px; margin: 5px 0;'>{main_line}</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='background-color: {status_color}; color: {text_color}; "
+        "padding: 8px; border-radius: 5px; margin: 5px 0;'>"
+        "{main_line}</div>".format(
+            status_color=status_color,
+            text_color=text_color,
+            main_line=main_line,
+        ),
+        unsafe_allow_html=True,
+    )
 
     # Détails si disponibles
     if log.details:
@@ -230,6 +257,21 @@ def _get_status_color(status: OrchestrationStatus) -> str:
         OrchestrationStatus.PENDING: "#e7e7e7",     # Gris clair
     }
     return colors.get(status, "#ffffff")
+
+
+def _get_contrast_text_color(background_hex: str) -> str:
+    """Retourne une couleur de texte lisible selon la luminance du fond."""
+    hex_color = background_hex.lstrip("#")
+    if len(hex_color) != 6:
+        return "#1f2933"
+    try:
+        r = int(hex_color[0:2], 16)
+        g = int(hex_color[2:4], 16)
+        b = int(hex_color[4:6], 16)
+    except ValueError:
+        return "#1f2933"
+    luminance = (0.299 * r) + (0.587 * g) + (0.114 * b)
+    return "#111827" if luminance > 140 else "#f9fafb"
 
 
 def render_orchestration_summary_table(orchestration_logger: OrchestrationLogger):
@@ -315,13 +357,21 @@ def render_orchestration_metrics(orchestration_logger: OrchestrationLogger):
         st.metric("Modifications Indicateurs", indicator_changes + indicator_adds)
 
 
-def render_full_orchestration_viewer(orchestration_logger: OrchestrationLogger):
+def render_full_orchestration_viewer(
+    orchestration_logger: OrchestrationLogger,
+    max_entries: int = 50,
+    show_filters: bool = True,
+):
     """Affiche le visualiseur complet d'orchestration."""
     # Onglets
     tab1, tab2, tab3 = st.tabs(["📋 Timeline", "📊 Résumé", "📈 Métriques"])
 
     with tab1:
-        render_orchestration_logs(orchestration_logger, show_filters=True, max_entries=50)
+        render_orchestration_logs(
+            orchestration_logger,
+            show_filters=show_filters,
+            max_entries=max_entries,
+        )
 
     with tab2:
         render_orchestration_summary_table(orchestration_logger)

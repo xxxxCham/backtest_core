@@ -32,7 +32,7 @@ def create_parser() -> argparse.ArgumentParser:
 Exemples:
   %(prog)s list strategies              Lister toutes les stratégies
   %(prog)s list indicators              Lister tous les indicateurs
-  %(prog)s info strategy bollinger_dual Détails d'une stratégie
+  %(prog)s info strategy bollinger_atr  Détails d'une stratégie
   %(prog)s backtest -s ema_cross -d data.parquet
   %(prog)s sweep -s ema_cross -d data.parquet --granularity 0.3
         """

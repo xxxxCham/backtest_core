@@ -40,7 +40,7 @@ class MACrossoverStrategy(StrategyBase):
     @property
     def required_indicators(self) -> List[str]:
         """Indicateurs requis par la stratégie."""
-        return ["adx"]
+        return []
 
     @property
     def default_params(self) -> Dict[str, Any]:

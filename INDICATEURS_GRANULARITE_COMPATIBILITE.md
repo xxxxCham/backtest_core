@@ -192,15 +192,7 @@ SAFE_RANGES_PRESET = Preset.from_strategy(
 
 ### 3. 💡 Opportunité : Créer des Presets pour toutes les stratégies
 
-Actuellement : 2/9 stratégies ont des Presets
-Opportunité : Créer des Presets pour :
-- `ema_stochastic_scalp`
-- `ma_crossover`
-- `atr_channel`
-- `rsi_trend_filtered`
-- `bollinger_dual`
-- `macd_cross`
-- `rsi_reversal`
+Actuellement : 5/5 strategies ont des Presets
 
 ---
 

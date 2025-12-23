@@ -29,6 +29,7 @@ from utils.observability import (
 from .backtest_executor import BacktestExecutor
 from .autonomous_strategist import AutonomousStrategist, OptimizationSession
 from .llm_client import LLMConfig, create_llm_client
+from .model_config import RoleModelConfig
 
 # Logger module-level (sans run_id spécifique)
 _logger = get_obs_logger(__name__)
@@ -45,9 +46,9 @@ def run_backtest_for_agent(
 ) -> Dict[str, Any]:
     """
     Exécute un backtest et retourne les métriques pour un agent.
-    
+
     C'est le pont entre BacktestExecutor et BacktestEngine.
-    
+
     Args:
         strategy_name: Nom de la stratégie (ex: "ema_cross")
         params: Paramètres de la stratégie
@@ -55,7 +56,7 @@ def run_backtest_for_agent(
         initial_capital: Capital de départ
         config: Configuration optionnelle
         run_id: Identifiant de corrélation (généré si None)
-        
+
     Returns:
         Dict avec toutes les métriques nécessaires pour l'agent
     """
@@ -71,7 +72,7 @@ def run_backtest_for_agent(
     engine = BacktestEngine(
         initial_capital=initial_capital, config=config, run_id=run_id
     )
-    
+
     try:
         with trace_span(logger, "agent_backtest", strategy=strategy_name):
             result = engine.run(
@@ -79,16 +80,20 @@ def run_backtest_for_agent(
                 strategy=strategy_name,
                 params=params,
             )
-        
+
         # Extraire les métriques pour l'agent
         metrics = result.metrics.copy()
-        
+
+        total_return_pct = metrics.get("total_return_pct", 0)
+        max_drawdown_pct = metrics.get("max_drawdown", 0)
+        win_rate_pct = metrics.get("win_rate", 0)
+
         output = {
             "sharpe_ratio": metrics.get("sharpe_ratio", 0),
             "sortino_ratio": metrics.get("sortino_ratio", 0),
-            "total_return": metrics.get("total_return", 0),
-            "max_drawdown": metrics.get("max_drawdown", 0),
-            "win_rate": metrics.get("win_rate", 0),
+            "total_return": total_return_pct / 100.0,
+            "max_drawdown": max_drawdown_pct / 100.0,
+            "win_rate": win_rate_pct / 100.0,
             "profit_factor": metrics.get("profit_factor", 0),
             "total_trades": metrics.get("total_trades", 0),
             "sqn": metrics.get("sqn", 0),
@@ -111,7 +116,7 @@ def run_backtest_for_agent(
             output["sharpe_ratio"], output["total_trades"]
         )
         return output
-        
+
     except Exception as e:
         logger.error("agent_backtest_error error=%s", str(e))
         raise
@@ -129,7 +134,7 @@ def run_walk_forward_for_agent(
 ) -> Dict[str, Any]:
     """
     Exécute une validation walk-forward et retourne les métriques.
-    
+
     Args:
         strategy_name: Nom de la stratégie
         params: Paramètres de la stratégie
@@ -138,28 +143,28 @@ def run_walk_forward_for_agent(
         train_ratio: Ratio train/total (1 - test_ratio)
         initial_capital: Capital de départ
         config: Configuration optionnelle
-        
+
     Returns:
         Dict avec train_sharpe, test_sharpe, overfitting_ratio
     """
     test_pct = 1.0 - train_ratio
-    
+
     validator = WalkForwardValidator(
         n_folds=n_windows,
         test_pct=test_pct,
         embargo_pct=0.01,
     )
-    
+
     engine = BacktestEngine(initial_capital=initial_capital, config=config)
-    
+
     folds = validator.split(data)
-    
+
     train_sharpes = []
     test_sharpes = []
-    
+
     for fold in folds:
         train_df, test_df = validator.get_data_splits(data, fold)
-        
+
         try:
             # Backtest sur train
             train_result = engine.run(
@@ -169,7 +174,7 @@ def run_walk_forward_for_agent(
             )
             train_sharpe = train_result.metrics.get("sharpe_ratio", 0)
             train_sharpes.append(train_sharpe)
-            
+
             # Backtest sur test
             test_result = engine.run(
                 df=test_df,
@@ -178,25 +183,25 @@ def run_walk_forward_for_agent(
             )
             test_sharpe = test_result.metrics.get("sharpe_ratio", 0)
             test_sharpes.append(test_sharpe)
-            
+
             # Stocker dans le fold
             fold.train_metrics = train_result.metrics
             fold.test_metrics = test_result.metrics
-            
+
         except Exception as e:
             _logger.warning("fold_%s_failed error=%s", fold.fold_id, str(e))
             continue
-    
+
     if not train_sharpes or not test_sharpes:
         return {
             "train_sharpe": 0,
             "test_sharpe": 0,
             "overfitting_ratio": 0,
         }
-    
+
     avg_train = sum(train_sharpes) / len(train_sharpes) if train_sharpes else 0.0
     avg_test = sum(test_sharpes) / len(test_sharpes) if test_sharpes else 0.0
-    
+
     # Calculer ratio d'overfitting (protection division zéro)
     if avg_test > 1e-6:  # Threshold pour éviter division par ~0
         overfitting_ratio = max(0.0, avg_train / avg_test)  # Clamp négatifs
@@ -204,7 +209,7 @@ def run_walk_forward_for_agent(
         overfitting_ratio = 999.0  # Plafonner au lieu de inf pour sérialisation
     else:
         overfitting_ratio = 1.0  # Cas dégénéré
-    
+
     return {
         "train_sharpe": avg_train,
         "test_sharpe": avg_test,
@@ -245,7 +250,7 @@ def create_optimizer_from_engine(
 
     Returns:
         (AutonomousStrategist, BacktestExecutor) prêts à l'emploi
-        
+
     Example:
         >>> from agents.integration import create_optimizer_from_engine
         >>> from agents.llm_client import LLMConfig, LLMProvider
@@ -277,7 +282,7 @@ def create_optimizer_from_engine(
 
     # Créer le client LLM
     llm_client = create_llm_client(llm_config)
-    
+
     # Créer la fonction de backtest
     def backtest_fn(
         strategy: str, params: Dict[str, Any], df: pd.DataFrame
@@ -289,7 +294,7 @@ def create_optimizer_from_engine(
             initial_capital=initial_capital,
             config=config,
         )
-    
+
     # Créer la fonction de validation (optionnelle)
     validation_fn = None
     if use_walk_forward:
@@ -309,7 +314,7 @@ def create_optimizer_from_engine(
                 initial_capital=initial_capital,
                 config=config,
             )
-    
+
     # Créer l'exécuteur
     executor = BacktestExecutor(
         backtest_fn=backtest_fn,
@@ -317,7 +322,7 @@ def create_optimizer_from_engine(
         data=data,
         validation_fn=validation_fn,
     )
-    
+
     # Créer le strategist autonome
     strategist = AutonomousStrategist(
         llm_client,
@@ -325,12 +330,12 @@ def create_optimizer_from_engine(
         unload_llm_during_backtest=unload_llm_during_backtest,
         orchestration_logger=orchestration_logger,
     )
-    
+
     _logger.info(
         "optimizer_created strategy=%s rows=%s walk_forward=%s",
         strategy_name, len(data), use_walk_forward
     )
-    
+
     return strategist, executor
 
 
@@ -339,21 +344,21 @@ def get_strategy_param_bounds(
 ) -> Dict[str, Tuple[float, float]]:
     """
     Récupère les bornes des paramètres d'une stratégie.
-    
+
     Utilise les parameter_specs de la stratégie si disponibles,
     sinon retourne des bornes par défaut.
-    
+
     Args:
         strategy_name: Nom de la stratégie
-        
+
     Returns:
         Dict {param_name: (min, max)}
     """
     strategy_class = get_strategy(strategy_name)
     strategy = strategy_class()
-    
+
     bounds = {}
-    
+
     # Essayer d'utiliser parameter_specs si disponible
     if hasattr(strategy, 'parameter_specs'):
         specs = strategy.parameter_specs
@@ -363,13 +368,13 @@ def get_strategy_param_bounds(
                 # ParameterSpec utilise min_val et max_val
                 if hasattr(spec, 'min_val') and hasattr(spec, 'max_val'):
                     bounds[name] = (spec.min_val, spec.max_val)
-    
+
     # Fallback: utiliser default_params avec ±50%
     if not bounds and hasattr(strategy, 'default_params'):
         for name, value in strategy.default_params.items():
             if isinstance(value, (int, float)) and value > 0:
                 bounds[name] = (value * 0.5, value * 2.0)
-    
+
     return bounds
 
 
@@ -379,23 +384,23 @@ def get_strategy_param_space(
 ) -> Dict[str, Tuple]:
     """
     Récupère l'espace des paramètres avec step si disponible.
-    
+
     Extension de get_strategy_param_bounds() pour permettre:
     - Le calcul unifié des stats d'espace de recherche
     - L'affichage d'estimation dans le mode LLM
-    
+
     Args:
         strategy_name: Nom de la stratégie
         include_step: Inclure le step si disponible
-        
+
     Returns:
         Dict {param_name: (min, max)} ou {param_name: (min, max, step)}
     """
     strategy_class = get_strategy(strategy_name)
     strategy = strategy_class()
-    
+
     space = {}
-    
+
     # Utiliser parameter_specs si disponible
     if hasattr(strategy, 'parameter_specs'):
         specs = strategy.parameter_specs
@@ -404,23 +409,23 @@ def get_strategy_param_space(
                 if hasattr(spec, 'min_val') and hasattr(spec, 'max_val'):
                     min_v = spec.min_val
                     max_v = spec.max_val
-                    
+
                     if include_step and hasattr(spec, 'step') and spec.step:
                         space[name] = (min_v, max_v, spec.step)
                     else:
                         space[name] = (min_v, max_v)
-    
+
     # Fallback: param_ranges (si présent dans la stratégie)
     if not space and hasattr(strategy, 'param_ranges'):
         for name, (min_v, max_v) in strategy.param_ranges.items():
             space[name] = (min_v, max_v)
-    
+
     # Dernier fallback: default_params avec ±50%
     if not space and hasattr(strategy, 'default_params'):
         for name, value in strategy.default_params.items():
             if isinstance(value, (int, float)) and value > 0:
                 space[name] = (value * 0.5, value * 2.0)
-    
+
     return space
 
 
@@ -433,19 +438,19 @@ def quick_optimize(
 ) -> OptimizationSession:
     """
     Raccourci pour lancer une optimisation rapidement.
-    
+
     Détecte automatiquement les paramètres initiaux et les bornes.
-    
+
     Args:
         llm_config: Configuration LLM
         strategy_name: Nom de la stratégie
         data: DataFrame OHLCV
         max_iterations: Maximum d'itérations
         **kwargs: Arguments additionnels pour create_optimizer_from_engine
-        
+
     Returns:
         OptimizationSession avec les résultats
-        
+
     Example:
         >>> session = quick_optimize(
         ...     llm_config=config,
@@ -458,19 +463,19 @@ def quick_optimize(
     # Récupérer la stratégie pour les params par défaut
     strategy_class = get_strategy(strategy_name)
     strategy = strategy_class()
-    
+
     # Paramètres initiaux
     initial_params = strategy.default_params.copy()
-    
+
     # Bornes des paramètres
     param_bounds = get_strategy_param_bounds(strategy_name)
-    
+
     if not param_bounds:
         raise ValueError(
             f"Impossible de déterminer les bornes pour '{strategy_name}'. "
             "Utilisez create_optimizer_from_engine avec des bornes explicites."
         )
-    
+
     # Créer l'optimiseur
     strategist, executor = create_optimizer_from_engine(
         llm_config=llm_config,
@@ -478,7 +483,7 @@ def quick_optimize(
         data=data,
         **kwargs
     )
-    
+
     # Lancer l'optimisation
     session = strategist.optimize(
         executor=executor,
@@ -486,7 +491,7 @@ def quick_optimize(
         param_bounds=param_bounds,
         max_iterations=max_iterations,
     )
-    
+
     return session
 
 
@@ -495,28 +500,30 @@ def create_orchestrator_with_backtest(
     data: pd.DataFrame,
     initial_params: Dict[str, Any],
     llm_config: Optional[LLMConfig] = None,
+    role_model_config: Optional[RoleModelConfig] = None,
     max_iterations: int = 10,
     initial_capital: float = 10000.0,
     config: Optional[Config] = None,
 ) -> "Orchestrator":
     """
     Crée un Orchestrator multi-agents branché sur le vrai backtest.
-    
+
     L'Orchestrator par défaut nécessite un callback `on_backtest_needed`.
     Cette fonction le configure automatiquement avec `run_backtest_for_agent()`.
-    
+
     Args:
         strategy_name: Nom de la stratégie
         data: DataFrame OHLCV
         initial_params: Paramètres initiaux
         llm_config: Configuration LLM (optionnel, défaut depuis env)
+        role_model_config: Configuration multi-modeles par role
         max_iterations: Maximum d'itérations
         initial_capital: Capital de départ
         config: Configuration du backtest
-        
+
     Returns:
         Orchestrator configuré et prêt à exécuter
-        
+
     Example:
         >>> orchestrator = create_orchestrator_with_backtest(
         ...     strategy_name="ema_cross",
@@ -530,7 +537,7 @@ def create_orchestrator_with_backtest(
     # Import ici pour éviter les imports circulaires
     from .orchestrator import Orchestrator, OrchestratorConfig
     from .base_agent import ParameterConfig
-    
+
     # Récupérer les specs des paramètres
     param_space = get_strategy_param_space(strategy_name, include_step=True)
     param_specs = []
@@ -547,7 +554,7 @@ def create_orchestrator_with_backtest(
             step=step,
             current_value=initial_params.get(name, (min_v + max_v) / 2),
         ))
-    
+
     # Créer le callback de backtest
     def on_backtest_needed(params: Dict[str, Any]) -> Dict[str, Any]:
         return run_backtest_for_agent(
@@ -557,7 +564,7 @@ def create_orchestrator_with_backtest(
             initial_capital=initial_capital,
             config=config,
         )
-    
+
     # Créer la config
     orchestrator_config = OrchestratorConfig(
         strategy_name=strategy_name,
@@ -565,7 +572,8 @@ def create_orchestrator_with_backtest(
         param_specs=param_specs,
         max_iterations=max_iterations,
         llm_config=llm_config,
+        role_model_config=role_model_config,
         on_backtest_needed=on_backtest_needed,
     )
-    
+
     return Orchestrator(orchestrator_config)

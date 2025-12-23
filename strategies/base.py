@@ -120,6 +120,52 @@ class StrategyBase(ABC):
             }
         return {}
 
+    def get_indicator_params(
+        self,
+        indicator_name: str,
+        params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Retourne les parametres a passer a l'indicateur.
+
+        Les strategies peuvent surcharger cette methode pour mapper leurs
+        parametres internes vers ceux attendus par les indicateurs.
+        """
+        params = params or {}
+
+        prefix_map = {
+            "bollinger": "bb_",
+            "atr": "atr_",
+            "rsi": "rsi_",
+            "ema": "ema_",
+            "macd": "macd_",
+        }
+
+        prefix = prefix_map.get(indicator_name, f"{indicator_name}_")
+        indicator_params: Dict[str, Any] = {}
+
+        for key, value in params.items():
+            if key.startswith(prefix):
+                param_name = key[len(prefix):]
+                indicator_params[param_name] = value
+
+        if indicator_name == "bollinger" and "std" in indicator_params:
+            indicator_params.setdefault("std_dev", indicator_params.pop("std"))
+
+        direct_params = {
+            "bollinger": ["period", "std_dev"],
+            "atr": ["period", "method"],
+            "rsi": ["period"],
+            "ema": ["period"],
+            "macd": ["fast_period", "slow_period", "signal_period"],
+        }
+
+        for param in direct_params.get(indicator_name, []):
+            if param in params and param not in indicator_params:
+                indicator_params[param] = params[param]
+
+        return indicator_params
+
     @abstractmethod
     def generate_signals(
         self,

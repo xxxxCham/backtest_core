@@ -45,6 +45,7 @@ from backtest.simulator import (
     calculate_returns,
     simulate_trades,
 )
+from data.indicator_bank import get_indicator_bank
 from indicators.registry import calculate_indicator
 from utils.config import Config
 from utils.observability import (
@@ -148,6 +149,7 @@ class BacktestEngine:
         self.logger = get_obs_logger(__name__, run_id=self.run_id)
         self.last_run_meta: Dict[str, Any] = {}
         self.counters: Optional[PerfCounters] = None
+        self.indicator_bank = None
 
         self.logger.info("BacktestEngine init capital=%s", initial_capital)
 
@@ -181,10 +183,10 @@ class BacktestEngine:
         # Initialiser counters et contexte
         self.counters = PerfCounters()
         self.counters.start("total")
-        
+
         # Enrichir le logger avec contexte
         self.logger = self.logger.with_context(symbol=symbol, timeframe=timeframe)
-        self.logger.info("pipeline_start strategy=%s bars=%s", 
+        self.logger.info("pipeline_start strategy=%s bars=%s",
                          strategy if isinstance(strategy, str) else getattr(strategy, 'name', 'custom'),
                          len(df))
 
@@ -199,7 +201,7 @@ class BacktestEngine:
             # 2. Préparer la stratégie
             if isinstance(strategy, str):
                 strategy = self._get_strategy_by_name(strategy)
-            
+
             strategy_name = strategy.name
             self.logger = self.logger.with_context(strategy=strategy_name)
 
@@ -230,12 +232,13 @@ class BacktestEngine:
             self.logger.debug("signals_generated count=%s", n_signals)
 
             # 6. Simuler les trades (utilise version rapide si disponible)
+            execution_engine = self._build_execution_engine(final_params)
             self.counters.start("simulation")
             with trace_span(self.logger, "simulation"):
-                if USE_FAST_SIMULATOR:
+                if USE_FAST_SIMULATOR and execution_engine is None:
                     trades_df = simulate_trades_fast(df, signals, final_params)
                 else:
-                    trades_df = simulate_trades(df, signals, final_params)
+                    trades_df = simulate_trades(df, signals, final_params, execution_engine=execution_engine)
             self.counters.stop("simulation")
             self.counters.increment("trades_count", len(trades_df))
 
@@ -264,7 +267,7 @@ class BacktestEngine:
             # 9. Construire les métadonnées
             self.counters.stop("total")
             total_ms = self.counters.get_duration("total")
-            
+
             meta = {
                 "run_id": self.run_id,
                 "symbol": symbol,
@@ -349,6 +352,8 @@ class BacktestEngine:
     ) -> Dict[str, Any]:
         """Calcule les indicateurs requis par la stratégie."""
         indicators = {}
+        bank = self._get_indicator_bank(params)
+        data_hash = bank.get_data_hash(df) if bank is not None else None
 
         for indicator_name in strategy.required_indicators:
             self.logger.debug(f"  Calcul indicateur: {indicator_name}")
@@ -357,14 +362,83 @@ class BacktestEngine:
             indicator_params = self._extract_indicator_params(indicator_name, params)
 
             try:
-                indicators[indicator_name] = calculate_indicator(
-                    indicator_name, df, indicator_params
-                )
+                cached_result = None
+                if bank is not None:
+                    cached_result = bank.get(
+                        indicator_name, indicator_params, df, data_hash=data_hash
+                    )
+                if cached_result is not None:
+                    indicators[indicator_name] = cached_result
+                else:
+                    result = calculate_indicator(indicator_name, df, indicator_params)
+                    indicators[indicator_name] = result
+                    if bank is not None and result is not None:
+                        bank.put(
+                            indicator_name,
+                            indicator_params,
+                            df,
+                            result,
+                            data_hash=data_hash
+                        )
             except Exception as e:
                 self.logger.warning(f"  ⚠️ Erreur calcul {indicator_name}: {e}")
                 indicators[indicator_name] = None
 
         return indicators
+
+    def _get_indicator_bank(self, params: Dict[str, Any]):
+        cache_enabled = params.get("indicator_cache", True)
+        if not cache_enabled:
+            return None
+        if self.indicator_bank is None:
+            cache_dir = params.get("indicator_cache_dir", ".indicator_cache")
+            kwargs: Dict[str, Any] = {}
+            if "indicator_cache_ttl" in params:
+                kwargs["ttl"] = int(params["indicator_cache_ttl"])
+            if "indicator_cache_max_size_mb" in params:
+                kwargs["max_size_mb"] = float(params["indicator_cache_max_size_mb"])
+            if "indicator_cache_memory_entries" in params:
+                kwargs["memory_max_entries"] = int(params["indicator_cache_memory_entries"])
+            self.indicator_bank = get_indicator_bank(cache_dir=cache_dir, **kwargs)
+        return self.indicator_bank
+
+    def _build_execution_engine(self, params: Dict[str, Any]):
+        execution_model = params.get("execution_model")
+        if execution_model is None:
+            execution_model = getattr(self.config, "execution_model", None)
+        if not execution_model:
+            return None
+
+        from backtest.execution import create_execution_engine
+
+        exec_kwargs: Dict[str, Any] = {}
+        for key in (
+            "spread_bps",
+            "latency_ms",
+            "use_volatility_spread",
+            "use_volume_slippage",
+            "market_impact_bps",
+            "min_spread_bps",
+            "max_spread_bps",
+            "min_slippage_bps",
+            "max_slippage_bps",
+            "volatility_window",
+            "volume_window",
+            "volatility_spread_factor",
+            "volume_slippage_factor",
+            "partial_fill_prob",
+            "partial_fill_min",
+            "partial_fill_max",
+        ):
+            if key in params:
+                exec_kwargs[key] = params[key]
+
+        slippage_bps = params.get("slippage_bps", self.config.slippage_bps)
+        return create_execution_engine(
+            model=str(execution_model),
+            slippage_bps=slippage_bps,
+            **exec_kwargs
+        )
 
     def _extract_indicator_params(
         self,

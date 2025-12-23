@@ -404,6 +404,19 @@ register_indicator(
     description="SuperTrend - ATR-based trend follower"
 )
 
+# Late imports for indicators that self-register to avoid circular imports.
+from . import amplitude_hunter  # noqa: F401
+from . import fear_greed  # noqa: F401
+from . import fibonacci  # noqa: F401
+from . import ichimoku  # noqa: F401
+from . import onchain_smoothing  # noqa: F401
+from . import pi_cycle  # noqa: F401
+from . import pivot_points  # noqa: F401
+from . import psar  # noqa: F401
+from . import standard_deviation  # noqa: F401
+from . import volume_oscillator  # noqa: F401
+from . import vortex  # noqa: F401
+
 
 class IndicatorRegistry:
     """

@@ -15,17 +15,23 @@ Commandes disponibles:
 
 Exemples:
     python -m backtest_core list strategies
-    python -m backtest_core info strategy bollinger_dual
-    python -m backtest_core backtest --strategy ema_cross --data data/BTCUSDT_1h.parquet
+    python -m backtest_core info strategy bollinger_atr
+    python -m backtest_core backtest --strategy ema_cross --data
+    data/BTCUSDT_1h.parquet
 """
 
 import sys
 from pathlib import Path
 
-# Ajouter le répertoire courant au path pour les imports
-sys.path.insert(0, str(Path(__file__).parent))
 
-from cli import main
+def _run() -> int:
+    # Ajouter le répertoire courant au path pour les imports
+    sys.path.insert(0, str(Path(__file__).parent))
+
+    from cli import main  # pylint: disable=import-outside-toplevel
+
+    return int(main())
+
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(_run())

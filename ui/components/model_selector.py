@@ -21,7 +21,11 @@ from __future__ import annotations
 
 from typing import Iterable, List, Sequence
 
-from agents.ollama_manager import list_ollama_models
+try:
+    from agents.ollama_manager import list_ollama_models
+except ImportError:
+    def list_ollama_models() -> List[str]:
+        return []
 from utils.log import get_logger
 
 logger = get_logger(__name__)

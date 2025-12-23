@@ -94,6 +94,11 @@ class ExecutionConfig:
     # Facteurs de scaling
     volatility_spread_factor: float = 2.0  # Multiplie la volatilité normalisée
     volume_slippage_factor: float = 1.5    # Impact du ratio de volume
+
+    # Optional partial fills (only for REALISTIC)
+    partial_fill_prob: float = 0.0
+    partial_fill_min: float = 0.5
+    partial_fill_max: float = 1.0
     
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire."""
@@ -107,6 +112,9 @@ class ExecutionConfig:
             "market_impact_bps": self.market_impact_bps,
             "min_spread_bps": self.min_spread_bps,
             "max_spread_bps": self.max_spread_bps,
+            "partial_fill_prob": self.partial_fill_prob,
+            "partial_fill_min": self.partial_fill_min,
+            "partial_fill_max": self.partial_fill_max,
         }
 
 
@@ -130,6 +138,8 @@ class ExecutionResult:
     slippage_cost: float = 0.0
     market_impact: float = 0.0
     latency_bars: int = 0
+    filled_size: float = 0.0
+    fill_ratio: float = 1.0
     
     @property
     def total_cost(self) -> float:
@@ -153,6 +163,8 @@ class ExecutionResult:
             "market_impact": self.market_impact,
             "latency_bars": self.latency_bars,
             "total_cost_bps": self.total_cost_bps,
+            "filled_size": self.filled_size,
+            "fill_ratio": self.fill_ratio,
         }
 
 
@@ -354,6 +366,8 @@ class ExecutionEngine:
             bar_idx = min(bar_idx, len(self._normalized_volatility) - 1)
         bar_idx = max(0, bar_idx)
         
+        size = abs(size)
+
         # Calculer les composantes
         spread_bps = self._calculate_spread_bps(bar_idx)
         slippage_bps = self._calculate_slippage_bps(bar_idx, size)
@@ -369,6 +383,17 @@ class ExecutionEngine:
         # Achat: prix + coûts, Vente: prix - coûts
         total_adjustment = spread_cost + slippage_cost + impact_cost
         executed_price = price + (side * total_adjustment)
+
+        # Optional partial fills
+        fill_ratio = 1.0
+        filled_size = size
+        if self.config.model == ExecutionModel.REALISTIC and self.config.partial_fill_prob > 0:
+            if np.random.random() < self.config.partial_fill_prob:
+                fill_ratio = np.random.uniform(
+                    self.config.partial_fill_min,
+                    self.config.partial_fill_max
+                )
+                filled_size = size * fill_ratio
         
         return ExecutionResult(
             executed_price=executed_price,
@@ -377,6 +402,8 @@ class ExecutionEngine:
             slippage_cost=slippage_cost,
             market_impact=impact_cost,
             latency_bars=latency_bars,
+            filled_size=filled_size,
+            fill_ratio=fill_ratio,
         )
     
     def get_bid_ask(self, mid_price: float, bar_idx: int) -> Tuple[float, float]:

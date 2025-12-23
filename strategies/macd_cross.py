@@ -91,6 +91,20 @@ class MACDCrossStrategy(StrategyBase):
             ),
         }
 
+    def get_indicator_params(
+        self,
+        indicator_name: str,
+        params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Mappe les parametres de la strategie vers les indicateurs."""
+        if indicator_name == "macd":
+            return {
+                "fast_period": int(params.get("fast_period", 12)),
+                "slow_period": int(params.get("slow_period", 26)),
+                "signal_period": int(params.get("signal_period", 9)),
+            }
+        return super().get_indicator_params(indicator_name, params)
+
     def generate_signals(
         self,
         df: pd.DataFrame,
@@ -102,7 +116,8 @@ class MACDCrossStrategy(StrategyBase):
 
         Args:
             df: DataFrame OHLCV
-            indicators: Dictionnaire contenant 'macd' avec {macd, signal, histogram}
+            indicators: Dictionnaire contenant 'macd' avec
+                {macd, signal, histogram}
             params: Paramètres de la stratégie
 
         Returns:
@@ -139,7 +154,9 @@ class MACDCrossStrategy(StrategyBase):
         # MACD au-dessus de Signal
         macd_above = macd_line > signal_line
         macd_above_shifted = macd_above.shift(1)
-        macd_above_prev = macd_above_shifted.where(macd_above_shifted.notna(), False)
+        macd_above_prev = macd_above_shifted.where(
+            macd_above_shifted.notna(), False
+        )
 
         # Golden Cross: MACD passe au-dessus de Signal
         golden_cross = macd_above & macd_above_prev.eq(False)

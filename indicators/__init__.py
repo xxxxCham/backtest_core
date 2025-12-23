@@ -33,6 +33,48 @@ from .psar import parabolic_sar, psar_signal, calculate_psar
 from .stoch_rsi import stochastic_rsi, stoch_rsi_signal, calculate_stoch_rsi
 from .vortex import vortex, vortex_signal, calculate_vortex
 
+# Additional indicators
+from .volume_oscillator import (
+    volume_oscillator,
+    calculate_volume_oscillator,
+    VolumeOscillatorSettings,
+)
+from .standard_deviation import (
+    standard_deviation,
+    calculate_standard_deviation,
+    StandardDeviationSettings,
+)
+from .fibonacci import (
+    fibonacci_levels,
+    calculate_fibonacci_levels,
+    FibonacciSettings,
+)
+from .pivot_points import (
+    pivot_points,
+    calculate_pivot_points,
+    PivotPointsSettings,
+)
+from .onchain_smoothing import (
+    onchain_smoothing,
+    calculate_onchain_smoothing,
+    OnchainSmoothingSettings,
+)
+from .fear_greed import (
+    fear_greed_index,
+    calculate_fear_greed,
+    FearGreedSettings,
+)
+from .pi_cycle import (
+    pi_cycle,
+    calculate_pi_cycle,
+    PiCycleSettings,
+)
+from .amplitude_hunter import (
+    amplitude_hunter,
+    calculate_amplitude_hunter,
+    AmplitudeHunterSettings,
+)
+
 __all__ = [
     # Indicateurs de base
     "bollinger_bands",
@@ -86,6 +128,31 @@ __all__ = [
     "vortex",
     "vortex_signal",
     "calculate_vortex",
+    # Additional indicators
+    "volume_oscillator",
+    "calculate_volume_oscillator",
+    "VolumeOscillatorSettings",
+    "standard_deviation",
+    "calculate_standard_deviation",
+    "StandardDeviationSettings",
+    "fibonacci_levels",
+    "calculate_fibonacci_levels",
+    "FibonacciSettings",
+    "pivot_points",
+    "calculate_pivot_points",
+    "PivotPointsSettings",
+    "onchain_smoothing",
+    "calculate_onchain_smoothing",
+    "OnchainSmoothingSettings",
+    "fear_greed_index",
+    "calculate_fear_greed",
+    "FearGreedSettings",
+    "pi_cycle",
+    "calculate_pi_cycle",
+    "PiCycleSettings",
+    "amplitude_hunter",
+    "calculate_amplitude_hunter",
+    "AmplitudeHunterSettings",
     # Registre
     "calculate_indicator",
     "list_indicators",

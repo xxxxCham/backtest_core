@@ -89,6 +89,8 @@ def simulate_trades(
     position = 0  # 0=flat, 1=long, -1=short
     entry_price = 0.0
     entry_time: Optional[pd.Timestamp] = None
+    position_size = 0.0
+    exit_pending_reason: Optional[str] = None
 
     # Paramètres avec défauts
     leverage = params.get("leverage", 3)
@@ -122,23 +124,32 @@ def simulate_trades(
         # === Entrée en position ===
         if position == 0 and signal != 0:
             position = int(signal)
+            requested_size = leverage * initial_capital / close_price
             
             # Calcul du prix d'entrée
             if use_realistic_execution:
                 exec_result = execution_engine.execute_order(
                     price=close_price,
                     side=position,
-                    bar_idx=i
+                    bar_idx=i,
+                    size=requested_size
                 )
                 entry_price = exec_result.executed_price
+                filled_size = getattr(exec_result, "filled_size", requested_size)
+                if filled_size <= 0:
+                    position = 0
+                    continue
+                position_size = filled_size
                 total_spread_cost += exec_result.spread_cost
                 total_slippage_cost += exec_result.slippage_cost
             else:
                 # Mode simple: slippage fixe
                 slip_factor = 1 + (slippage_bps * 0.0001 * position)
                 entry_price = close_price * slip_factor
+                position_size = leverage * initial_capital / entry_price
             
             entry_time = timestamp
+            exit_pending_reason = None
 
             logger.debug(f"Entrée {'LONG' if position == 1 else 'SHORT'} @ {entry_price:.2f}")
 
@@ -148,7 +159,10 @@ def simulate_trades(
             exit_reason = ""
 
             # 1. Signal opposé
-            if signal != 0 and signal != position:
+            if exit_pending_reason is not None:
+                exit_condition = True
+                exit_reason = exit_pending_reason
+            elif signal != 0 and signal != position:
                 exit_condition = True
                 exit_reason = "signal_reverse"
 
@@ -167,15 +181,24 @@ def simulate_trades(
                     exec_result = execution_engine.execute_order(
                         price=close_price,
                         side=-position,  # Direction opposée pour la sortie
-                        bar_idx=i
+                        bar_idx=i,
+                        size=position_size
                     )
                     exit_price = exec_result.executed_price
+                    filled_size = getattr(exec_result, "filled_size", position_size)
                     total_spread_cost += exec_result.spread_cost
                     total_slippage_cost += exec_result.slippage_cost
                 else:
                     # Mode simple: slippage fixe
                     slip_factor = 1 - (slippage_bps * 0.0001 * position)
                     exit_price = close_price * slip_factor
+                    filled_size = position_size
+
+                if filled_size <= 0:
+                    exit_pending_reason = exit_reason or "exit_pending"
+                    continue
+
+                trade_size = min(filled_size, position_size)
 
                 # Calcul PnL
                 if position == 1:
@@ -187,14 +210,16 @@ def simulate_trades(
                 total_fees_pct = fees_bps * 2 * 0.0001
                 net_return = raw_return - total_fees_pct
 
-                # PnL avec leverage
-                pnl = net_return * leverage * initial_capital
-
-                # Taille de position
-                position_size = leverage * initial_capital / entry_price
+                # PnL avec taille de position
+                trade_notional = trade_size * entry_price
+                pnl = net_return * trade_notional
 
                 # Frais payés
-                fees_paid = position_size * entry_price * total_fees_pct
+                fees_paid = trade_size * entry_price * total_fees_pct
+
+                exit_reason_used = exit_reason
+                if trade_size < position_size:
+                    exit_reason_used = f"{exit_reason}_partial"
 
                 trade = Trade(
                     entry_ts=entry_time,
@@ -202,10 +227,10 @@ def simulate_trades(
                     side="LONG" if position == 1 else "SHORT",
                     entry_price=entry_price,
                     exit_price=exit_price,
-                    size=position_size,
+                    size=trade_size,
                     pnl=pnl,
                     return_pct=net_return * 100,
-                    exit_reason=exit_reason,
+                    exit_reason=exit_reason_used,
                     leverage=leverage,
                     fees_paid=fees_paid
                 )
@@ -213,26 +238,39 @@ def simulate_trades(
 
                 logger.debug(f"Sortie {trade.side} @ {exit_price:.2f}, PnL: ${pnl:.2f}")
 
-                # Reset position
-                position = 0
-                entry_price = 0.0
-                entry_time = None
+                position_size -= trade_size
+                if position_size <= 0:
+                    # Reset position
+                    position = 0
+                    entry_price = 0.0
+                    entry_time = None
+                    exit_pending_reason = None
 
-                # Nouvelle position si signal présent
-                if signal != 0:
-                    position = int(signal)
-                    if use_realistic_execution:
-                        exec_result = execution_engine.execute_order(
-                            price=close_price,
-                            side=position,
-                            bar_idx=i
-                        )
-                        entry_price = exec_result.executed_price
-                        total_spread_cost += exec_result.spread_cost
-                        total_slippage_cost += exec_result.slippage_cost
-                    else:
-                        entry_price = close_price * (1 + slippage_bps * 0.0001 * position)
-                    entry_time = timestamp
+                    # Nouvelle position si signal présent
+                    if signal != 0:
+                        position = int(signal)
+                        requested_size = leverage * initial_capital / close_price
+                        if use_realistic_execution:
+                            exec_result = execution_engine.execute_order(
+                                price=close_price,
+                                side=position,
+                                bar_idx=i,
+                                size=requested_size
+                            )
+                            entry_price = exec_result.executed_price
+                            filled_size = getattr(exec_result, "filled_size", requested_size)
+                            if filled_size <= 0:
+                                position = 0
+                                continue
+                            position_size = filled_size
+                            total_spread_cost += exec_result.spread_cost
+                            total_slippage_cost += exec_result.slippage_cost
+                        else:
+                            entry_price = close_price * (1 + slippage_bps * 0.0001 * position)
+                            position_size = leverage * initial_capital / entry_price
+                        entry_time = timestamp
+                else:
+                    exit_pending_reason = exit_reason
 
     # === Trade final si position ouverte ===
     if position != 0 and entry_time is not None:
@@ -240,7 +278,8 @@ def simulate_trades(
             exec_result = execution_engine.execute_order(
                 price=closes[-1],
                 side=-position,
-                bar_idx=n_bars - 1
+                bar_idx=n_bars - 1,
+                size=position_size
             )
             final_price = exec_result.executed_price
             total_spread_cost += exec_result.spread_cost
@@ -257,8 +296,8 @@ def simulate_trades(
 
         total_fees_pct = fees_bps * 2 * 0.0001
         net_return = raw_return - total_fees_pct
-        pnl = net_return * leverage * initial_capital
-        position_size = leverage * initial_capital / entry_price
+        trade_notional = position_size * entry_price
+        pnl = net_return * trade_notional
 
         trade = Trade(
             entry_ts=entry_time,

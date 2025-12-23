@@ -1,5 +1,9 @@
 # Orchestration Automatique : Indicateurs, Stratégies & Granularité
 
+NOTE: Historical design doc. For current operating details, see
+`DETAILS_FONCTIONNEMENT.md`. For orchestration log details, see
+`docs/ORCHESTRATION_LOGS.md`.
+
 ## Vue d'Ensemble 🎯
 
 Le système orchestre automatiquement **3 couches complémentaires** :

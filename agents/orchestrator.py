@@ -23,6 +23,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from .state_machine import AgentState, StateMachine, ValidationResult
 from .llm_client import LLMClient, LLMConfig, create_llm_client
+from .model_config import RoleModelConfig
 from .base_agent import AgentContext, AgentResult, MetricsSnapshot, ParameterConfig
 from .analyst import AnalystAgent
 from .strategist import StrategistAgent
@@ -60,6 +61,7 @@ class OrchestratorConfig:
     
     # LLM
     llm_config: Optional[LLMConfig] = None
+    role_model_config: Optional[RoleModelConfig] = None
     
     # Walk-forward
     use_walk_forward: bool = True
@@ -180,6 +182,23 @@ class Orchestrator:
             min_trades=self.config.min_trades,
             max_overfitting_ratio=self.config.max_overfitting_ratio,
         )
+
+    def _apply_role_model(self, role: str) -> Optional[str]:
+        """Select and apply a model for the given role if configured."""
+        config = self.config.role_model_config
+        if not config:
+            return None
+
+        iteration = max(1, self.state_machine.iteration)
+        model_name = config.get_model(
+            role=role,
+            iteration=iteration,
+            random_selection=True,
+        )
+        if model_name and self.llm_client.config.model != model_name:
+            self.llm_client.config.model = model_name
+            logger.info("Role %s model set to %s", role, model_name)
+        return model_name
     
     def run(self) -> OrchestratorResult:
         """
@@ -270,6 +289,7 @@ class Orchestrator:
         self.context.iteration = self.state_machine.iteration
         
         # Exécuter l'Analyst
+        self._apply_role_model("analyst")
         result = self.analyst.execute(self.context)
         
         if not result.success:
@@ -296,6 +316,7 @@ class Orchestrator:
         logger.info("Phase PROPOSE: Exécution Agent Strategist")
         
         # Exécuter le Strategist
+        self._apply_role_model("strategist")
         result = self.strategist.execute(self.context)
         
         if not result.success:
@@ -325,6 +346,7 @@ class Orchestrator:
             return
         
         # Exécuter le Critic
+        self._apply_role_model("critic")
         result = self.critic.execute(self.context)
         
         if not result.success:
@@ -357,6 +379,7 @@ class Orchestrator:
         logger.info("Phase VALIDATE: Exécution Agent Validator")
         
         # Exécuter le Validator
+        self._apply_role_model("validator")
         result = self.validator.execute(self.context)
         
         if not result.success:
@@ -429,10 +452,11 @@ class Orchestrator:
         if not self.config.strategy_name:
             errors.append("strategy_name requis")
         
-        if not self.config.data_path:
+        if self.config.data_path:
+            if not Path(self.config.data_path).exists():
+                errors.append(f"data_path n'existe pas: {self.config.data_path}")
+        elif self.config.on_backtest_needed is None:
             errors.append("data_path requis")
-        elif not Path(self.config.data_path).exists():
-            errors.append(f"data_path n'existe pas: {self.config.data_path}")
         
         if not self.config.param_specs:
             errors.append("param_specs requis (au moins un paramètre)")

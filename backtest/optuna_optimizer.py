@@ -787,11 +787,6 @@ def suggest_param_space(strategy_name: str) -> Dict[str, Dict[str, Any]]:
             "fast_period": {"type": "int", "low": 5, "high": 50},
             "slow_period": {"type": "int", "low": 20, "high": 200},
         },
-        "ma_crossover": {
-            "fast_period": {"type": "int", "low": 5, "high": 50},
-            "slow_period": {"type": "int", "low": 20, "high": 200},
-            "ma_type": {"type": "categorical", "choices": ["sma", "ema"]},
-        },
         "bollinger_atr": {
             "bb_period": {"type": "int", "low": 10, "high": 50},
             "bb_std": {"type": "float", "low": 1.5, "high": 3.0, "step": 0.1},

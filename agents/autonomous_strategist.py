@@ -300,8 +300,10 @@ Actions:
         if self.orchestration_logger:
             self.orchestration_logger.log_analysis_start(
                 agent="AutonomousStrategist",
-                strategy=session.strategy_name,
-                initial_params=initial_params,
+                details={
+                    "strategy": session.strategy_name,
+                    "initial_params": initial_params,
+                }
             )
         
         # 1. Backtest initial

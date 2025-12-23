@@ -90,6 +90,16 @@ class RSIReversalStrategy(StrategyBase):
             ),
         }
 
+    def get_indicator_params(
+        self,
+        indicator_name: str,
+        params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Mappe les parametres de la strategie vers les indicateurs."""
+        if indicator_name == "rsi":
+            return {"period": int(params.get("rsi_period", 14))}
+        return super().get_indicator_params(indicator_name, params)
+
     def generate_signals(
         self,
         df: pd.DataFrame,

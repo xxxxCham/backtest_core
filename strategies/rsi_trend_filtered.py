@@ -5,6 +5,7 @@ N'achète en survente que si tendance haussière (EMA rapide > EMA lente).
 from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
+from indicators.registry import calculate_indicator
 from strategies.base import StrategyBase, StrategyResult, register_strategy
 from utils.parameters import ParameterSpec
 
@@ -15,7 +16,7 @@ class RSITrendFilteredStrategy(StrategyBase):
     
     @property
     def required_indicators(self) -> List[str]:
-        return ["rsi", "ema"]
+        return ["rsi"]
     
     @property
     def default_params(self) -> Dict[str, Any]:
@@ -42,15 +43,29 @@ class RSITrendFilteredStrategy(StrategyBase):
     def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:
         signals = pd.Series(0.0, index=df.index)
         
-        if "rsi" not in indicators or "ema" not in indicators:
-            return signals
-        
-        rsi = pd.Series(indicators["rsi"], index=df.index)
-        ema_dict = indicators["ema"]
+        rsi_period = int(params.get("rsi_period", 14))
+        ema_fast_period = int(params.get("ema_fast", 20))
+        ema_slow_period = int(params.get("ema_slow", 50))
+
+        rsi_values = indicators.get("rsi")
+        if rsi_values is None:
+            try:
+                rsi_values = calculate_indicator(
+                    "rsi", df, {"period": rsi_period}
+                )
+            except Exception:
+                return signals
+
+        rsi = pd.Series(rsi_values, index=df.index)
+        close = df["close"]
         
         # EMA pour filtre de tendance
-        ema_fast = pd.Series(ema_dict.get(params["ema_fast"], []), index=df.index)
-        ema_slow = pd.Series(ema_dict.get(params["ema_slow"], []), index=df.index)
+        ema_fast = close.ewm(
+            span=ema_fast_period, adjust=False
+        ).mean()
+        ema_slow = close.ewm(
+            span=ema_slow_period, adjust=False
+        ).mean()
         
         # Filtre de tendance
         uptrend = ema_fast > ema_slow

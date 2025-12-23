@@ -1,5 +1,8 @@
 # Système de Logs d'Orchestration LLM - Documentation
 
+NOTE: This doc covers LLM orchestration logs only. For overall runtime and
+operating details, see `DETAILS_FONCTIONNEMENT.md`.
+
 > **Date de création** : 18 décembre 2025  
 > **Auteur** : GitHub Copilot  
 > **Version** : 1.0.0

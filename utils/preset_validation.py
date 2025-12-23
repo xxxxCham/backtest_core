@@ -148,10 +148,6 @@ def validate_all_presets() -> Dict[str, PresetValidationResult]:
         "macd_cross": "macd_cross",
         "rsi_reversal": "rsi_reversal",
         "atr_channel": "atr_channel",
-        "ma_crossover": "ma_crossover",
-        "ema_stochastic_scalp": "ema_stochastic_scalp",
-        "rsi_trend_filtered": "rsi_trend_filtered",
-        "bollinger_dual": "bollinger_dual",
     }
 
     results = {}

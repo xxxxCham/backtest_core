@@ -95,7 +95,8 @@ class IndicatorBank:
         cache_dir: Union[str, Path] = ".indicator_cache",
         ttl: int = DEFAULT_TTL,
         max_size_mb: float = DEFAULT_MAX_SIZE_MB,
-        enabled: bool = True
+        enabled: bool = True,
+        memory_max_entries: int = 128
     ):
         """
         Initialise l'IndicatorBank.
@@ -105,14 +106,17 @@ class IndicatorBank:
             ttl: Time-to-live en secondes (défaut: 24h)
             max_size_mb: Taille maximale du cache en MB
             enabled: Activer/désactiver le cache
+            memory_max_entries: Max entries kept in memory (0 disables)
         """
         self.cache_dir = Path(cache_dir)
         self.ttl = ttl
         self.max_size_mb = max_size_mb
         self.enabled = enabled
+        self.memory_max_entries = int(memory_max_entries)
         
         self.stats = CacheStats()
         self._index: Dict[str, CacheEntry] = {}
+        self._memory_cache: Dict[str, Tuple[float, Any]] = {}
         
         if enabled:
             self._init_cache_dir()
@@ -181,11 +185,24 @@ class IndicatorBank:
         except Exception as e:
             logger.warning(f"Erreur sauvegarde index: {e}")
     
+    def _get_data_hash(self, df: pd.DataFrame) -> str:
+        """Build a short hash for the input data."""
+        data_info = {
+            "shape": df.shape,
+            "columns": list(df.columns),
+            "first_idx": str(df.index[0]) if len(df) > 0 else "",
+            "last_idx": str(df.index[-1]) if len(df) > 0 else "",
+            "checksum": float(df["close"].sum()) if "close" in df.columns else 0.0
+        }
+        data_str = json.dumps(data_info, sort_keys=True, default=str)
+        return hashlib.sha256(data_str.encode("utf-8")).hexdigest()[:12]
+
     def _generate_key(
         self,
         indicator_name: str,
         params: Dict[str, Any],
-        df: pd.DataFrame
+        df: pd.DataFrame,
+        data_hash: Optional[str] = None
     ) -> Tuple[str, str, str]:
         """
         Génère une clé de cache unique.
@@ -195,28 +212,47 @@ class IndicatorBank:
         """
         # Hash des paramètres
         params_str = json.dumps(params, sort_keys=True, default=str)
-        params_hash = hashlib.md5(params_str.encode()).hexdigest()[:8]
+        params_hash = hashlib.sha256(params_str.encode("utf-8")).hexdigest()[:12]
         
         # Hash des données (basé sur shape, premier/dernier timestamp, checksum)
-        data_info = {
-            "shape": df.shape,
-            "columns": list(df.columns),
-            "first_idx": str(df.index[0]) if len(df) > 0 else "",
-            "last_idx": str(df.index[-1]) if len(df) > 0 else "",
-            "checksum": float(df["close"].sum()) if "close" in df.columns else 0
-        }
-        data_str = json.dumps(data_info, sort_keys=True, default=str)
-        data_hash = hashlib.md5(data_str.encode()).hexdigest()[:8]
+        if data_hash is None:
+            data_hash = self._get_data_hash(df)
         
         full_key = f"{indicator_name}_{params_hash}_{data_hash}"
         
         return full_key, params_hash, data_hash
+
+    def get_data_hash(self, df: pd.DataFrame) -> str:
+        """Return a data hash that can be reused across indicators."""
+        return self._get_data_hash(df)
+
+    def _memory_get(self, key: str) -> Optional[Any]:
+        if self.memory_max_entries <= 0:
+            return None
+        entry = self._memory_cache.get(key)
+        if entry is None:
+            return None
+        expires_at, result = entry
+        if time.time() > expires_at:
+            self._memory_cache.pop(key, None)
+            return None
+        return result
+
+    def _memory_put(self, key: str, expires_at: float, result: Any) -> None:
+        if self.memory_max_entries <= 0:
+            return
+        if key in self._memory_cache:
+            self._memory_cache.pop(key, None)
+        self._memory_cache[key] = (expires_at, result)
+        while len(self._memory_cache) > self.memory_max_entries:
+            self._memory_cache.pop(next(iter(self._memory_cache)))
     
     def get(
         self,
         indicator_name: str,
         params: Dict[str, Any],
-        df: pd.DataFrame
+        df: pd.DataFrame,
+        data_hash: Optional[str] = None
     ) -> Optional[Any]:
         """
         Récupère un indicateur depuis le cache.
@@ -232,7 +268,13 @@ class IndicatorBank:
         if not self.enabled:
             return None
         
-        key, _, _ = self._generate_key(indicator_name, params, df)
+        key, _, _ = self._generate_key(indicator_name, params, df, data_hash=data_hash)
+
+        # Check memory cache first
+        memory_result = self._memory_get(key)
+        if memory_result is not None:
+            self.stats.hits += 1
+            return memory_result
         
         entry = self._index.get(key)
         if entry is None:
@@ -251,6 +293,7 @@ class IndicatorBank:
                 result = pickle.load(f)
             
             self.stats.hits += 1
+            self._memory_put(key, entry.expires_at, result)
             logger.debug(f"Cache HIT: {indicator_name} [{key[:16]}]")
             return result
             
@@ -266,7 +309,8 @@ class IndicatorBank:
         params: Dict[str, Any],
         df: pd.DataFrame,
         result: Any,
-        ttl: Optional[int] = None
+        ttl: Optional[int] = None,
+        data_hash: Optional[str] = None
     ) -> bool:
         """
         Stocke un indicateur dans le cache.
@@ -284,7 +328,9 @@ class IndicatorBank:
         if not self.enabled:
             return False
         
-        key, params_hash, data_hash = self._generate_key(indicator_name, params, df)
+        key, params_hash, data_hash = self._generate_key(
+            indicator_name, params, df, data_hash=data_hash
+        )
         
         # Sérialiser le résultat
         try:
@@ -308,18 +354,20 @@ class IndicatorBank:
         
         # Créer l'entrée d'index
         now = time.time()
+        expires_at = now + (ttl or self.ttl)
         entry = CacheEntry(
             key=key,
             indicator_name=indicator_name,
             params_hash=params_hash,
             data_hash=data_hash,
             created_at=now,
-            expires_at=now + (ttl or self.ttl),
+            expires_at=expires_at,
             size_bytes=size_bytes,
             filepath=filepath
         )
         
         self._index[key] = entry
+        self._memory_put(key, expires_at, result)
         self._save_index()
         self._update_stats()
         
@@ -333,6 +381,8 @@ class IndicatorBank:
                 entry.filepath.unlink()
         except Exception:
             pass
+
+        self._memory_cache.pop(entry.key, None)
         
         if entry.key in self._index:
             del self._index[entry.key]
@@ -384,6 +434,14 @@ class IndicatorBank:
         """
         if not self.enabled:
             return 0
+
+        if indicator_name is None:
+            self._memory_cache.clear()
+        else:
+            prefix = f"{indicator_name}_"
+            keys_to_drop = [k for k in self._memory_cache if k.startswith(prefix)]
+            for key in keys_to_drop:
+                self._memory_cache.pop(key, None)
         
         count = 0
         entries_to_remove = []
@@ -412,6 +470,7 @@ class IndicatorBank:
             self._init_cache_dir()
             self._index = {}
             self.stats = CacheStats()
+            self._memory_cache.clear()
             logger.info("Cache vidé")
         except Exception as e:
             logger.warning(f"Erreur vidage cache: {e}")

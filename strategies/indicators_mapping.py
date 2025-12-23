@@ -3,7 +3,8 @@ Backtest Core - Mapping Stratégies → Indicateurs
 =================================================
 
 Fichier de référence centralisé qui associe chaque stratégie à ses indicateurs.
-Ce mapping est utilisé par l'UI pour charger automatiquement les bons indicateurs.
+Ce mapping est utilisé par l'UI pour charger automatiquement les bons
+indicateurs.
 
 Structure:
 - required_indicators: Indicateurs chargés automatiquement par le moteur
@@ -23,11 +24,16 @@ class StrategyIndicators:
     required_indicators: List[str]  # Chargés par le moteur
     internal_indicators: List[str]  # Calculés par la stratégie
     description: str
+    ui_label: str = ""
 
     @property
     def all_indicators(self) -> Set[str]:
         """Tous les indicateurs utilisés (requis + internes)."""
         return set(self.required_indicators + self.internal_indicators)
+
+    def display_label(self) -> str:
+        """Libelle d'affichage pour l'UI."""
+        return self.ui_label or self.name
 
 
 # =============================================================================
@@ -36,76 +42,86 @@ class StrategyIndicators:
 
 STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
 
-    # 1. EMA Stochastic Scalp
-    "ema_stochastic_scalp": StrategyIndicators(
-        name="EMA Stochastic Scalp",
-        required_indicators=["stochastic", "atr"],
-        internal_indicators=["ema"],  # EMA rapide/lente calculées internement
-        description="Scalping avec EMA 50/100 pour tendance et Stochastic pour timing"
-    ),
-
-    # 2. MA Crossover
-    "ma_crossover": StrategyIndicators(
-        name="MA Crossover",
-        required_indicators=["adx"],
-        internal_indicators=["sma"],  # SMA rapide/lente calculées internement
-        description="Croisement de moyennes mobiles avec filtre ADX"
-    ),
-
-    # 3. ATR Channel
+    # 1. ATR Channel
     "atr_channel": StrategyIndicators(
         name="ATR Channel",
-        required_indicators=["atr", "ema"],  # ATR pour canal, EMA fournie en externe
+        ui_label="📏 ATR Channel (Breakout)",
+        required_indicators=["atr", "ema"],
+        # ATR pour canal, EMA fournie en externe
         internal_indicators=[],  # Canal calculé à partir de l'EMA + ATR
         description="Breakout sur canal ATR avec filtre EMA"
     ),
 
-    # 4. RSI Trend Filtered
-    "rsi_trend_filtered": StrategyIndicators(
-        name="RSI Trend Filtered",
-        required_indicators=["rsi", "ema"],  # RSI et EMA fournis en externe
-        internal_indicators=[],  # Filtre de tendance basé sur les EMAs fournies
-        description="RSI mean-reversion avec filtre de tendance EMA"
-    ),
-
-    # 5. Bollinger Dual
-    "bollinger_dual": StrategyIndicators(
-        name="Bollinger Dual",
-        required_indicators=["bollinger"],
-        internal_indicators=["sma", "ema"],  # MA calculée selon ma_type
-        description="Bandes Bollinger avec double condition (bande + croisement MA)"
-    ),
-
-    # 6. EMA Cross
+    # 2. EMA Cross
     "ema_cross": StrategyIndicators(
         name="EMA Cross",
+        ui_label="📈 EMA Crossover (Trend Following)",
         required_indicators=[],
         internal_indicators=["ema"],  # EMA rapide/lente calculées internement
         description="Croisement EMA simple (Golden/Death Cross)"
     ),
 
-    # 7. Bollinger ATR
+    # 3. Bollinger ATR
     "bollinger_atr": StrategyIndicators(
         name="Bollinger ATR",
+        ui_label="📉 Bollinger + ATR (Mean Reversion)",
         required_indicators=["bollinger", "atr"],
         internal_indicators=[],
         description="Mean-reversion Bollinger avec filtre volatilité ATR"
     ),
 
-    # 8. MACD Cross
+    # 4. MACD Cross
     "macd_cross": StrategyIndicators(
         name="MACD Cross",
+        ui_label="📊 MACD Crossover (Momentum)",
         required_indicators=["macd"],
         internal_indicators=[],
         description="Croisement MACD avec ligne signal"
     ),
 
-    # 9. RSI Reversal
+    # 5. RSI Reversal
     "rsi_reversal": StrategyIndicators(
         name="RSI Reversal",
+        ui_label="🔄 RSI Reversal (Mean Reversion)",
         required_indicators=["rsi"],
         internal_indicators=[],
         description="Mean-reversion sur niveaux RSI (survente/surachat)"
+    ),
+
+    # 6. MA Crossover
+    "ma_crossover": StrategyIndicators(
+        name="MA Crossover",
+        ui_label="📐 MA Crossover (SMA Trend)",
+        required_indicators=[],
+        internal_indicators=["sma"],
+        description="Croisement SMA rapide/lente"
+    ),
+
+    # 7. EMA Stochastic Scalp
+    "ema_stochastic_scalp": StrategyIndicators(
+        name="EMA Stochastic Scalp",
+        ui_label="⚡ EMA + Stochastic (Scalping)",
+        required_indicators=["stochastic"],
+        internal_indicators=["ema"],
+        description="Scalping avec filtre EMA et timing Stochastic"
+    ),
+
+    # 8. Bollinger Dual
+    "bollinger_dual": StrategyIndicators(
+        name="Bollinger Dual",
+        ui_label="📊 Bollinger Dual (Mean Reversion)",
+        required_indicators=["bollinger"],
+        internal_indicators=["sma", "ema"],
+        description="Bollinger + franchissement MA"
+    ),
+
+    # 9. RSI Trend Filtered
+    "rsi_trend_filtered": StrategyIndicators(
+        name="RSI Trend Filtered",
+        ui_label="🔄 RSI Trend Filtered (Mean Rev.)",
+        required_indicators=["rsi"],
+        internal_indicators=["ema"],
+        description="RSI filtre par tendance EMA"
     ),
 }
 
@@ -204,8 +220,10 @@ def format_strategy_summary() -> str:
     for strategy_name, info in STRATEGY_INDICATORS_MAP.items():
         lines.append(f"📊 {info.name} ({strategy_name})")
         lines.append(f"   Description: {info.description}")
-        lines.append(f"   Requis:      {', '.join(info.required_indicators) or 'Aucun'}")
-        lines.append(f"   Internes:    {', '.join(info.internal_indicators) or 'Aucun'}")
+        required = ", ".join(info.required_indicators) or "Aucun"
+        internal = ", ".join(info.internal_indicators) or "Aucun"
+        lines.append(f"   Requis:      {required}")
+        lines.append(f"   Internes:    {internal}")
         lines.append("")
 
     lines.append("=" * 80)
@@ -216,7 +234,10 @@ def format_strategy_summary() -> str:
 # VALIDATION
 # =============================================================================
 
-def validate_strategy_indicators(strategy_name: str, strategy_instance) -> bool:
+def validate_strategy_indicators(
+    strategy_name: str,
+    strategy_instance
+) -> bool:
     """
     Valide que les indicateurs déclarés dans le mapping correspondent
     aux indicateurs requis de la stratégie.

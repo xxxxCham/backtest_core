@@ -128,6 +128,11 @@ class BollingerDualStrategy(StrategyBase):
         }
 
     @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        """Spécifications des paramètres pour l'UI et l'optimisation."""
+        return BOLLINGER_DUAL_PRESET.parameters
+
+    @property
     def param_ranges(self) -> Dict[str, tuple]:
         """Plages de paramètres pour optimisation."""
         return {
