@@ -390,7 +390,13 @@ class Orchestrator:
             self._log_event("analyst_result", proceed=bool(proceed))
             if not proceed:
                 logger.info("Analyst recommande de ne pas optimiser")
-                self.state_machine.transition_to(AgentState.VALIDATE)
+                transition = self.state_machine.transition_to(AgentState.VALIDATE)
+                if not transition.is_valid:
+                    logger.warning(
+                        "Transition ANALYZE -> VALIDATE refusee: %s",
+                        transition.message,
+                    )
+                    self.state_machine.transition_to(AgentState.VALIDATE, force=True)
                 return
 
         # Transition vers PROPOSE

@@ -18,6 +18,7 @@ un cheminement rigoureux et traçable.
 Transitions:
     INIT → ANALYZE (si données valides)
     ANALYZE → PROPOSE (si analyse complète)
+    ANALYZE → VALIDATE (si l'analyse recommande d'arrêter)
     PROPOSE → CRITIQUE (si propositions générées)
     CRITIQUE → VALIDATE (si critique terminée)
     VALIDATE → APPROVED | REJECTED | ITERATE
@@ -134,7 +135,7 @@ class StateMachine:
     # Définition des transitions valides
     VALID_TRANSITIONS: Dict[AgentState, Set[AgentState]] = {
         AgentState.INIT: {AgentState.ANALYZE, AgentState.FAILED},
-        AgentState.ANALYZE: {AgentState.PROPOSE, AgentState.FAILED},
+        AgentState.ANALYZE: {AgentState.PROPOSE, AgentState.VALIDATE, AgentState.FAILED},
         AgentState.PROPOSE: {AgentState.CRITIQUE, AgentState.FAILED},
         AgentState.CRITIQUE: {AgentState.VALIDATE, AgentState.FAILED},
         AgentState.VALIDATE: {AgentState.APPROVED, AgentState.REJECTED, AgentState.ITERATE, AgentState.FAILED},

@@ -173,6 +173,7 @@ class OrchestrationLogger:
         session_id: Optional[str] = None,
         auto_save: bool = True,
         save_path: Optional[Path] = None,
+        on_event: Optional[callable] = None,
     ):
         """
         Initialize le logger d'orchestration.
@@ -181,6 +182,7 @@ class OrchestrationLogger:
             session_id: ID unique de session (généré auto si None)
             auto_save: Si True, sauvegarde auto toutes les 10 entrées
             save_path: Chemin personnalisé pour les logs (défaut: runs/{session_id}/trace.jsonl)
+            on_event: Callback appelé à chaque nouvel événement (pour UI temps réel)
         """
         self.session_id = session_id or self._generate_session_id()
         self.logs: List[OrchestrationLogEntry] = []
@@ -189,10 +191,23 @@ class OrchestrationLogger:
         self._save_path = save_path or Path("runs") / self.session_id / "trace.jsonl"
         self._save_counter = 0
         self._save_interval = 10  # Sauvegarder tous les 10 événements
+        self._on_event_callback = on_event  # Callback pour mise à jour live
 
         # Créer le répertoire si nécessaire
         if self._auto_save:
             self._save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def set_on_event_callback(self, callback: callable) -> None:
+        """Définit le callback appelé à chaque nouvel événement."""
+        self._on_event_callback = callback
+
+    def _notify_event(self, entry: OrchestrationLogEntry) -> None:
+        """Notifie le callback si défini."""
+        if self._on_event_callback:
+            try:
+                self._on_event_callback(entry)
+            except Exception as e:
+                logger.debug(f"Event callback error (ignored): {e}")
 
     def _generate_session_id(self) -> str:
         """Génère un ID de session unique."""
@@ -201,6 +216,11 @@ class OrchestrationLogger:
     def _now(self) -> str:
         """Timestamp actuel."""
         return datetime.now().isoformat()
+
+    def _add_entry(self, entry: OrchestrationLogEntry) -> None:
+        """Ajoute une entrée et notifie le callback."""
+        self._add_entry(entry)
+        self._notify_event(entry)
 
     def log_analysis_start(self, agent: str, details: Optional[Dict] = None):
         """Log le début d'une analyse."""
@@ -213,7 +233,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Analysis started - Iteration {self.current_iteration}")
 
     def log_analysis_complete(
@@ -232,7 +252,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Analysis complete - Status: {status.value}")
 
     def log_strategy_selection(
@@ -251,7 +271,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Strategy selected: {strategy_name} - {reason}")
 
     def log_strategy_modification(
@@ -276,7 +296,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Strategy changed: {old_strategy} → {new_strategy}")
 
     def log_indicator_values_change(
@@ -302,7 +322,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Indicator {indicator} values changed")
 
     def log_indicator_add(
@@ -327,7 +347,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] New indicator proposed: {indicator}")
 
     def log_indicator_validation(
@@ -352,7 +372,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Indicator {indicator} validation: {is_valid}")
 
     def log_backtest_launch(
@@ -376,7 +396,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Backtest launched: {combination_id}/{total_combinations}")
 
     def log_backtest_complete(
@@ -400,7 +420,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
 
         # Extraire métriques clés
         pnl = results.get('pnl', 0)
@@ -428,7 +448,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.error(f"[{agent}] Backtest #{combination_id} failed: {error}")
 
     def log_decision(
@@ -454,7 +474,7 @@ class OrchestrationLogger:
             iteration=self.current_iteration,
             session_id=self.session_id
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         logger.info(f"[{agent}] Decision: {decision_type} - {reason}")
 
     def next_iteration(self):
@@ -487,7 +507,7 @@ class OrchestrationLogger:
             iteration=data.get("iteration", self.current_iteration),
             session_id=data.get("session_id", self.session_id),
         )
-        self.logs.append(entry)
+        self._add_entry(entry)
         self._maybe_auto_save()
 
     def add_event(self, event_type: str, data: Dict[str, Any]) -> None:

@@ -97,6 +97,8 @@ try:
         render_full_orchestration_viewer,
         render_orchestration_logs,
         render_orchestration_summary_table,
+        render_live_orchestration_panel,
+        LiveOrchestrationViewer,
     )
     from ui.deep_trace_viewer import render_deep_trace_viewer  # Pour onglet avancé mode LLM
     LLM_AVAILABLE = True
@@ -2971,168 +2973,149 @@ if run_button:
         else:
             # Exécuter l'optimisation
             st.markdown("---")
-            st.markdown("### 📊 Progression de l'optimisation")
-
-            # Afficher les logs d'orchestration en temps réel
-            st.markdown("#### 📋 Logs d'orchestration")
+            st.markdown("### 📊 Progression de l'optimisation LLM")
+            
+            # Créer les placeholders pour affichage live
+            live_status = st.status("🚀 Démarrage de l'optimisation...", expanded=True)
+            live_events_placeholder = st.empty()
             orchestration_placeholder = st.empty()
 
             # Créer le moniteur de progression (LLM: on suit les itérations)
             max_iterations = min(llm_max_iterations, max_combos)
-            llm_monitor_placeholder = st.empty()
 
-            # Créer deux colonnes: log itérations + stream pensées
-            col_logs, col_thinking = st.columns([1, 1])
+            # Créer le viewer live pour les événements d'orchestration
+            live_viewer = LiveOrchestrationViewer(container_key="live_orch_viewer")
+            
+            # Connecter le callback au logger d'orchestration
+            def on_orchestration_event(entry):
+                """Callback appelé à chaque événement - met à jour l'UI."""
+                live_viewer.add_event(entry)
+                # Mettre à jour le placeholder avec les derniers événements
+                live_viewer.render(live_events_placeholder, show_header=True)
+            
+            orchestration_logger.set_on_event_callback(on_orchestration_event)
 
-            with col_logs:
-                iteration_log = st.expander("📝 Log des itérations", expanded=True)
-
-            with col_thinking:
-                # Créer viewer pour pensées LLM
-                thinking_viewer = ThinkingStreamViewer(container_key="llm_thinking")
-                thinking_placeholder = st.empty()
+            # Info configuration
+            st.caption(f"🔧 Limite: {max_combos:,} backtests max, {n_workers} workers, {max_iterations} itérations max")
 
             try:
-                with st.spinner("🧠 Optimisation en cours..."):
-                    # Exemple de pensées pour démonstration
-                    # Ces pensées seront remplacées par les vraies pensées des agents
-                    # une fois que le callback sera connecté
-                    thinking_viewer.add_thought(
-                        agent_name="System",
-                        model="optimisation",
-                        thought="Initialisation de l'optimisation autonome...",
-                        category="thinking"
-                    )
-
-                    # Informer l'utilisateur de la configuration
-                    st.caption(f"🔧 Limite: {max_combos:,} backtests max, {n_workers} workers, {max_iterations} itérations max")
-
+                # Utiliser st.status pour un affichage en temps réel
+                with live_status:
+                    st.write("🤖 **Agent LLM actif** - Optimisation autonome")
+                    st.write(f"📊 Stratégie: `{strategy_key}` | Modèle: `{llm_model}`")
+                    
                     # Lancer l'optimisation autonome avec limite
                     session = strategist.optimize(
                         executor=executor,
                         initial_params=params,
                         param_bounds=param_bounds,
-                        max_iterations=max_iterations,  # Limiter par max_combos
-                        min_sharpe=-5.0,  # Assouplir contraintes pour permettre exploration même avec baseline négatif
-                        max_drawdown=0.50,  # Autoriser plus de drawdown en exploration
+                        max_iterations=max_iterations,
+                        min_sharpe=-5.0,  # Assouplir contraintes
+                        max_drawdown=0.50,
+                    )
+                    
+                    # Mise à jour du status final
+                    live_status.update(
+                        label=f"✅ Optimisation terminée en {session.current_iteration} itérations",
+                        state="complete",
+                        expanded=False
                     )
 
-                    thinking_viewer.add_thought(
-                        agent_name="System",
-                        model="optimisation",
-                        thought=f"Optimisation terminée en {session.current_iteration} itérations",
-                        category="conclusion"
-                    )
+                st.success(f"✅ Optimisation terminée en {session.current_iteration} itérations")
 
-                    # Afficher le résultat final dans le moniteur
-                    llm_monitor = ProgressMonitor(total_runs=max_iterations)
-                    llm_monitor.runs_completed = session.current_iteration
-                    render_progress_monitor(llm_monitor, llm_monitor_placeholder)
+                # Afficher l'historique des itérations dans un expander
+                with st.expander("📝 Historique des itérations", expanded=True):
+                    for i, exp in enumerate(session.all_results):
+                        icon = "🟢" if exp.sharpe_ratio > 0 else "🔴"
+                        col_it1, col_it2, col_it3 = st.columns([2, 1, 1])
+                        with col_it1:
+                            st.markdown(f"**Itération {i+1}** {icon}")
+                            st.caption(f"Params: `{exp.request.parameters}`")
+                        with col_it2:
+                            st.metric("Sharpe", f"{exp.sharpe_ratio:.3f}")
+                        with col_it3:
+                            st.metric("Return", f"{exp.total_return:.2%}")
 
-                    st.success(f"✅ Optimisation terminée en {session.current_iteration} itérations")
+                # Sauvegarder et afficher les logs d'orchestration
+                orchestration_logger.save_to_file()
 
-                    # Afficher l'historique des itérations
-                    with iteration_log:
-                        for i, exp in enumerate(session.all_results):
-                            icon = "🟢" if exp.sharpe_ratio > 0 else "🔴"
-                            st.markdown(f"""
-                            **Itération {i+1}** {icon}
-                            - Params: `{exp.request.parameters}`
-                            - Sharpe: `{exp.sharpe_ratio:.3f}`
-                            - Return: `{exp.total_return:.2%}`
-                            """)
-
-                            # Ajouter pensée pour chaque itération
-                            thinking_viewer.add_thought(
-                                agent_name="Optimizer",
-                                model=llm_model,
-                                thought=f"Itération {i+1}: Sharpe={exp.sharpe_ratio:.3f}, Params={exp.request.parameters}",
-                                category="thinking"
-                            )
-
-                    # Afficher le stream de pensées
-                    with thinking_placeholder:
-                        thinking_viewer.render(max_entries=15, show_header=True)
-
-                    # Sauvegarder et afficher les logs d'orchestration
-                    orchestration_logger.save_to_file()
-
-                    # Afficher le viewer complet des logs d'orchestration
-                    with orchestration_placeholder:
-                        st.markdown("---")
-
-                        # Onglets: Vue simple + Deep Trace avancé
-                        tab_simple, tab_deep = st.tabs([
-                            "📋 Logs d'orchestration",
-                            "🔍 Deep Trace (avancé)"
-                        ])
-
-                        with tab_simple:
-                            render_full_orchestration_viewer(
-                                orchestration_logger=orchestration_logger,
-                                max_entries=50
-                            )
-
-                        with tab_deep:
-                            # Afficher le Deep Trace Viewer complet
-                            if LLM_AVAILABLE:
-                                render_deep_trace_viewer(logger=orchestration_logger)
-                            else:
-                                st.warning("Module LLM non disponible pour Deep Trace avancé")
-
-                    # Résultats finaux
+                # Afficher le viewer complet des logs d'orchestration
+                with orchestration_placeholder:
                     st.markdown("---")
-                    st.subheader("🏆 Résultat de l'optimisation LLM")
 
-                    col_best, col_improve = st.columns(2)
+                    # Onglets: Vue simple + Deep Trace avancé
+                    tab_simple, tab_deep = st.tabs([
+                        "📋 Logs d'orchestration",
+                        "🔍 Deep Trace (avancé)"
+                    ])
 
-                    with col_best:
-                        st.markdown("**Meilleurs paramètres trouvés:**")
-                        st.json(session.best_result.request.parameters)
-
-                        st.metric(
-                            "Meilleur Sharpe",
-                            f"{session.best_result.sharpe_ratio:.3f}"
-                        )
-                        st.metric(
-                            "Return",
-                            f"{session.best_result.total_return:.2%}"
+                    with tab_simple:
+                        render_full_orchestration_viewer(
+                            orchestration_logger=orchestration_logger,
+                            max_entries=50
                         )
 
-                    with col_improve:
-                        # Calculer l'amélioration
-                        if session.all_results:
-                            initial_sharpe = session.all_results[0].sharpe_ratio
-                            best_sharpe = session.best_result.sharpe_ratio
-                            improvement = ((best_sharpe - initial_sharpe) / abs(initial_sharpe) * 100) if initial_sharpe != 0 else 0
+                    with tab_deep:
+                        # Afficher le Deep Trace Viewer complet
+                        if LLM_AVAILABLE:
+                            render_deep_trace_viewer(logger=orchestration_logger)
+                        else:
+                            st.warning("Module LLM non disponible pour Deep Trace avancé")
 
-                            st.metric(
-                                "Amélioration Sharpe",
-                                f"{improvement:+.1f}%",
-                                delta=f"{best_sharpe - initial_sharpe:+.3f}"
-                            )
-                            st.metric("Itérations utilisées", session.current_iteration)
+                # Résultats finaux
+                st.markdown("---")
+                st.subheader("🏆 Résultat de l'optimisation LLM")
 
-                            if session.final_reasoning:
-                                st.info(f"🛑 Arrêt: {session.final_reasoning}")
+                col_best, col_improve = st.columns(2)
 
-                    # Relancer le backtest avec les meilleurs paramètres
-                    best_params = session.best_result.request.parameters
-                    result, _ = safe_run_backtest(
-                        engine, df, strategy_key, best_params, symbol, timeframe
+                with col_best:
+                    st.markdown("**Meilleurs paramètres trouvés:**")
+                    st.json(session.best_result.request.parameters)
+
+                    st.metric(
+                        "Meilleur Sharpe",
+                        f"{session.best_result.sharpe_ratio:.3f}"
                     )
-                    if result is not None:
-                        winner_params = best_params
-                        winner_metrics = result.metrics
-                        winner_origin = "llm"
-                        winner_meta = result.meta
-                        st.session_state["last_run_result"] = result
-                        st.session_state["last_winner_params"] = winner_params
-                        st.session_state["last_winner_metrics"] = winner_metrics
-                        st.session_state["last_winner_origin"] = winner_origin
-                        st.session_state["last_winner_meta"] = winner_meta
+                    st.metric(
+                        "Return",
+                        f"{session.best_result.total_return:.2%}"
+                    )
+
+                with col_improve:
+                    # Calculer l'amélioration
+                    if session.all_results:
+                        initial_sharpe = session.all_results[0].sharpe_ratio
+                        best_sharpe = session.best_result.sharpe_ratio
+                        improvement = ((best_sharpe - initial_sharpe) / abs(initial_sharpe) * 100) if initial_sharpe != 0 else 0
+
+                        st.metric(
+                            "Amélioration Sharpe",
+                            f"{improvement:+.1f}%",
+                            delta=f"{best_sharpe - initial_sharpe:+.3f}"
+                        )
+                        st.metric("Itérations utilisées", session.current_iteration)
+
+                        if session.final_reasoning:
+                            st.info(f"🛑 Arrêt: {session.final_reasoning}")
+
+                # Relancer le backtest avec les meilleurs paramètres
+                best_params = session.best_result.request.parameters
+                result, _ = safe_run_backtest(
+                    engine, df, strategy_key, best_params, symbol, timeframe
+                )
+                if result is not None:
+                    winner_params = best_params
+                    winner_metrics = result.metrics
+                    winner_origin = "llm"
+                    winner_meta = result.meta
+                    st.session_state["last_run_result"] = result
+                    st.session_state["last_winner_params"] = winner_params
+                    st.session_state["last_winner_metrics"] = winner_metrics
+                    st.session_state["last_winner_origin"] = winner_origin
+                    st.session_state["last_winner_meta"] = winner_meta
 
             except Exception as e:
+                live_status.update(label=f"❌ Erreur: {e}", state="error")
                 show_status("error", f"Erreur optimisation LLM: {e}")
                 st.code(traceback.format_exc())
                 st.session_state.is_running = False
