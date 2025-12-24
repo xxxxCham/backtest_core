@@ -268,10 +268,11 @@ Actions:
         target_metric: str = "sharpe_ratio",
         min_sharpe: float = 0.5,
         max_drawdown: float = 0.30,
+        check_pause_callback: Optional[callable] = None,
     ) -> OptimizationSession:
         """
         Lance une session d'optimisation autonome.
-        
+
         Args:
             executor: BacktestExecutor configuré
             initial_params: Paramètres de départ
@@ -280,7 +281,8 @@ Actions:
             target_metric: Métrique à optimiser
             min_sharpe: Sharpe minimum acceptable
             max_drawdown: Drawdown maximum acceptable
-            
+            check_pause_callback: Callback appelé à chaque itération qui retourne (is_paused, should_stop)
+
         Returns:
             OptimizationSession avec tous les résultats
         """
@@ -350,11 +352,35 @@ Actions:
         # 2. Boucle d'itération
         for iteration in range(1, max_iterations + 1):
             session.current_iteration = iteration
-            
+
+            # Vérifier pause/stop si callback fourni
+            if check_pause_callback:
+                import time
+                is_paused, should_stop = check_pause_callback()
+
+                # Si stop demandé, sortir immédiatement
+                if should_stop:
+                    session.final_reasoning = "Arrêt demandé par l'utilisateur"
+                    logger.info("Arrêt demandé - Fin de l'optimisation")
+                    break
+
+                # Si pause demandée, attendre
+                while is_paused:
+                    time.sleep(0.5)
+                    is_paused, should_stop = check_pause_callback()
+                    if should_stop:
+                        session.final_reasoning = "Arrêt demandé par l'utilisateur"
+                        logger.info("Arrêt demandé pendant la pause - Fin de l'optimisation")
+                        break
+
+                # Sortir de la boucle externe si stop pendant pause
+                if should_stop:
+                    break
+
             # Logger: nouvelle itération
             if self.orchestration_logger:
                 self.orchestration_logger.next_iteration()
-            
+
             # Générer le contexte pour le LLM
             context = self._build_iteration_context(
                 executor, session, param_bounds, min_sharpe, max_drawdown

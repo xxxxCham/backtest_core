@@ -12,6 +12,7 @@ Lancer avec: streamlit run ui/app.py
 """
 
 import ast
+import logging
 import math
 import re
 import statistics
@@ -20,6 +21,7 @@ import time
 import traceback
 from collections import deque
 from pathlib import Path
+import threading
 from typing import Any, Dict, List, Optional, Tuple
 
 from itertools import product
@@ -132,6 +134,64 @@ from ui.components.thinking_viewer import (
 
 # Initialiser le logging au démarrage de l'UI
 init_logging()
+
+
+# ============================================================================
+# LOG TAP: BEST PNL SEEN IN CONSOLE LOGS
+# ============================================================================
+_BEST_PNL_TRACKER = None
+
+
+class _BestPnlTracker(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(level=logging.INFO)
+        self.best_pnl: Optional[float] = None
+        self.best_run_id: Optional[str] = None
+        self._lock = threading.Lock()
+        self._pnl_pattern = re.compile(
+            r"\bpnl\s*=\s*[^0-9-+]*([-+]?\d+(?:\.\d+)?)",
+            re.IGNORECASE,
+        )
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if record.name != "backtest.engine":
+            return
+        msg = record.getMessage()
+        if "pnl" not in msg.lower():
+            return
+        match = self._pnl_pattern.search(msg)
+        if not match:
+            return
+        try:
+            pnl = float(match.group(1))
+        except ValueError:
+            return
+        with self._lock:
+            if self.best_pnl is None or pnl > self.best_pnl:
+                self.best_pnl = pnl
+                self.best_run_id = getattr(record, "run_id", None)
+
+    def get_best(self) -> Tuple[Optional[float], Optional[str]]:
+        with self._lock:
+            return self.best_pnl, self.best_run_id
+
+
+def _install_best_pnl_tracker() -> _BestPnlTracker:
+    global _BEST_PNL_TRACKER
+    if _BEST_PNL_TRACKER is not None:
+        return _BEST_PNL_TRACKER
+    logger = logging.getLogger("backtest")
+    for handler in logger.handlers:
+        if isinstance(handler, _BestPnlTracker):
+            _BEST_PNL_TRACKER = handler
+            return handler
+    tracker = _BestPnlTracker()
+    logger.addHandler(tracker)
+    _BEST_PNL_TRACKER = tracker
+    return tracker
+
+
+_BEST_PNL_TRACKER = _install_best_pnl_tracker()
 
 
 # ============================================================================
@@ -3143,7 +3203,7 @@ if result is not None:
     st.header("📊 Résultats du Backtest")
 
     # --- Métriques principales ---
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     if result is not None:
         with col1:
@@ -3169,6 +3229,15 @@ if result is not None:
             trades = result.metrics['total_trades']
             win_rate = result.metrics['win_rate']
             st.metric("Trades", f"{trades}", delta=f"{win_rate:.0f}% wins")
+
+        with col5:
+            best_pnl, best_run_id = _BEST_PNL_TRACKER.get_best()
+            if best_pnl is None:
+                st.metric("Best PnL seen", "n/a")
+            else:
+                st.metric("Best PnL seen", f"${best_pnl:,.2f}")
+                if best_run_id:
+                    st.caption(f"run {best_run_id}")
 
     if result is not None and winner_params is not None:
         st.subheader("Versioned preset")
