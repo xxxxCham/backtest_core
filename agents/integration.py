@@ -135,6 +135,7 @@ def run_walk_forward_for_agent(
     train_ratio: float = 0.75,  # 75% train, 25% test (18m/6m optimal)
     initial_capital: float = 10000.0,
     config: Optional[Config] = None,
+    n_workers: int = 1,
 ) -> Dict[str, Any]:
     """
     Exécute une validation walk-forward et retourne les métriques.
@@ -152,6 +153,7 @@ def run_walk_forward_for_agent(
         train_ratio: Ratio train/total (1 - test_ratio)
         initial_capital: Capital de départ
         config: Configuration optionnelle
+        n_workers: Nombre de workers pour parallélisation (1 = séquentiel)
 
     Returns:
         Dict avec train_sharpe, test_sharpe, overfitting_ratio, métriques robustes
@@ -164,14 +166,12 @@ def run_walk_forward_for_agent(
         embargo_pct=0.02,  # 2% d'embargo pour éviter le leakage
     )
 
-    engine = BacktestEngine(initial_capital=initial_capital, config=config)
-
     folds = validator.split(data)
 
-    train_sharpes = []
-    test_sharpes = []
-
-    for fold in folds:
+    def _run_fold(fold: ValidationFold) -> tuple[ValidationFold, bool]:
+        """Exécute un fold complet (train + test) - thread-safe."""
+        # Créer une instance d'engine par thread pour éviter les problèmes de concurrence
+        engine = BacktestEngine(initial_capital=initial_capital, config=config)
         train_df, test_df = validator.get_data_splits(data, fold)
 
         try:
@@ -181,8 +181,6 @@ def run_walk_forward_for_agent(
                 strategy=strategy_name,
                 params=params,
             )
-            train_sharpe = train_result.metrics.get("sharpe_ratio", 0)
-            train_sharpes.append(train_sharpe)
 
             # Backtest sur test
             test_result = engine.run(
@@ -190,16 +188,46 @@ def run_walk_forward_for_agent(
                 strategy=strategy_name,
                 params=params,
             )
-            test_sharpe = test_result.metrics.get("sharpe_ratio", 0)
-            test_sharpes.append(test_sharpe)
 
             # Stocker dans le fold
             fold.train_metrics = train_result.metrics
             fold.test_metrics = test_result.metrics
 
+            return fold, True
+
         except Exception as e:
             _logger.warning("fold_%s_failed error=%s", fold.fold_id, str(e))
-            continue
+            return fold, False
+
+    # Mode séquentiel (par défaut)
+    if n_workers <= 1 or len(folds) <= 1:
+        for fold in folds:
+            _run_fold(fold)
+    else:
+        # Mode parallèle - utiliser ThreadPoolExecutor pour paralléliser les folds
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        _logger.info(f"Walk-forward parallèle avec {n_workers} workers sur {len(folds)} folds")
+
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            futures = {pool.submit(_run_fold, fold): fold for fold in folds}
+
+            for fut in as_completed(futures):
+                original_fold = futures[fut]
+                try:
+                    updated_fold, success = fut.result()
+                    if not success:
+                        _logger.warning(f"Fold {original_fold.fold_id} a échoué")
+                except Exception as e:
+                    _logger.warning(f"Erreur lors de l'exécution du fold {original_fold.fold_id}: {e}")
+
+    # Collecter les résultats des folds valides
+    train_sharpes = []
+    test_sharpes = []
+    for fold in folds:
+        if fold.train_metrics and fold.test_metrics:
+            train_sharpes.append(fold.train_metrics.get("sharpe_ratio", 0))
+            test_sharpes.append(fold.test_metrics.get("sharpe_ratio", 0))
 
     n_folds = len(train_sharpes)
 

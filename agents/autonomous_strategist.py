@@ -505,12 +505,18 @@ Actions:
                     "iterations": session.current_iteration,
                 },
             )
-        
+
+            # Forcer la sauvegarde finale des logs
+            try:
+                self.orchestration_logger.save_to_jsonl()
+            except Exception as e:
+                logger.warning(f"Échec de la sauvegarde finale des logs: {e}")
+
         logger.info(
             f"Optimisation terminée: {session.final_status} | "
             f"Meilleur Sharpe: {session.best_result.sharpe_ratio:.3f}"
         )
-        
+
         return session
     
     def _build_iteration_context(

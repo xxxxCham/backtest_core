@@ -297,6 +297,14 @@ class Orchestrator:
             errors=len(result.errors),
             warnings=len(result.warnings),
         )
+
+        # Forcer la sauvegarde finale des logs
+        if self.config.orchestration_logger:
+            try:
+                self.config.orchestration_logger.save_to_jsonl()
+            except Exception as e:
+                logger.warning(f"Échec de la sauvegarde finale des logs: {e}")
+
         return result
 
     def _run_workflow(self) -> None:
@@ -670,6 +678,7 @@ class Orchestrator:
                     data=data_df,
                     n_windows=6,
                     train_ratio=0.75,
+                    n_workers=self.config.n_workers,
                 )
 
                 self.context.overfitting_ratio = wf_metrics["overfitting_ratio"]
@@ -742,6 +751,7 @@ class Orchestrator:
                 data=self._loaded_data,
                 n_windows=6,
                 train_ratio=0.75,
+                n_workers=self.config.n_workers,
             )
 
             # Mettre à jour le contexte avec les métriques

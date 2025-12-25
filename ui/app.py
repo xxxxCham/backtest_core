@@ -117,6 +117,7 @@ from utils.observability import (
     build_diagnostic_summary,
     PerfCounters,
 )
+from utils.run_tracker import RunSignature, get_global_tracker
 
 # Import composants UI (toujours disponibles)
 from ui.components.charts import (
@@ -2923,6 +2924,42 @@ if run_button:
         executor = None
         orchestrator = None
 
+        # Vérifier les doublons de runs
+        run_tracker = get_global_tracker()
+        run_signature = RunSignature(
+            strategy_name=strategy_key,
+            data_path=data_file or "uploaded_data",
+            initial_params=params,
+            llm_model=llm_model,
+            mode="multi_agents" if llm_use_multi_agent else "autonomous",
+            session_id=session_id,
+        )
+
+        if run_tracker.is_duplicate(run_signature):
+            st.warning(
+                "⚠️ **Configuration déjà testée !**\n\n"
+                "Cette combinaison stratégie/données/paramètres a déjà été optimisée précédemment. "
+                "Relancer le même run pourrait être redondant."
+            )
+
+            # Afficher les runs similaires
+            similar_runs = run_tracker.find_similar(run_signature)
+            if similar_runs:
+                with st.expander("📋 Runs similaires détectés", expanded=True):
+                    for i, prev_run in enumerate(similar_runs[-3:], 1):
+                        st.caption(
+                            f"{i}. {prev_run.timestamp[:19]} - "
+                            f"Mode: {prev_run.mode} - "
+                            f"Modèle: {prev_run.llm_model or 'N/A'}"
+                        )
+
+            # Demander confirmation
+            if not st.checkbox("⚠️ Je confirme vouloir relancer malgré tout", key="confirm_duplicate"):
+                st.stop()
+
+        # Enregistrer ce run
+        run_tracker.register(run_signature)
+
         # Créer l'optimiseur
         with st.spinner("🔌 Connexion au LLM..."):
             try:
@@ -3117,7 +3154,10 @@ if run_button:
                             st.metric("Return", f"{exp.total_return:.2%}")
 
                 # Sauvegarder et afficher les logs d'orchestration
-                orchestration_logger.save_to_file()
+                try:
+                    orchestration_logger.save_to_jsonl()
+                except Exception:
+                    pass
 
                 # Afficher le viewer complet des logs d'orchestration
                 with orchestration_placeholder:
