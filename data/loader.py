@@ -175,7 +175,7 @@ def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     # Configurer l'index datetime
     if not isinstance(df.index, pd.DatetimeIndex):
         # Chercher colonne de temps
-        time_cols = ["timestamp", "time", "datetime", "date", "ts", "unnamed: 0"]
+        time_cols = ["timestamp", "time", "datetime", "date", "ts"]
         time_col = None
         for col in time_cols:
             if col in df.columns:
