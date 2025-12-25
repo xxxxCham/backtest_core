@@ -47,7 +47,7 @@ class SweepResult:
     """Résultat d'une évaluation de sweep."""
     params: Dict[str, Any]
     metrics: Dict[str, float]
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now())
     duration_ms: float = 0.0
     
     @property
@@ -142,7 +142,8 @@ class SweepMonitor:
             top_k: Nombre de meilleurs résultats à garder
         """
         self.total = total_combinations
-        self.objectives = objectives or ['sharpe_ratio', 'total_return', 'max_drawdown']
+        # Note: Utiliser les clés correctes retournées par calculate_metrics
+        self.objectives = objectives or ['sharpe_ratio', 'total_return_pct', 'max_drawdown']
         self.top_k = top_k
         
         self._results: List[SweepResult] = []

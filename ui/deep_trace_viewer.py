@@ -428,12 +428,16 @@ def render_proposals_panel(logger: OrchestrationLogger):
         test_data = []
         for event in test_ended_events:
             details = event.details
+            # Récupérer les valeurs (0.0 est une valeur valide, ne pas afficher "N/A")
+            sharpe = details.get("sharpe")
+            total_return = details.get("total_return")
+
             test_data.append({
                 "ID": details.get("proposal_id", "N/A"),
                 "Itération": event.iteration,
                 "Testé": "✅" if details.get("tested") else "❌",
-                "Sharpe": f"{details.get('sharpe', 0):.3f}" if details.get("sharpe") else "N/A",
-                "Return": f"{details.get('total_return', 0):.2%}" if details.get("total_return") else "N/A",
+                "Sharpe": f"{sharpe:.3f}" if sharpe is not None else "N/A",
+                "Return": f"{total_return:.2%}" if total_return is not None else "N/A",
                 "Timestamp": _format_timestamp(event.timestamp),
             })
 

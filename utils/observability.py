@@ -550,14 +550,32 @@ def build_diagnostic_summary(
 def set_log_level(level: str) -> None:
     """
     Change le niveau de log dynamiquement.
-    
+
     Utilisé par le toggle UI pour activer DEBUG à la volée.
+    Met à jour tous les loggers (backtest, backtest_core et leurs enfants).
     """
     log_level = _LEVEL_MAP.get(level.upper(), logging.INFO)
+
+    # Mettre à jour le logger "backtest" et ses enfants
     root_logger = logging.getLogger("backtest")
     root_logger.setLevel(log_level)
     for handler in root_logger.handlers:
         handler.setLevel(log_level)
+
+    # Mettre à jour aussi "backtest_core" utilisé par utils.log
+    core_logger = logging.getLogger("backtest_core")
+    core_logger.setLevel(log_level)
+    for handler in core_logger.handlers:
+        handler.setLevel(log_level)
+
+    # Mettre à jour tous les loggers enfants existants
+    for name, logger in logging.Logger.manager.loggerDict.items():
+        if isinstance(logger, logging.Logger) and (
+            name.startswith("backtest.") or name.startswith("backtest_core.")
+        ):
+            logger.setLevel(log_level)
+            for handler in logger.handlers:
+                handler.setLevel(log_level)
 
 
 def set_sample_rate(rate: float) -> None:
@@ -568,7 +586,10 @@ def set_sample_rate(rate: float) -> None:
 
 def is_debug_enabled() -> bool:
     """Retourne True si DEBUG est activé."""
-    return logging.getLogger("backtest").isEnabledFor(logging.DEBUG)
+    # Vérifier les deux loggers racines
+    backtest_debug = logging.getLogger("backtest").isEnabledFor(logging.DEBUG)
+    core_debug = logging.getLogger("backtest_core").isEnabledFor(logging.DEBUG)
+    return backtest_debug or core_debug
 
 
 # ============================================================================

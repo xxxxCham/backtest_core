@@ -348,14 +348,20 @@ class BacktestExecutor:
             )
             
             # Créer le résultat
+            # Note: Les métriques retournent des pourcentages (total_return_pct, win_rate, max_drawdown)
+            # qui doivent être convertis en fractions (0-1) pour BacktestResult
+            total_return_pct = metrics.get("total_return_pct", 0)
+            win_rate_pct = metrics.get("win_rate", 0)
+            max_drawdown_pct = metrics.get("max_drawdown", 0)
+
             result = BacktestResult(
                 request=request,
                 success=True,
                 sharpe_ratio=metrics.get("sharpe_ratio", 0),
                 sortino_ratio=metrics.get("sortino_ratio", 0),
-                total_return=metrics.get("total_return", 0),
-                max_drawdown=metrics.get("max_drawdown", 0),
-                win_rate=metrics.get("win_rate", 0),
+                total_return=total_return_pct / 100.0,  # Convertir % en fraction
+                max_drawdown=max_drawdown_pct / 100.0,  # Convertir % en fraction
+                win_rate=win_rate_pct / 100.0,  # Convertir % en fraction
                 profit_factor=metrics.get("profit_factor", 0),
                 total_trades=metrics.get("total_trades", 0),
                 sqn=metrics.get("sqn", 0),

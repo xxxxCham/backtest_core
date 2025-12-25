@@ -24,8 +24,20 @@ from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 
 logger = logging.getLogger(__name__)
 
-# Chemin vers le dossier templates (relatif au fichier)
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+# Chemin vers le dossier templates (robuste pour installation en paquet)
+# Utiliser importlib.resources pour Python 3.9+, sinon fallback
+try:
+    # Python 3.9+
+    from importlib.resources import files
+    TEMPLATES_DIR = Path(str(files("backtest_core") / "templates"))
+except (ImportError, TypeError):
+    # Fallback pour Python < 3.9 ou si backtest_core n'est pas un paquet installé
+    try:
+        from importlib_resources import files
+        TEMPLATES_DIR = Path(str(files("backtest_core") / "templates"))
+    except (ImportError, TypeError):
+        # Dernier fallback : utiliser le chemin relatif résolu
+        TEMPLATES_DIR = (Path(__file__).resolve().parent.parent / "templates").expanduser()
 
 # Environment Jinja2 global (lazy init)
 _jinja_env: Optional[Environment] = None

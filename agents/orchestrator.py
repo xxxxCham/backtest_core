@@ -333,6 +333,7 @@ class Orchestrator:
         self._log_event("config_valid")
 
         # Exécuter le backtest initial
+        initial_metrics = None
         try:
             initial_metrics = self._run_backtest(self.context.current_params)
             if initial_metrics:
@@ -355,6 +356,23 @@ class Orchestrator:
         except Exception as e:
             self._warnings.append(f"Erreur backtest initial: {e}")
             self._log_event("warning", message=f"Erreur backtest initial: {e}")
+            logger.error(f"Erreur backtest initial: {e}", exc_info=True)
+
+        # Fallback: créer des métriques à zéro si le backtest a échoué
+        if initial_metrics is None:
+            logger.warning("Backtest initial échoué, utilisation de métriques par défaut (zéro)")
+            initial_metrics = MetricsSnapshot(
+                sharpe_ratio=0.0,
+                sortino_ratio=0.0,
+                total_return=0.0,
+                max_drawdown=0.0,
+                win_rate=0.0,
+                profit_factor=0.0,
+                total_trades=0,
+            )
+            self.context.current_metrics = initial_metrics
+            self._warnings.append("Utilisation de métriques par défaut (backtest échoué)")
+            self._log_event("warning", message="Métriques par défaut utilisées")
 
         # Transition vers ANALYZE
         self.state_machine.transition_to(AgentState.ANALYZE)
@@ -717,19 +735,18 @@ class Orchestrator:
             decision = "ABORT"
             success = False
 
-        # Statistiques LLM
-        total_tokens = sum([
-            self.analyst.stats["total_tokens"],
-            self.strategist.stats["total_tokens"],
-            self.critic.stats["total_tokens"],
-            self.validator.stats["total_tokens"],
-        ])
-        total_calls = sum([
-            self.analyst.stats["execution_count"],
-            self.strategist.stats["execution_count"],
-            self.critic.stats["execution_count"],
-            self.validator.stats["execution_count"],
-        ])
+        # Statistiques LLM (avec fallback si agent n'a pas de stats)
+        def _get_agent_stats(agent):
+            """Récupère les stats d'un agent de manière sûre."""
+            stats = getattr(agent, "stats", {})
+            return {
+                "total_tokens": stats.get("total_tokens", 0),
+                "execution_count": stats.get("execution_count", 0),
+            }
+
+        agents = [self.analyst, self.strategist, self.critic, self.validator]
+        total_tokens = sum(_get_agent_stats(a)["total_tokens"] for a in agents)
+        total_calls = sum(_get_agent_stats(a)["execution_count"] for a in agents)
 
         return OrchestratorResult(
             success=success,

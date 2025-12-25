@@ -237,12 +237,20 @@ class ExecutionEngine:
             
             # Normaliser (0-1 scale basé sur percentiles)
             if np.max(self._volatility) > 0:
-                p10 = np.percentile(self._volatility[window:], 10)
-                p90 = np.percentile(self._volatility[window:], 90)
-                self._normalized_volatility = np.clip(
-                    (self._volatility - p10) / (p90 - p10 + 1e-10),
-                    0, 1
-                )
+                # S'assurer que la tranche n'est pas vide
+                start_idx = min(window, len(self._volatility) - 1)
+                vol_slice = self._volatility[start_idx:]
+
+                if len(vol_slice) > 0:
+                    p10 = np.percentile(vol_slice, 10)
+                    p90 = np.percentile(vol_slice, 90)
+                    self._normalized_volatility = np.clip(
+                        (self._volatility - p10) / (p90 - p10 + 1e-10),
+                        0, 1
+                    )
+                else:
+                    # Fenêtre trop grande, utiliser des valeurs par défaut
+                    self._normalized_volatility = np.ones_like(self._volatility) * 0.5
             else:
                 self._normalized_volatility = np.zeros(n)
         else:
