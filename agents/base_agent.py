@@ -158,7 +158,12 @@ class AgentContext:
     # Walk-forward results
     walk_forward_results: List[Dict[str, Any]] = field(default_factory=list)
     overfitting_ratio: float = 0.0
-    
+    classic_ratio: float = 0.0
+    degradation_pct: float = 0.0
+    test_stability_std: float = 0.0
+    n_valid_folds: int = 0
+    walk_forward_windows: int = 0
+
     # Historique des itérations
     iteration_history: List[Dict[str, Any]] = field(default_factory=list)
     best_metrics: Optional[MetricsSnapshot] = None

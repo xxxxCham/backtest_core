@@ -65,23 +65,29 @@ class ValidationFold:
 @dataclass
 class WalkForwardResult:
     """Résultat complet d'une validation walk-forward."""
-    
+
     folds: List[ValidationFold]
     total_train_samples: int
     total_test_samples: int
     embargo_samples: int
-    
+
     # Métriques agrégées
     avg_train_sharpe: float = 0.0
     avg_test_sharpe: float = 0.0
     avg_train_return: float = 0.0
     avg_test_return: float = 0.0
     avg_overfitting_ratio: float = 0.0
-    
+
+    # Métriques robustes (nouvelles)
+    robust_overfitting_ratio: float = 0.0
+    degradation_pct: float = 0.0
+    test_stability_std: float = 0.0
+    n_valid_folds: int = 0
+
     # Stabilité
     sharpe_std: float = 0.0
     return_std: float = 0.0
-    
+
     # Verdict
     is_robust: bool = False
     confidence_score: float = 0.0
@@ -97,6 +103,10 @@ class WalkForwardResult:
             "avg_train_return": self.avg_train_return,
             "avg_test_return": self.avg_test_return,
             "avg_overfitting_ratio": self.avg_overfitting_ratio,
+            "robust_overfitting_ratio": self.robust_overfitting_ratio,
+            "degradation_pct": self.degradation_pct,
+            "test_stability_std": self.test_stability_std,
+            "n_valid_folds": self.n_valid_folds,
             "sharpe_std": self.sharpe_std,
             "return_std": self.return_std,
             "is_robust": self.is_robust,
@@ -340,6 +350,70 @@ class OverfittingDetector:
         return diagnosis
 
 
+def compute_robust_overfitting_metrics(folds: List[ValidationFold]) -> Dict[str, float]:
+    """
+    Calcule des métriques robustes d'overfitting avec pénalité de stabilité.
+
+    Amélioration par rapport au simple ratio train/test :
+    - Prend en compte la variabilité des performances out-of-sample
+    - Calcule la dégradation en pourcentage
+    - Pénalise l'instabilité des résultats
+
+    Args:
+        folds: Liste des folds avec métriques train/test
+
+    Returns:
+        Dict avec métriques robustes
+    """
+    # Filtrer les folds valides
+    valid_folds = [f for f in folds if f.train_metrics and f.test_metrics]
+
+    if not valid_folds:
+        return {
+            "overfitting_ratio": 999.0,
+            "robust_ratio": 999.0,
+            "degradation_pct": 100.0,
+            "test_stability_std": 0.0,
+            "n_valid_folds": 0,
+        }
+
+    # Extraire les Sharpe ratios
+    train_sharpes = [f.train_metrics.get("sharpe_ratio", 0) for f in valid_folds]
+    test_sharpes = [f.test_metrics.get("sharpe_ratio", 0) for f in valid_folds]
+
+    # Moyennes
+    avg_train = np.mean(train_sharpes)
+    avg_test = np.mean(test_sharpes)
+    std_test = np.std(test_sharpes)
+
+    # Ratio classique train/test
+    if avg_test > 0:
+        base_ratio = avg_train / avg_test
+    else:
+        base_ratio = 999.0
+
+    # Dégradation en pourcentage
+    if avg_train > 0:
+        degradation_pct = ((avg_train - avg_test) / avg_train) * 100
+    else:
+        degradation_pct = 100.0
+
+    # Pénalité pour instabilité (coefficient ajustable)
+    # Plus l'écart-type est grand, plus le modèle est instable out-of-sample
+    stability_penalty = std_test * 2.0
+
+    # Ratio robuste = ratio classique + pénalité de stabilité
+    robust_ratio = base_ratio + stability_penalty
+
+    return {
+        "overfitting_ratio": base_ratio,
+        "robust_ratio": robust_ratio,
+        "degradation_pct": max(0, degradation_pct),  # Pas de dégradation négative
+        "test_stability_std": std_test,
+        "n_valid_folds": len(valid_folds),
+    }
+
+
 def calculate_walk_forward_metrics(folds: List[ValidationFold]) -> WalkForwardResult:
     """
     Calcule les métriques agrégées de la validation walk-forward.
@@ -413,7 +487,10 @@ def calculate_walk_forward_metrics(folds: List[ValidationFold]) -> WalkForwardRe
     total_train = sum(f.train_size for f in valid_folds)
     total_test = sum(f.test_size for f in valid_folds)
     embargo = valid_folds[0].test_start - valid_folds[0].train_end if valid_folds else 0
-    
+
+    # Calculer les métriques robustes d'overfitting
+    robust_metrics = compute_robust_overfitting_metrics(folds)
+
     return WalkForwardResult(
         folds=folds,
         total_train_samples=total_train,
@@ -424,6 +501,10 @@ def calculate_walk_forward_metrics(folds: List[ValidationFold]) -> WalkForwardRe
         avg_train_return=avg_train_return,
         avg_test_return=avg_test_return,
         avg_overfitting_ratio=avg_overfitting,
+        robust_overfitting_ratio=robust_metrics["robust_ratio"],
+        degradation_pct=robust_metrics["degradation_pct"],
+        test_stability_std=robust_metrics["test_stability_std"],
+        n_valid_folds=robust_metrics["n_valid_folds"],
         sharpe_std=sharpe_std,
         return_std=return_std,
         is_robust=is_robust,
@@ -494,9 +575,19 @@ def format_validation_report(result: WalkForwardResult) -> str:
 ║   Return Test:         {result.avg_test_return:>10.2f}%                     ║
 ╠══════════════════════════════════════════════════════════╣
 ║ STABILITÉ & OVERFITTING                                   ║
-║   Ratio Overfitting:   {result.avg_overfitting_ratio:>10.2f}x                     ║
+║   Ratio Classique:     {result.avg_overfitting_ratio:>10.2f}x                     ║
+║   Ratio Robuste:       {result.robust_overfitting_ratio:>10.2f}x (avec pénalité) ║
+║   Dégradation:         {result.degradation_pct:>10.1f}%                     ║
+║   Std Test (stabilité):{result.test_stability_std:>10.3f}                      ║
+║   Folds valides:       {result.n_valid_folds:>10d}                      ║
 ║   Std Sharpe:          {result.sharpe_std:>10.3f}                      ║
 ║   Std Return:          {result.return_std:>10.2f}%                     ║
+╠══════════════════════════════════════════════════════════╣
+║ CRITÈRES RECOMMANDÉS                                      ║
+║   ✓ Ratio robuste < 1.8                                  ║
+║   ✓ Dégradation < 40%                                    ║
+║   ✓ Std stabilité < 0.5                                  ║
+║   ✓ Folds valides >= 4                                   ║
 ╚══════════════════════════════════════════════════════════╝
 """
     

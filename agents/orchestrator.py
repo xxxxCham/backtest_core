@@ -29,6 +29,7 @@ from .analyst import AnalystAgent
 from .strategist import StrategistAgent
 from .critic import CriticAgent
 from .validator import ValidatorAgent, ValidationDecision
+from .integration import run_walk_forward_for_agent
 
 logger = logging.getLogger(__name__)
 
@@ -160,6 +161,9 @@ class Orchestrator:
         self._backtests_count = 0
         self._errors: List[str] = []
         self._warnings: List[str] = []
+
+        # Données chargées (pour walk-forward)
+        self._loaded_data: Optional[Any] = None
 
         # Orchestration logger (optionnel, non bloquant)
         self._orch_logger: Any = None
@@ -373,6 +377,9 @@ class Orchestrator:
             self.context.current_metrics = initial_metrics
             self._warnings.append("Utilisation de métriques par défaut (backtest échoué)")
             self._log_event("warning", message="Métriques par défaut utilisées")
+
+        # Calculer les métriques walk-forward si données disponibles
+        self._compute_walk_forward_metrics()
 
         # Transition vers ANALYZE
         self.state_machine.transition_to(AgentState.ANALYZE)
@@ -629,6 +636,93 @@ class Orchestrator:
                 self._log_event("backtest_end", success=False, error=str(e))
 
         return None
+
+    def _compute_walk_forward_metrics(self) -> None:
+        """
+        Calcule les métriques de walk-forward validation et met à jour le contexte.
+
+        Charge les données si nécessaire et exécute une validation walk-forward
+        pour détecter l'overfitting avec les métriques robustes.
+        """
+        # Vérifier si un chemin de données est fourni
+        if not self.config.data_path:
+            logger.debug("Pas de data_path configuré, skip walk-forward metrics")
+            return
+
+        data_path = Path(self.config.data_path)
+        if not data_path.exists():
+            logger.warning(f"Fichier de données introuvable: {data_path}")
+            return
+
+        try:
+            # Charger les données si pas déjà fait
+            if self._loaded_data is None:
+                logger.info(f"Chargement des données depuis {data_path}")
+                import pandas as pd
+
+                # Charger selon l'extension
+                if data_path.suffix == '.csv':
+                    self._loaded_data = pd.read_csv(data_path)
+                elif data_path.suffix == '.parquet':
+                    self._loaded_data = pd.read_parquet(data_path)
+                else:
+                    logger.warning(f"Format non supporté pour walk-forward: {data_path.suffix}")
+                    return
+
+                logger.info(f"  Données chargées: {len(self._loaded_data)} lignes")
+
+            # Mettre à jour le contexte avec les infos sur les données
+            self.context.data_rows = len(self._loaded_data)
+
+            # Extraire la plage de dates si disponible
+            if 'timestamp' in self._loaded_data.columns or 'date' in self._loaded_data.columns:
+                date_col = 'timestamp' if 'timestamp' in self._loaded_data.columns else 'date'
+                try:
+                    import pandas as pd
+                    dates = pd.to_datetime(self._loaded_data[date_col])
+                    self.context.data_date_range = f"{dates.min()} → {dates.max()}"
+                except Exception:
+                    pass
+
+            # Exécuter la validation walk-forward
+            logger.info("Exécution de la validation walk-forward...")
+            wf_metrics = run_walk_forward_for_agent(
+                strategy_name=self.config.strategy_name,
+                params=self.context.current_params,
+                data=self._loaded_data,
+                n_windows=6,
+                train_ratio=0.75,
+            )
+
+            # Mettre à jour le contexte avec les métriques
+            self.context.overfitting_ratio = wf_metrics["overfitting_ratio"]
+            self.context.classic_ratio = wf_metrics["classic_ratio"]
+            self.context.degradation_pct = wf_metrics["degradation_pct"]
+            self.context.test_stability_std = wf_metrics["test_stability_std"]
+            self.context.n_valid_folds = wf_metrics["n_valid_folds"]
+            self.context.walk_forward_windows = 6
+
+            logger.info(
+                f"Walk-forward terminé: "
+                f"overfitting_ratio={wf_metrics['overfitting_ratio']:.3f}, "
+                f"degradation={wf_metrics['degradation_pct']:.1f}%, "
+                f"stability_std={wf_metrics['test_stability_std']:.3f}"
+            )
+
+            # Journaliser l'événement
+            self._log_event(
+                "walk_forward_computed",
+                overfitting_ratio=float(wf_metrics["overfitting_ratio"]),
+                classic_ratio=float(wf_metrics["classic_ratio"]),
+                degradation_pct=float(wf_metrics["degradation_pct"]),
+                test_stability_std=float(wf_metrics["test_stability_std"]),
+                n_valid_folds=int(wf_metrics["n_valid_folds"]),
+            )
+
+        except Exception as e:
+            logger.warning(f"Échec du calcul des métriques walk-forward: {e}")
+            self._warnings.append(f"Walk-forward échoué: {e}")
+            self._log_event("warning", message=f"Walk-forward échoué: {e}")
 
     def _test_proposals(self) -> None:
         """Teste les propositions approuvées via backtest."""

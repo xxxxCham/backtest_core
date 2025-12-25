@@ -30,16 +30,17 @@ Iteration: {{ iteration }}
 {% endif %}
 
 {% if overfitting_ratio is defined and overfitting_ratio > 0 -%}
-## WALK-FORWARD VALIDATION
-| Metric | Value | Limit | Status |
-|--------|-------|-------|--------|
-| Overfitting Ratio | {{ overfitting_ratio|format_float(2) }} | ≤ {{ max_overfitting_ratio|default(1.5) }} | {% if overfitting_ratio <= max_overfitting_ratio|default(1.5) %}✅{% else %}❌{% endif %} |
-{% if train_metrics and test_metrics %}
-| Train Sharpe | {{ train_metrics.sharpe_ratio|format_float(3) }} | - | - |
-| Test Sharpe | {{ test_metrics.sharpe_ratio|format_float(3) }} | - | - |
-| Train Return | {{ train_metrics.total_return|format_percent }} | - | - |
-| Test Return | {{ test_metrics.total_return|format_percent }} | - | - |
-{% endif %}
+## WALK-FORWARD VALIDATION (Out-of-Sample Test)
+- Robust Overfitting Ratio: {{ overfitting_ratio|format_float(2) }} (threshold: {{ max_overfitting_ratio|default(1.5) }}) {% if overfitting_ratio > 1.8 %}⚠️ CRITICAL{% elif overfitting_ratio > max_overfitting_ratio|default(1.5) %}🟡 WARNING{% else %}✅{% endif %}
+- Degradation %: {{ degradation_pct|format_float(1) }}% (threshold: 40%) {% if degradation_pct > 40 %}⚠️ CRITICAL{% elif degradation_pct > 25 %}🟡 WARNING{% else %}✅{% endif %}
+- Test Stability Std: {{ test_stability_std|format_float(3) }} (threshold: 0.5) {% if test_stability_std > 0.5 %}🟡 WARNING{% else %}✅{% endif %}
+- Valid Folds: {{ n_valid_folds }}/{{ walk_forward_windows }} {% if n_valid_folds < 4 %}🟡 WARNING{% else %}✅{% endif %}
+
+⚠️ **WARNING: Do NOT approve if:**
+- overfitting_ratio > 1.8 (extreme overfitting)
+- degradation_pct > 40% (unstable forward performance)
+- test_stability_std > 0.5 (erratic out-of-sample results)
+- n_valid_folds < 4 (insufficient validation coverage)
 {% endif %}
 
 {% if current_params -%}

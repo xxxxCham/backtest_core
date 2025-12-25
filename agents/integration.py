@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 
 from backtest.engine import BacktestEngine
@@ -127,13 +128,18 @@ def run_walk_forward_for_agent(
     params: Dict[str, Any],
     data: pd.DataFrame,
     *,
-    n_windows: int = 5,
-    train_ratio: float = 0.7,
+    n_windows: int = 6,  # 6 fenêtres pour ~4 mois/test sur 24 mois
+    train_ratio: float = 0.75,  # 75% train, 25% test (18m/6m optimal)
     initial_capital: float = 10000.0,
     config: Optional[Config] = None,
 ) -> Dict[str, Any]:
     """
     Exécute une validation walk-forward et retourne les métriques.
+
+    Configuration optimisée pour 2 ans de données :
+    - 6 fenêtres → ~4 mois de test par fenêtre
+    - 75% train → 18 mois d'entraînement, 6 mois de test
+    - 2% embargo → évite le leakage entre train et test
 
     Args:
         strategy_name: Nom de la stratégie
@@ -145,14 +151,14 @@ def run_walk_forward_for_agent(
         config: Configuration optionnelle
 
     Returns:
-        Dict avec train_sharpe, test_sharpe, overfitting_ratio
+        Dict avec train_sharpe, test_sharpe, overfitting_ratio, métriques robustes
     """
     test_pct = 1.0 - train_ratio
 
     validator = WalkForwardValidator(
         n_folds=n_windows,
         test_pct=test_pct,
-        embargo_pct=0.01,
+        embargo_pct=0.02,  # 2% d'embargo pour éviter le leakage
     )
 
     engine = BacktestEngine(initial_capital=initial_capital, config=config)
@@ -192,29 +198,43 @@ def run_walk_forward_for_agent(
             _logger.warning("fold_%s_failed error=%s", fold.fold_id, str(e))
             continue
 
-    if not train_sharpes or not test_sharpes:
+    n_folds = len(train_sharpes)
+
+    if n_folds == 0:
         return {
-            "train_sharpe": 0,
-            "test_sharpe": 0,
-            "overfitting_ratio": 0,
+            "train_sharpe": 0.0,
+            "test_sharpe": 0.0,
+            "overfitting_ratio": 999.0,
+            "classic_ratio": 999.0,
+            "degradation_pct": 100.0,
+            "test_stability_std": 0.0,
+            "n_valid_folds": 0,
         }
 
-    avg_train = sum(train_sharpes) / len(train_sharpes) if train_sharpes else 0.0
-    avg_test = sum(test_sharpes) / len(test_sharpes) if test_sharpes else 0.0
+    # Moyennes avec numpy
+    avg_train = np.mean(train_sharpes)
+    avg_test = np.mean(test_sharpes)
+    std_test = np.std(test_sharpes)
 
-    # Calculer ratio d'overfitting (protection division zéro)
-    if avg_test > 1e-6:  # Threshold pour éviter division par ~0
-        overfitting_ratio = max(0.0, avg_train / avg_test)  # Clamp négatifs
-    elif avg_train > 1e-6:
-        overfitting_ratio = 999.0  # Plafonner au lieu de inf pour sérialisation
-    else:
-        overfitting_ratio = 1.0  # Cas dégénéré
+    # Ratio classique avec garde-fou
+    classic_ratio = avg_train / avg_test if avg_test > 1e-6 else 999.0
+
+    # Dégradation % avec garde-fou
+    degradation_pct = (avg_train - avg_test) / avg_train * 100 if avg_train > 1e-6 else 100.0
+    degradation_pct = max(0.0, degradation_pct)
+
+    # Ratio robuste = ratio classique + pénalité de stabilité
+    stability_penalty = std_test * 2.0
+    robust_ratio = classic_ratio + stability_penalty
 
     return {
-        "train_sharpe": avg_train,
-        "test_sharpe": avg_test,
-        "overfitting_ratio": overfitting_ratio,
-        "n_folds": len(train_sharpes),
+        "train_sharpe": float(avg_train),
+        "test_sharpe": float(avg_test),
+        "overfitting_ratio": float(robust_ratio),
+        "classic_ratio": float(classic_ratio),
+        "degradation_pct": float(degradation_pct),
+        "test_stability_std": float(std_test),
+        "n_valid_folds": n_folds,
     }
 
 
@@ -302,8 +322,8 @@ def create_optimizer_from_engine(
             strategy: str,
             params: Dict[str, Any],
             df: pd.DataFrame,
-            n_windows: int = 5,
-            train_ratio: float = 0.7,
+            n_windows: int = 6,  # Optimisé pour 2 ans de données
+            train_ratio: float = 0.75,  # 75/25 pour meilleur compromis
         ) -> Dict[str, Any]:
             return run_walk_forward_for_agent(
                 strategy_name=strategy,
