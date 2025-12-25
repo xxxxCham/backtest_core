@@ -7,7 +7,8 @@ pendant l'optimisation autonome.
 """
 
 import json
-from dataclasses import dataclass, asdict, field
+import threading
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -67,6 +68,9 @@ class OrchestrationActionType(Enum):
     BACKTEST_LAUNCH = "backtest_launch"
     BACKTEST_COMPLETE = "backtest_complete"
     BACKTEST_FAILED = "backtest_failed"
+
+    # Walk-forward
+    WALK_FORWARD_COMPUTED = "walk_forward_computed"
 
     # Décisions
     DECISION_CONTINUE = "decision_continue"
@@ -187,6 +191,7 @@ class OrchestrationLogger:
         self.session_id = session_id or self._generate_session_id()
         self.logs: List[OrchestrationLogEntry] = []
         self.current_iteration = 0
+        self._lock = threading.Lock()
         self._auto_save = auto_save
         self._save_path = save_path or Path("runs") / self.session_id / "trace.jsonl"
         self._save_counter = 0
@@ -219,8 +224,15 @@ class OrchestrationLogger:
 
     def _add_entry(self, entry: OrchestrationLogEntry) -> None:
         """Ajoute une entrée et notifie le callback."""
-        self._add_entry(entry)
+        with self._lock:
+            self.logs.append(entry)
+            # Garder current_iteration cohérent (utile si l'appelant passe iteration)
+            try:
+                self.current_iteration = max(self.current_iteration, int(entry.iteration))
+            except Exception:
+                pass
         self._notify_event(entry)
+        self._maybe_auto_save()
 
     def log_analysis_start(self, agent: str, details: Optional[Dict] = None):
         """Log le début d'une analyse."""
@@ -508,7 +520,6 @@ class OrchestrationLogger:
             session_id=data.get("session_id", self.session_id),
         )
         self._add_entry(entry)
-        self._maybe_auto_save()
 
     def add_event(self, event_type: str, data: Dict[str, Any]) -> None:
         """Alias pour log() (API alternative)."""
@@ -523,11 +534,14 @@ class OrchestrationLogger:
         """Sauvegarde automatiquement si le seuil est atteint."""
         if not self._auto_save:
             return
-        self._save_counter += 1
-        if self._save_counter >= self._save_interval:
+        with self._lock:
+            self._save_counter += 1
+            should_save = self._save_counter >= self._save_interval
+        if should_save:
             try:
                 self.save_to_jsonl(self._save_path)
-                self._save_counter = 0
+                with self._lock:
+                    self._save_counter = 0
             except Exception as e:
                 logger.debug(f"Auto-save failed: {e}")
 
@@ -578,22 +592,25 @@ class OrchestrationLogger:
         # Créer le répertoire si nécessaire
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
+        with self._lock:
+            logs_snapshot = list(self.logs)
+            current_iteration = int(self.current_iteration)
+            total_logs = len(logs_snapshot)
+
         with open(filepath, "w", encoding="utf-8") as f:
-            # En-tête de métadonnées
             header = {
                 "event_type": "session_header",
                 "session_id": self.session_id,
-                "total_iterations": self.current_iteration,
-                "total_logs": len(self.logs),
+                "total_iterations": current_iteration,
+                "total_logs": total_logs,
                 "timestamp": self._now(),
             }
             f.write(json.dumps(header, ensure_ascii=False) + "\n")
 
-            # Écrire chaque log sur une ligne
-            for log in self.logs:
+            for log in logs_snapshot:
                 f.write(json.dumps(log.to_dict(), ensure_ascii=False) + "\n")
 
-        logger.debug(f"Logs saved to {filepath} ({len(self.logs)} entries)")
+        logger.debug(f"Logs saved to {filepath} ({total_logs} entries)")
 
     @classmethod
     def load_from_file(cls, filepath: Path) -> "OrchestrationLogger":

@@ -31,7 +31,9 @@ Usage:
 from __future__ import annotations
 
 import logging
+import os
 import random
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
@@ -41,9 +43,42 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+def _ollama_base_url() -> str:
+    """Retourne l'URL de base Ollama (avec fallback local)."""
+    base = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    return base.rstrip("/")
+
+
+def _fetch_ollama_tags_with_retries(
+    *,
+    max_attempts: int = 5,
+    timeout_s: float = 3.0,
+    base_backoff_s: float = 1.0,
+) -> Optional[dict]:
+    """Récupère /api/tags avec retries/backoff (Ollama peut démarrer lentement)."""
+    url = f"{_ollama_base_url()}/api/tags"
+    last_exc: Optional[BaseException] = None
+    for attempt in range(max_attempts):
+        try:
+            resp = httpx.get(url, timeout=timeout_s)
+            if resp.status_code == 200:
+                return resp.json()
+            last_exc = RuntimeError(f"HTTP {resp.status_code}")
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+
+        if attempt < max_attempts - 1:
+            sleep_s = float(base_backoff_s * (2 ** attempt))
+            time.sleep(sleep_s)
+
+    if last_exc is not None:
+        logger.warning("Impossible de lister les modeles Ollama apres retries: %s", last_exc)
+    return None
+
+
 class ModelCategory(Enum):
     """Catégories de modèles par taille/vitesse."""
-    
+
     LIGHT = "light"      # < 10B params, rapide (< 30s)
     MEDIUM = "medium"    # 10-30B params, modéré (30s-2min)
     HEAVY = "heavy"      # > 30B params, lent (> 2min)
@@ -52,16 +87,16 @@ class ModelCategory(Enum):
 @dataclass
 class ModelInfo:
     """Information sur un modèle LLM."""
-    
+
     name: str                      # Nom Ollama (ex: "deepseek-r1:32b")
     category: ModelCategory        # Catégorie de taille
     description: str = ""          # Description courte
     recommended_for: List[str] = field(default_factory=list)  # Rôles recommandés
     avg_response_time_s: float = 30.0  # Temps de réponse moyen estimé
-    
+
     def __hash__(self):
         return hash(self.name)
-    
+
     def __eq__(self, other):
         if isinstance(other, ModelInfo):
             return self.name == other.name
@@ -99,7 +134,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         recommended_for=["analyst", "critic"],
         avg_response_time_s=15.0,
     ),
-    
+
     # Medium models (10-30B) - Équilibrés
     "gemma3:12b": ModelInfo(
         name="gemma3:12b",
@@ -129,7 +164,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         recommended_for=["critic", "validator"],
         avg_response_time_s=120.0,
     ),
-    
+
     # Heavy models (> 30B) - Puissants mais lents
     "deepseek-r1:32b": ModelInfo(
         name="deepseek-r1:32b",
@@ -179,12 +214,12 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
 @dataclass
 class RoleModelAssignment:
     """Configuration des modèles pour un rôle."""
-    
+
     role: str
     models: List[str] = field(default_factory=list)
     allow_heavy_after_iteration: int = 3  # N'autoriser les modèles lourds qu'après N itérations
     prefer_specialized: bool = True  # Préférer les modèles spécialisés pour ce rôle
-    
+
     def get_available_models(
         self,
         iteration: int = 1,
@@ -193,98 +228,94 @@ class RoleModelAssignment:
     ) -> List[str]:
         """
         Retourne les modèles disponibles pour cette itération.
-        
+
         Args:
             iteration: Numéro d'itération actuel
             allow_heavy: Forcer l'autorisation des modèles lourds
             installed_models: Set des modèles installés (pour filtrage)
-            
+
         Returns:
             Liste des modèles utilisables
         """
         available = []
-        
+
         for model_name in self.models:
             # Vérifier si installé
             if installed_models and model_name not in installed_models:
                 continue
-            
+
             # Vérifier la catégorie
             model_info = KNOWN_MODELS.get(model_name)
             if model_info and model_info.category == ModelCategory.HEAVY:
                 # Modèles lourds : vérifier les conditions
                 if not allow_heavy and iteration < self.allow_heavy_after_iteration:
                     continue
-            
+
             available.append(model_name)
-        
+
         return available
 
 
-@dataclass 
+@dataclass
 class RoleModelConfig:
     """
     Configuration complète des modèles par rôle.
-    
+
     Permet d'assigner plusieurs modèles à chaque rôle avec sélection
     aléatoire ou basée sur des critères.
     """
-    
+
     # Configuration par rôle
     analyst: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="analyst",
         models=["deepseek-r1:8b", "mistral:7b-instruct", "martain7r/finance-llama-8b:q4_k_m", "gemma3:12b"],
         allow_heavy_after_iteration=5,
     ))
-    
+
     strategist: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="strategist",
         models=["deepseek-r1:8b", "gemma3:12b", "deepseek-r1-distill:14b", "mistral:22b"],
         allow_heavy_after_iteration=3,
     ))
-    
+
     critic: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="critic",
         models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
         allow_heavy_after_iteration=2,
     ))
-    
+
     validator: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="validator",
         models=["deepseek-r1-distill:14b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
         allow_heavy_after_iteration=3,
     ))
-    
+
     # Cache des modèles installés
     _installed_models: Optional[Set[str]] = field(default=None, repr=False)
-    
+
     def __post_init__(self):
         """Initialise le cache des modèles installés."""
         self._refresh_installed_models()
-    
+
     def _refresh_installed_models(self) -> Set[str]:
         """Rafraîchit la liste des modèles Ollama installés."""
-        try:
-            response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=3.0)
-            if response.status_code == 200:
-                data = response.json()
-                models = data.get("models", [])
-                self._installed_models = {m.get("name", "") for m in models if m.get("name")}
-                logger.debug(f"Modèles installés: {len(self._installed_models)}")
-            else:
-                self._installed_models = set()
-        except Exception as e:
-            logger.warning(f"Impossible de lister les modèles Ollama: {e}")
+        data = _fetch_ollama_tags_with_retries()
+        if not data:
             self._installed_models = set()
-        
+            return self._installed_models
+
+        models = data.get("models", [])
+        self._installed_models = {m.get("name", "") for m in models if m.get("name")}
+        logger.debug("Modeles installes: %s", len(self._installed_models))
+
         return self._installed_models
-    
+
     def get_installed_models(self) -> Set[str]:
         """Retourne les modèles installés (avec cache)."""
         if self._installed_models is None:
             self._refresh_installed_models()
         return self._installed_models or set()
-    
+
     def get_role_assignment(self, role: str) -> RoleModelAssignment:
         """Retourne l'assignment pour un rôle."""
         role = role.lower()
@@ -300,7 +331,7 @@ class RoleModelConfig:
             # Défaut: utiliser analyst
             logger.warning(f"Rôle inconnu: {role}, utilisation de analyst")
             return self.analyst
-    
+
     def get_model(
         self,
         role: str,
@@ -310,46 +341,58 @@ class RoleModelConfig:
     ) -> Optional[str]:
         """
         Obtient un modèle pour un rôle donné.
-        
+
         Args:
             role: Nom du rôle (analyst, strategist, critic, validator)
             iteration: Numéro d'itération actuel
             allow_heavy: Forcer l'autorisation des modèles lourds
             random_selection: Si True, sélection aléatoire parmi les modèles disponibles
-            
+
         Returns:
             Nom du modèle ou None si aucun disponible
         """
         assignment = self.get_role_assignment(role)
+        installed = self.get_installed_models()
+
+        # Niveau 1: intersection config role ∩ installed
         available = assignment.get_available_models(
             iteration=iteration,
             allow_heavy=allow_heavy,
-            installed_models=self.get_installed_models(),
+            installed_models=installed,
         )
-        
-        if not available:
-            logger.warning(f"Aucun modèle disponible pour {role} (iteration={iteration})")
-            # Fallback: premier modèle installé
-            installed = self.get_installed_models()
-            if installed:
-                return list(installed)[0]
-            return None
-        
-        if random_selection and len(available) > 1:
-            return random.choice(available)
-        
-        return available[0]
-    
+        if available:
+            return random.choice(available) if (random_selection and len(available) > 1) else available[0]
+
+        # Niveau 2: fallback sur la config du role, meme si Ollama est down / liste vide
+        fallback_cfg = assignment.get_available_models(
+            iteration=iteration,
+            allow_heavy=allow_heavy,
+            installed_models=None,
+        )
+        if fallback_cfg:
+            return (
+                random.choice(fallback_cfg)
+                if (random_selection and len(fallback_cfg) > 1)
+                else fallback_cfg[0]
+            )
+
+        # Niveau 3: n'importe quel modele installe
+        if installed:
+            return next(iter(installed))
+
+        logger.warning("Aucun modele disponible pour %s (iteration=%s)", role, iteration)
+        return None
+
     def get_model_info(self, model_name: str) -> Optional[ModelInfo]:
         """Retourne les infos d'un modèle."""
         return KNOWN_MODELS.get(model_name)
-    
+
     def set_role_models(self, role: str, models: List[str]) -> None:
         """Configure les modèles pour un rôle."""
         assignment = self.get_role_assignment(role)
         assignment.models = models
         logger.info(f"Modèles pour {role}: {models}")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Sérialise la configuration."""
         return {
@@ -370,12 +413,12 @@ class RoleModelConfig:
                 "allow_heavy_after_iteration": self.validator.allow_heavy_after_iteration,
             },
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> RoleModelConfig:
         """Désérialise la configuration."""
         config = cls()
-        
+
         for role in ["analyst", "strategist", "critic", "validator"]:
             if role in data:
                 role_data = data[role]
@@ -385,49 +428,46 @@ class RoleModelConfig:
                     "allow_heavy_after_iteration",
                     assignment.allow_heavy_after_iteration
                 )
-        
+
         return config
 
 
 def list_available_models() -> List[ModelInfo]:
     """Liste tous les modèles installés avec leurs infos."""
-    try:
-        response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=3.0)
-        if response.status_code != 200:
-            return []
-        
-        data = response.json()
-        models = data.get("models", [])
-        
-        result = []
-        for m in models:
-            name = m.get("name", "")
-            if name:
-                # Utiliser les infos connues ou créer une entrée basique
-                if name in KNOWN_MODELS:
-                    result.append(KNOWN_MODELS[name])
-                else:
-                    # Deviner la catégorie basée sur la taille
-                    size_gb = m.get("size", 0) / (1024**3)
-                    if size_gb < 6:
-                        category = ModelCategory.LIGHT
-                    elif size_gb < 15:
-                        category = ModelCategory.MEDIUM
-                    else:
-                        category = ModelCategory.HEAVY
-                    
-                    result.append(ModelInfo(
-                        name=name,
-                        category=category,
-                        description=f"Modèle {name} ({size_gb:.1f} GB)",
-                        recommended_for=["analyst", "strategist"],
-                    ))
-        
-        return result
-    
-    except Exception as e:
-        logger.warning(f"Erreur listing modèles: {e}")
-        return []
+    data = _fetch_ollama_tags_with_retries()
+    if not data:
+        # Fallback: retourner les modèles connus (utile pour l'UI quand Ollama est lent)
+        return list(KNOWN_MODELS.values())
+
+    models = data.get("models", [])
+
+    result: List[ModelInfo] = []
+    for m in models:
+        name = m.get("name", "")
+        if not name:
+            continue
+        if name in KNOWN_MODELS:
+            result.append(KNOWN_MODELS[name])
+            continue
+
+        size_gb = m.get("size", 0) / (1024**3)
+        if size_gb < 6:
+            category = ModelCategory.LIGHT
+        elif size_gb < 15:
+            category = ModelCategory.MEDIUM
+        else:
+            category = ModelCategory.HEAVY
+
+        result.append(
+            ModelInfo(
+                name=name,
+                category=category,
+                description=f"Modele {name} ({size_gb:.1f} GB)",
+                recommended_for=["analyst", "strategist"],
+            )
+        )
+
+    return result
 
 
 def get_models_by_category(category: ModelCategory) -> List[ModelInfo]:

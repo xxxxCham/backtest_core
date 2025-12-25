@@ -12,7 +12,7 @@ les composants abstraits aux implémentations concrètes du projet.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -31,6 +31,9 @@ from .backtest_executor import BacktestExecutor
 from .autonomous_strategist import AutonomousStrategist, OptimizationSession
 from .llm_client import LLMConfig, create_llm_client
 from .model_config import RoleModelConfig
+
+if TYPE_CHECKING:  # pragma: no cover
+    from .orchestrator import Orchestrator
 
 # Logger module-level (sans run_id spécifique)
 _logger = get_obs_logger(__name__)
@@ -521,6 +524,10 @@ def create_orchestrator_with_backtest(
     initial_params: Dict[str, Any],
     llm_config: Optional[LLMConfig] = None,
     role_model_config: Optional[RoleModelConfig] = None,
+    use_walk_forward: bool = True,
+    orchestration_logger: Optional[Any] = None,
+    session_id: Optional[str] = None,
+    n_workers: int = 1,
     max_iterations: int = 10,
     initial_capital: float = 10000.0,
     config: Optional[Config] = None,
@@ -537,6 +544,10 @@ def create_orchestrator_with_backtest(
         initial_params: Paramètres initiaux
         llm_config: Configuration LLM (optionnel, défaut depuis env)
         role_model_config: Configuration multi-modeles par role
+        use_walk_forward: Activer la validation walk-forward (si possible)
+        orchestration_logger: Logger d'orchestration (UI live/persistance)
+        session_id: Forcer l'ID de session (corrélation UI)
+        n_workers: Nombre de workers pour paralléliser les backtests de propositions
         max_iterations: Maximum d'itérations
         initial_capital: Capital de départ
         config: Configuration du backtest
@@ -593,6 +604,11 @@ def create_orchestrator_with_backtest(
         max_iterations=max_iterations,
         llm_config=llm_config,
         role_model_config=role_model_config,
+        use_walk_forward=use_walk_forward,
+        data=data,
+        n_workers=n_workers,
+        session_id=session_id,
+        orchestration_logger=orchestration_logger,
         on_backtest_needed=on_backtest_needed,
     )
 

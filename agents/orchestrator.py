@@ -44,6 +44,7 @@ class OrchestratorConfig:
 
     # Données
     data_path: str = ""
+    data: Optional[Any] = None
 
     # Paramètres initiaux
     initial_params: Dict[str, Any] = field(default_factory=dict)
@@ -59,6 +60,11 @@ class OrchestratorConfig:
     # Limites
     max_iterations: int = 10
     max_proposals_per_iteration: int = 5
+
+    # Exécution
+    n_workers: int = 1
+    session_id: Optional[str] = None
+    orchestration_logger: Optional[Any] = None
 
     # LLM
     llm_config: Optional[LLMConfig] = None
@@ -138,7 +144,12 @@ class Orchestrator:
             config: Configuration complète
         """
         self.config = config
-        self.session_id = str(uuid.uuid4())[:8]
+        if config.session_id:
+            self.session_id = str(config.session_id)
+        elif config.orchestration_logger is not None and hasattr(config.orchestration_logger, "session_id"):
+            self.session_id = str(getattr(config.orchestration_logger, "session_id"))
+        else:
+            self.session_id = str(uuid.uuid4())[:8]
 
         # State Machine
         self.state_machine = StateMachine(max_iterations=config.max_iterations)
@@ -163,7 +174,7 @@ class Orchestrator:
         self._warnings: List[str] = []
 
         # Données chargées (pour walk-forward)
-        self._loaded_data: Optional[Any] = None
+        self._loaded_data: Optional[Any] = getattr(config, "data", None)
 
         # Orchestration logger (optionnel, non bloquant)
         self._orch_logger: Any = None
@@ -194,7 +205,7 @@ class Orchestrator:
     def _init_orchestration_logger(self) -> None:
         """Initialise un logger d'orchestration s'il est disponible (non bloquant)."""
         # Utilise un logger fourni dans la config si présent
-        if hasattr(self.config, "orchestration_logger") and self.config.orchestration_logger:
+        if getattr(self.config, "orchestration_logger", None) is not None:
             self._orch_logger = self.config.orchestration_logger
             return
         # Tentative de création depuis le module dédié (si disponible)
@@ -644,9 +655,48 @@ class Orchestrator:
         Charge les données si nécessaire et exécute une validation walk-forward
         pour détecter l'overfitting avec les métriques robustes.
         """
+        # Si on a déjà des données en mémoire (UI), on les utilise.
+        if self._loaded_data is not None:
+            data_df = self._loaded_data
+            try:
+                self.context.data_rows = len(data_df)
+            except Exception:
+                pass
+
+            try:
+                wf_metrics = run_walk_forward_for_agent(
+                    strategy_name=self.config.strategy_name,
+                    params=self.context.current_params,
+                    data=data_df,
+                    n_windows=6,
+                    train_ratio=0.75,
+                )
+
+                self.context.overfitting_ratio = wf_metrics["overfitting_ratio"]
+                self.context.classic_ratio = wf_metrics["classic_ratio"]
+                self.context.degradation_pct = wf_metrics["degradation_pct"]
+                self.context.test_stability_std = wf_metrics["test_stability_std"]
+                self.context.n_valid_folds = wf_metrics["n_valid_folds"]
+                self.context.walk_forward_windows = 6
+
+                self._log_event(
+                    "walk_forward_computed",
+                    overfitting_ratio=float(wf_metrics["overfitting_ratio"]),
+                    classic_ratio=float(wf_metrics["classic_ratio"]),
+                    degradation_pct=float(wf_metrics["degradation_pct"]),
+                    test_stability_std=float(wf_metrics["test_stability_std"]),
+                    n_valid_folds=int(wf_metrics["n_valid_folds"]),
+                )
+            except Exception as e:
+                logger.warning(f"Échec du calcul des métriques walk-forward: {e}")
+                self._warnings.append(f"Walk-forward échoué: {e}")
+                self._log_event("warning", message=f"Walk-forward échoué: {e}")
+
+            return
+
         # Vérifier si un chemin de données est fourni
         if not self.config.data_path:
-            logger.debug("Pas de data_path configuré, skip walk-forward metrics")
+            logger.debug("Pas de data/data_path configuré, skip walk-forward metrics")
             return
 
         data_path = Path(self.config.data_path)
@@ -726,40 +776,102 @@ class Orchestrator:
 
     def _test_proposals(self) -> None:
         """Teste les propositions approuvées via backtest."""
-        for proposal in self.context.strategist_proposals:
+        proposals = list(self.context.strategist_proposals or [])
+        if not proposals:
+            return
+
+        def _eval_one(proposal: Dict[str, Any]) -> tuple[Dict[str, Any], Optional[MetricsSnapshot]]:
             params = proposal.get("parameters", {})
             if not params:
-                continue
+                return proposal, None
+            return proposal, self._run_backtest(params)
 
-            self._log_event(
-                "proposal_test_started",
-                proposal_id=proposal.get("id"),
-                proposal_name=proposal.get("name"),
-            )
-            logger.info(f"Test proposition {proposal.get('id')}: {proposal.get('name')}")
+        n_workers = int(getattr(self.config, "n_workers", 1) or 1)
 
-            metrics = self._run_backtest(params)
-            if metrics:
-                proposal["tested_metrics"] = metrics.to_dict()
-                proposal["tested"] = True
+        # Séquentiel par défaut
+        if n_workers <= 1 or len(proposals) <= 1:
+            for proposal in proposals:
+                params = proposal.get("parameters", {})
+                if not params:
+                    continue
+
                 self._log_event(
-                    "proposal_test_ended",
+                    "proposal_test_started",
                     proposal_id=proposal.get("id"),
-                    tested=True,
-                    sharpe=metrics.sharpe_ratio,
-                    total_return=metrics.total_return,
+                    proposal_name=proposal.get("name"),
                 )
-                logger.info(
-                    f"  Résultat: Sharpe={metrics.sharpe_ratio:.3f}, "
-                    f"Return={metrics.total_return:.2%}"
-                )
-            else:
-                proposal["tested"] = False
+                logger.info(f"Test proposition {proposal.get('id')}: {proposal.get('name')}")
+
+                metrics = self._run_backtest(params)
+                if metrics:
+                    proposal["tested_metrics"] = metrics.to_dict()
+                    proposal["tested"] = True
+                    self._log_event(
+                        "proposal_test_ended",
+                        proposal_id=proposal.get("id"),
+                        tested=True,
+                        sharpe=metrics.sharpe_ratio,
+                        total_return=metrics.total_return,
+                    )
+                else:
+                    proposal["tested"] = False
+                    self._log_event(
+                        "proposal_test_ended",
+                        proposal_id=proposal.get("id"),
+                        tested=False,
+                    )
+            return
+
+        # Parallèle: le slider workers a enfin un effet réel en multi-agents
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        for proposal in proposals:
+            if proposal.get("parameters", {}):
                 self._log_event(
-                    "proposal_test_ended",
+                    "proposal_test_started",
                     proposal_id=proposal.get("id"),
-                    tested=False,
+                    proposal_name=proposal.get("name"),
                 )
+
+        futures = {}
+        with ThreadPoolExecutor(max_workers=n_workers) as pool:
+            for proposal in proposals:
+                if not proposal.get("parameters", {}):
+                    continue
+                futures[pool.submit(_eval_one, proposal)] = proposal
+
+            for fut in as_completed(futures):
+                proposal = futures[fut]
+                try:
+                    _, metrics = fut.result()
+                except Exception as e:
+                    metrics = None
+                    self._warnings.append(f"Backtest proposition échoué: {e}")
+                    self._log_event(
+                        "proposal_test_ended",
+                        proposal_id=proposal.get("id"),
+                        tested=False,
+                        error=str(e),
+                    )
+                    continue
+
+                if metrics:
+                    proposal["tested_metrics"] = metrics.to_dict()
+                    proposal["tested"] = True
+                    self._log_event(
+                        "proposal_test_ended",
+                        proposal_id=proposal.get("id"),
+                        tested=True,
+                        sharpe=metrics.sharpe_ratio,
+                        total_return=metrics.total_return,
+                    )
+                else:
+                    proposal["tested"] = False
+                    self._log_event(
+                        "proposal_test_ended",
+                        proposal_id=proposal.get("id"),
+                        tested=False,
+                    )
 
     def _get_best_tested_config(self) -> Optional[Dict[str, Any]]:
         """Retourne la meilleure configuration testée."""

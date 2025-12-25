@@ -1,6 +1,6 @@
 # Backtest Core - Instructions AI & Suivi
 
-> **Ce fichier sert de référence ET de cahier de suivi.**  
+> **Ce fichier sert de référence ET de cahier de suivi.**
 > Toute modification du code doit être reflétée ici, au bon endroit.
 
 ---
@@ -195,7 +195,7 @@ class MaStrategy(StrategyBase):
     @property
     def required_indicators(self) -> List[str]:
         return ["bollinger", "atr"]
-    
+
     def generate_signals(self, df, indicators, params) -> pd.Series:
         # Retourne: 1=long, -1=short, 0=flat
 ```
@@ -342,7 +342,7 @@ Types de contraintes: `greater_than`, `less_than`, `ratio_min`, `ratio_max`, `di
 
 ## Mode CLI
 
-> **Documentation complète** : [CLI_REFERENCE.md](CLI_REFERENCE.md)  
+> **Documentation complète** : [CLI_REFERENCE.md](CLI_REFERENCE.md)
 > **Configuration** : [ENVIRONMENT.md](ENVIRONMENT.md)
 
 Le mode CLI permet le contrôle programmatique du moteur de backtest.
@@ -526,8 +526,10 @@ devient après implémentation :
 | 18/12/2025 | **Intégration UI LLM** : Affichage logs orchestration dans mode "Optimisation LLM" de app.py | [ui/](#ui) |
 | 18/12/2025 | **Tests Orchestration** : `test_ui_orchestration_integration.py`, 5 tests (100% pass) | [tests/](#modules) |
 | 18/12/2025 | **Documentation Orchestration** : `docs/ORCHESTRATION_LOGS.md`, guide complet utilisation et API | [Architecture](#architecture) |
+| 25/12/2025 | Multi-agent parity: n_workers (parallel proposals), UI live orchestration, JSONL persistence, Ollama retries | [agents/](#agents-phase-3---14122025) |
+| 25/12/2025 | Bugfix templates: `critic.jinja2` robuste aux variables WF manquantes + test non-régression | [agents/](#agents-phase-3---14122025) |
 
 ---
 
-*Dernière mise à jour : 18/12/2025 (v1.8.2)*
+*Dernière mise à jour : 25/12/2025 (v1.8.2)*
 

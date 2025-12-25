@@ -2300,7 +2300,7 @@ if strategy_class:
                 for pname, pcount in stats.per_param_counts.items():
                     st.caption(f"• {pname}: {pcount} valeurs")
         else:
-            st.sidebar.caption(f"📊 Mode simple: 1 combinaison")
+            st.sidebar.caption("📊 Mode simple: 1 combinaison")
 else:
     st.sidebar.error(f"Stratégie '{strategy_key}' non trouvée")
 
@@ -2927,12 +2927,26 @@ if run_button:
         with st.spinner("🔌 Connexion au LLM..."):
             try:
                 if llm_use_multi_agent:
+                    # Live viewer multi-agents (même expérience que mono LLM)
+                    live_events_placeholder = st.empty()
+                    live_viewer = LiveOrchestrationViewer(container_key="live_orch_viewer_multi")
+
+                    def on_orchestration_event(entry):
+                        live_viewer.add_event(entry)
+                        live_viewer.render(live_events_placeholder, show_header=True)
+
+                    orchestration_logger.set_on_event_callback(on_orchestration_event)
+
                     orchestrator = create_orchestrator_with_backtest(
                         llm_config=llm_config,
                         strategy_name=strategy_key,
                         data=df,
                         initial_params=params,
                         role_model_config=role_model_config,
+                        use_walk_forward=llm_use_walk_forward,
+                        orchestration_logger=orchestration_logger,
+                        session_id=session_id,
+                        n_workers=n_workers,
                         max_iterations=max_iterations,
                         initial_capital=initial_capital,
                         config=engine.config,
@@ -2974,6 +2988,12 @@ if run_button:
             try:
                 with st.spinner("Optimisation multi-agents en cours..."):
                     orchestrator_result = orchestrator.run()
+
+                # Forcer une persistance complète en fin de run
+                try:
+                    orchestration_logger.save_to_jsonl()
+                except Exception:
+                    pass
 
                 if orchestrator_result.errors:
                     st.warning(f"Orchestration errors: {len(orchestrator_result.errors)}")
@@ -3034,7 +3054,7 @@ if run_button:
             # Exécuter l'optimisation
             st.markdown("---")
             st.markdown("### 📊 Progression de l'optimisation LLM")
-            
+
             # Créer les placeholders pour affichage live
             live_status = st.status("🚀 Démarrage de l'optimisation...", expanded=True)
             live_events_placeholder = st.empty()
@@ -3045,14 +3065,14 @@ if run_button:
 
             # Créer le viewer live pour les événements d'orchestration
             live_viewer = LiveOrchestrationViewer(container_key="live_orch_viewer")
-            
+
             # Connecter le callback au logger d'orchestration
             def on_orchestration_event(entry):
                 """Callback appelé à chaque événement - met à jour l'UI."""
                 live_viewer.add_event(entry)
                 # Mettre à jour le placeholder avec les derniers événements
                 live_viewer.render(live_events_placeholder, show_header=True)
-            
+
             orchestration_logger.set_on_event_callback(on_orchestration_event)
 
             # Info configuration
@@ -3063,7 +3083,7 @@ if run_button:
                 with live_status:
                     st.write("🤖 **Agent LLM actif** - Optimisation autonome")
                     st.write(f"📊 Stratégie: `{strategy_key}` | Modèle: `{llm_model}`")
-                    
+
                     # Lancer l'optimisation autonome avec limite
                     session = strategist.optimize(
                         executor=executor,
@@ -3073,7 +3093,7 @@ if run_button:
                         min_sharpe=-5.0,  # Assouplir contraintes
                         max_drawdown=0.50,
                     )
-                    
+
                     # Mise à jour du status final
                     live_status.update(
                         label=f"✅ Optimisation terminée en {session.current_iteration} itérations",
