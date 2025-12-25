@@ -1,5 +1,5 @@
 # backtest_core
-Préviens quantitatif algorithmique
+Prévision quantitative algorithmique
 
 ## Installation
 Pré-requis : Windows 11 Pro (24H2), Python 3.11+ et PowerShell. Placez les sources dans `D:\backtest_core` et utilisez un environnement virtuel `.venv` pour isoler les dépendances.
