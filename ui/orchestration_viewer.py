@@ -153,7 +153,7 @@ def _render_log_entry(log: OrchestrationLogEntry):
     # Timestamp
     try:
         timestamp = datetime.fromisoformat(log.timestamp).strftime("%H:%M:%S")
-    except:
+    except Exception:
         timestamp = log.timestamp[:8]  # Fallback
 
     # Agent badge

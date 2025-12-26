@@ -33,10 +33,12 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from utils.config import Config
 
 try:
     import optuna
@@ -47,11 +49,10 @@ except ImportError:
     OPTUNA_AVAILABLE = False
     optuna = None
 
-from backtest.engine import BacktestEngine, RunResult
+from backtest.engine import BacktestEngine
 from utils.observability import (
     get_obs_logger,
     generate_run_id,
-    trace_span,
     PerfCounters,
 )
 

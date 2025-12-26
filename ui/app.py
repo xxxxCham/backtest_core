@@ -11,20 +11,18 @@ Save failed: st.session_state.versioned_preset_version cannot be modified after 
 Lancer avec: streamlit run ui/app.py
 """
 
-import ast
 import logging
 import math
 import re
 import statistics
 import sys
+import threading
 import time
 import traceback
 from collections import deque
-from pathlib import Path
-import threading
-from typing import Any, Dict, List, Optional, Tuple
-
 from itertools import product
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -42,8 +40,8 @@ try:
     from strategies.base import get_strategy, list_strategies
     from strategies.indicators_mapping import get_strategy_info
     from utils.parameters import (
-        compute_search_space_stats,
         ParameterSpec,
+        compute_search_space_stats,
         list_strategy_versions,
         load_strategy_version,
         resolve_latest_version,
@@ -58,6 +56,7 @@ except ImportError as e:
 LLM_AVAILABLE = False
 LLM_IMPORT_ERROR = ""
 try:
+    from agents.autonomous_strategist import AutonomousStrategist
     from agents.integration import (
         create_optimizer_from_engine,
         create_orchestrator_with_backtest,
@@ -65,73 +64,63 @@ try:
         get_strategy_param_space,
     )
     from agents.llm_client import LLMConfig, LLMProvider, create_llm_client
-    from agents.autonomous_strategist import AutonomousStrategist
+    from agents.model_config import (
+        KNOWN_MODELS,
+        ModelCategory,
+        ModelInfo,
+        RoleModelConfig,
+        get_global_model_config,
+        get_models_by_category,
+        list_available_models,
+        set_global_model_config,
+    )
     from agents.ollama_manager import (
         ensure_ollama_running,
         is_ollama_available,
     )
-    from agents.model_config import (
-        RoleModelConfig,
-        ModelCategory,
-        ModelInfo,
-        list_available_models,
-        get_models_by_category,
-        get_global_model_config,
-        set_global_model_config,
-        KNOWN_MODELS,
-    )
     from agents.orchestration_logger import OrchestrationLogger, generate_session_id
     from ui.components.agent_timeline import (
-        AgentActivityTimeline,
-        AgentActivity,
-        AgentType,
         ActivityType,
+        AgentActivity,
+        AgentActivityTimeline,
+        AgentType,
         render_agent_timeline,
         render_mini_timeline,
     )
-    from ui.components.monitor import render_mini_monitor
     from ui.components.model_selector import (
-        get_available_models_for_ui,
         RECOMMENDED_FOR_STRATEGY,
+        get_available_models_for_ui,
         get_model_info,
     )
+    from ui.components.monitor import render_mini_monitor
+    from ui.deep_trace_viewer import render_deep_trace_viewer  # Pour onglet avancé mode LLM
     from ui.orchestration_viewer import (
+        LiveOrchestrationViewer,
         render_full_orchestration_viewer,
+        render_live_orchestration_panel,
         render_orchestration_logs,
         render_orchestration_summary_table,
-        render_live_orchestration_panel,
-        LiveOrchestrationViewer,
     )
-    from ui.deep_trace_viewer import render_deep_trace_viewer  # Pour onglet avancé mode LLM
     LLM_AVAILABLE = True
 except ImportError as e:
     LLM_IMPORT_ERROR = str(e)
 
 # Import observabilité (toujours disponible)
-from utils.observability import (
-    init_logging,
-    get_obs_logger,
-    generate_run_id,
-    set_log_level,
-    is_debug_enabled,
-    build_diagnostic_summary,
-    PerfCounters,
-)
-from utils.run_tracker import RunSignature, get_global_tracker
-
 # Import composants UI (toujours disponibles)
 from ui.components.charts import (
-    render_equity_and_drawdown,
+    render_comparison_chart,
     render_ohlcv_with_trades,
     render_ohlcv_with_trades_and_indicators,
-    render_equity_curve,
-    render_comparison_chart,
     render_strategy_param_diagram,
 )
-from ui.components.thinking_viewer import (
-    ThinkingStreamViewer,
-    render_thinking_stream,
+from utils.observability import (
+    generate_run_id,
+    get_obs_logger,
+    init_logging,
+    is_debug_enabled,
+    set_log_level,
 )
+from utils.run_tracker import RunSignature, get_global_tracker
 
 # Initialiser le logging au démarrage de l'UI
 init_logging()
@@ -1269,7 +1258,7 @@ with col_btn2:
         key="btn_stop_backtest"
     )
 
-def _safe_cupy_cleanup(logger=None) -> None:
+def _safe_copy_cleanup(logger=None) -> None:
     try:
         import cupy as cp  # noqa: F401
     except Exception as exc:
@@ -1321,7 +1310,7 @@ if stop_button:
     # Nettoyage CuPy si disponible
     import logging
     logger = logging.getLogger(__name__)
-    _safe_cupy_cleanup(logger)
+    _safe_copy_cleanup(logger)
 
     st.success("✅ RAM système vidée")
     st.info("💡 Système prêt pour un nouveau test")
@@ -2926,9 +2915,11 @@ if run_button:
 
         # Vérifier les doublons de runs
         run_tracker = get_global_tracker()
+        # Construire un identifiant de données basé sur les métriques du DataFrame
+        data_identifier = f"df_{len(df)}rows_{df.index[0]}_{df.index[-1]}" if len(df) > 0 else "empty_df"
         run_signature = RunSignature(
             strategy_name=strategy_key,
-            data_path=data_file or "uploaded_data",
+            data_path=data_identifier,
             initial_params=params,
             llm_model=llm_model,
             mode="multi_agents" if llm_use_multi_agent else "autonomous",

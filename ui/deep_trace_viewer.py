@@ -6,7 +6,6 @@ Visualiseur complet et détaillé des interactions LLM et de l'orchestration,
 incluant timeline, inspecteur LLM, propositions/tests, state machine, métriques.
 """
 
-import json
 import math
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +20,6 @@ from agents.orchestration_logger import (
     OrchestrationLogEntry,
     OrchestrationStatus,
 )
-from utils.observability import trace_span, PerfCounters, get_obs_logger
 
 
 # ============================================================================
@@ -105,7 +103,7 @@ def _format_timestamp(ts_str: str) -> str:
     try:
         dt = datetime.fromisoformat(ts_str)
         return dt.strftime("%H:%M:%S.%f")[:-3]  # Millisecondes
-    except:
+    except Exception:
         return ts_str[:12] if len(ts_str) > 12 else ts_str
 
 
@@ -362,7 +360,6 @@ def _render_llm_role_details(role: str, events: List[OrchestrationLogEntry]):
         iteration = event.iteration
 
         status_emoji = "✅" if success else "❌"
-        status_color = "#d4edda" if success else "#f8d7da"
 
         with st.expander(
             f"{status_emoji} **Appel #{i}** - Itération {iteration} - {timestamp} ({latency}ms)",
@@ -548,7 +545,7 @@ def render_metrics_panel(logger: OrchestrationLogger):
     ])
 
     # Temps total (si disponible)
-    run_start = next((e for e in logger.logs if e.action_type == OrchestrationActionType.RUN_START), None)
+    next((e for e in logger.logs if e.action_type == OrchestrationActionType.RUN_START), None)
     run_end = next((e for e in reversed(logger.logs) if e.action_type == OrchestrationActionType.RUN_END), None)
 
     total_time_s = 0

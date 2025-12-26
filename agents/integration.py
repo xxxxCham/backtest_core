@@ -12,23 +12,23 @@ les composants abstraits aux implémentations concrètes du projet.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 from backtest.engine import BacktestEngine
-from backtest.validation import WalkForwardValidator
+from backtest.validation import ValidationFold, WalkForwardValidator
 from strategies.base import get_strategy, list_strategies
 from utils.config import Config
 from utils.observability import (
-    get_obs_logger,
     generate_run_id,
+    get_obs_logger,
     trace_span,
 )
 
-from .backtest_executor import BacktestExecutor
 from .autonomous_strategist import AutonomousStrategist, OptimizationSession
+from .backtest_executor import BacktestExecutor
 from .llm_client import LLMConfig, create_llm_client
 from .model_config import RoleModelConfig
 
@@ -594,8 +594,8 @@ def create_orchestrator_with_backtest(
         ...     print(f"Meilleurs params: {result.final_params}")
     """
     # Import ici pour éviter les imports circulaires
-    from .orchestrator import Orchestrator, OrchestratorConfig
     from .base_agent import ParameterConfig
+    from .orchestrator import Orchestrator, OrchestratorConfig
 
     # Récupérer les specs des paramètres
     param_space = get_strategy_param_space(strategy_name, include_step=True)

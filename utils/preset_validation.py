@@ -5,10 +5,13 @@ Validation et Auto-remplissage des Presets
 Système de validation pour garantir la cohérence entre Presets et Stratégies.
 """
 
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 from dataclasses import dataclass
 
 from utils.log import get_logger
+
+if TYPE_CHECKING:
+    from utils.parameters import Preset
 
 logger = get_logger(__name__)
 
