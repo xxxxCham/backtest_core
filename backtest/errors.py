@@ -132,6 +132,43 @@ class DataError(BacktestError):
         self.missing_columns = missing_columns
 
 
+class InsufficientDataError(DataError):
+    """
+    Erreur lorsque les données sont insuffisantes pour le warmup des indicateurs.
+
+    Exemples:
+    - Fenêtre temporelle trop courte (49 barres < 200 requis)
+    - Période d'indicateur > données disponibles
+    """
+
+    def __init__(
+        self,
+        message: str,
+        available_bars: Optional[int] = None,
+        required_bars: Optional[int] = None,
+        symbol: Optional[str] = None,
+        timeframe: Optional[str] = None,
+        hint: Optional[str] = None
+    ):
+        details = {}
+        if available_bars is not None:
+            details["available_bars"] = available_bars
+        if required_bars is not None:
+            details["required_bars"] = required_bars
+
+        default_hint = "Utilisez une période plus longue ou vérifiez la disponibilité des données"
+
+        super().__init__(
+            message=message,
+            symbol=symbol,
+            timeframe=timeframe,
+            hint=hint or default_hint
+        )
+        self.details.update(details)
+        self.available_bars = available_bars
+        self.required_bars = required_bars
+
+
 class BackendInternalError(BacktestError):
     """
     Erreur interne du backend (bug).

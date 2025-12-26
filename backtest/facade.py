@@ -30,13 +30,17 @@ import pandas as pd
 
 from backtest.engine import BacktestEngine, RunResult
 from backtest.errors import (
-    DataError, 
+    DataError,
+    InsufficientDataError,
     UserInputError,
 )
 from utils.config import Config
 from utils.log import get_logger
 
 logger = get_logger(__name__)
+
+# Warmup minimal par défaut (conservateur pour couvrir la plupart des stratégies)
+WARMUP_MIN_DEFAULT = 200
 
 
 # =============================================================================
@@ -55,6 +59,7 @@ class ErrorCode(Enum):
     INVALID_PARAMS = "invalid_params"
     INVALID_DATA = "invalid_data"
     DATA_NOT_FOUND = "data_not_found"
+    INSUFFICIENT_DATA = "insufficient_data"
     STRATEGY_NOT_FOUND = "strategy_not_found"
     BACKEND_INTERNAL = "backend_internal"
     LLM_UNAVAILABLE = "llm_unavailable"
@@ -423,6 +428,14 @@ class BackendFacade:
                 hint="Vérifiez les paramètres de stratégie",
                 trace_id=trace_id, start_time=start
             )
+        except InsufficientDataError as e:
+            return self._error_response(
+                ErrorCode.INSUFFICIENT_DATA,
+                str(e),
+                hint=e.hint,
+                trace_id=trace_id,
+                start_time=start
+            )
         except DataError as e:
             return self._error_response(
                 ErrorCode.INVALID_DATA, str(e),
@@ -547,7 +560,29 @@ class BackendFacade:
                 total_failed=fail_count,
                 duration_ms=duration_ms,
             )
-            
+
+        except InsufficientDataError as e:
+            return GridOptimizationResponse(
+                status=ResponseStatus.ERROR,
+                error=ErrorInfo(
+                    code=ErrorCode.INSUFFICIENT_DATA,
+                    message_user=str(e),
+                    hint=e.hint,
+                    trace_id=trace_id,
+                ),
+                duration_ms=(time.time() - start) * 1000,
+            )
+        except DataError as e:
+            return GridOptimizationResponse(
+                status=ResponseStatus.ERROR,
+                error=ErrorInfo(
+                    code=ErrorCode.INVALID_DATA,
+                    message_user=str(e),
+                    hint="Vérifiez le format des données OHLCV",
+                    trace_id=trace_id,
+                ),
+                duration_ms=(time.time() - start) * 1000,
+            )
         except Exception:
             self._logger.exception(f"[{trace_id}] Erreur optimisation grille")
             return GridOptimizationResponse(
@@ -682,7 +717,29 @@ class BackendFacade:
                 improvement_pct=improvement,
                 duration_ms=duration_ms,
             )
-            
+
+        except InsufficientDataError as e:
+            return LLMOptimizationResponse(
+                status=ResponseStatus.ERROR,
+                error=ErrorInfo(
+                    code=ErrorCode.INSUFFICIENT_DATA,
+                    message_user=str(e),
+                    hint=e.hint,
+                    trace_id=trace_id,
+                ),
+                duration_ms=(time.time() - start) * 1000,
+            )
+        except DataError as e:
+            return LLMOptimizationResponse(
+                status=ResponseStatus.ERROR,
+                error=ErrorInfo(
+                    code=ErrorCode.INVALID_DATA,
+                    message_user=str(e),
+                    hint="Vérifiez le format des données OHLCV",
+                    trace_id=trace_id,
+                ),
+                duration_ms=(time.time() - start) * 1000,
+            )
         except ConnectionError as e:
             return LLMOptimizationResponse(
                 status=ResponseStatus.ERROR,
@@ -710,36 +767,167 @@ class BackendFacade:
     # =========================================================================
     # HELPERS PRIVÉS
     # =========================================================================
-    
+
+    def _estimate_bars_between(
+        self,
+        start: str,
+        end: str,
+        timeframe: str
+    ) -> int:
+        """
+        Estime le nombre de barres entre deux dates pour un timeframe donné.
+
+        Args:
+            start: Date de début ISO (ex: "2024-01-01")
+            end: Date de fin ISO
+            timeframe: Timeframe (1m, 5m, 15m, 30m, 1h, 4h, 1d, etc.)
+
+        Returns:
+            Nombre approximatif de barres
+        """
+        from datetime import datetime
+
+        try:
+            # Parser les dates (supporter différents formats)
+            start_dt = datetime.fromisoformat(start.replace('Z', '+00:00'))
+            end_dt = datetime.fromisoformat(end.replace('Z', '+00:00'))
+
+            # Calculer la durée en heures
+            duration_hours = (end_dt - start_dt).total_seconds() / 3600
+
+            # Conversion timeframe -> heures par barre
+            timeframe_hours = {
+                '1m': 1/60, '5m': 5/60, '15m': 15/60, '30m': 0.5,
+                '1h': 1, '2h': 2, '4h': 4, '6h': 6, '8h': 8, '12h': 12,
+                '1d': 24, '1w': 24*7,
+            }
+
+            hours_per_bar = timeframe_hours.get(timeframe, 1)
+            estimated_bars = int(duration_hours / hours_per_bar)
+
+            return estimated_bars
+
+        except Exception as e:
+            self._logger.warning(f"Impossible d'estimer les barres: {e}")
+            return 0  # En cas d'erreur, retourner 0 (pas de validation)
+
     def _load_data(
-        self, 
-        symbol: str, 
+        self,
+        symbol: str,
         timeframe: str,
         start: Optional[str],
-        end: Optional[str]
+        end: Optional[str],
+        warmup_required: Optional[int] = None
     ) -> pd.DataFrame:
-        """Charge les données OHLCV."""
+        """
+        Charge les données OHLCV avec validation de warmup minimal.
+
+        Args:
+            symbol: Symbole à charger (ex: "BTCUSDT")
+            timeframe: Timeframe (1h, 4h, 1d, etc.)
+            start: Date de début (optionnel)
+            end: Date de fin (optionnel)
+            warmup_required: Nombre minimal de barres requis (défaut: WARMUP_MIN_DEFAULT)
+
+        Returns:
+            DataFrame OHLCV validé
+
+        Raises:
+            InsufficientDataError: Si les données sont insuffisantes
+            DataError: Si les données sont introuvables
+        """
         from data.loader import load_ohlcv
-        
+
+        # 1. Déterminer le warmup minimal requis
+        warmup_min = warmup_required or WARMUP_MIN_DEFAULT
+
+        # 2. Valider la cohérence de la fenêtre temporelle
+        if start and end:
+            expected_bars = self._estimate_bars_between(start, end, timeframe)
+
+            if expected_bars > 0 and expected_bars < warmup_min:
+                self._logger.warning(
+                    f"Fenêtre trop courte détectée: {expected_bars} barres estimées < {warmup_min} requis. "
+                    f"Neutralisation des dates pour charger toutes les données disponibles."
+                )
+                # Neutraliser les dates pour recharger tout
+                start = None
+                end = None
+
+        # 3. Charger les données
         df = load_ohlcv(symbol, timeframe, start=start, end=end)
-        
+
+        # 4. Vérifier que les données existent
         if df is None or df.empty:
-            raise DataError(f"Données non trouvées: {symbol}_{timeframe}")
-        
+            raise DataError(
+                f"Données non trouvées: {symbol}_{timeframe}",
+                symbol=symbol,
+                timeframe=timeframe
+            )
+
+        # 5. Validation finale: vérifier que nous avons assez de barres
+        actual_bars = len(df)
+        if actual_bars < warmup_min:
+            raise InsufficientDataError(
+                message=f"Données insuffisantes: {actual_bars} barres < {warmup_min} requis pour {symbol}_{timeframe}",
+                available_bars=actual_bars,
+                required_bars=warmup_min,
+                symbol=symbol,
+                timeframe=timeframe,
+                hint=f"Le warmup des indicateurs nécessite au minimum {warmup_min} barres. "
+                     f"Disponibles: {actual_bars}. Utilisez une période plus longue."
+            )
+
+        self._logger.debug(
+            f"Données chargées avec succès: {actual_bars} barres (warmup requis: {warmup_min})"
+        )
+
         return df
     
-    def _validate_dataframe(self, df: pd.DataFrame) -> None:
-        """Valide un DataFrame OHLCV."""
+    def _validate_dataframe(
+        self,
+        df: pd.DataFrame,
+        warmup_required: Optional[int] = None,
+        symbol: str = "UNKNOWN",
+        timeframe: str = "UNKNOWN"
+    ) -> None:
+        """
+        Valide un DataFrame OHLCV.
+
+        Args:
+            df: DataFrame à valider
+            warmup_required: Nombre minimal de barres requis (optionnel)
+            symbol: Symbole pour les messages d'erreur
+            timeframe: Timeframe pour les messages d'erreur
+
+        Raises:
+            DataError: Si le format est invalide
+            InsufficientDataError: Si les données sont insuffisantes
+        """
         if df is None or df.empty:
             raise DataError("DataFrame vide ou None")
-        
+
         required = ["open", "high", "low", "close", "volume"]
         missing = [c for c in required if c not in df.columns]
         if missing:
             raise DataError(f"Colonnes manquantes: {missing}")
-        
+
         if not isinstance(df.index, pd.DatetimeIndex):
             raise DataError("L'index doit être un DatetimeIndex")
+
+        # Validation warmup optionnelle
+        if warmup_required is not None:
+            actual_bars = len(df)
+            if actual_bars < warmup_required:
+                raise InsufficientDataError(
+                    message=f"Données insuffisantes: {actual_bars} barres < {warmup_required} requis pour {symbol}_{timeframe}",
+                    available_bars=actual_bars,
+                    required_bars=warmup_required,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    hint=f"Le warmup des indicateurs nécessite au minimum {warmup_required} barres. "
+                         f"Disponibles: {actual_bars}. Utilisez une période plus longue."
+                )
     
     def _error_response(
         self,
