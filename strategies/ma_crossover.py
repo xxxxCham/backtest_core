@@ -12,7 +12,6 @@ Indicateurs requis:
 
 from typing import Any, Dict, List
 
-import numpy as np
 import pandas as pd
 
 from strategies.base import StrategyBase, StrategyResult, register_strategy

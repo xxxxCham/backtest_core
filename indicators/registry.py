@@ -18,7 +18,7 @@ from .bollinger import BollingerSettings, bollinger_bands
 from .ema import EMASettings, ema, sma
 from .macd import calculate_macd, macd
 from .rsi import RSISettings, rsi
-from .stochastic import stochastic, stochastic_signal
+from .stochastic import stochastic
 
 # Nouveaux indicateurs
 from .vwap import vwap, VWAPSettings

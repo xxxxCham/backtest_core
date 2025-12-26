@@ -37,7 +37,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar
+from typing import Any, Dict, Generator, Optional
 
 import numpy as np
 import pandas as pd

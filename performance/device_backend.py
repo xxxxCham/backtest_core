@@ -19,7 +19,7 @@ import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Optional, Tuple
 
 import numpy as np
 

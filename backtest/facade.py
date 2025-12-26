@@ -23,19 +23,15 @@ from __future__ import annotations
 import traceback
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from backtest.engine import BacktestEngine, RunResult
 from backtest.errors import (
-    BacktestError,
     DataError, 
     UserInputError,
-    BackendInternalError,
-    LLMUnavailableError,
 )
 from utils.config import Config
 from utils.log import get_logger
@@ -445,7 +441,7 @@ class BackendFacade:
                 ErrorCode.INVALID_PARAMS, str(e),
                 trace_id=trace_id, start_time=start
             )
-        except Exception as e:
+        except Exception:
             self._logger.exception(f"[{trace_id}] Erreur inattendue")
             return self._error_response(
                 ErrorCode.BACKEND_INTERNAL, 
@@ -552,7 +548,7 @@ class BackendFacade:
                 duration_ms=duration_ms,
             )
             
-        except Exception as e:
+        except Exception:
             self._logger.exception(f"[{trace_id}] Erreur optimisation grille")
             return GridOptimizationResponse(
                 status=ResponseStatus.ERROR,
@@ -597,7 +593,7 @@ class BackendFacade:
             # Vérifier disponibilité LLM
             from agents.integration import create_optimizer_from_engine
             from agents.llm_client import LLMConfig, LLMProvider
-        except ImportError as e:
+        except ImportError:
             return LLMOptimizationResponse(
                 status=ResponseStatus.ERROR,
                 error=ErrorInfo(

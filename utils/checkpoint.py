@@ -13,13 +13,12 @@ Utilise JSON pour la portabilité et la lisibilité.
 """
 
 import json
-import os
 import hashlib
 import time
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, TypeVar
 from contextlib import contextmanager
 
 from utils.log import get_logger

@@ -1,4 +1,3 @@
-import pytest
 
 from utils.template import render_prompt, render_prompt_from_string
 

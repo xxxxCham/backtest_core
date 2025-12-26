@@ -16,19 +16,18 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from pydantic import BaseModel, ValidationError, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from utils.template import render_prompt
 
 from .base_agent import (
     AgentContext,
     AgentResult,
     AgentRole,
     BaseAgent,
-    MetricsSnapshot,
 )
-from .llm_client import LLMClient
-from utils.template import render_prompt
 
 logger = logging.getLogger(__name__)
 

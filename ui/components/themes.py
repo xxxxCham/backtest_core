@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 try:
@@ -465,7 +465,7 @@ def render_theme_settings(key: str = "theme_settings") -> Optional[UserPreferenc
     
     # Taille de police
     font_options = ["small", "medium", "large"]
-    current_font = font_options.index(prefs.font_size)
+    font_options.index(prefs.font_size)
     new_font = st.select_slider(
         "Taille de police",
         options=font_options,

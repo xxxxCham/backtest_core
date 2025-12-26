@@ -19,7 +19,6 @@ Usage:
 from __future__ import annotations
 
 import logging
-import math
 import os
 import time
 from concurrent.futures import (
@@ -27,8 +26,8 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
 )
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Iterator, List, Optional
 
 import numpy as np
 import pandas as pd

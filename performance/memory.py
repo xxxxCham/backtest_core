@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import gc
 import logging
-import os
 import sys
 import tempfile
 import time
@@ -30,7 +29,7 @@ import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, Iterator, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar
 
 import numpy as np
 import pandas as pd

@@ -13,11 +13,12 @@ Output: Décision finale avec justification
 
 from __future__ import annotations
 
-import json
 import logging
 import time
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
+
+from utils.template import render_prompt
 
 from .base_agent import (
     AgentContext,
@@ -25,8 +26,6 @@ from .base_agent import (
     AgentRole,
     BaseAgent,
 )
-from .llm_client import LLMClient
-from utils.template import render_prompt
 
 logger = logging.getLogger(__name__)
 

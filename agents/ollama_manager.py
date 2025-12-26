@@ -35,7 +35,7 @@ import subprocess
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generator, List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 import httpx
 
@@ -52,7 +52,7 @@ logger = get_logger(__name__)
 @dataclass
 class LLMMemoryState:
     """État mémoire d'un modèle LLM."""
-    
+
     model_name: str
     was_loaded: bool = False
     context_messages: List[dict] = field(default_factory=list)
@@ -63,30 +63,30 @@ class LLMMemoryState:
 class GPUMemoryManager:
     """
     Gestionnaire de mémoire GPU pour les LLM.
-    
+
     Permet de décharger temporairement les LLM du GPU pendant les phases
     de calcul intensif (backtests avec CuPy/NumPy) puis de les recharger
     avec leur contexte préservé.
-    
+
     Features:
     - Déchargement automatique avant calculs
     - Rechargement automatique après calculs
     - Préservation du contexte de conversation
     - Métriques de temps (unload/reload)
     - Mode "dry run" pour tests
-    
+
     Example:
         >>> manager = GPUMemoryManager("deepseek-r1:32b")
-        >>> 
+        >>>
         >>> # Décharger avant calcul
         >>> state = manager.unload()
-        >>> 
+        >>>
         >>> # ... calculs GPU intensifs ...
-        >>> 
+        >>>
         >>> # Recharger avec contexte
         >>> manager.reload(state)
     """
-    
+
     def __init__(
         self,
         model_name: str,
@@ -96,7 +96,7 @@ class GPUMemoryManager:
     ):
         """
         Initialise le gestionnaire.
-        
+
         Args:
             model_name: Nom du modèle Ollama (ex: "deepseek-r1:32b")
             ollama_host: URL du serveur Ollama
@@ -108,7 +108,7 @@ class GPUMemoryManager:
         self.warmup_prompt = warmup_prompt
         self.verbose = verbose
         self._current_state: Optional[LLMMemoryState] = None
-    
+
     def is_model_loaded(self) -> bool:
         """Vérifie si le modèle est actuellement en mémoire GPU."""
         try:
@@ -126,26 +126,26 @@ class GPUMemoryManager:
             return False
         except Exception:
             return False
-    
+
     def unload(self, context_messages: Optional[List[dict]] = None) -> LLMMemoryState:
         """
         Décharge le modèle du GPU.
-        
+
         Args:
             context_messages: Messages de contexte à préserver pour le reload
-            
+
         Returns:
             LLMMemoryState avec les infos pour le rechargement
         """
         start = time.perf_counter()
         was_loaded = self.is_model_loaded()
-        
+
         state = LLMMemoryState(
             model_name=self.model_name,
             was_loaded=was_loaded,
             context_messages=context_messages or [],
         )
-        
+
         if was_loaded:
             try:
                 response = httpx.post(
@@ -169,10 +169,10 @@ class GPUMemoryManager:
         else:
             if self.verbose:
                 logger.debug(f"📝 LLM {self.model_name} pas en mémoire, skip unload")
-        
+
         self._current_state = state
         return state
-    
+
     def reload(
         self,
         state: Optional[LLMMemoryState] = None,
@@ -180,11 +180,11 @@ class GPUMemoryManager:
     ) -> bool:
         """
         Recharge le modèle dans le GPU.
-        
+
         Args:
             state: État précédent (ou utilise _current_state)
             restore_context: Si True, envoie un prompt de warmup
-            
+
         Returns:
             True si succès
         """
@@ -192,14 +192,14 @@ class GPUMemoryManager:
         if not state:
             logger.warning("⚠️ Pas d'état à restaurer")
             return False
-        
+
         if not state.was_loaded:
             if self.verbose:
                 logger.debug(f"📝 LLM {self.model_name} n'était pas chargé, skip reload")
             return True
-        
+
         start = time.perf_counter()
-        
+
         try:
             # Warmup: charger le modèle avec un prompt court
             warmup = self.warmup_prompt
@@ -210,7 +210,7 @@ class GPUMemoryManager:
                     f"Last {len(state.context_messages)} messages exchanged. "
                     f"Ready to continue."
                 )
-            
+
             response = httpx.post(
                 f"{self.ollama_host}/api/generate",
                 json={
@@ -221,7 +221,7 @@ class GPUMemoryManager:
                 },
                 timeout=120.0  # 2 min pour charger un gros modèle
             )
-            
+
             if response.status_code == 200:
                 state.reload_time_ms = (time.perf_counter() - start) * 1000
                 if self.verbose:
@@ -233,11 +233,11 @@ class GPUMemoryManager:
             else:
                 logger.warning(f"⚠️ Échec reload LLM: status {response.status_code}")
                 return False
-                
+
         except Exception as e:
             logger.warning(f"⚠️ Échec rechargement LLM: {e}")
             return False
-    
+
     def get_stats(self) -> dict:
         """Retourne les statistiques de la dernière opération."""
         if not self._current_state:
@@ -259,17 +259,17 @@ def gpu_compute_context(
 ) -> Generator[GPUMemoryManager, None, None]:
     """
     Context manager pour libérer le GPU pendant les calculs.
-    
+
     Décharge automatiquement le LLM avant les calculs et le recharge après.
-    
+
     Args:
         model_name: Nom du modèle à décharger
         context_messages: Contexte de conversation à préserver
         verbose: Afficher les logs
-        
+
     Yields:
         GPUMemoryManager pour accès aux stats
-        
+
     Example:
         >>> with gpu_compute_context("deepseek-r1:32b") as manager:
         ...     # GPU libre pour calculs numpy/cupy
@@ -278,10 +278,10 @@ def gpu_compute_context(
         >>> print(manager.get_stats())
     """
     manager = GPUMemoryManager(model_name, verbose=verbose)
-    
+
     # Décharger
     state = manager.unload(context_messages)
-    
+
     try:
         yield manager
     finally:

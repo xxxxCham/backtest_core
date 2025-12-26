@@ -16,11 +16,10 @@ from __future__ import annotations
 
 import functools
 import logging
-import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
 

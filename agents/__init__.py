@@ -22,7 +22,7 @@ Workflows:
 Usage Mode Autonome (RECOMMANDÉ):
     >>> from agents import create_autonomous_optimizer
     >>> from agents.llm_client import LLMConfig, LLMProvider
-    >>> 
+    >>>
     >>> config = LLMConfig(provider=LLMProvider.OLLAMA, model="llama3.2")
     >>> strategist, executor = create_autonomous_optimizer(
     ...     llm_config=config,
@@ -30,7 +30,7 @@ Usage Mode Autonome (RECOMMANDÉ):
     ...     strategy_name="ema_cross",
     ...     data=ohlcv_df,
     ... )
-    >>> 
+    >>>
     >>> session = strategist.optimize(
     ...     executor=executor,
     ...     initial_params={"fast": 10, "slow": 21},
@@ -41,7 +41,7 @@ Usage Mode Autonome (RECOMMANDÉ):
 
 Usage Mode Orchestré (analyse sans exécution):
     >>> from agents import Orchestrator, OrchestratorConfig
-    >>> 
+    >>>
     >>> config = OrchestratorConfig(
     ...     strategy_name="ema_cross",
     ...     data_path="data/BTCUSDT_1h.parquet",
@@ -88,71 +88,71 @@ def _configure_agents_logger() -> None:
 
 _configure_agents_logger()
 
-from .state_machine import (
-    AgentState,
-    StateTransition,
-    StateMachine,
-    ValidationResult,
-)
-from .llm_client import (
-    LLMClient,
-    LLMConfig,
-    LLMResponse,
-    LLMProvider,
-    OllamaClient,
-    OpenAIClient,
-    create_llm_client,
-)
-from .base_agent import BaseAgent, AgentContext, AgentResult
 from .analyst import AnalystAgent
-from .strategist import StrategistAgent
-from .critic import CriticAgent
-from .validator import ValidatorAgent
-from .orchestrator import Orchestrator, OrchestratorConfig, OrchestratorResult
-from .backtest_executor import (
-    BacktestExecutor,
-    BacktestRequest,
-    BacktestResult,
-    ExperimentHistory,
-)
 from .autonomous_strategist import (
     AutonomousStrategist,
     IterationDecision,
     OptimizationSession,
     create_autonomous_optimizer,
 )
+from .backtest_executor import (
+    BacktestExecutor,
+    BacktestRequest,
+    BacktestResult,
+    ExperimentHistory,
+)
+from .base_agent import AgentContext, AgentResult, BaseAgent
+from .critic import CriticAgent
 from .integration import (
-    run_backtest_for_agent,
-    run_walk_forward_for_agent,
     create_optimizer_from_engine,
+    create_orchestrator_with_backtest,
     get_strategy_param_bounds,
     get_strategy_param_space,
     quick_optimize,
-    create_orchestrator_with_backtest,
+    run_backtest_for_agent,
+    run_walk_forward_for_agent,
 )
-from .ollama_manager import (
-    ensure_ollama_running,
-    unload_model,
-    cleanup_all_models,
-    list_ollama_models,
-    is_ollama_available,
-    prepare_for_llm_run,
-    # GPU Memory Management
-    GPUMemoryManager,
-    LLMMemoryState,
-    gpu_compute_context,
+from .llm_client import (
+    LLMClient,
+    LLMConfig,
+    LLMProvider,
+    LLMResponse,
+    OllamaClient,
+    OpenAIClient,
+    create_llm_client,
 )
 from .model_config import (
+    KNOWN_MODELS,
     ModelCategory,
     ModelInfo,
     RoleModelAssignment,
     RoleModelConfig,
-    KNOWN_MODELS,
-    list_available_models,
-    get_models_by_category,
     get_global_model_config,
+    get_models_by_category,
+    list_available_models,
     set_global_model_config,
 )
+from .ollama_manager import (
+    # GPU Memory Management
+    GPUMemoryManager,
+    LLMMemoryState,
+    cleanup_all_models,
+    ensure_ollama_running,
+    gpu_compute_context,
+    is_ollama_available,
+    list_ollama_models,
+    prepare_for_llm_run,
+    unload_model,
+)
+from .orchestrator import Orchestrator, OrchestratorConfig, OrchestratorResult
+from .state_machine import (
+    AgentState,
+    StateMachine,
+    StateTransition,
+    ValidationResult,
+)
+from .strategist import StrategistAgent
+from .validator import ValidatorAgent
 
 __all__ = [
     # State Machine

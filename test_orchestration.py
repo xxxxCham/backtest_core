@@ -7,13 +7,12 @@ fonctionne correctement de bout en bout.
 """
 
 from strategies.base import list_strategies, get_strategy
-from strategies.indicators_mapping import get_required_indicators, get_strategy_info
+from strategies.indicators_mapping import get_strategy_info
 from indicators.registry import list_indicators, get_indicator
 from utils.parameters import (
     PRESETS,
     generate_param_grid,
     parameter_values,
-    ParameterSpec,
 )
 from ui.indicators_panel import (
     group_indicators_by_category,
@@ -141,7 +140,7 @@ def test_end_to_end_workflow():
     print(f"2. Indicateurs requis: {required_indicators}")
 
     # 3. Vérifier que les indicateurs existent
-    print(f"3. Vérification des indicateurs:")
+    print("3. Vérification des indicateurs:")
     for ind_name in required_indicators:
         ind_info = get_indicator(ind_name)
         if ind_info:
@@ -174,8 +173,8 @@ def test_end_to_end_workflow():
     print(f"   Exemple: {grid[0]}")
 
     # 7. Workflow complet validé
-    print(f"\n7. ✅ Workflow complet validé!")
-    print(f"   - Stratégie → Indicateurs → Paramètres → Grille")
+    print("\n7. ✅ Workflow complet validé!")
+    print("   - Stratégie → Indicateurs → Paramètres → Grille")
 
     return True
 

@@ -294,7 +294,7 @@ def profile_function(func: F) -> F:
             stats.sort_stats("cumulative")
             
             print(f"\n⏱️  {func.__name__} executed in {elapsed:.3f}s")
-            print(f"   Top 5 internal calls:")
+            print("   Top 5 internal calls:")
             
             for i, (key, val) in enumerate(list(stats.stats.items())[:5]):
                 filename, lineno, name = key

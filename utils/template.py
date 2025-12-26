@@ -20,7 +20,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from jinja2.runtime import Undefined
 
 logger = logging.getLogger(__name__)

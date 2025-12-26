@@ -8,12 +8,9 @@ et de granularité défini dans utils/parameters.py
 
 from utils.parameters import (
     SAFE_RANGES_PRESET,
-    MINIMAL_PRESET,
-    EMA_CROSS_PRESET,
     PRESETS,
 )
 from strategies.indicators_mapping import (
-    get_required_indicators,
     get_strategy_info,
     STRATEGY_INDICATORS_MAP,
 )
@@ -61,7 +58,7 @@ def test_preset_indicators_consistency():
                 print(f"   ⚠️  Stratégie '{strategy_name}' non trouvée dans le mapping")
                 all_ok = False
         else:
-            print(f"   ℹ️  Pas de stratégie associée définie")
+            print("   ℹ️  Pas de stratégie associée définie")
 
     return all_ok
 
@@ -95,7 +92,7 @@ def test_all_strategies_have_presets():
     if missing_preset:
         print(f"\n💡 Opportunité: Créer des Presets pour {len(missing_preset)} stratégies")
     else:
-        print(f"\n✓ Toutes les stratégies ont des Presets!")
+        print("\n✓ Toutes les stratégies ont des Presets!")
 
     return True
 
@@ -146,11 +143,11 @@ def test_granularity_independence():
     print(f"   Indicateurs requis: {info.required_indicators}")
 
     preset = SAFE_RANGES_PRESET
-    print(f"\n   Preset Safe Ranges:")
+    print("\n   Preset Safe Ranges:")
     print(f"   - Granularité par défaut: {preset.default_granularity}")
     print(f"   - Indicateurs: {preset.indicators}")
-    print(f"   - Avec granularité 0.0 (fin): beaucoup de valeurs de paramètres")
-    print(f"   - Avec granularité 1.0 (grossier): peu de valeurs de paramètres")
+    print("   - Avec granularité 0.0 (fin): beaucoup de valeurs de paramètres")
+    print("   - Avec granularité 1.0 (grossier): peu de valeurs de paramètres")
     print(f"   → Mais TOUJOURS les mêmes indicateurs: {preset.indicators}")
 
     print("\n✓ CONCLUSION: Granularité et Indicateurs sont INDÉPENDANTS")

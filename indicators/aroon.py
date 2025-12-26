@@ -11,7 +11,7 @@ Interprétation:
 """
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Tuple
 
 import numpy as np
 import pandas as pd

@@ -17,9 +17,9 @@ Optimisations:
 - Performance 50-100x meilleure que boucles Python pures
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd

@@ -18,7 +18,7 @@ Inspiré du pattern Circuit Breaker de Michael Nygard (Release It!).
 import time
 import threading
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Type

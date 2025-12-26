@@ -11,7 +11,7 @@ Usage:
     trades_df = simulate_trades_fast(df, signals, params)
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd

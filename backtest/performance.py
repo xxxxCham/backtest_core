@@ -6,7 +6,7 @@ Calcul des métriques de performance standard et avancées.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -434,17 +434,18 @@ def calculate_metrics(
             if isinstance(dd.index, pd.DatetimeIndex):
                 dd_periods = []
                 start_ts = None
-                last_ts = None
+                last_in_dd_ts = None
                 for ts, in_dd in (dd < 0).items():
-                    if in_dd and start_ts is None:
-                        start_ts = ts
-                    elif not in_dd and start_ts is not None:
-                        end_ts = last_ts if last_ts is not None else ts
-                        dd_periods.append(end_ts - start_ts)
+                    if in_dd:
+                        if start_ts is None:
+                            start_ts = ts
+                        last_in_dd_ts = ts
+                    elif start_ts is not None:
+                        dd_periods.append(ts - start_ts)
                         start_ts = None
-                    last_ts = ts
-                if start_ts is not None and last_ts is not None:
-                    dd_periods.append(last_ts - start_ts)
+                        last_in_dd_ts = None
+                if start_ts is not None and last_in_dd_ts is not None:
+                    dd_periods.append(last_in_dd_ts - start_ts)
 
                 metrics["max_drawdown_duration_days"] = (
                     max((p.total_seconds() / 86400 for p in dd_periods))

@@ -14,7 +14,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 
 from .llm_client import LLMClient, LLMMessage, LLMResponse
 from .state_machine import ValidationResult
@@ -33,7 +33,7 @@ class AgentRole(Enum):
 @dataclass
 class MetricsSnapshot:
     """Snapshot des métriques de performance."""
-    
+
     # Métriques de base
     total_return: float = 0.0
     sharpe_ratio: float = 0.0
@@ -41,17 +41,17 @@ class MetricsSnapshot:
     max_drawdown: float = 0.0
     win_rate: float = 0.0
     profit_factor: float = 0.0
-    
+
     # Métriques Tier S
     sqn: float = 0.0
     calmar_ratio: float = 0.0
     recovery_factor: float = 0.0
     ulcer_index: float = 0.0
-    
+
     # Stats trades
     total_trades: int = 0
     avg_trade_duration: float = 0.0
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> MetricsSnapshot:
         """Crée depuis un dictionnaire."""
@@ -69,7 +69,7 @@ class MetricsSnapshot:
             total_trades=data.get("total_trades", 0),
             avg_trade_duration=data.get("avg_trade_duration", 0.0),
         )
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire."""
         return {
@@ -86,7 +86,7 @@ class MetricsSnapshot:
             "total_trades": self.total_trades,
             "avg_trade_duration": self.avg_trade_duration,
         }
-    
+
     def to_summary_str(self) -> str:
         """Résumé textuel pour le LLM."""
         return f"""Performance Metrics:
@@ -105,14 +105,14 @@ class MetricsSnapshot:
 @dataclass
 class ParameterConfig:
     """Configuration d'un paramètre de stratégie."""
-    
+
     name: str
     current_value: Any
     min_value: Any = None
     max_value: Any = None
     step: Any = None
     description: str = ""
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
@@ -128,33 +128,33 @@ class ParameterConfig:
 class AgentContext:
     """
     Contexte partagé entre les agents.
-    
+
     Contient toutes les informations nécessaires pour
     l'analyse et la prise de décision.
     """
-    
+
     # Identification
     session_id: str = ""
     iteration: int = 0
-    
+
     # Stratégie
     strategy_name: str = ""
     strategy_description: str = ""
     current_params: Dict[str, Any] = field(default_factory=dict)
     param_specs: List[ParameterConfig] = field(default_factory=list)
-    
+
     # Données
     data_path: str = ""
     data_symbol: str = ""
     data_timeframe: str = ""
     data_rows: int = 0
     data_date_range: str = ""
-    
+
     # Résultats actuels
     current_metrics: Optional[MetricsSnapshot] = None
     train_metrics: Optional[MetricsSnapshot] = None
     test_metrics: Optional[MetricsSnapshot] = None
-    
+
     # Walk-forward results
     walk_forward_results: List[Dict[str, Any]] = field(default_factory=list)
     overfitting_ratio: float = 0.0
@@ -168,20 +168,20 @@ class AgentContext:
     iteration_history: List[Dict[str, Any]] = field(default_factory=list)
     best_metrics: Optional[MetricsSnapshot] = None
     best_params: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Objectifs
     optimization_target: str = "sharpe_ratio"
     min_sharpe: float = 1.0
     max_drawdown_limit: float = 0.20
     min_trades: int = 30
     max_overfitting_ratio: float = 1.5
-    
+
     # Messages des agents précédents
     analyst_report: str = ""
     strategist_proposals: List[Dict[str, Any]] = field(default_factory=list)
     critic_assessment: str = ""
     critic_concerns: List[str] = field(default_factory=list)
-    
+
     def to_summary_str(self) -> str:
         """Résumé textuel pour le LLM."""
         summary = f"""=== Optimization Context ===
@@ -200,10 +200,10 @@ Optimization Objectives:
 - Min Trades: {self.min_trades}
 - Max Overfitting Ratio: {self.max_overfitting_ratio}
 """
-        
+
         if self.current_metrics:
             summary += f"\n{self.current_metrics.to_summary_str()}"
-        
+
         if self.train_metrics and self.test_metrics:
             summary += f"""
 
@@ -212,9 +212,9 @@ Walk-Forward Analysis:
 - Test Sharpe: {self.test_metrics.sharpe_ratio:.2f}
 - Overfitting Ratio: {self.overfitting_ratio:.2f}
 """
-        
+
         return summary
-    
+
     def _params_to_str(self) -> str:
         """Formate les paramètres en string."""
         lines = []
@@ -227,36 +227,36 @@ Walk-Forward Analysis:
 class AgentResult:
     """
     Résultat d'exécution d'un agent.
-    
+
     Contient:
     - Le succès/échec
     - Les données produites
     - Les erreurs éventuelles
     - Les métriques de performance
     """
-    
+
     success: bool
     agent_role: AgentRole
-    
+
     # Contenu principal
     content: str = ""
     data: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Erreurs et avertissements
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
-    
+
     # Métriques d'exécution
     execution_time_ms: float = 0.0
     tokens_used: int = 0
     llm_calls: int = 0
-    
+
     # Timestamp
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     # Réponse LLM brute (pour debug)
     raw_llm_response: Optional[LLMResponse] = None
-    
+
     @classmethod
     def success_result(
         cls,
@@ -273,7 +273,7 @@ class AgentResult:
             data=data or {},
             **kwargs,
         )
-    
+
     @classmethod
     def failure_result(
         cls,
@@ -288,7 +288,7 @@ class AgentResult:
             errors=[error],
             **kwargs,
         )
-    
+
     def to_validation_result(self) -> ValidationResult:
         """Convertit en ValidationResult pour la state machine."""
         if self.success:
@@ -306,57 +306,57 @@ class AgentResult:
 class BaseAgent(ABC):
     """
     Classe de base pour tous les agents LLM.
-    
+
     Chaque agent doit implémenter:
     - role: Son rôle dans le workflow
     - system_prompt: Le prompt système définissant sa personnalité
     - execute(): La logique d'exécution principale
     - validate_result(): Validation du résultat produit
     """
-    
+
     def __init__(self, llm_client: LLMClient):
         """
         Initialise l'agent.
-        
+
         Args:
             llm_client: Client LLM à utiliser
         """
         self.llm = llm_client
         self._execution_count = 0
         self._total_tokens = 0
-    
+
     @property
     @abstractmethod
     def role(self) -> AgentRole:
         """Rôle de l'agent."""
         pass
-    
+
     @property
     @abstractmethod
     def system_prompt(self) -> str:
         """Prompt système définissant la personnalité de l'agent."""
         pass
-    
+
     @abstractmethod
     def execute(self, context: AgentContext) -> AgentResult:
         """
         Exécute la tâche principale de l'agent.
-        
+
         Args:
             context: Contexte d'exécution
-            
+
         Returns:
             Résultat de l'exécution
         """
         pass
-    
+
     def validate_result(self, result: AgentResult) -> ValidationResult:
         """
         Valide le résultat produit par l'agent.
-        
+
         Args:
             result: Résultat à valider
-            
+
         Returns:
             Résultat de validation
         """
@@ -365,14 +365,14 @@ class BaseAgent(ABC):
                 f"Agent {self.role.value} a échoué",
                 errors=result.errors,
             )
-        
+
         if not result.content and not result.data:
             return ValidationResult.failure(
                 f"Agent {self.role.value} n'a produit aucun résultat"
             )
-        
+
         return ValidationResult.success()
-    
+
     def _call_llm(
         self,
         user_message: str,
@@ -381,12 +381,12 @@ class BaseAgent(ABC):
     ) -> LLMResponse:
         """
         Appelle le LLM avec le prompt système de l'agent.
-        
+
         Args:
             user_message: Message utilisateur
             json_mode: Forcer réponse JSON
             temperature: Override température
-            
+
         Returns:
             Réponse LLM
         """
@@ -394,18 +394,18 @@ class BaseAgent(ABC):
             LLMMessage(role="system", content=self.system_prompt),
             LLMMessage(role="user", content=user_message),
         ]
-        
+
         response = self.llm.chat(
             messages,
             json_mode=json_mode,
             temperature=temperature,
         )
-        
+
         self._execution_count += 1
         self._total_tokens += response.total_tokens
-        
+
         return response
-    
+
     @property
     def stats(self) -> Dict[str, Any]:
         """Statistiques de l'agent."""

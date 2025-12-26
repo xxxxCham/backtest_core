@@ -70,7 +70,7 @@ def test_preset_auto_creation():
         print(f"✓ Indicateurs corrects: {preset.indicators}")
         return True
     else:
-        print(f"✗ Incohérence indicateurs")
+        print("✗ Incohérence indicateurs")
         print(f"   Attendu: {expected}")
         print(f"   Obtenu: {actual}")
         return False

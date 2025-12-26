@@ -13,20 +13,18 @@ Output: Liste de propositions de paramètres ordonnées
 
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+from utils.template import render_prompt
 
 from .base_agent import (
     AgentContext,
     AgentResult,
     AgentRole,
     BaseAgent,
-    ParameterConfig,
 )
-from .llm_client import LLMClient
-from utils.template import render_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +217,6 @@ Respond ONLY in valid JSON format with this exact structure:
         for proposal in proposals:
             params = proposal.get("parameters", {})
             fixed_params = {}
-            valid = True
 
             # Vérifier chaque paramètre
             for param_name, value in params.items():

@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -577,7 +577,7 @@ class HealthMonitor:
         snapshot = self.check_health()
         
         lines = [
-            f"=== Health Monitor ===",
+            "=== Health Monitor ===",
             f"Status: {snapshot.overall_status.value.upper()}",
             f"Time: {snapshot.timestamp.strftime('%H:%M:%S')}",
             "",

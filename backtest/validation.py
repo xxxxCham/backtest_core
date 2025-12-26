@@ -11,7 +11,7 @@ Module de validation anti-overfitting avec:
 Référence: Prado, M. L. de (2018). Advances in Financial Machine Learning.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np

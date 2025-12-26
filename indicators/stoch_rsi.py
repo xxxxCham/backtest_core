@@ -170,8 +170,8 @@ def stoch_rsi_divergence(
         # Trouver les min/max locaux
         price_min_idx = np.nanargmin(price_window)
         price_max_idx = np.nanargmax(price_window)
-        stoch_min_idx = np.nanargmin(stoch_window)
-        stoch_max_idx = np.nanargmax(stoch_window)
+        np.nanargmin(stoch_window)
+        np.nanargmax(stoch_window)
         
         # Divergence haussière: prix fait un plus bas, mais StochRSI fait un plus haut
         if price_min_idx > lookback // 2:  # Récent creux de prix

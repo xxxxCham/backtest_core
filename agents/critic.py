@@ -13,10 +13,11 @@ Output: Évaluation critique avec scores et filtrage
 
 from __future__ import annotations
 
-import json
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
+from utils.template import render_prompt
 
 from .base_agent import (
     AgentContext,
@@ -24,8 +25,6 @@ from .base_agent import (
     AgentRole,
     BaseAgent,
 )
-from .llm_client import LLMClient
-from utils.template import render_prompt
 
 logger = logging.getLogger(__name__)
 

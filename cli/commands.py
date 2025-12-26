@@ -6,9 +6,8 @@ Implémentation des commandes CLI.
 """
 
 import json
-import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -415,7 +414,6 @@ def cmd_backtest(args) -> int:
     from pathlib import Path
     
     from backtest.engine import BacktestEngine
-    from data.loader import load_ohlcv
     from strategies import get_strategy, list_strategies
     
     # Validation stratégie
@@ -597,10 +595,9 @@ def cmd_sweep(args) -> int:
     import os
     from pathlib import Path
     import json as json_module
-    from concurrent.futures import ProcessPoolExecutor, as_completed
     
     from backtest.engine import BacktestEngine
-    from strategies import get_strategy, list_strategies
+    from strategies import get_strategy
     from utils.parameters import generate_param_grid, ParameterSpec, compute_search_space_stats
     
     # Validation stratégie
@@ -1025,7 +1022,6 @@ def cmd_optuna(args) -> int:
         print_error("Optuna n'est pas installé: pip install optuna")
         return 1
     
-    from backtest.engine import BacktestEngine
     from strategies import get_strategy, list_strategies
     
     # Validation stratégie
@@ -1060,7 +1056,7 @@ def cmd_optuna(args) -> int:
         if args.pruning:
             print(f"  Pruning: activé ({args.pruner})")
         if args.multi_objective:
-            print(f"  Mode: Multi-objectif (Pareto)")
+            print("  Mode: Multi-objectif (Pareto)")
         print()
     
     # Charger données
@@ -1441,7 +1437,7 @@ def cmd_visualize(args) -> int:
         
         # Visualisation
         if df is not None:
-            figures = visualize_backtest(
+            visualize_backtest(
                 df=df,
                 trades=trades,
                 metrics=metrics,
@@ -1453,7 +1449,7 @@ def cmd_visualize(args) -> int:
         else:
             # Pas de données OHLCV - afficher seulement equity curve
             if equity_curve:
-                from utils.visualization import plot_equity_curve, plot_drawdown
+                from utils.visualization import plot_equity_curve
                 fig = plot_equity_curve(
                     equity_curve,
                     initial_capital=metrics.get('initial_capital', 10000),

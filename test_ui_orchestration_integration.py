@@ -19,15 +19,8 @@ from agents.orchestration_logger import (
     OrchestrationLogger,
     generate_session_id,
     OrchestrationActionType,
-    OrchestrationStatus,
 )
 
-from ui.orchestration_viewer import (
-    render_orchestration_logs,
-    render_orchestration_summary_table,
-    render_orchestration_metrics,
-    render_full_orchestration_viewer,
-)
 
 
 def create_sample_ohlcv(n_bars: int = 1000) -> pd.DataFrame:
@@ -179,15 +172,14 @@ def test_integration_with_strategist():
     
     try:
         from agents.integration import create_optimizer_from_engine
-        from agents.llm_client import LLMConfig, LLMProvider
         from agents.orchestration_logger import OrchestrationLogger, generate_session_id
         
         # Créer des données synthétiques
-        df = create_sample_ohlcv(500)
+        create_sample_ohlcv(500)
         
         # Créer le logger
         session_id = generate_session_id()
-        orchestration_logger = OrchestrationLogger(session_id=session_id)
+        OrchestrationLogger(session_id=session_id)
         
         print("✓ Données OHLCV créées (500 bars)")
         print("✓ OrchestrationLogger créé")

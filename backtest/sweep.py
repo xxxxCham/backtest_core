@@ -30,27 +30,24 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
     from strategies.base import StrategyBase
 
-from backtest.engine import BacktestEngine, RunResult
+from backtest.engine import BacktestEngine
 from performance.parallel import (
     ParallelRunner,
-    SweepResult as ParallelSweepResult,
     generate_param_grid,
 )
 from performance.monitor import (
-    PerformanceMonitor,
     ProgressBar,
     ResourceTracker,
 )
-from performance.profiler import Profiler, TimingContext
+from performance.profiler import Profiler
 from utils.parameters import compute_search_space_stats
 
 logger = logging.getLogger(__name__)

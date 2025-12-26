@@ -18,7 +18,6 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -30,24 +29,24 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BacktestRequest:
     """Requête de backtest formulée par un agent."""
-    
+
     # Identification
     request_id: str = ""
     requested_by: str = ""  # Nom de l'agent
     hypothesis: str = ""     # Pourquoi ce test ? (valeur LLM)
-    
+
     # Configuration
     strategy_name: str = ""
     parameters: Dict[str, Any] = field(default_factory=dict)
-    
+
     # Options
     use_walk_forward: bool = True
     walk_forward_windows: int = 5
     train_ratio: float = 0.7
-    
+
     # Timestamp
     created_at: datetime = field(default_factory=datetime.now)
-    
+
     def __post_init__(self):
         if not self.request_id:
             # Générer un ID basé sur les paramètres
@@ -60,10 +59,10 @@ class BacktestRequest:
 @dataclass
 class BacktestResult:
     """Résultat d'un backtest exécuté."""
-    
+
     request: BacktestRequest
     success: bool
-    
+
     # Métriques principales
     sharpe_ratio: float = 0.0
     sortino_ratio: float = 0.0
@@ -72,25 +71,25 @@ class BacktestResult:
     win_rate: float = 0.0
     profit_factor: float = 0.0
     total_trades: int = 0
-    
+
     # Métriques Tier S
     sqn: float = 0.0
     calmar_ratio: float = 0.0
     recovery_factor: float = 0.0
-    
+
     # Walk-Forward (si activé)
     train_sharpe: float = 0.0
     test_sharpe: float = 0.0
     overfitting_ratio: float = 0.0
-    
+
     # Métadonnées
     execution_time_ms: float = 0.0
     error_message: str = ""
-    
+
     # Données brutes (pour analyse détaillée)
     equity_curve: Optional[List[float]] = None
     trades: Optional[List[Dict]] = None
-    
+
     def to_summary_dict(self) -> Dict[str, Any]:
         """Résumé pour le LLM."""
         return {
@@ -107,7 +106,7 @@ class BacktestResult:
             "overfitting_ratio": round(self.overfitting_ratio, 2) if self.overfitting_ratio else None,
             "execution_time_ms": round(self.execution_time_ms, 1),
         }
-    
+
     def to_analysis_prompt(self) -> str:
         """Format pour analyse LLM."""
         lines = [
@@ -124,7 +123,7 @@ class BacktestResult:
             f"  Profit Factor: {self.profit_factor:.2f}",
             f"  Total Trades: {self.total_trades}",
         ]
-        
+
         if self.overfitting_ratio > 0:
             lines.extend([
                 "",
@@ -134,7 +133,7 @@ class BacktestResult:
                 f"  Overfitting Ratio: {self.overfitting_ratio:.2f}",
                 f"  {'⚠️ OVERFITTING DETECTED' if self.overfitting_ratio > 1.5 else '✓ Ratio acceptable'}",
             ])
-        
+
         return "\n".join(lines)
 
 
@@ -142,27 +141,27 @@ class BacktestResult:
 class ExperimentHistory:
     """
     Historique complet des expériences (backtests).
-    
+
     Permet au LLM de voir tous les tests précédents,
     comprendre ce qui a été essayé, et proposer de nouvelles directions.
     """
-    
+
     experiments: List[BacktestResult] = field(default_factory=list)
-    
+
     # Meilleure configuration trouvée
     best_result: Optional[BacktestResult] = None
     best_sharpe: float = float("-inf")
-    
+
     # Statistiques
     total_experiments: int = 0
     total_time_ms: float = 0.0
-    
+
     def add_result(self, result: BacktestResult) -> None:
         """Ajoute un résultat et met à jour les stats."""
         self.experiments.append(result)
         self.total_experiments += 1
         self.total_time_ms += result.execution_time_ms
-        
+
         # Mettre à jour le meilleur si applicable
         if result.success and result.sharpe_ratio > self.best_sharpe:
             # Vérifier overfitting
@@ -173,18 +172,18 @@ class ExperimentHistory:
                     f"Nouveau meilleur résultat: Sharpe={result.sharpe_ratio:.3f} "
                     f"avec params={result.request.parameters}"
                 )
-    
+
     def get_tried_parameters(self) -> List[Dict[str, Any]]:
         """Retourne tous les paramètres déjà testés."""
         return [exp.request.parameters for exp in self.experiments]
-    
+
     def get_summary_for_llm(self, last_n: int = 10) -> str:
         """Génère un résumé pour le LLM."""
         lines = [
             f"=== Experiment History ({self.total_experiments} total) ===",
             "",
         ]
-        
+
         if self.best_result:
             lines.extend([
                 "Best Configuration Found:",
@@ -194,10 +193,10 @@ class ExperimentHistory:
                 f"  Drawdown: {self.best_result.max_drawdown:.2%}",
                 "",
             ])
-        
+
         # Dernières expériences
         recent = self.experiments[-last_n:] if len(self.experiments) > last_n else self.experiments
-        
+
         lines.append(f"Last {len(recent)} Experiments:")
         for i, exp in enumerate(recent, 1):
             status = "✓" if exp.success else "✗"
@@ -206,7 +205,7 @@ class ExperimentHistory:
                 f"  {i}. [{status}] {exp.request.hypothesis[:50]}... "
                 f"Sharpe={sharpe}"
             )
-        
+
         # Insights
         if len(self.experiments) >= 3:
             sharpes = [e.sharpe_ratio for e in self.experiments if e.success]
@@ -220,21 +219,21 @@ class ExperimentHistory:
                     f"{((sharpes[-1] - sharpes[0]) / abs(sharpes[0]) * 100):.1f}% from first to last"
                     if len(sharpes) > 1 and sharpes[0] != 0 else "",
                 ])
-        
+
         return "\n".join(lines)
-    
+
     def analyze_parameter_sensitivity(self) -> Dict[str, Dict[str, float]]:
         """
         Analyse la sensibilité des paramètres.
-        
+
         Utile pour le LLM : savoir quels paramètres ont le plus d'impact.
         """
         if len(self.experiments) < 3:
             return {}
-        
+
         # Collecter les données
         param_values: Dict[str, List[Tuple[Any, float]]] = {}
-        
+
         for exp in self.experiments:
             if not exp.success:
                 continue
@@ -242,18 +241,18 @@ class ExperimentHistory:
                 if param not in param_values:
                     param_values[param] = []
                 param_values[param].append((value, exp.sharpe_ratio))
-        
+
         # Calculer la corrélation pour chaque paramètre
         sensitivity = {}
         for param, values in param_values.items():
             if len(values) < 3:
                 continue
-            
+
             # Convertir en arrays
             try:
                 x = np.array([float(v[0]) for v in values])
                 y = np.array([v[1] for v in values])
-                
+
                 # Corrélation
                 if np.std(x) > 0 and np.std(y) > 0:
                     corr = np.corrcoef(x, y)[0, 1]
@@ -265,36 +264,36 @@ class ExperimentHistory:
                     }
             except (ValueError, TypeError):
                 continue
-        
+
         return sensitivity
 
 
 class BacktestExecutor:
     """
     Exécuteur de backtests pour les agents LLM.
-    
+
     L'agent peut :
     1. Demander un backtest avec une hypothèse
     2. Recevoir les résultats
     3. Analyser et formuler une nouvelle hypothèse
     4. Itérer
-    
+
     Example:
         >>> executor = BacktestExecutor(engine, strategy, data)
-        >>> 
+        >>>
         >>> # L'agent formule une hypothèse
         >>> request = BacktestRequest(
         ...     hypothesis="Reducing fast_period should capture more signals",
         ...     parameters={"fast_period": 8, "slow_period": 21}
         ... )
-        >>> 
+        >>>
         >>> # Exécution
         >>> result = executor.run(request)
-        >>> 
+        >>>
         >>> # L'agent analyse
         >>> print(result.to_analysis_prompt())
     """
-    
+
     def __init__(
         self,
         backtest_fn: Callable[[str, Dict[str, Any], pd.DataFrame], Dict[str, Any]],
@@ -304,7 +303,7 @@ class BacktestExecutor:
     ):
         """
         Initialise l'exécuteur.
-        
+
         Args:
             backtest_fn: Fonction de backtest (strategy_name, params, data) -> metrics
             strategy_name: Nom de la stratégie
@@ -315,15 +314,15 @@ class BacktestExecutor:
         self.strategy_name = strategy_name
         self.data = data
         self.validation_fn = validation_fn
-        
+
         self.history = ExperimentHistory()
-        
+
         logger.info(f"BacktestExecutor initialisé: strategy={strategy_name}, rows={len(data)}")
-    
+
     def run(self, request: BacktestRequest) -> BacktestResult:
         """
         Exécute un backtest pour une requête d'agent.
-        
+
         Returns:
             BacktestResult avec toutes les métriques
         """
@@ -336,9 +335,9 @@ class BacktestExecutor:
             f"Exécution backtest: {request.request_id} | "
             f"Hypothèse: {hypothesis_preview}"
         )
-        
+
         start_time = time.time()
-        
+
         try:
             # Exécuter le backtest principal
             metrics = self.backtest_fn(
@@ -346,7 +345,7 @@ class BacktestExecutor:
                 request.parameters,
                 self.data
             )
-            
+
             # Créer le résultat
             # Note: Les métriques retournent des pourcentages (total_return_pct, win_rate, max_drawdown)
             # qui doivent être convertis en fractions (0-1) pour BacktestResult
@@ -370,7 +369,7 @@ class BacktestExecutor:
                 equity_curve=metrics.get("equity_curve"),
                 trades=metrics.get("trades"),
             )
-            
+
             # Walk-forward si demandé et disponible
             if request.use_walk_forward and self.validation_fn:
                 try:
@@ -386,9 +385,9 @@ class BacktestExecutor:
                     result.overfitting_ratio = wf_result.get("overfitting_ratio", 0)
                 except Exception as e:
                     logger.warning(f"Walk-forward échoué: {e}")
-            
+
             result.execution_time_ms = (time.time() - start_time) * 1000
-            
+
         except Exception as e:
             logger.error(f"Backtest échoué: {e}")
             result = BacktestResult(
@@ -397,20 +396,20 @@ class BacktestExecutor:
                 error_message=str(e),
                 execution_time_ms=(time.time() - start_time) * 1000,
             )
-        
+
         # Enregistrer dans l'historique
         self.history.add_result(result)
-        
+
         return result
-    
+
     def run_batch(self, requests: List[BacktestRequest]) -> List[BacktestResult]:
         """Exécute plusieurs backtests en séquence."""
         return [self.run(req) for req in requests]
-    
+
     def get_context_for_agent(self) -> str:
         """
         Génère le contexte complet pour un agent LLM.
-        
+
         Inclut :
         - Historique des expériences
         - Meilleure configuration
@@ -421,7 +420,7 @@ class BacktestExecutor:
             self.history.get_summary_for_llm(),
             "",
         ]
-        
+
         # Analyse de sensibilité
         sensitivity = self.history.analyze_parameter_sensitivity()
         if sensitivity:
@@ -429,8 +428,8 @@ class BacktestExecutor:
                 "Parameter Sensitivity Analysis:",
             ])
             for param, stats in sorted(
-                sensitivity.items(), 
-                key=lambda x: x[1]["impact"], 
+                sensitivity.items(),
+                key=lambda x: x[1]["impact"],
                 reverse=True
             ):
                 direction = "↑" if stats["direction"] == "positive" else "↓"
@@ -439,7 +438,7 @@ class BacktestExecutor:
                     f"(range: {stats['range_tested']})"
                 )
             lines.append("")
-        
+
         # Paramètres non encore testés dans certaines plages
         if self.history.total_experiments > 0:
             lines.extend([
@@ -447,30 +446,30 @@ class BacktestExecutor:
                 f"  - {self.history.total_experiments} experiments completed",
                 f"  - Total compute time: {self.history.total_time_ms/1000:.1f}s",
             ])
-            
+
             if self.history.best_result:
                 if self.history.best_result.overfitting_ratio > 1.3:
                     lines.append("  - ⚠️ Best config shows some overfitting tendency")
                 if self.history.best_result.total_trades < 50:
                     lines.append("  - ⚠️ Low trade count - consider wider parameters")
-        
+
         return "\n".join(lines)
-    
+
     def suggest_next_experiments(self, n: int = 3) -> List[Dict[str, Any]]:
         """
         Suggère les prochaines expériences basées sur l'historique.
-        
+
         Ce n'est PAS de l'intelligence LLM - c'est de l'exploration
         algorithmique pour guider le LLM.
         """
         suggestions = []
-        
+
         if not self.history.best_result:
             return suggestions
-        
+
         best_params = self.history.best_result.request.parameters
         sensitivity = self.history.analyze_parameter_sensitivity()
-        
+
         # 1. Varier le paramètre le plus impactant
         if sensitivity:
             most_impactful = max(sensitivity.items(), key=lambda x: x[1]["impact"])
@@ -482,25 +481,25 @@ class BacktestExecutor:
                     new_value = current * 1.2
                 else:
                     new_value = current * 0.8
-                
+
                 suggestions.append({
                     "type": "sensitivity_exploration",
                     "rationale": f"Explore {param_name} in favorable direction",
                     "parameters": {**best_params, param_name: int(new_value)},
                 })
-        
+
         # 2. Perturbation aléatoire autour du meilleur
         perturbed = {}
         for k, v in best_params.items():
             if isinstance(v, (int, float)):
                 # ±10% perturbation
                 perturbed[k] = int(v * (1 + np.random.uniform(-0.1, 0.1)))
-        
+
         if perturbed:
             suggestions.append({
                 "type": "local_search",
                 "rationale": "Small perturbation around best config",
                 "parameters": perturbed,
             })
-        
+
         return suggestions[:n]

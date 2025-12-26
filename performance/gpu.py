@@ -436,7 +436,7 @@ class GPUIndicatorCalculator:
         result[0] = arr[0]
         
         # Vectorized approximation (moins précis mais plus rapide)
-        weights = xp.power(1 - alpha, xp.arange(n))
+        xp.power(1 - alpha, xp.arange(n))
         for i in range(1, n):
             result[i] = alpha * arr[i] + (1 - alpha) * result[i-1]
         

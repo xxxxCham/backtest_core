@@ -141,7 +141,7 @@ def benchmark_function(
     
     for _ in range(benchmark_runs):
         with timer() as get_time:
-            result = func(*args, **kwargs)
+            func(*args, **kwargs)
         durations.append(get_time())
     
     mem_after = get_memory_usage()

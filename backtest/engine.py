@@ -15,7 +15,6 @@ Pipeline:
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
@@ -52,9 +51,7 @@ from utils.observability import (
     get_obs_logger,
     generate_run_id,
     trace_span,
-    safe_stats_df,
     PerfCounters,
-    build_diagnostic_summary,
 )
 
 # Logger par défaut (sans run_id)

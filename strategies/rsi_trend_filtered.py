@@ -3,10 +3,9 @@ RSI Reversal avec filtre de tendance.
 N'achète en survente que si tendance haussière (EMA rapide > EMA lente).
 """
 from typing import Any, Dict, List
-import numpy as np
 import pandas as pd
 from indicators.registry import calculate_indicator
-from strategies.base import StrategyBase, StrategyResult, register_strategy
+from strategies.base import StrategyBase, register_strategy
 from utils.parameters import ParameterSpec
 
 
