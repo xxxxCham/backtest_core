@@ -1085,6 +1085,427 @@ def render_strategy_param_diagram(
         )
         return
 
+    if strategy_key == "bollinger_atr_v2":
+        bb_period = max(2, min(int(params.get("bb_period", 20)), n - 1))
+        bb_std = float(params.get("bb_std", 2.0))
+        entry_z = float(params.get("entry_z", bb_std))
+        atr_period = max(2, min(int(params.get("atr_period", 14)), n - 1))
+        atr_percentile = float(params.get("atr_percentile", 30))
+        bb_stop_factor = float(params.get("bb_stop_factor", 0.5))
+
+        middle = price_series.rolling(window=bb_period, min_periods=1).mean()
+        sigma = price_series.rolling(window=bb_period, min_periods=1).std(ddof=0).fillna(0.5)
+        upper = middle + sigma * bb_std
+        lower = middle - sigma * bb_std
+        entry_upper = middle + sigma * entry_z
+        entry_lower = middle - sigma * entry_z
+
+        atr_values = price_series.diff().abs().rolling(window=atr_period, min_periods=1).mean()
+        atr_threshold = float(np.nanpercentile(atr_values, atr_percentile))
+
+        # Calculer les stop-loss Bollinger
+        bb_distance_lower = middle - lower
+        bb_distance_upper = upper - middle
+        stop_long = lower - bb_stop_factor * bb_distance_lower
+        stop_short = upper + bb_stop_factor * bb_distance_upper
+
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.08,
+            row_heights=[0.7, 0.3],
+            subplot_titles=(
+                "Prix + Bandes de Bollinger + Stop-Loss Bollinger (V2)",
+                "ATR et filtre de volatilite",
+            ),
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=lower,
+                name="Bollinger bas",
+                line=dict(color="rgba(100, 160, 200, 0.6)", width=1),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=upper,
+                name="Bollinger haut",
+                line=dict(color="rgba(100, 160, 200, 0.6)", width=1),
+                fill="tonexty",
+                fillcolor="rgba(100, 160, 200, 0.15)",
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=middle,
+                name="Bollinger milieu",
+                line=dict(color="rgba(140, 200, 255, 0.9)", width=1.5),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=entry_upper,
+                name="Seuil entry_z haut",
+                line=dict(color="rgba(255, 204, 128, 0.9)", width=1, dash="dot"),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=entry_lower,
+                name="Seuil entry_z bas",
+                line=dict(color="rgba(255, 204, 128, 0.9)", width=1, dash="dot"),
+            ),
+            row=1,
+            col=1,
+        )
+        # Ajouter les niveaux de stop-loss
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=stop_long,
+                name="Stop LONG",
+                line=dict(color="rgba(239, 83, 80, 0.7)", width=1.2, dash="dash"),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=stop_short,
+                name="Stop SHORT",
+                line=dict(color="rgba(239, 83, 80, 0.7)", width=1.2, dash="dash"),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=price,
+                name="Prix",
+                line=dict(color="#e0e0e0", width=1.5),
+            ),
+            row=1,
+            col=1,
+        )
+
+        entry_index = int(n * 0.25)
+        entry_price = float(entry_lower.iloc[entry_index])
+        stop_price = float(stop_long.iloc[entry_index])
+        fig.add_trace(
+            go.Scatter(
+                x=[entry_index],
+                y=[entry_price],
+                mode="markers",
+                name="Exemple entree LONG",
+                marker=dict(color="#26a69a", size=8),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_shape(
+            type="line",
+            x0=entry_index,
+            x1=entry_index,
+            y0=entry_price,
+            y1=stop_price,
+            line=dict(color="#ef5350", width=2),
+            row=1,
+            col=1,
+        )
+        fig.add_annotation(
+            x=entry_index,
+            y=stop_price,
+            text=f"Stop = lower - {bb_stop_factor:.1f} × (mid-low)",
+            showarrow=True,
+            arrowhead=2,
+            ax=-40,
+            ay=20,
+            font=dict(color="#ef9a9a", size=10),
+            row=1,
+            col=1,
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=atr_values,
+                name="ATR",
+                line=dict(color="#ab47bc", width=1.5),
+            ),
+            row=2,
+            col=1,
+        )
+        fig.add_hline(
+            y=atr_threshold,
+            line_dash="dot",
+            line_color="#ffa726",
+            annotation_text=f"Seuil {atr_percentile:.0f}%",
+            annotation_position="top left",
+            row=2,
+            col=1,
+        )
+
+        fig.update_layout(
+            height=520,
+            template="plotly_dark",
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#a8b2d1", size=11),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=40, r=40, t=60, b=40),
+        )
+        fig.update_xaxes(showgrid=False)
+        fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
+
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
+        st.caption(
+            "Parametres: "
+            f"bb_period={bb_period}, bb_std={bb_std:.2f}, entry_z={entry_z:.2f}, "
+            f"atr_period={atr_period}, atr_percentile={atr_percentile:.0f}%, bb_stop_factor={bb_stop_factor:.2f}"
+        )
+        st.markdown(
+            "**V2: Stop-loss basé sur les Bandes de Bollinger**\n\n"
+            "- bb_stop_factor: Distance du stop depuis les bandes (0.2=proche, 2.0=loin).\n"
+            "- LONG: stop = lower - bb_stop_factor × (middle - lower)\n"
+            "- SHORT: stop = upper + bb_stop_factor × (upper - middle)\n"
+            "- Le stop-loss est FIXE au moment de l'entrée."
+        )
+        return
+
+    if strategy_key == "bollinger_atr_v3":
+        bb_period = max(2, min(int(params.get("bb_period", 20)), n - 1))
+        bb_std = float(params.get("bb_std", 2.0))
+        atr_period = max(2, min(int(params.get("atr_period", 14)), n - 1))
+        atr_percentile = float(params.get("atr_percentile", 30))
+        entry_pct_long = float(params.get("entry_pct_long", 0.0))
+        entry_pct_short = float(params.get("entry_pct_short", 1.0))
+        stop_factor = float(params.get("stop_factor", 0.5))
+        tp_factor = float(params.get("tp_factor", 0.7))
+
+        middle = price_series.rolling(window=bb_period, min_periods=1).mean()
+        sigma = price_series.rolling(window=bb_period, min_periods=1).std(ddof=0).fillna(0.5)
+        upper = middle + sigma * bb_std
+        lower = middle - sigma * bb_std
+
+        atr_values = price_series.diff().abs().rolling(window=atr_period, min_periods=1).mean()
+        atr_threshold = float(np.nanpercentile(atr_values, atr_percentile))
+
+        # Calculer les niveaux d'entrée sur l'échelle unifiée
+        total_distance = upper - lower
+        entry_level_long = lower + entry_pct_long * total_distance
+        entry_level_short = lower + entry_pct_short * total_distance
+
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.08,
+            row_heights=[0.7, 0.3],
+            subplot_titles=(
+                f"Prix + Bandes de Bollinger (V3: {bb_std:.1f}σ) + Niveaux d'entrée variables",
+                "ATR et filtre de volatilite",
+            ),
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=lower,
+                name="Bollinger bas (0%)",
+                line=dict(color="rgba(100, 160, 200, 0.6)", width=1),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=upper,
+                name="Bollinger haut (100%)",
+                line=dict(color="rgba(100, 160, 200, 0.6)", width=1),
+                fill="tonexty",
+                fillcolor="rgba(100, 160, 200, 0.15)",
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=middle,
+                name="Bollinger milieu (50%)",
+                line=dict(color="rgba(140, 200, 255, 0.9)", width=1.5),
+            ),
+            row=1,
+            col=1,
+        )
+        # Niveaux d'entrée
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=entry_level_long,
+                name=f"Entrée LONG ({entry_pct_long*100:.0f}%)",
+                line=dict(color="rgba(76, 175, 80, 0.9)", width=1.5, dash="dot"),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=entry_level_short,
+                name=f"Entrée SHORT ({entry_pct_short*100:.0f}%)",
+                line=dict(color="rgba(171, 71, 188, 0.9)", width=1.5, dash="dot"),
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=price,
+                name="Prix",
+                line=dict(color="#e0e0e0", width=1.5),
+            ),
+            row=1,
+            col=1,
+        )
+
+        # Exemple de trade LONG
+        entry_index = int(n * 0.25)
+        entry_price = float(entry_level_long.iloc[entry_index])
+        distance = float(total_distance.iloc[entry_index])
+        stop_price = entry_price - stop_factor * distance
+        tp_price = entry_price + tp_factor * distance
+
+        fig.add_trace(
+            go.Scatter(
+                x=[entry_index],
+                y=[entry_price],
+                mode="markers",
+                name="Exemple entree LONG",
+                marker=dict(color="#26a69a", size=8),
+            ),
+            row=1,
+            col=1,
+        )
+        # Ligne Stop
+        fig.add_shape(
+            type="line",
+            x0=entry_index,
+            x1=entry_index + 15,
+            y0=stop_price,
+            y1=stop_price,
+            line=dict(color="#ef5350", width=2, dash="dash"),
+            row=1,
+            col=1,
+        )
+        # Ligne TP
+        fig.add_shape(
+            type="line",
+            x0=entry_index,
+            x1=entry_index + 15,
+            y0=tp_price,
+            y1=tp_price,
+            line=dict(color="#4caf50", width=2, dash="dash"),
+            row=1,
+            col=1,
+        )
+        fig.add_annotation(
+            x=entry_index + 15,
+            y=stop_price,
+            text=f"Stop ({stop_factor*100:.0f}%)",
+            showarrow=False,
+            xshift=45,
+            font=dict(color="#ef9a9a", size=9),
+            row=1,
+            col=1,
+        )
+        fig.add_annotation(
+            x=entry_index + 15,
+            y=tp_price,
+            text=f"TP ({tp_factor*100:.0f}%)",
+            showarrow=False,
+            xshift=35,
+            font=dict(color="#81c784", size=9),
+            row=1,
+            col=1,
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=x,
+                y=atr_values,
+                name="ATR",
+                line=dict(color="#ab47bc", width=1.5),
+            ),
+            row=2,
+            col=1,
+        )
+        fig.add_hline(
+            y=atr_threshold,
+            line_dash="dot",
+            line_color="#ffa726",
+            annotation_text=f"Seuil {atr_percentile:.0f}%",
+            annotation_position="top left",
+            row=2,
+            col=1,
+        )
+
+        fig.update_layout(
+            height=520,
+            template="plotly_dark",
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#a8b2d1", size=11),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=40, r=40, t=60, b=40),
+        )
+        fig.update_xaxes(showgrid=False)
+        fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
+
+        _apply_axis_interaction(fig)
+        st.plotly_chart(
+            fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
+        )
+        st.caption(
+            "Parametres: "
+            f"bb_period={bb_period}, bb_std={bb_std:.2f}, "
+            f"entry_long={entry_pct_long*100:.0f}%, entry_short={entry_pct_short*100:.0f}%, "
+            f"stop_factor={stop_factor:.2f}, tp_factor={tp_factor:.2f}"
+        )
+        st.markdown(
+            "**V3: Entrées, Stop et TP Variables sur Échelle Unifiée**\n\n"
+            "- **Échelle**: 0% = lower_band, 50% = middle_band, 100% = upper_band\n"
+            "- **entry_pct_long**: Position d'entrée LONG (-50% à +20%)\n"
+            "- **entry_pct_short**: Position d'entrée SHORT (+80% à +150%)\n"
+            "- **stop_factor**: Distance stop depuis entry_price (10% à 100% de distance totale)\n"
+            "- **tp_factor**: Distance TP depuis entry_price (20% à 150% de distance totale)\n"
+            "- **bb_std**: Amplitude des bandes (1σ à 4σ)\n\n"
+            "Formule: entry_level = lower + entry_pct × (upper - lower)"
+        )
+        return
+
     if strategy_key == "ema_cross":
         fast_period = max(2, min(int(params.get("fast_period", 12)), n - 1))
         slow_period = max(3, min(int(params.get("slow_period", 26)), n - 1))

@@ -70,6 +70,24 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         description="Mean-reversion Bollinger avec filtre volatilité ATR"
     ),
 
+    # 3b. Bollinger ATR V2 (Stop-Loss Bollinger paramétrable)
+    "bollinger_atr_v2": StrategyIndicators(
+        name="Bollinger ATR V2",
+        ui_label="📉 Bollinger + ATR V2 (Stop Bollinger)",
+        required_indicators=["bollinger", "atr"],
+        internal_indicators=[],
+        description="Mean-reversion Bollinger avec stop-loss Bollinger paramétrable (bb_stop_factor: 0.2-2.0)"
+    ),
+
+    # 3c. Bollinger ATR V3 (Entrée/Stop/TP Variables - Pure Logic)
+    "bollinger_atr_v3": StrategyIndicators(
+        name="Bollinger ATR V3",
+        ui_label="📉 Bollinger + ATR V3 (Entrée/Stop/TP Variables)",
+        required_indicators=["bollinger", "atr"],
+        internal_indicators=[],
+        description="Mean-reversion Bollinger avec entrées variables (-50% à +150%), stop/TP depuis entry_price, amplitude BB testable (1σ-4σ)"
+    ),
+
     # 4. MACD Cross
     "macd_cross": StrategyIndicators(
         name="MACD Cross",

@@ -1,15 +1,20 @@
 """
-Backtest Core - Bollinger Bands + ATR Strategy
-==============================================
+Backtest Core - Bollinger Bands + ATR Strategy V2
+==================================================
 
 Stratégie de mean-reversion basée sur les Bandes de Bollinger
-avec filtre de volatilité ATR.
+avec filtre de volatilité ATR et stop-loss Bollinger paramétrable.
+
+Améliorations V2:
+- Stop-loss basé sur les bandes de Bollinger (au lieu de ATR)
+- Facteur de stop-loss paramétrable (bb_stop_factor: 0.2 à 2.0)
+- Stop-loss fixe au moment de l'entrée (ne bouge pas)
 
 Logique:
 - LONG: Prix touche/dépasse la bande inférieure (oversold)
 - SHORT: Prix touche/dépasse la bande supérieure (overbought)
 - Filtre ATR: Ne trade que si volatilité > seuil (évite marchés plats)
-- Stop-loss: Basé sur multiple de l'ATR
+- Stop-loss: Basé sur distance Bollinger × bb_stop_factor
 """
 
 from typing import Any, Dict, List, Optional
@@ -22,28 +27,35 @@ from utils.parameters import SAFE_RANGES_PRESET, ParameterSpec, Preset
 from .base import StrategyBase, register_strategy
 
 
-@register_strategy("bollinger_atr")
-class BollingerATRStrategy(StrategyBase):
+@register_strategy("bollinger_atr_v2")
+class BollingerATRStrategyV2(StrategyBase):
     """
-    Stratégie Bollinger Bands + ATR (Mean Reversion).
-
-    Cette stratégie est le "moteur de Baptiste" - la stratégie de référence
-    utilisée pour valider le nouveau moteur de backtest.
+    Stratégie Bollinger Bands + ATR V2 (Mean Reversion + Stop Bollinger).
 
     Paramètres:
+        bb_period: Période des Bandes de Bollinger (défaut: 20)
+        bb_std: Écarts-types pour les bandes (défaut: 2.0)
         entry_z: Seuil d'entrée en Z-score (défaut: 2.0)
-        k_sl: Multiplicateur ATR pour stop-loss (défaut: 1.5)
+        atr_period: Période de l'ATR (défaut: 14)
         atr_percentile: Percentile ATR pour filtre volatilité (défaut: 30)
+        bb_stop_factor: Facteur de stop-loss Bollinger (défaut: 0.5)
+            - 0.2 = stop très proche des bandes (conservateur)
+            - 0.5 = stop à mi-distance (équilibré)
+            - 2.0 = stop très éloigné (agressif)
         leverage: Levier de trading (défaut: 3)
 
+    Stop-Loss:
+        - LONG: stop = lower_band - bb_stop_factor × (middle_band - lower_band)
+        - SHORT: stop = upper_band + bb_stop_factor × (upper_band - middle_band)
+
     Signaux:
-        +1 (Long): close <= lower_band ET ATR > seuil
-        -1 (Short): close >= upper_band ET ATR > seuil
+        +1 (Long): close <= entry_lower ET ATR > seuil
+        -1 (Short): close >= entry_upper ET ATR > seuil
         0: Sinon
     """
 
     def __init__(self):
-        super().__init__(name="BollingerATR")
+        super().__init__(name="BollingerATR_V2")
 
     @property
     def required_indicators(self) -> List[str]:
@@ -62,7 +74,7 @@ class BollingerATRStrategy(StrategyBase):
             "atr_percentile": 30,  # Filtre: ATR doit être > ce percentile
             # Trading
             "entry_z": 2.0,  # Z-score pour entrée (touch band = 2 std)
-            "k_sl": 1.5,     # Stop loss = k_sl * ATR
+            "bb_stop_factor": 0.5,  # NOUVEAU: Facteur de stop-loss Bollinger
             "leverage": 3,
             # Frais (pour référence)
             "fees_bps": 10,
@@ -89,7 +101,7 @@ class BollingerATRStrategy(StrategyBase):
                 name="entry_z",
                 min_val=1.0, max_val=3.0, default=2.0,
                 param_type="float",
-                description="Seuil z-score pour entree"
+                description="Seuil z-score pour entrée"
             ),
             "atr_period": ParameterSpec(
                 name="atr_period",
@@ -101,13 +113,13 @@ class BollingerATRStrategy(StrategyBase):
                 name="atr_percentile",
                 min_val=10, max_val=60, default=30,
                 param_type="int",
-                description="Percentile volatilite minimum (ATR)"
+                description="Percentile volatilité minimum (ATR)"
             ),
-            "k_sl": ParameterSpec(
-                name="k_sl",
-                min_val=1.0, max_val=3.0, default=1.5,
+            "bb_stop_factor": ParameterSpec(
+                name="bb_stop_factor",
+                min_val=0.2, max_val=2.0, step=0.1, default=0.5,
                 param_type="float",
-                description="Multiplicateur ATR pour stop-loss"
+                description="Facteur stop-loss Bollinger (0.2=proche, 2.0=loin)"
             ),
             "leverage": ParameterSpec(
                 name="leverage",
@@ -126,7 +138,7 @@ class BollingerATRStrategy(StrategyBase):
         indicator_name: str,
         params: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Mappe les parametres de la strategie vers les indicateurs."""
+        """Mappe les paramètres de la stratégie vers les indicateurs."""
         if indicator_name == "bollinger":
             return {
                 "period": int(params.get("bb_period", 20)),
@@ -210,15 +222,18 @@ class BollingerATRStrategy(StrategyBase):
             signals[low_volatility] = 0.0
 
         # === Calculer stop-loss basés sur Bollinger Bands ===
-        # Pour LONG: stop = lower_band - 0.5 × (middle_band - lower_band)
-        # Pour SHORT: stop = upper_band + 0.5 × (upper_band - middle_band)
-        # Ces stop-loss sont stockés dans le DataFrame pour utilisation ultérieure
+        # Récupérer le facteur de stop-loss (paramétrable)
+        bb_stop_factor = float(params.get("bb_stop_factor", 0.5))
+
+        # Distances entre bandes
         bb_distance_lower = middle - lower  # Distance entre middle et lower
         bb_distance_upper = upper - middle  # Distance entre middle et upper
 
-        # Calculer les prix de stop-loss pour chaque type de position
-        stop_long = lower - 0.5 * bb_distance_lower   # En dessous de lower_band
-        stop_short = upper + 0.5 * bb_distance_upper  # Au dessus de upper_band
+        # Calculer les prix de stop-loss avec le facteur paramétrable
+        # LONG: stop = lower - bb_stop_factor × (middle - lower)
+        # SHORT: stop = upper + bb_stop_factor × (upper - middle)
+        stop_long = lower - bb_stop_factor * bb_distance_lower
+        stop_short = upper + bb_stop_factor * bb_distance_upper
 
         # Ajouter les colonnes au DataFrame (disponibles pour le backtest)
         df.loc[:, 'bb_stop_long'] = stop_long
@@ -226,6 +241,7 @@ class BollingerATRStrategy(StrategyBase):
         df.loc[:, 'bb_upper'] = upper
         df.loc[:, 'bb_middle'] = middle
         df.loc[:, 'bb_lower'] = lower
+        df.loc[:, 'bb_stop_factor'] = bb_stop_factor  # Pour debug/analyse
 
         # === Éviter signaux consécutifs identiques ===
         # Ne garder que les changements de signal
@@ -244,9 +260,9 @@ class BollingerATRStrategy(StrategyBase):
         params: Dict[str, Any]
     ) -> float:
         """
-        Calcule la taille de position basée sur le risque ATR.
+        Calcule la taille de position basée sur le risque.
 
-        Position sizing: risk_amount / (k_sl * ATR)
+        Position sizing: risk_amount / stop_distance
 
         Args:
             capital: Capital disponible
@@ -258,14 +274,15 @@ class BollingerATRStrategy(StrategyBase):
             Quantité à trader
         """
         leverage = params.get("leverage", 3)
-        k_sl = params.get("k_sl", 1.5)
         risk_pct = params.get("risk_pct", 0.02)  # 2% du capital par trade
 
         # Risque en valeur absolue
         risk_amount = capital * risk_pct
 
-        # Distance du stop en prix
-        stop_distance = k_sl * atr_value
+        # Distance du stop (estimation basée sur ATR en attendant les bandes)
+        # Note: Dans un backtest réel, cela serait calculé via bb_stop_long/short
+        bb_stop_factor = params.get("bb_stop_factor", 0.5)
+        stop_distance = bb_stop_factor * atr_value
 
         # Quantité basée sur le risque
         if stop_distance > 0:
@@ -291,19 +308,19 @@ class BollingerATRStrategy(StrategyBase):
         """
         Calcule le niveau de stop-loss basé sur les bandes de Bollinger.
 
-        Logique:
-        - LONG: stop = lower_band - 0.5 × (middle_band - lower_band)
-                (moitié de la distance entre middle et lower, EN DESSOUS de lower_band)
-        - SHORT: stop = upper_band + 0.5 × (upper_band - middle_band)
-                (moitié de la distance entre upper et middle, AU DESSUS de upper_band)
+        Logique V2 (paramétrable):
+        - LONG: stop = lower_band - bb_stop_factor × (middle_band - lower_band)
+                (facteur × distance entre middle et lower, EN DESSOUS de lower_band)
+        - SHORT: stop = upper_band + bb_stop_factor × (upper_band - middle_band)
+                (facteur × distance entre upper et middle, AU DESSUS de upper_band)
 
         Cette valeur est FIXE au moment de l'entrée (ne change pas avec les nouvelles bandes).
 
         Args:
             entry_price: Prix d'entrée
-            atr_value: Valeur ATR (non utilisé avec stop Bollinger)
+            atr_value: Valeur ATR (fallback uniquement)
             side: "long" ou "short"
-            params: Paramètres
+            params: Paramètres (contient bb_stop_factor)
             bb_middle: Bande de Bollinger médiane (au moment de l'entrée)
             bb_upper: Bande de Bollinger supérieure (au moment de l'entrée)
             bb_lower: Bande de Bollinger inférieure (au moment de l'entrée)
@@ -311,20 +328,23 @@ class BollingerATRStrategy(StrategyBase):
         Returns:
             Prix du stop-loss
         """
+        # Récupérer le facteur paramétrable
+        bb_stop_factor = float(params.get("bb_stop_factor", 0.5))
+
         # Si les bandes de Bollinger sont fournies, utiliser la logique Bollinger
         if bb_middle is not None and bb_upper is not None and bb_lower is not None:
             if side == "long":
-                # Stop LONG: lower - 0.5 × (middle - lower)
+                # Stop LONG: lower - bb_stop_factor × (middle - lower)
                 bb_distance = bb_middle - bb_lower
-                return bb_lower - 0.5 * bb_distance
+                return bb_lower - bb_stop_factor * bb_distance
             else:  # SHORT
-                # Stop SHORT: upper + 0.5 × (upper - middle)
+                # Stop SHORT: upper + bb_stop_factor × (upper - middle)
                 bb_distance = bb_upper - bb_middle
-                return bb_upper + 0.5 * bb_distance
+                return bb_upper + bb_stop_factor * bb_distance
         else:
             # Fallback: logique ATR legacy (si les bandes ne sont pas disponibles)
-            k_sl = params.get("k_sl", 1.5)
-            distance = k_sl * atr_value
+            # Utiliser bb_stop_factor à la place de k_sl
+            distance = bb_stop_factor * atr_value
 
             if side == "long":
                 return entry_price - distance
@@ -332,4 +352,4 @@ class BollingerATRStrategy(StrategyBase):
                 return entry_price + distance
 
 
-__all__ = ["BollingerATRStrategy"]
+__all__ = ["BollingerATRStrategyV2"]

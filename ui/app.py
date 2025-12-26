@@ -133,9 +133,13 @@ _BEST_PNL_TRACKER = None
 
 
 class _BestPnlTracker(logging.Handler):
+    """
+    Tracker du meilleur PnL de backtest (PnL total du meilleur run).
+    Note: Capture le PnL TOTAL du backtest, pas le meilleur trade individuel.
+    """
     def __init__(self) -> None:
         super().__init__(level=logging.INFO)
-        self.best_pnl: Optional[float] = None
+        self.best_backtest_pnl: Optional[float] = None
         self.best_run_id: Optional[str] = None
         self._lock = threading.Lock()
         self._pnl_pattern = re.compile(
@@ -147,8 +151,16 @@ class _BestPnlTracker(logging.Handler):
         if record.name != "backtest.engine":
             return
         msg = record.getMessage()
+
+        # Ignorer les logs qui ne sont pas des résultats de backtest complets
         if "pnl" not in msg.lower():
             return
+
+        # Capturer uniquement le log final du backtest (pipeline_end)
+        # qui contient le PnL TOTAL du backtest
+        if "pipeline_end" not in msg and "duration_ms" not in msg:
+            return
+
         match = self._pnl_pattern.search(msg)
         if not match:
             return
@@ -157,13 +169,13 @@ class _BestPnlTracker(logging.Handler):
         except ValueError:
             return
         with self._lock:
-            if self.best_pnl is None or pnl > self.best_pnl:
-                self.best_pnl = pnl
+            if self.best_backtest_pnl is None or pnl > self.best_backtest_pnl:
+                self.best_backtest_pnl = pnl
                 self.best_run_id = getattr(record, "run_id", None)
 
     def get_best(self) -> Tuple[Optional[float], Optional[str]]:
         with self._lock:
-            return self.best_pnl, self.best_run_id
+            return self.best_backtest_pnl, self.best_run_id
 
 
 def _install_best_pnl_tracker() -> _BestPnlTracker:
@@ -351,6 +363,8 @@ def generate_strategies_table() -> str:
     # On utilise les mêmes dictionnaires pour assurer la cohérence
     display_names = {
         "bollinger_atr": "Bollinger + ATR",
+        "bollinger_atr_v2": "Bollinger + ATR V2",
+        "bollinger_atr_v3": "Bollinger + ATR V3",
         "ema_cross": "EMA Crossover",
         "macd_cross": "MACD Crossover",
         "rsi_reversal": "RSI Reversal",
@@ -363,6 +377,8 @@ def generate_strategies_table() -> str:
 
     types = {
         "bollinger_atr": "Mean Rev.",
+        "bollinger_atr_v2": "Mean Rev.",
+        "bollinger_atr_v3": "Mean Rev.",
         "ema_cross": "Trend",
         "macd_cross": "Momentum",
         "rsi_reversal": "Mean Rev.",
@@ -375,6 +391,8 @@ def generate_strategies_table() -> str:
 
     descriptions = {
         "bollinger_atr": "Bandes + filtre volatilité",
+        "bollinger_atr_v2": "Stop Bollinger paramétrable",
+        "bollinger_atr_v3": "Entrée/Stop/TP variables",
         "ema_cross": "Golden/Death cross EMAs",
         "macd_cross": "MACD vs Signal line",
         "rsi_reversal": "Survente/Surachat RSI",
@@ -1442,6 +1460,8 @@ st.sidebar.subheader("🎯 Stratégie")
 available_strategies = list_strategies()
 strategy_display = {
     "bollinger_atr": "📉 Bollinger + ATR (Mean Reversion)",
+    "bollinger_atr_v2": "📉 Bollinger + ATR V2 (Stop Bollinger)",
+    "bollinger_atr_v3": "📉 Bollinger + ATR V3 (Entrée/Stop/TP Variables)",
     "ema_cross": "📈 EMA Crossover (Trend Following)",
     "macd_cross": "📊 MACD Crossover (Momentum)",
     "rsi_reversal": "🔄 RSI Reversal (Mean Reversion)",
@@ -1455,6 +1475,8 @@ strategy_display = {
 # Types de stratégies pour génération dynamique du tableau
 strategy_types = {
     "bollinger_atr": "Mean Rev.",
+    "bollinger_atr_v2": "Mean Rev.",
+    "bollinger_atr_v3": "Mean Rev.",
     "ema_cross": "Trend",
     "macd_cross": "Momentum",
     "rsi_reversal": "Mean Rev.",
@@ -1476,6 +1498,8 @@ strategy_key = strategy_options[strategy_name]
 # Description de la stratégie
 strategy_descriptions = {
     "bollinger_atr": "Achète bas des bandes, vend haut. Filtre ATR.",
+    "bollinger_atr_v2": "Stop-loss Bollinger paramétrable (bb_stop_factor).",
+    "bollinger_atr_v3": "Entrées/Stop/TP variables sur échelle unifiée.",
     "ema_cross": "Achète sur golden cross EMA, vend sur death cross.",
     "macd_cross": "Achète MACD > Signal, vend MACD < Signal.",
     "rsi_reversal": "Achète RSI<30, vend RSI>70.",
@@ -1513,6 +1537,8 @@ except KeyError:
 st.sidebar.subheader("Indicateurs")
 strategy_indicator_options = {
     "bollinger_atr": ["bollinger", "atr"],
+    "bollinger_atr_v2": ["bollinger", "atr"],
+    "bollinger_atr_v3": ["bollinger", "atr"],
     "ema_cross": ["ema"],
     "macd_cross": ["macd"],
     "rsi_reversal": ["rsi"],
@@ -2461,10 +2487,10 @@ if run_button:
                         pmin, pmax, step = r["min"], r["max"], r["step"]
 
                         # Générer les valeurs
-                        if isinstance(pmin, int) and isinstance(pstep, int):
-                            values = list(range(int(pmin), int(pmax) + 1, int(pstep)))
+                        if isinstance(pmin, int) and isinstance(step, int):
+                            values = list(range(int(pmin), int(pmax) + 1, int(step)))
                         else:
-                            values = list(np.arange(float(pmin), float(pmax) + float(pstep)/2, float(pstep)))
+                            values = list(np.arange(float(pmin), float(pmax) + float(step)/2, float(step)))
                             values = [round(v, 2) for v in values if v <= pmax]
 
                         param_values_lists.append(values)
@@ -3299,9 +3325,9 @@ if result is not None:
         with col5:
             best_pnl, best_run_id = _BEST_PNL_TRACKER.get_best()
             if best_pnl is None:
-                st.metric("Best PnL seen", "n/a")
+                st.metric("Backtest PnL (best run)", "n/a")
             else:
-                st.metric("Best PnL seen", f"${best_pnl:,.2f}")
+                st.metric("Backtest PnL (best run)", f"${best_pnl:,.2f}")
                 if best_run_id:
                     st.caption(f"run {best_run_id}")
 
