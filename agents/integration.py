@@ -38,6 +38,83 @@ if TYPE_CHECKING:  # pragma: no cover
 # Logger module-level (sans run_id spécifique)
 _logger = get_obs_logger(__name__)
 
+# Constantes pour validation walk-forward
+MIN_DAYS_FOR_WALK_FORWARD = 180  # 6 mois minimum
+
+
+def validate_walk_forward_period(
+    data: pd.DataFrame,
+    min_days: int = MIN_DAYS_FOR_WALK_FORWARD,
+) -> tuple[bool, int, str]:
+    """
+    Valide si la période de données est suffisante pour une walk-forward validation.
+
+    La walk-forward nécessite une période minimale pour avoir une signification
+    statistique. En dessous de 6 mois, les folds sont trop courts et les résultats
+    sont dominés par le bruit statistique.
+
+    Args:
+        data: DataFrame OHLCV avec index datetime ou colonne 'timestamp'
+        min_days: Nombre de jours minimum requis (défaut: 180 = 6 mois)
+
+    Returns:
+        Tuple (is_valid, duration_days, message)
+        - is_valid: True si période suffisante, False sinon
+        - duration_days: Durée en jours de la période
+        - message: Message explicatif
+
+    Exemples:
+        >>> is_valid, days, msg = validate_walk_forward_period(df)
+        >>> if not is_valid:
+        ...     print(f"⚠️ {msg}")
+        ...     # Désactiver walk-forward
+    """
+    # Extraire les timestamps
+    if isinstance(data.index, pd.DatetimeIndex):
+        start_dt = data.index[0]
+        end_dt = data.index[-1]
+    elif "timestamp" in data.columns:
+        # Essayer de convertir en datetime si ce n'est pas déjà le cas
+        ts_col = data["timestamp"]
+        if pd.api.types.is_datetime64_any_dtype(ts_col):
+            start_dt = ts_col.iloc[0]
+            end_dt = ts_col.iloc[-1]
+        elif pd.api.types.is_numeric_dtype(ts_col):
+            # Si timestamp numérique, détecter ms vs s
+            first_val = ts_col.iloc[0]
+            if first_val > 1e12:
+                start_dt = pd.to_datetime(first_val, unit="ms")
+                end_dt = pd.to_datetime(ts_col.iloc[-1], unit="ms")
+            else:
+                start_dt = pd.to_datetime(first_val, unit="s")
+                end_dt = pd.to_datetime(ts_col.iloc[-1], unit="s")
+        else:
+            raise ValueError("Timestamp column must be datetime or numeric")
+    else:
+        raise ValueError("DataFrame must have DatetimeIndex or 'timestamp' column")
+
+    # Calculer la durée en jours
+    duration = (end_dt - start_dt).days
+
+    # Valider
+    if duration < min_days:
+        months = duration / 30.0
+        min_months = min_days / 30.0
+        message = (
+            f"Période insuffisante pour walk-forward validation: "
+            f"{duration} jours ({months:.1f} mois) < {min_days} jours ({min_months:.0f} mois minimum). "
+            f"Walk-forward DÉSACTIVÉ automatiquement pour éviter des résultats non significatifs."
+        )
+        return False, duration, message
+
+    months = duration / 30.0
+    message = (
+        f"Période validée pour walk-forward: "
+        f"{duration} jours ({months:.1f} mois) ≥ {min_days} jours. "
+        f"Walk-forward validation activée."
+    )
+    return True, duration, message
+
 
 def run_backtest_for_agent(
     strategy_name: str,
@@ -331,6 +408,19 @@ def create_optimizer_from_engine(
             f"Stratégie '{strategy_name}' inconnue. Disponibles: {available}"
         )
 
+    # Valider la période pour walk-forward (garde-fou)
+    walk_forward_disabled_reason = None
+    if use_walk_forward:
+        is_valid, duration_days, message = validate_walk_forward_period(data)
+        if not is_valid:
+            _logger.warning(
+                "walk_forward_auto_disabled duration_days=%s reason='period_too_short'",
+                duration_days
+            )
+            _logger.warning(message)
+            use_walk_forward = False  # Forcer désactivation
+            walk_forward_disabled_reason = message
+
     # Créer le client LLM
     llm_client = create_llm_client(llm_config)
 
@@ -386,6 +476,13 @@ def create_optimizer_from_engine(
         "optimizer_created strategy=%s rows=%s walk_forward=%s",
         strategy_name, len(data), use_walk_forward
     )
+
+    # Si walk-forward désactivé automatiquement, logger pour rapport final
+    if walk_forward_disabled_reason:
+        _logger.info(
+            "walk_forward_validation_status disabled_reason='%s'",
+            walk_forward_disabled_reason
+        )
 
     return strategist, executor
 
@@ -597,6 +694,19 @@ def create_orchestrator_with_backtest(
     from .base_agent import ParameterConfig
     from .orchestrator import Orchestrator, OrchestratorConfig
 
+    # Valider la période pour walk-forward (garde-fou)
+    walk_forward_disabled_reason = None
+    if use_walk_forward:
+        is_valid, duration_days, message = validate_walk_forward_period(data)
+        if not is_valid:
+            _logger.warning(
+                "walk_forward_auto_disabled duration_days=%s reason='period_too_short'",
+                duration_days
+            )
+            _logger.warning(message)
+            use_walk_forward = False  # Forcer désactivation
+            walk_forward_disabled_reason = message
+
     # Récupérer les specs des paramètres
     param_space = get_strategy_param_space(strategy_name, include_step=True)
     param_specs = []
@@ -633,11 +743,24 @@ def create_orchestrator_with_backtest(
         llm_config=llm_config,
         role_model_config=role_model_config,
         use_walk_forward=use_walk_forward,
+        walk_forward_disabled_reason=walk_forward_disabled_reason,
         data=data,
         n_workers=n_workers,
         session_id=session_id,
         orchestration_logger=orchestration_logger,
         on_backtest_needed=on_backtest_needed,
     )
+
+    _logger.info(
+        "orchestrator_created strategy=%s rows=%s walk_forward=%s",
+        strategy_name, len(data), use_walk_forward
+    )
+
+    # Si walk-forward désactivé automatiquement, logger pour rapport final
+    if walk_forward_disabled_reason:
+        _logger.info(
+            "walk_forward_validation_status disabled_reason='%s'",
+            walk_forward_disabled_reason
+        )
 
     return Orchestrator(orchestrator_config)

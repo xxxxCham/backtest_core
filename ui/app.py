@@ -194,6 +194,21 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Improve contrast for timeline timestamps on light status cards.
+st.markdown(
+    """
+<style>
+div[style*="border-left: 4px solid rgba(0,0,0,0.2)"] code,
+div[style*="border-left: 4px solid #666"] code {
+    color: #111827 !important;
+    background-color: rgba(255,255,255,0.65) !important;
+    border: 1px solid rgba(15,23,42,0.25) !important;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
 # ============================================================================
 # CONSTANTES ET CONTRAINTES
 # ============================================================================
@@ -2443,7 +2458,7 @@ if run_button:
                     param_values_lists = []
                     for pname in param_names:
                         r = param_ranges[pname]
-                        pmin, pmax, pstep = r["min"], r["max"], r["step"]
+                        pmin, pmax, step = r["min"], r["max"], r["step"]
 
                         # Générer les valeurs
                         if isinstance(pmin, int) and isinstance(pstep, int):

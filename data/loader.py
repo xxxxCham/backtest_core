@@ -183,7 +183,23 @@ def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
                 break
 
         if time_col:
-            df[time_col] = pd.to_datetime(df[time_col])
+            # Détecter le format du timestamp (millisecondes vs secondes vs datetime)
+            sample_ts = df[time_col].iloc[0]
+            if isinstance(sample_ts, (int, float, np.integer, np.floating)):
+                # Convertir en float pour éviter problème numpy
+                sample_val = float(sample_ts)
+                if sample_val > 1e12:
+                    # Timestamp en millisecondes
+                    df[time_col] = pd.to_datetime(df[time_col], unit='ms')
+                elif sample_val > 1e9:
+                    # Timestamp en secondes
+                    df[time_col] = pd.to_datetime(df[time_col], unit='s')
+                else:
+                    # Format datetime normal
+                    df[time_col] = pd.to_datetime(df[time_col])
+            else:
+                # String datetime
+                df[time_col] = pd.to_datetime(df[time_col])
             df = df.set_index(time_col)
         else:
             # Essayer de parser l'index

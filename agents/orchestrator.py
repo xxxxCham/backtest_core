@@ -30,6 +30,7 @@ from .model_config import RoleModelConfig
 from .state_machine import AgentState, StateMachine, ValidationResult
 from .strategist import StrategistAgent
 from .validator import ValidationDecision, ValidatorAgent
+from utils.session_param_tracker import SessionParameterTracker
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ class OrchestratorConfig:
     use_walk_forward: bool = True
     walk_forward_windows: int = 5
     train_ratio: float = 0.7
+    walk_forward_disabled_reason: Optional[str] = None  # Raison si désactivé automatiquement
 
     # Callbacks (optionnels)
     on_state_change: Optional[Callable[[AgentState, AgentState], None]] = None
@@ -172,6 +174,9 @@ class Orchestrator:
         self._backtests_count = 0
         self._errors: List[str] = []
         self._warnings: List[str] = []
+
+        # Session Parameter Tracker - empêche les LLMs de retester les mêmes paramètres
+        self.param_tracker = SessionParameterTracker(session_id=self.session_id)
 
         # Données chargées (pour walk-forward)
         self._loaded_data: Optional[Any] = getattr(config, "data", None)
@@ -411,6 +416,15 @@ class Orchestrator:
         # Mettre à jour l'itération dans le contexte
         self.context.iteration = self.state_machine.iteration
 
+        # Ajouter le résumé du tracker de session pour informer l'Analyst
+        if hasattr(self, 'param_tracker'):
+            # Ajouter dynamiquement au contexte (pour ne pas modifier base_agent.py)
+            setattr(
+                self.context,
+                'session_params_summary',
+                self.param_tracker.get_summary()
+            )
+
         # Exécuter l'Analyst
         self._apply_role_model("analyst")
         self._log_event("agent_execute_start", role="analyst", model=self.llm_client.config.model)
@@ -451,6 +465,14 @@ class Orchestrator:
         self._log_event("phase_start", phase="PROPOSE")
         logger.info("Phase PROPOSE: Exécution Agent Strategist")
 
+        # Ajouter le résumé du tracker de session pour informer le Strategist
+        if hasattr(self, 'param_tracker'):
+            setattr(
+                self.context,
+                'session_params_summary',
+                self.param_tracker.get_summary()
+            )
+
         # Exécuter le Strategist
         self._apply_role_model("strategist")
         self._log_event("agent_execute_start", role="strategist", model=self.llm_client.config.model)
@@ -470,9 +492,43 @@ class Orchestrator:
 
         # Stocker les propositions
         proposals = result.data.get("proposals", [])
-        self.context.strategist_proposals = proposals[:self.config.max_proposals_per_iteration]
-        self._log_event("proposals_generated", count=len(self.context.strategist_proposals))
-        logger.info(f"Strategist: {len(self.context.strategist_proposals)} propositions générées")
+        proposals = proposals[:self.config.max_proposals_per_iteration]
+
+        # Filtrer les propositions déjà testées dans cette session
+        filtered_proposals = []
+        duplicates_count = 0
+        for proposal in proposals:
+            params = proposal.get("parameters", {})
+            if not params:
+                continue
+
+            # Vérifier si déjà testé
+            if self.param_tracker.was_tested(params):
+                duplicates_count += 1
+                logger.info(
+                    f"  ⚠️ Proposition ignorée (déjà testée): {proposal.get('name', 'N/A')}"
+                )
+                continue
+
+            filtered_proposals.append(proposal)
+
+        self.context.strategist_proposals = filtered_proposals
+        self._log_event(
+            "proposals_generated",
+            count=len(self.context.strategist_proposals),
+            duplicates_filtered=duplicates_count
+        )
+        logger.info(
+            f"Strategist: {len(proposals)} propositions générées, "
+            f"{duplicates_count} duplications filtrées, "
+            f"{len(filtered_proposals)} nouvelles"
+        )
+
+        # Si toutes les propositions étaient des duplications
+        if proposals and not filtered_proposals:
+            logger.warning("Toutes les propositions sont des duplications - passage à VALIDATE")
+            self.state_machine.transition_to(AgentState.VALIDATE)
+            return
 
         # Transition vers CRITIQUE
         self.state_machine.transition_to(AgentState.CRITIQUE)
@@ -816,6 +872,14 @@ class Orchestrator:
                 if metrics:
                     proposal["tested_metrics"] = metrics.to_dict()
                     proposal["tested"] = True
+
+                    # Enregistrer dans le tracker de session
+                    self.param_tracker.register(
+                        params=params,
+                        sharpe_ratio=metrics.sharpe_ratio,
+                        total_return=metrics.total_return
+                    )
+
                     self._log_event(
                         "proposal_test_ended",
                         proposal_id=proposal.get("id"),
@@ -868,6 +932,14 @@ class Orchestrator:
                 if metrics:
                     proposal["tested_metrics"] = metrics.to_dict()
                     proposal["tested"] = True
+
+                    # Enregistrer dans le tracker de session
+                    self.param_tracker.register(
+                        params=proposal.get("parameters", {}),
+                        sharpe_ratio=metrics.sharpe_ratio,
+                        total_return=metrics.total_return
+                    )
+
                     self._log_event(
                         "proposal_test_ended",
                         proposal_id=proposal.get("id"),
@@ -935,6 +1007,74 @@ class Orchestrator:
             concerns_count=entry.get("concerns_count", 0),
         )
 
+    def _generate_final_report(self) -> str:
+        """Génère un rapport final détaillé incluant les statistiques du tracker."""
+        lines = [
+            "=" * 80,
+            "RAPPORT FINAL D'OPTIMISATION",
+            "=" * 80,
+            "",
+            f"Session ID: {self.session_id}",
+            f"Stratégie: {self.config.strategy_name}",
+            f"Itérations: {self.state_machine.iteration}",
+            f"Backtests: {self._backtests_count}",
+            "",
+        ]
+
+        # Walk-forward validation status
+        if self.config.walk_forward_disabled_reason:
+            lines.extend([
+                "⚠️ WALK-FORWARD VALIDATION:",
+                f"  Status: DÉSACTIVÉ AUTOMATIQUEMENT",
+                f"  Raison: {self.config.walk_forward_disabled_reason}",
+                "",
+            ])
+        elif self.config.use_walk_forward:
+            lines.extend([
+                "✅ WALK-FORWARD VALIDATION:",
+                f"  Status: ACTIVÉ",
+                f"  Windows: {self.config.walk_forward_windows}",
+                f"  Train ratio: {self.config.train_ratio:.0%}",
+                "",
+            ])
+
+        # Résultats finaux
+        if self.context.best_metrics:
+            lines.extend([
+                "MEILLEURS RÉSULTATS:",
+                f"  Sharpe Ratio: {self.context.best_metrics.sharpe_ratio:.3f}",
+                f"  Total Return: {self.context.best_metrics.total_return:.2%}",
+                f"  Max Drawdown: {self.context.best_metrics.max_drawdown:.2%}",
+                f"  Total Trades: {self.context.best_metrics.total_trades}",
+                "",
+                "Paramètres optimaux:",
+            ])
+            for k, v in (self.context.best_params or {}).items():
+                lines.append(f"  {k}: {v}")
+            lines.append("")
+
+        # Statistiques du tracker de session
+        if hasattr(self, 'param_tracker'):
+            lines.extend([
+                "STATISTIQUES DE SESSION:",
+                f"  Tests uniques: {self.param_tracker.get_tested_count()}",
+                f"  Duplications évitées: {self.param_tracker.get_duplicates_prevented()}",
+                "",
+            ])
+
+            # Meilleurs paramètres selon le tracker
+            best_sharpe = self.param_tracker.get_best_params("sharpe_ratio")
+            if best_sharpe:
+                lines.extend([
+                    "Meilleur Sharpe Ratio testé:",
+                    f"  Valeur: {best_sharpe.sharpe_ratio:.3f}",
+                    f"  Paramètres: {best_sharpe.params}",
+                    "",
+                ])
+
+        lines.append("=" * 80)
+        return "\n".join(lines)
+
     def _build_result(self) -> OrchestratorResult:
         """Construit le résultat final."""
         elapsed = time.time() - self._start_time if self._start_time else 0
@@ -964,6 +1104,22 @@ class Orchestrator:
         total_tokens = sum(_get_agent_stats(a)["total_tokens"] for a in agents)
         total_calls = sum(_get_agent_stats(a)["execution_count"] for a in agents)
 
+        # Générer le rapport final avec statistiques du tracker
+        final_report = self._generate_final_report()
+
+        # Recommandations basées sur le tracker
+        recommendations = []
+        if hasattr(self, 'param_tracker'):
+            duplicates = self.param_tracker.get_duplicates_prevented()
+            if duplicates > 0:
+                recommendations.append(
+                    f"✅ {duplicates} duplications de paramètres évitées durant la session"
+                )
+            if self.param_tracker.get_tested_count() > 0:
+                recommendations.append(
+                    f"📊 {self.param_tracker.get_tested_count()} combinaisons uniques testées"
+                )
+
         return OrchestratorResult(
             success=success,
             final_state=final_state,
@@ -977,6 +1133,8 @@ class Orchestrator:
             total_llm_calls=total_calls,
             iteration_history=self.context.iteration_history,
             state_history=self.state_machine.get_summary()["history"],
+            final_report=final_report,
+            recommendations=recommendations,
             errors=self._errors,
             warnings=self._warnings,
         )

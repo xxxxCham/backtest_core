@@ -26,7 +26,7 @@ class Config:
     """
 
     # Chemins
-    data_dir: Path = field(default_factory=lambda: Path("data/sample_data"))
+    data_dir: Path = field(default_factory=lambda: Path(r"D:\ThreadX_big\data\crypto\processed\parquet"))
 
     # Capital & Trading
     initial_capital: float = 10_000.0

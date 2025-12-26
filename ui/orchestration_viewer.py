@@ -173,11 +173,18 @@ def _render_log_entry(log: OrchestrationLogEntry):
     action_type = escape(log.action_type.value.replace("_", " ").title())
 
     # Construire la ligne principale
+    timestamp_bg, timestamp_border = _get_timestamp_chip_colors(text_color)
     timestamp_html = (
-        "<code style='color: {text_color}; background-color: rgba(0,0,0,0.08); "
-        "padding: 1px 4px; border-radius: 3px;'>"
+        "<code style='color: {text_color}; background-color: {timestamp_bg}; "
+        "border: 1px solid {timestamp_border}; padding: 1px 4px; "
+        "border-radius: 3px;'>"
         "{timestamp}</code>"
-    ).format(text_color=text_color, timestamp=escape(timestamp))
+    ).format(
+        text_color=text_color,
+        timestamp_bg=timestamp_bg,
+        timestamp_border=timestamp_border,
+        timestamp=escape(timestamp),
+    )
     parts = [emoji, timestamp_html, agent_badge, action_type]
     main_line = " ".join(part for part in parts if part)
 
@@ -272,6 +279,13 @@ def _get_contrast_text_color(background_hex: str) -> str:
         return "#1f2933"
     luminance = (0.299 * r) + (0.587 * g) + (0.114 * b)
     return "#111827" if luminance > 140 else "#f9fafb"
+
+
+def _get_timestamp_chip_colors(text_color: str) -> tuple[str, str]:
+    """Retourne fond/bordure pour le timestamp selon la couleur du texte."""
+    if text_color.lower() == "#f9fafb":
+        return ("rgba(255,255,255,0.18)", "rgba(255,255,255,0.35)")
+    return ("rgba(15,23,42,0.12)", "rgba(15,23,42,0.25)")
 
 
 def render_orchestration_summary_table(orchestration_logger: OrchestrationLogger):
@@ -458,6 +472,7 @@ class LiveOrchestrationViewer:
         emoji = event._get_emoji()
         status_color = _get_status_color(event.status)
         text_color = _get_contrast_text_color(status_color)
+        timestamp_bg, timestamp_border = _get_timestamp_chip_colors(text_color)
         
         # Timestamp
         try:
@@ -499,7 +514,7 @@ class LiveOrchestrationViewer:
                     border-left: 4px solid rgba(0,0,0,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span>
-                    {emoji} <code style="background: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px;">{escape(timestamp)}</code>
+                    {emoji} <code style="color: {text_color}; background: {timestamp_bg}; border: 1px solid {timestamp_border}; padding: 2px 5px; border-radius: 4px;">{escape(timestamp)}</code>
                     <strong>[{escape(agent_info)}]</strong> {escape(action)}
                 </span>
                 <span style="font-size: 0.85em; opacity: 0.8;">Iter {event.iteration}</span>
