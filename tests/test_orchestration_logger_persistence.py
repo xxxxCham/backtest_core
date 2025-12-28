@@ -77,7 +77,8 @@ def test_create_orchestrator_with_backtest_uses_injected_logger_and_session_id(m
             "low": [1.0, 1.1, 1.2],
             "close": [1.0, 1.1, 1.2],
             "volume": [100, 110, 120],
-        }
+        },
+        index=pd.date_range("2024-01-01", periods=3, freq="D")
     )
 
     orchestrator = create_orchestrator_with_backtest(

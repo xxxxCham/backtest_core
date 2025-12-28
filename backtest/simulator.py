@@ -186,13 +186,21 @@ def simulate_trades(
                 exit_condition = True
                 exit_reason = "signal_reverse"
 
-            # 2. Stop-loss
-            elif position == 1 and close_price <= entry_price * (1 - k_sl * 0.01):
-                exit_condition = True
-                exit_reason = "stop_loss"
-            elif position == -1 and close_price >= entry_price * (1 + k_sl * 0.01):
-                exit_condition = True
-                exit_reason = "stop_loss"
+            # 2. Stop-loss (intrabar check avec high/low si disponible)
+            if position == 1:
+                sl_price = entry_price * (1 - k_sl * 0.01)
+                # Utiliser low si disponible pour vérification intrabar, sinon close
+                check_price = df.loc[timestamp, "low"] if "low" in df.columns else close_price
+                if check_price <= sl_price:
+                    exit_condition = True
+                    exit_reason = "stop_loss"
+            elif position == -1:
+                sl_price = entry_price * (1 + k_sl * 0.01)
+                # Utiliser high si disponible pour vérification intrabar, sinon close
+                check_price = df.loc[timestamp, "high"] if "high" in df.columns else close_price
+                if check_price >= sl_price:
+                    exit_condition = True
+                    exit_reason = "stop_loss"
 
             # === Exécuter sortie ===
             if exit_condition:

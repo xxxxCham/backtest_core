@@ -113,12 +113,16 @@ def sortino_ratio(
     mean_excess = excess_returns.mean()
     
     # Downside deviation: écart-type des rendements sous le target
-    downside_returns = returns_clean[returns_clean < target_period]
-    if len(downside_returns) < 2:
-        # Pas assez de données négatives
+    # Utilise tous les rendements mais ne pénalise que les écarts négatifs
+    downside_diff = np.minimum(returns_clean - target_period, 0)
+    downside_squared_sum = np.sum(downside_diff ** 2)
+
+    # Vérifier qu'il y a suffisamment de variance en dessous du target
+    if downside_squared_sum < 1e-10:
+        # Pas de volatilité baissière significative
         return float('inf') if mean_excess > 0 else 0.0
-    
-    downside_deviation = np.sqrt(np.mean(downside_returns ** 2))
+
+    downside_deviation = np.sqrt(downside_squared_sum / len(returns_clean))
     
     if downside_deviation <= 1e-10:
         return float('inf') if mean_excess > 0 else 0.0

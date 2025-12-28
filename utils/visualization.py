@@ -537,13 +537,19 @@ def create_performance_cards(metrics: Dict[str, Any]) -> str:
         HTML string
     """
     pnl = metrics.get('pnl', metrics.get('total_pnl', 0))
-    total_return = metrics.get('total_return', 0)
+    total_return_pct = metrics.get('total_return_pct')
     sharpe = metrics.get('sharpe_ratio', 0)
     sortino = metrics.get('sortino_ratio', 0)
     max_dd = metrics.get('max_drawdown', 0)
     win_rate = metrics.get('win_rate', 0)
-    num_trades = metrics.get('num_trades', 0)
+    num_trades = metrics.get('total_trades', metrics.get('num_trades', 0))
     profit_factor = metrics.get('profit_factor', 0)
+
+    # calculate_metrics returns percentages; agent outputs use fractions.
+    if total_return_pct is None:
+        total_return_pct = metrics.get('total_return', 0) * 100
+        max_dd *= 100
+        win_rate *= 100
     
     pnl_color = '#00e676' if pnl >= 0 else '#ff5252'
     
@@ -557,7 +563,7 @@ def create_performance_cards(metrics: Dict[str, Any]) -> str:
                 {pnl:+,.2f}
             </div>
             <div style="color: {pnl_color}; font-size: 14px;">
-                {total_return:+.2f}%
+                {total_return_pct:+.2f}%
             </div>
         </div>
         
@@ -587,7 +593,7 @@ def create_performance_cards(metrics: Dict[str, Any]) -> str:
                     border: 1px solid #9b59b6;">
             <div style="color: #888; font-size: 12px;">Win Rate</div>
             <div style="color: #9b59b6; font-size: 28px; font-weight: bold;">
-                {win_rate*100:.1f}%
+                {win_rate:.1f}%
             </div>
             <div style="color: #888; font-size: 14px;">
                 {num_trades} trades

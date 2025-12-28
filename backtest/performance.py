@@ -31,6 +31,7 @@ class PerformanceMetrics:
     total_pnl: float
     total_return_pct: float
     annualized_return: float
+    cagr: float
 
     # Risque
     sharpe_ratio: float
@@ -48,12 +49,13 @@ class PerformanceMetrics:
     largest_win: float
     largest_loss: float
     avg_trade_duration_hours: float
+    avg_trade_pnl: float
 
     # Ratios avancés
     calmar_ratio: float
     risk_reward_ratio: float
     expectancy: float
-    
+
     # Métriques Tier S (optionnelles)
     tier_s: Optional[TierSMetrics] = None
 
@@ -63,6 +65,7 @@ class PerformanceMetrics:
             "total_pnl": self.total_pnl,
             "total_return_pct": self.total_return_pct,
             "annualized_return": self.annualized_return,
+            "cagr": self.cagr,
             "sharpe_ratio": self.sharpe_ratio,
             "sortino_ratio": self.sortino_ratio,
             "max_drawdown": self.max_drawdown,
@@ -76,6 +79,7 @@ class PerformanceMetrics:
             "largest_win": self.largest_win,
             "largest_loss": self.largest_loss,
             "avg_trade_duration_hours": self.avg_trade_duration_hours,
+            "avg_trade_pnl": self.avg_trade_pnl,
             "calmar_ratio": self.calmar_ratio,
             "risk_reward_ratio": self.risk_reward_ratio,
             "expectancy": self.expectancy,
@@ -521,6 +525,7 @@ def calculate_metrics(
         metrics["volatility_annual"] = vol
     else:
         metrics["volatility_annual"] = 0.0
+    metrics["cagr"] = annualized_return
 
     # Durée max du drawdown
     if not equity.empty:
@@ -536,7 +541,9 @@ def calculate_metrics(
                             start_ts = ts
                         last_in_dd_ts = ts
                     elif start_ts is not None:
-                        dd_periods.append(ts - start_ts)
+                        # Utiliser last_in_dd_ts au lieu de ts pour mesurer la durée réelle du DD
+                        if last_in_dd_ts is not None:
+                            dd_periods.append(last_in_dd_ts - start_ts)
                         start_ts = None
                         last_in_dd_ts = None
                 if start_ts is not None and last_in_dd_ts is not None:
@@ -584,8 +591,20 @@ def calculate_metrics(
 
         # Durée moyenne des trades
         if "entry_ts" in trades_df.columns and "exit_ts" in trades_df.columns:
-            durations = (trades_df["exit_ts"] - trades_df["entry_ts"]).dt.total_seconds() / 3600
-            metrics["avg_trade_duration_hours"] = durations.mean()
+            entry_ts = pd.to_datetime(trades_df["entry_ts"], errors="coerce")
+            exit_ts = pd.to_datetime(trades_df["exit_ts"], errors="coerce")
+
+            if entry_ts.dt.tz is None and exit_ts.dt.tz is not None:
+                entry_ts = entry_ts.dt.tz_localize(exit_ts.dt.tz)
+            elif entry_ts.dt.tz is not None and exit_ts.dt.tz is None:
+                exit_ts = exit_ts.dt.tz_localize(entry_ts.dt.tz)
+            elif entry_ts.dt.tz is not None and exit_ts.dt.tz is not None and entry_ts.dt.tz != exit_ts.dt.tz:
+                entry_ts = entry_ts.dt.tz_convert("UTC")
+                exit_ts = exit_ts.dt.tz_convert("UTC")
+
+            durations = (exit_ts - entry_ts).dt.total_seconds() / 3600
+            durations = durations.replace([np.inf, -np.inf], np.nan).dropna()
+            metrics["avg_trade_duration_hours"] = durations.mean() if not durations.empty else 0
         else:
             metrics["avg_trade_duration_hours"] = 0
 
@@ -686,7 +705,7 @@ class PerformanceCalculator:
         )
 
         self._last_metrics = metrics
-        
+
         # Stocker les métriques Tier S si calculées
         if self.include_tier_s and metrics.get("tier_s"):
             trades_pnl = trades_df["pnl"] if not trades_df.empty and "pnl" in trades_df.columns else pd.Series([])
@@ -697,7 +716,7 @@ class PerformanceCalculator:
                 initial_capital=self.initial_capital,
                 periods_per_year=periods_per_year
             )
-        
+
         return metrics
 
     def format_report(self, metrics: Optional[Dict[str, Any]] = None) -> str:

@@ -1370,19 +1370,45 @@ def cmd_visualize(args) -> int:
                         print_info("Exécution du backtest avec les meilleurs paramètres...")
                     
                     from backtest import BacktestEngine
-                    from data import load_ohlcv
-                    
-                    df = load_ohlcv(str(data_path))
+                    from data.loader import _read_file, _normalize_ohlcv
+                    from utils.config import Config
+
+                    df = _read_file(data_path)
+                    df = _normalize_ohlcv(df)
+
+                    config = Config(fees_bps=args.fees_bps)
                     engine = BacktestEngine(
-                        strategy_name=strategy,
-                        params=params,
-                        capital=args.capital or 10000,
-                        fees_bps=args.fees_bps or 10,
+                        initial_capital=args.capital or 10000,
+                        config=config,
                     )
-                    result = engine.run(df)
-                    trades = [t.__dict__ for t in result.trades] if hasattr(result, 'trades') else []
-                    metrics = result.metrics.to_dict() if hasattr(result.metrics, 'to_dict') else vars(result.metrics)
-                    equity_curve = result.equity_curve if hasattr(result, 'equity_curve') else None
+
+                    stem = data_path.stem
+                    parts = stem.split("_")
+                    symbol = parts[0] if parts else "UNKNOWN"
+                    timeframe = parts[1] if len(parts) > 1 else "1m"
+
+                    result = engine.run(
+                        df=df,
+                        strategy=strategy,
+                        params=params,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                    )
+                    if isinstance(result.trades, pd.DataFrame):
+                        trades = result.trades.to_dict("records")
+                    else:
+                        trades = (
+                            [t.__dict__ for t in result.trades]
+                            if hasattr(result, "trades")
+                            else []
+                        )
+                    if hasattr(result.metrics, "to_dict"):
+                        metrics = result.metrics.to_dict()
+                    elif isinstance(result.metrics, dict):
+                        metrics = result.metrics
+                    else:
+                        metrics = vars(result.metrics)
+                    equity_curve = result.equity.tolist() if hasattr(result, "equity") else None
         
         else:
             # Backtest simple
