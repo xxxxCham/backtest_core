@@ -47,12 +47,15 @@ from backtest.simulator import (
 from data.indicator_bank import get_indicator_bank
 from indicators.registry import calculate_indicator
 from utils.config import Config
+from utils.data import detect_gaps
+from utils.log import CountingHandler
 from utils.observability import (
     get_obs_logger,
     generate_run_id,
     trace_span,
     PerfCounters,
 )
+from utils.version import get_git_commit
 
 # Logger par défaut (sans run_id)
 _default_logger = get_obs_logger(__name__)
@@ -181,11 +184,27 @@ class BacktestEngine:
         self.counters = PerfCounters()
         self.counters.start("total")
 
+        # Initialiser le counting handler pour compter warnings/errors
+        counting_handler = CountingHandler()
+        # Attacher au logger sous-jacent (ObsLoggerAdapter.logger)
+        underlying_logger = self.logger.logger if hasattr(self.logger, 'logger') else self.logger
+        underlying_logger.addHandler(counting_handler)
+
         # Enrichir le logger avec contexte
         self.logger = self.logger.with_context(symbol=symbol, timeframe=timeframe)
         self.logger.info("pipeline_start strategy=%s bars=%s",
                          strategy if isinstance(strategy, str) else getattr(strategy, 'name', 'custom'),
                          len(df))
+
+        # RUN_START : Log structuré du démarrage
+        strategy_name_log = strategy if isinstance(strategy, str) else getattr(strategy, 'name', 'custom')
+        self.logger.info(
+            f"RUN_START run_id={self.run_id} git_commit={get_git_commit()} mode=backtest "
+            f"symbol={symbol} timeframe={timeframe} strategy={strategy_name_log} "
+            f"initial_capital={self.initial_capital} fees_bps={self.config.fees_bps} "
+            f"slippage_bps={self.config.slippage_bps} leverage={params.get('leverage', 1) if params else 1} "
+            f"seed={seed} n_bars={len(df)} period_start={df.index[0]} period_end={df.index[-1]}"
+        )
 
         # Seed pour déterminisme
         np.random.seed(seed)
@@ -194,6 +213,18 @@ class BacktestEngine:
             # 1. Validation des entrées
             with trace_span(self.logger, "validation"):
                 self._validate_inputs(df, strategy, params)
+
+            # DATA_LOADED : Log structuré des données
+            gaps_info = detect_gaps(df)
+            self.logger.info(
+                f"DATA_LOADED run_id={self.run_id} n_bars={len(df)} "
+                f"gaps_count={gaps_info.get('gaps_count', 0)} "
+                f"gaps_pct={gaps_info.get('gaps_pct', 0.0):.2f} "
+                f"timezone={str(df.index.tz)} "
+                f"open_min={df['open'].min():.2f} open_max={df['open'].max():.2f} "
+                f"volume_min={df['volume'].min():.0f} volume_max={df['volume'].max():.0f} "
+                f"n_nan_open={df['open'].isna().sum()} n_nan_close={df['close'].isna().sum()}"
+            )
 
             # 2. Préparer la stratégie
             if isinstance(strategy, str):
@@ -212,6 +243,13 @@ class BacktestEngine:
             }
 
             self.logger.debug("params=%s", final_params)
+
+            # PARAMS_RESOLVED : Log structuré des paramètres finaux
+            params_str = " ".join([f"{k}={v}" for k, v in final_params.items()])
+            self.logger.info(
+                f"PARAMS_RESOLVED run_id={self.run_id} strategy={strategy_name} "
+                f"source={'user+defaults' if params else 'defaults_only'} {params_str}"
+            )
 
             # 4. Calculer les indicateurs requis
             self.counters.start("indicators")
@@ -245,7 +283,10 @@ class BacktestEngine:
                 equity = calculate_equity_fast(df, trades_df, self.initial_capital)
                 returns = calculate_returns_fast(equity)
             else:
-                equity = calculate_equity_curve(df, trades_df, self.initial_capital)
+                equity = calculate_equity_curve(
+                    df, trades_df, self.initial_capital,
+                    run_id=self.run_id  # Propager run_id pour logs structurés
+                )
                 returns = calculate_returns(equity)
             self.counters.stop("equity")
 
@@ -257,7 +298,8 @@ class BacktestEngine:
                 returns=returns,
                 trades_df=trades_df,
                 initial_capital=self.initial_capital,
-                periods_per_year=periods_per_year
+                periods_per_year=periods_per_year,
+                run_id=self.run_id  # Propager run_id pour logs structurés
             )
             self.counters.stop("metrics")
 
@@ -295,11 +337,38 @@ class BacktestEngine:
                 total_ms, len(trades_df), metrics.get('sharpe_ratio', 0), metrics.get('total_pnl', 0)
             )
 
+            # RUN_END_SUMMARY : Log structuré complet des résultats
+            fees_total = trades_df['fees'].sum() if 'fees' in trades_df.columns else 0
+            slippage_total = trades_df['slippage'].sum() if 'slippage' in trades_df.columns else 0
+            self.logger.info(
+                f"RUN_END_SUMMARY run_id={self.run_id} "
+                f"total_return_pct={metrics.get('total_return_pct', 0):.2f} "
+                f"cagr={metrics.get('cagr', 0):.2f} "
+                f"sharpe={metrics.get('sharpe_ratio', 0):.2f} "
+                f"sortino={metrics.get('sortino_ratio', 0):.2f} "
+                f"calmar={metrics.get('calmar_ratio', 0):.2f} "
+                f"max_dd_pct={metrics.get('max_drawdown', 0):.2f} "
+                f"trades_count={len(trades_df)} "
+                f"win_rate_pct={metrics.get('win_rate', 0):.1f} "
+                f"profit_factor={metrics.get('profit_factor', 0):.2f} "
+                f"avg_trade_pnl={metrics.get('avg_trade_pnl', 0):.2f} "
+                f"fees_total={fees_total:.2f} "
+                f"slippage_total={slippage_total:.2f} "
+                f"duration_sec={total_ms / 1000:.3f} "
+                f"warnings_count={counting_handler.warnings} errors_count={counting_handler.errors}"
+            )
+
+            # Nettoyer le handler après utilisation
+            underlying_logger.removeHandler(counting_handler)
+
             return result
 
         except Exception as e:
             self.counters.stop("total")
             self.logger.error("pipeline_error error=%s", str(e))
+            # Nettoyer le handler en cas d'erreur
+            if 'counting_handler' in locals() and 'underlying_logger' in locals():
+                underlying_logger.removeHandler(counting_handler)
             raise
 
     def _validate_inputs(

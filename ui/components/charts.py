@@ -26,9 +26,46 @@ from plotly.subplots import make_subplots
 
 from utils.log import get_logger
 
+# Import optionnel de seaborn pour distributions statistiques
+try:
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
+
+# Import optionnel de plotly-resampler pour downsampling intelligent
+try:
+    from plotly_resampler import FigureResampler
+    PLOTLY_RESAMPLER_AVAILABLE = True
+except ImportError:
+    PLOTLY_RESAMPLER_AVAILABLE = False
+
 logger = get_logger(__name__)
 
 PLOTLY_CHART_CONFIG = {"scrollZoom": True}
+RESAMPLER_THRESHOLD = 100000  # Utiliser resampler si > 100k points
+
+def _wrap_with_resampler(fig: go.Figure, n_datapoints: int) -> go.Figure:
+    """
+    Wrap une figure Plotly avec FigureResampler si le dataset est grand.
+
+    Args:
+        fig: Figure Plotly originale
+        n_datapoints: Nombre de points de données
+
+    Returns:
+        Figure Plotly (wrappée ou non)
+    """
+    if PLOTLY_RESAMPLER_AVAILABLE and n_datapoints > RESAMPLER_THRESHOLD:
+        logger.info(f"Dataset large ({n_datapoints:,} points) - Activation du resampler")
+        try:
+            # Convertir en FigureResampler pour downsampling intelligent
+            return FigureResampler(fig, default_n_shown_samples=2000)
+        except Exception as e:
+            logger.warning(f"Échec du resampler: {e} - Utilisation de la figure standard")
+            return fig
+    return fig
 
 def _apply_axis_interaction(fig: go.Figure, lock_x: bool = False) -> None:
     """Enable zoom on Y while keeping X interactive when needed."""
@@ -149,6 +186,9 @@ def render_equity_and_drawdown(
     fig.update_yaxes(title_text="$", gridcolor="rgba(128,128,128,0.1)", row=1, col=1)
     fig.update_yaxes(title_text="%", gridcolor="rgba(128,128,128,0.1)", row=2, col=1)
     _apply_axis_interaction(fig)
+
+    # Wrapper avec resampler si grand dataset
+    fig = _wrap_with_resampler(fig, len(equity))
 
     st.plotly_chart(
         fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
@@ -687,6 +727,10 @@ def render_ohlcv_with_trades_and_indicators(
         fig.update_xaxes(showgrid=False)
         fig.update_yaxes(gridcolor="rgba(128,128,128,0.1)")
         _apply_axis_interaction(fig)
+
+        # Wrapper avec resampler si grand dataset
+        fig = _wrap_with_resampler(fig, len(df))
+
         st.plotly_chart(
             fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
         )
@@ -694,6 +738,10 @@ def render_ohlcv_with_trades_and_indicators(
 
     _apply_chart_layout(fig, height=height, y_title="Prix (USD)")
     _apply_axis_interaction(fig)
+
+    # Wrapper avec resampler si grand dataset
+    fig = _wrap_with_resampler(fig, len(df))
+
     st.plotly_chart(
         fig, width="stretch", key=key, config=PLOTLY_CHART_CONFIG
     )
@@ -1820,6 +1868,143 @@ def render_strategy_param_diagram(
     st.info("Schema non disponible pour cette strategie.")
 
 
+def render_trade_pnl_distribution(
+    trades_df: pd.DataFrame,
+    title: str = "📊 Distribution des P&L par Trade",
+    key: str = "trade_pnl_dist",
+    height: int = 400,
+) -> None:
+    """
+    Affiche la distribution des P&L par trade avec histogramme + KDE (seaborn).
+
+    Args:
+        trades_df: DataFrame des trades avec colonne 'pnl'
+        title: Titre du graphique
+        key: Clé unique Streamlit
+        height: Hauteur du graphique
+    """
+    if not SEABORN_AVAILABLE:
+        st.warning("⚠️ Seaborn non disponible - Distribution non affichée")
+        return
+
+    if trades_df.empty or 'pnl' not in trades_df.columns:
+        st.warning("⚠️ Aucune donnée de P&L à afficher")
+        return
+
+    st.markdown(f"#### {title}")
+
+    # Configuration style seaborn
+    sns.set_style("darkgrid")
+    fig, ax = plt.subplots(figsize=(10, height / 100))
+
+    # Histogramme + KDE avec seaborn
+    pnl_values = trades_df['pnl'].dropna()
+    sns.histplot(
+        pnl_values,
+        kde=True,
+        color="#26a69a",
+        edgecolor="#1e272e",
+        alpha=0.7,
+        ax=ax,
+        stat="density"
+    )
+
+    # Ligne verticale à zéro
+    ax.axvline(0, color='white', linestyle='--', linewidth=1, alpha=0.5)
+
+    # Statistiques
+    mean_pnl = pnl_values.mean()
+    median_pnl = pnl_values.median()
+    ax.axvline(mean_pnl, color='#ffa726', linestyle='-', linewidth=2, label=f'Moyenne: ${mean_pnl:.2f}')
+    ax.axvline(median_pnl, color='#42a5f5', linestyle='-', linewidth=2, label=f'Médiane: ${median_pnl:.2f}')
+
+    ax.set_xlabel('P&L ($)', color='#a8b2d1', fontsize=11)
+    ax.set_ylabel('Densité', color='#a8b2d1', fontsize=11)
+    ax.set_title(title, color='#a8b2d1', fontsize=13, pad=15)
+    ax.legend(loc='upper right', facecolor='#1e272e', edgecolor='#a8b2d1', labelcolor='#a8b2d1')
+
+    # Style sombre
+    fig.patch.set_facecolor('#0e1117')
+    ax.set_facecolor('#1e272e')
+    ax.tick_params(colors='#a8b2d1')
+    ax.spines['bottom'].set_color('#a8b2d1')
+    ax.spines['top'].set_color('#a8b2d1')
+    ax.spines['right'].set_color('#a8b2d1')
+    ax.spines['left'].set_color('#a8b2d1')
+
+    st.pyplot(fig, use_container_width=True, key=key)
+    plt.close(fig)
+
+
+def render_returns_distribution(
+    returns: pd.Series,
+    title: str = "📈 Distribution des Rendements",
+    key: str = "returns_dist",
+    height: int = 400,
+) -> None:
+    """
+    Affiche la distribution des rendements avec histogramme + KDE (seaborn).
+
+    Args:
+        returns: Série des rendements
+        title: Titre du graphique
+        key: Clé unique Streamlit
+        height: Hauteur du graphique
+    """
+    if not SEABORN_AVAILABLE:
+        st.warning("⚠️ Seaborn non disponible - Distribution non affichée")
+        return
+
+    if returns.empty:
+        st.warning("⚠️ Aucune donnée de rendements à afficher")
+        return
+
+    st.markdown(f"#### {title}")
+
+    # Configuration style seaborn
+    sns.set_style("darkgrid")
+    fig, ax = plt.subplots(figsize=(10, height / 100))
+
+    # Histogramme + KDE
+    returns_clean = returns.dropna()
+    sns.histplot(
+        returns_clean,
+        kde=True,
+        color="#42a5f5",
+        edgecolor="#1e272e",
+        alpha=0.7,
+        ax=ax,
+        stat="density"
+    )
+
+    # Ligne verticale à zéro
+    ax.axvline(0, color='white', linestyle='--', linewidth=1, alpha=0.5)
+
+    # Statistiques
+    mean_ret = returns_clean.mean()
+    std_ret = returns_clean.std()
+    ax.axvline(mean_ret, color='#26a69a', linestyle='-', linewidth=2, label=f'Moyenne: {mean_ret:.4f}')
+    ax.axvline(mean_ret + std_ret, color='#ef5350', linestyle=':', linewidth=1.5, label=f'+1σ: {mean_ret + std_ret:.4f}')
+    ax.axvline(mean_ret - std_ret, color='#ef5350', linestyle=':', linewidth=1.5, label=f'-1σ: {mean_ret - std_ret:.4f}')
+
+    ax.set_xlabel('Rendement', color='#a8b2d1', fontsize=11)
+    ax.set_ylabel('Densité', color='#a8b2d1', fontsize=11)
+    ax.set_title(title, color='#a8b2d1', fontsize=13, pad=15)
+    ax.legend(loc='upper right', facecolor='#1e272e', edgecolor='#a8b2d1', labelcolor='#a8b2d1')
+
+    # Style sombre
+    fig.patch.set_facecolor('#0e1117')
+    ax.set_facecolor('#1e272e')
+    ax.tick_params(colors='#a8b2d1')
+    ax.spines['bottom'].set_color('#a8b2d1')
+    ax.spines['top'].set_color('#a8b2d1')
+    ax.spines['right'].set_color('#a8b2d1')
+    ax.spines['left'].set_color('#a8b2d1')
+
+    st.pyplot(fig, use_container_width=True, key=key)
+    plt.close(fig)
+
+
 def _apply_chart_layout(
     fig: go.Figure,
     height: int = 450,
@@ -1868,4 +2053,6 @@ __all__ = [
     "render_equity_curve",
     "render_comparison_chart",
     "render_strategy_param_diagram",
+    "render_trade_pnl_distribution",
+    "render_returns_distribution",
 ]

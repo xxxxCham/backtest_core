@@ -647,6 +647,8 @@ def create_orchestrator_with_backtest(
     strategy_name: str,
     data: pd.DataFrame,
     initial_params: Dict[str, Any],
+    data_symbol: str = "",
+    data_timeframe: str = "",
     llm_config: Optional[LLMConfig] = None,
     role_model_config: Optional[RoleModelConfig] = None,
     use_walk_forward: bool = True,
@@ -667,6 +669,8 @@ def create_orchestrator_with_backtest(
         strategy_name: Nom de la stratégie
         data: DataFrame OHLCV
         initial_params: Paramètres initiaux
+        data_symbol: Symbole (ex: "BTCUSDC")
+        data_timeframe: Timeframe (ex: "1h")
         llm_config: Configuration LLM (optionnel, défaut depuis env)
         role_model_config: Configuration multi-modeles par role
         use_walk_forward: Activer la validation walk-forward (si possible)
@@ -734,6 +738,17 @@ def create_orchestrator_with_backtest(
             config=config,
         )
 
+    data_date_range = ""
+    try:
+        if isinstance(data.index, pd.DatetimeIndex):
+            data_date_range = f"{data.index[0]} -> {data.index[-1]}"
+        elif "timestamp" in data.columns or "date" in data.columns:
+            col = "timestamp" if "timestamp" in data.columns else "date"
+            dates = pd.to_datetime(data[col])
+            data_date_range = f"{dates.iloc[0]} -> {dates.iloc[-1]}"
+    except Exception:
+        data_date_range = ""
+
     # Créer la config
     orchestrator_config = OrchestratorConfig(
         strategy_name=strategy_name,
@@ -745,6 +760,9 @@ def create_orchestrator_with_backtest(
         use_walk_forward=use_walk_forward,
         walk_forward_disabled_reason=walk_forward_disabled_reason,
         data=data,
+        data_symbol=data_symbol,
+        data_timeframe=data_timeframe,
+        data_date_range=data_date_range,
         n_workers=n_workers,
         session_id=session_id,
         orchestration_logger=orchestration_logger,

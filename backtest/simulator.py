@@ -13,6 +13,15 @@ import pandas as pd
 
 from utils.log import get_logger
 
+# Import optionnel de tqdm pour barres de progression
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    def tqdm(iterable, **kwargs):
+        return iterable
+
 logger = get_logger(__name__)
 
 
@@ -53,7 +62,8 @@ def simulate_trades(
     df: pd.DataFrame,
     signals: pd.Series,
     params: Dict[str, Any],
-    execution_engine: Optional[Any] = None
+    execution_engine: Optional[Any] = None,
+    show_progress: bool = False
 ) -> pd.DataFrame:
     """
     Simule l'exécution des trades basée sur les signaux.
@@ -76,6 +86,7 @@ def simulate_trades(
             - slippage_bps: Slippage en bps (défaut: 5)
             - execution_model: Modèle d'exécution ('fixed', 'dynamic', 'realistic')
         execution_engine: ExecutionEngine optionnel pour exécution réaliste
+        show_progress: Afficher une barre de progression (défaut: False)
 
     Returns:
         DataFrame des trades avec colonnes:
@@ -116,7 +127,16 @@ def simulate_trades(
     total_spread_cost = 0.0
     total_slippage_cost = 0.0
 
-    for i in range(n_bars):
+    # Barre de progression optionnelle
+    bar_iterator = tqdm(
+        range(n_bars),
+        desc="Simulating trades",
+        unit="bar",
+        disable=not (show_progress and TQDM_AVAILABLE),
+        leave=False
+    ) if show_progress else range(n_bars)
+
+    for i in bar_iterator:
         timestamp = pd.Timestamp(timestamps[i])
         close_price = closes[i]
         signal = signal_values[i]
@@ -332,7 +352,8 @@ def simulate_trades(
 def calculate_equity_curve(
     df: pd.DataFrame,
     trades_df: pd.DataFrame,
-    initial_capital: float = 10000.0
+    initial_capital: float = 10000.0,
+    run_id: Optional[str] = None  # Pour logging structuré
 ) -> pd.Series:
     """
     Calcule la courbe d'équité avec mark-to-market.
@@ -347,9 +368,29 @@ def calculate_equity_curve(
     Returns:
         pd.Series de l'équité avec mark-to-market
     """
+    # EQUITY_SERIES_META - Log métadonnées courbe equity
+    if run_id:
+        freq_str = "unknown"
+        if hasattr(df.index, 'freq') and df.index.freq is not None:
+            freq_str = str(df.index.freq)
+        elif isinstance(df.index, pd.DatetimeIndex) and len(df.index) > 1:
+            freq_str = pd.infer_freq(df.index) or "unknown"
+
+        logger.info(
+            f"EQUITY_SERIES_META run_id={run_id} "
+            f"index_type={type(df.index).__name__} freq={freq_str} "
+            f"n_points={len(df)} initial_capital={initial_capital} currency=USD"
+        )
+
     equity = pd.Series(initial_capital, index=df.index, dtype=np.float64)
 
     if trades_df.empty:
+        if run_id:
+            logger.info(
+                f"EQUITY_COMPLETE run_id={run_id} len={len(equity)} "
+                f"min={equity.min():.2f} max={equity.max():.2f} "
+                f"final={equity.iloc[-1]:.2f} pnl=0.00 note=no_trades"
+            )
         return equity
 
     # Harmoniser les timezones
@@ -397,6 +438,58 @@ def calculate_equity_curve(
                     unrealized_pnl += (entry_price - current_price) * size
 
         equity.iloc[bar_idx] = realized_capital + unrealized_pnl
+
+    # Logs détaillés avant return
+    if run_id:
+        # Détection jumps anormaux
+        jumps = equity.pct_change().abs()
+        if len(jumps) > 1:
+            threshold = jumps.mean() + 3 * jumps.std()
+            abnormal_jumps = jumps[jumps > threshold].dropna()
+
+            if not abnormal_jumps.empty:
+                logger.warning(
+                    f"EQUITY_JUMPS run_id={run_id} n_jumps={len(abnormal_jumps)} "
+                    f"max_jump={abnormal_jumps.max():.4f} "
+                    f"jump_steps={abnormal_jumps.index.tolist()[:10]}"
+                )
+
+        # Drawdown analysis
+        from backtest.performance import drawdown_series, max_drawdown
+        dd_series = drawdown_series(equity)
+        max_dd = max_drawdown(equity)
+
+        dd_start = None
+        if not dd_series.empty and dd_series.min() < 0:
+            dd_start = str(dd_series.idxmin())
+
+        logger.info(
+            f"EQUITY_DD run_id={run_id} max_dd_pct={max_dd * 100:.2f} "
+            f"dd_start={dd_start}"
+        )
+
+        # Réconciliation ledger
+        if not trades_df.empty:
+            equity_final = equity.iloc[-1]
+            pnl_total = trades_df['pnl'].sum()
+            equity_expected = initial_capital + pnl_total
+            delta = abs(equity_final - equity_expected)
+
+            if delta > 0.01:  # epsilon = 1 cent
+                fees_total = trades_df.get('fees', pd.Series([0])).sum()
+                logger.error(
+                    f"EQUITY_RECONCILE_FAIL run_id={run_id} "
+                    f"equity_final={equity_final:.2f} equity_expected={equity_expected:.2f} "
+                    f"delta={delta:.2f} initial_capital={initial_capital:.2f} "
+                    f"pnl_total={pnl_total:.2f} fees_total={fees_total:.2f}"
+                )
+
+        # Log final
+        logger.info(
+            f"EQUITY_COMPLETE run_id={run_id} len={len(equity)} "
+            f"min={equity.min():.2f} max={equity.max():.2f} "
+            f"final={equity.iloc[-1]:.2f} pnl={equity.iloc[-1] - initial_capital:.2f}"
+        )
 
     return equity
 

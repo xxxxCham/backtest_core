@@ -266,9 +266,55 @@ def get_obs_logger(
     )
 
 
-def generate_run_id() -> str:
-    """Génère un run_id court (8 caractères)."""
-    return uuid.uuid4().hex[:8]
+def generate_run_id(
+    strategy: Optional[str] = None,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    seed: Optional[int] = None
+) -> str:
+    """
+    Génère un run_id unique et lisible pour traçabilité complète.
+
+    Format court (si pas de paramètres): 8 caractères UUID
+    Format complet: {strategy}_{symbol}_{timeframe}_{timestamp}_{unique}[_s{seed}]
+
+    Args:
+        strategy: Nom de la stratégie (ex: "ema_cross"). Si None, format court.
+        symbol: Actif tradé (ex: "BTCUSDT")
+        timeframe: Timeframe (ex: "1h", "4h", "1d")
+        seed: Seed optionnel pour reproductibilité
+
+    Returns:
+        run_id unique et lisible
+
+    Examples:
+        >>> generate_run_id()  # Format court
+        'a3f7b2c1'
+        >>> generate_run_id("ema_cross", "BTCUSDT", "1h", 42)  # Format complet
+        'ema_cross_BTCUSDT_1h_20250228_143052_a3f7b2c1_s42'
+    """
+    # Format court si pas de paramètres
+    if not strategy and not symbol and not timeframe:
+        return uuid.uuid4().hex[:8]
+
+    # Format complet avec contexte
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    unique = uuid.uuid4().hex[:8]
+
+    parts = []
+    if strategy:
+        parts.append(strategy)
+    if symbol:
+        parts.append(symbol)
+    if timeframe:
+        parts.append(timeframe)
+
+    parts.extend([timestamp, unique])
+
+    if seed is not None:
+        parts.append(f"s{seed}")
+
+    return "_".join(parts)
 
 
 # ============================================================================

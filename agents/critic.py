@@ -233,6 +233,7 @@ Respond ONLY in valid JSON format with this exact structure:
             "max_drawdown_limit": context.max_drawdown_limit,
             "max_overfitting_ratio": context.max_overfitting_ratio,
             "iteration_history": context.iteration_history,
+            "memory_summary": context.memory_summary,
         }
 
         return render_prompt("critic.jinja2", template_context)

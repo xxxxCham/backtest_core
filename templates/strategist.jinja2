@@ -7,6 +7,11 @@ Generate parameter optimization proposals for the strategy.
 Strategy: {{ strategy_name }}
 Iteration: {{ iteration }}
 
+{% if memory_summary -%}
+## HISTORICAL NOTES
+{{ memory_summary }}
+{% endif %}
+
 ## PARAMETERS (current | bounds | step)
 {% for spec in param_specs %}
 - {{ spec.name }}: {{ current_params.get(spec.name, spec.current_value) }} | [{{ spec.min_value }} - {{ spec.max_value }}] step={{ spec.step }}

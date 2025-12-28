@@ -146,7 +146,8 @@ def sharpe_ratio(
     risk_free: float = 0.0,
     periods_per_year: int = 252,  # Jours de trading par defaut
     method: str = "daily_resample",  # "standard", "trading_days" ou "daily_resample"
-    equity: Optional[pd.Series] = None  # Necessaire pour daily_resample
+    equity: Optional[pd.Series] = None,  # Necessaire pour daily_resample
+    run_id: Optional[str] = None  # Pour logging structuré
 ) -> float:
     '''
     Calcule le ratio de Sharpe annualise.
@@ -157,7 +158,22 @@ def sharpe_ratio(
     quelques trades non nuls sont disponibles.
     '''
     returns_series = returns.copy() if isinstance(returns, pd.Series) else pd.Series(returns)
+
+    # SHARPE_INPUT - Log entrée
+    if run_id:
+        logger.debug(
+            f"SHARPE_INPUT run_id={run_id} series_type=returns "
+            f"freq={'daily' if method == 'daily_resample' else 'step'} "
+            f"risk_free={risk_free} annualization_factor={periods_per_year} "
+            f"method={method} n_points={len(returns_series)}"
+        )
+
     if returns_series.empty:
+        if run_id:
+            logger.warning(
+                f"SHARPE_ZERO run_id={run_id} reason=returns_empty "
+                f"n_points=0"
+            )
         return 0.0
 
     if method == "daily_resample":
@@ -173,10 +189,16 @@ def sharpe_ratio(
                 returns_series = equity_daily.pct_change().dropna()
                 periods_per_year = 252  # Annualisation coherente avec des returns quotidiens
             else:
-                logger.debug(
-                    "sharpe_ratio_insufficient_daily_data days=%s, fallback to provided returns",
-                    len(equity_daily),
-                )
+                if run_id:
+                    logger.warning(
+                        f"SHARPE_ZERO run_id={run_id} reason=insufficient_daily_data "
+                        f"days={len(equity_daily)} min_required=2 fallback=use_provided_returns"
+                    )
+                else:
+                    logger.debug(
+                        "sharpe_ratio_insufficient_daily_data days=%s, fallback to provided returns",
+                        len(equity_daily),
+                    )
             method = "standard"
 
     returns_clean = (
@@ -185,32 +207,76 @@ def sharpe_ratio(
         .dropna()
     )
 
-    MIN_SAMPLES_FOR_SHARPE = 3  # Minimum pour un std ddof=1 un minimum de stabilite
-    MIN_NON_ZERO_RETURNS = 3    # Eviter ratios irreels avec 1-2 trades
-    if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
+    # SHARPE_SANITY - Vérification cohérence données avant gardes
+    if run_id:
+        n_nan = returns_series.isna().sum()
+        n_zeros = (returns_clean == 0).sum()
+        n_inf = np.isinf(returns_series.replace([np.inf, -np.inf], np.nan).dropna()).sum()
+        std_value = returns_clean.std() if len(returns_clean) > 0 else 0.0
+
         logger.debug(
-            "sharpe_ratio_insufficient_samples samples=%s < min=%s, returning 0.0",
-            len(returns_clean),
-            MIN_SAMPLES_FOR_SHARPE,
+            f"SHARPE_SANITY run_id={run_id} n_points={len(returns_clean)} "
+            f"n_nan={n_nan} n_zeros={n_zeros} n_inf={n_inf} "
+            f"mean={returns_clean.mean():.6f} std={std_value:.6f} "
+            f"min={returns_clean.min():.6f} max={returns_clean.max():.6f} "
+            f"std_near_zero={std_value < 1e-6}"
         )
+
+    # GARDES ADAPTATIFS pour backtests courts
+    # Détecter durée du backtest pour assouplir les gardes si < 30 jours
+    is_short_backtest = False
+    backtest_days = None
+    if equity is not None and isinstance(equity.index, pd.DatetimeIndex) and len(equity) > 0:
+        backtest_days = (equity.index[-1] - equity.index[0]).total_seconds() / 86400
+        is_short_backtest = backtest_days < 30
+
+    # MIN_SAMPLES adaptatif : 2 pour backtests courts, 3 sinon
+    MIN_SAMPLES_FOR_SHARPE = 2 if is_short_backtest else 3
+    MIN_NON_ZERO_RETURNS = 2 if is_short_backtest else 3
+    if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
+        if run_id:
+            logger.warning(
+                f"SHARPE_ZERO run_id={run_id} reason=min_samples "
+                f"samples={len(returns_clean)} min_required={MIN_SAMPLES_FOR_SHARPE} "
+                f"adaptive=True backtest_days={backtest_days if backtest_days else 'N/A'}"
+            )
+        else:
+            logger.debug(
+                "sharpe_ratio_insufficient_samples samples=%s < min=%s, returning 0.0",
+                len(returns_clean),
+                MIN_SAMPLES_FOR_SHARPE,
+            )
         return 0.0
 
     if method == "trading_days":
         returns_clean = returns_clean[returns_clean != 0.0]
         if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
-            logger.debug(
-                "sharpe_ratio_insufficient_samples_after_filter samples=%s < min=%s, returning 0.0",
-                len(returns_clean),
-                MIN_SAMPLES_FOR_SHARPE,
-            )
+            if run_id:
+                logger.warning(
+                    f"SHARPE_ZERO run_id={run_id} reason=min_samples_after_trading_days_filter "
+                    f"samples={len(returns_clean)} min_required={MIN_SAMPLES_FOR_SHARPE}"
+                )
+            else:
+                logger.debug(
+                    "sharpe_ratio_insufficient_samples_after_filter samples=%s < min=%s, returning 0.0",
+                    len(returns_clean),
+                    MIN_SAMPLES_FOR_SHARPE,
+                )
             return 0.0
     non_zero_count = int((returns_clean != 0.0).sum())
     if non_zero_count < MIN_NON_ZERO_RETURNS:
-        logger.debug(
-            "sharpe_ratio_insufficient_non_zero non_zero=%s < min=%s, returning 0.0",
-            non_zero_count,
-            MIN_NON_ZERO_RETURNS,
-        )
+        if run_id:
+            logger.warning(
+                f"SHARPE_ZERO run_id={run_id} reason=min_non_zero "
+                f"non_zero={non_zero_count} min_required={MIN_NON_ZERO_RETURNS} "
+                f"total_samples={len(returns_clean)} adaptive=True backtest_days={backtest_days if backtest_days else 'N/A'}"
+            )
+        else:
+            logger.debug(
+                "sharpe_ratio_insufficient_non_zero non_zero=%s < min=%s, returning 0.0",
+                non_zero_count,
+                MIN_NON_ZERO_RETURNS,
+            )
         return 0.0
 
     periods_per_year = periods_per_year or 0
@@ -220,21 +286,39 @@ def sharpe_ratio(
     mean_excess = excess_returns.mean()
     std_returns = float(returns_clean.std(ddof=1))
 
-    min_annual_vol = 0.001  # 0.1% minimum de volatilite annualisee
+    # min_annual_vol adaptatif : assouplir pour backtests courts ou peu d'échantillons
+    needs_relaxed_vol = is_short_backtest or len(returns_clean) < 10
+    min_annual_vol = 0.0001 if needs_relaxed_vol else 0.001  # 0.01% vs 0.1%
     min_period_std = min_annual_vol / np.sqrt(periods_per_year or 1)
 
     if not np.isfinite(std_returns) or std_returns < min_period_std:
-        logger.debug(
-            "sharpe_ratio_zero_volatility std=%.6f < min=%.6f, returns=%s samples",
-            std_returns,
-            min_period_std,
-            len(returns_clean),
-        )
+        if run_id:
+            logger.warning(
+                f"SHARPE_ZERO run_id={run_id} reason=low_volatility "
+                f"std={std_returns:.6f} min_required={min_period_std:.6f} "
+                f"samples={len(returns_clean)} is_finite={np.isfinite(std_returns)} "
+                f"adaptive=True min_annual_vol={min_annual_vol} relaxed={needs_relaxed_vol}"
+            )
+        else:
+            logger.debug(
+                "sharpe_ratio_zero_volatility std=%.6f < min=%.6f, returns=%s samples",
+                std_returns,
+                min_period_std,
+                len(returns_clean),
+            )
         return 0.0
+
+    # SHARPE_CALC - Log calcul intermédiaire
+    if run_id:
+        logger.debug(
+            f"SHARPE_CALC run_id={run_id} mean_excess={mean_excess:.6f} "
+            f"std_returns={std_returns:.6f} periods_per_year={periods_per_year}"
+        )
 
     sharpe = (mean_excess * np.sqrt(periods_per_year)) / std_returns if periods_per_year else 0.0
 
     MAX_SHARPE = 20.0
+    clamped = False
     if abs(sharpe) > MAX_SHARPE:
         logger.warning(
             "sharpe_ratio_clamped value=%.2f clamped_to=+/-%.1f std=%.6f mean=%.6f samples=%s",
@@ -245,6 +329,15 @@ def sharpe_ratio(
             len(returns_clean),
         )
         sharpe = np.sign(sharpe) * MAX_SHARPE
+        clamped = True
+
+    # SHARPE_OUTPUT - Log résultat final
+    if run_id:
+        logger.info(
+            f"SHARPE_OUTPUT run_id={run_id} sharpe_final={float(sharpe):.4f} "
+            f"fallback_reason={'clamped' if clamped else 'none'} "
+            f"thresholds_applied=min_samples:{MIN_SAMPLES_FOR_SHARPE},min_non_zero:{MIN_NON_ZERO_RETURNS},min_vol:{min_annual_vol}"
+        )
 
     return float(sharpe)
 
@@ -342,7 +435,8 @@ def calculate_metrics(
     initial_capital: float = 10000.0,
     periods_per_year: int = 252,  # Jours de trading par défaut
     include_tier_s: bool = False,
-    sharpe_method: str = "daily_resample"  # "standard", "trading_days" ou "daily_resample"
+    sharpe_method: str = "daily_resample",  # "standard", "trading_days" ou "daily_resample"
+    run_id: Optional[str] = None  # Pour logging structuré
 ) -> Dict[str, Any]:
     """
     Calcule toutes les métriques de performance.
@@ -402,7 +496,8 @@ def calculate_metrics(
         returns,
         periods_per_year=periods_per_year,
         method=sharpe_method,
-        equity=equity  # Passer equity pour daily_resample
+        equity=equity,  # Passer equity pour daily_resample
+        run_id=run_id  # Propager run_id pour logs
     )
     metrics["sortino_ratio"] = sortino_ratio(
         returns,

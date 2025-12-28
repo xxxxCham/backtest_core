@@ -17,7 +17,7 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -30,7 +30,28 @@ from .model_config import RoleModelConfig
 from .state_machine import AgentState, StateMachine, ValidationResult
 from .strategist import StrategistAgent
 from .validator import ValidationDecision, ValidatorAgent
+from utils.llm_memory import (
+    MAX_INSIGHTS,
+    append_history_entry,
+    append_session_iteration,
+    build_memory_summary,
+    delete_session,
+    extract_date_range,
+    get_history_path,
+    split_date_range,
+    start_session,
+)
 from utils.session_param_tracker import SessionParameterTracker
+
+# Import optionnel de tqdm pour barres de progression
+try:
+    from tqdm import tqdm
+    TQDM_AVAILABLE = True
+except ImportError:
+    TQDM_AVAILABLE = False
+    # Fallback: tqdm est une fonction identité
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +67,9 @@ class OrchestratorConfig:
     # Données
     data_path: str = ""
     data: Optional[Any] = None
+    data_symbol: str = ""
+    data_timeframe: str = ""
+    data_date_range: str = ""
 
     # Paramètres initiaux
     initial_params: Dict[str, Any] = field(default_factory=dict)
@@ -174,6 +198,10 @@ class Orchestrator:
         self._backtests_count = 0
         self._errors: List[str] = []
         self._warnings: List[str] = []
+        self._memory_session_path: Optional[Path] = None
+        self._last_validation_data: Optional[Dict[str, Any]] = None
+        self._last_validator_summary: str = ""
+        self._role_models: Dict[str, str] = {}
 
         # Session Parameter Tracker - empêche les LLMs de retester les mêmes paramètres
         self.param_tracker = SessionParameterTracker(session_id=self.session_id)
@@ -200,6 +228,9 @@ class Orchestrator:
             current_params=self.config.initial_params.copy(),
             param_specs=self.config.param_specs,
             data_path=self.config.data_path,
+            data_symbol=self.config.data_symbol,
+            data_timeframe=self.config.data_timeframe,
+            data_date_range=self.config.data_date_range,
             optimization_target=self.config.optimization_target,
             min_sharpe=self.config.min_sharpe,
             max_drawdown_limit=self.config.max_drawdown_limit,
@@ -249,7 +280,9 @@ class Orchestrator:
         """Select and apply a model for the given role if configured."""
         config = self.config.role_model_config
         if not config:
-            return None
+            model_name = self.llm_client.config.model
+            self._role_models[role] = model_name
+            return model_name
 
         iteration = max(1, self.state_machine.iteration)
         model_name = config.get_model(
@@ -260,7 +293,159 @@ class Orchestrator:
         if model_name and self.llm_client.config.model != model_name:
             self.llm_client.config.model = model_name
             logger.info("Role %s model set to %s", role, model_name)
+        model_name = self.llm_client.config.model
+        self._role_models[role] = model_name
         return model_name
+
+    def _get_memory_identifiers(self) -> tuple[str, str, str]:
+        strategy = self.config.strategy_name or self.context.strategy_name
+        symbol = self.config.data_symbol or self.context.data_symbol or "unknown"
+        timeframe = self.config.data_timeframe or self.context.data_timeframe or "unknown"
+        return strategy, symbol, timeframe
+
+    def _resolve_data_info(self) -> tuple[str, str, int]:
+        data_rows = self.context.data_rows
+        if not data_rows and self._loaded_data is not None:
+            try:
+                data_rows = len(self._loaded_data)
+            except Exception:
+                data_rows = 0
+
+        period_start, period_end = extract_date_range(self._loaded_data)
+        if not period_start and not period_end:
+            period_start, period_end = split_date_range(self.context.data_date_range)
+
+        if not self.context.data_date_range and (period_start or period_end):
+            if period_start and period_end:
+                self.context.data_date_range = f"{period_start} -> {period_end}"
+            else:
+                self.context.data_date_range = period_start or period_end
+
+        return period_start, period_end, data_rows
+
+    def _init_memory_session(self) -> None:
+        strategy, symbol, timeframe = self._get_memory_identifiers()
+        period_start, period_end, data_rows = self._resolve_data_info()
+        model = self.llm_client.config.model
+
+        try:
+            self._memory_session_path = start_session(
+                session_id=self.session_id,
+                strategy=strategy,
+                symbol=symbol,
+                timeframe=timeframe,
+                period_start=period_start,
+                period_end=period_end,
+                model=model,
+                data_rows=data_rows,
+            )
+        except Exception as exc:
+            logger.warning("LLM memory session init failed: %s", exc)
+            self._memory_session_path = None
+
+        try:
+            self.context.memory_summary = build_memory_summary(
+                strategy=strategy,
+                symbol=symbol,
+                timeframe=timeframe,
+            )
+        except Exception as exc:
+            logger.debug("LLM memory summary failed: %s", exc)
+            self.context.memory_summary = ""
+
+    def _append_memory_iteration(self, entry: Dict[str, Any]) -> None:
+        if not self._memory_session_path:
+            return
+        try:
+            append_session_iteration(self._memory_session_path, entry)
+        except Exception as exc:
+            logger.debug("LLM memory session update failed: %s", exc)
+
+    def _collect_insights(self) -> List[str]:
+        insights: List[str] = []
+        if self._last_validator_summary:
+            insights.append(self._last_validator_summary)
+
+        if self._last_validation_data:
+            approved = self._last_validation_data.get("approved_config", {})
+            if isinstance(approved, dict):
+                for key in ("deployment_notes", "monitoring_recommendations"):
+                    items = approved.get(key, [])
+                    if isinstance(items, list):
+                        for item in items:
+                            if isinstance(item, str) and item:
+                                insights.append(item)
+
+        unique: List[str] = []
+        seen = set()
+        for item in insights:
+            if item in seen:
+                continue
+            seen.add(item)
+            unique.append(item)
+        return unique[:MAX_INSIGHTS]
+
+    def _build_history_entry(self, result: OrchestratorResult) -> Optional[Dict[str, Any]]:
+        strategy, symbol, timeframe = self._get_memory_identifiers()
+        period_start, period_end, data_rows = self._resolve_data_info()
+        metrics = self.context.best_metrics or self.context.current_metrics
+        if metrics is None:
+            return None
+
+        metrics_payload = {
+            "sharpe_ratio": metrics.sharpe_ratio,
+            "total_return_pct": metrics.total_return * 100.0,
+            "max_drawdown_pct": metrics.max_drawdown * 100.0,
+            "win_rate_pct": metrics.win_rate * 100.0,
+            "total_trades": metrics.total_trades,
+        }
+
+        params = self.context.best_params or self.context.current_params
+        model = self._role_models.get("validator") or self.llm_client.config.model
+        insights = self._collect_insights()
+        if not insights:
+            insights = [
+                (
+                    f"Sharpe {metrics.sharpe_ratio:.2f}, "
+                    f"return {metrics.total_return * 100.0:.1f}%, "
+                    f"drawdown {metrics.max_drawdown * 100.0:.1f}%."
+                )
+            ]
+
+        entry = {
+            "timestamp": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "session_id": self.session_id,
+            "strategy": strategy,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "period_start": period_start,
+            "period_end": period_end,
+            "data_rows": data_rows,
+            "model": model,
+            "metrics": metrics_payload,
+            "params": params,
+            "insights": insights[:MAX_INSIGHTS],
+            "decision": result.decision,
+        }
+        if self._last_validation_data:
+            entry["validator_confidence"] = self._last_validation_data.get("confidence")
+
+        return entry
+
+    def _finalize_memory(self, result: OrchestratorResult) -> None:
+        if result.decision == "APPROVE":
+            history_entry = self._build_history_entry(result)
+            if history_entry:
+                strategy, symbol, timeframe = self._get_memory_identifiers()
+                history_path = get_history_path(strategy, symbol, timeframe)
+                try:
+                    append_history_entry(history_path, history_entry)
+                except Exception as exc:
+                    logger.warning("LLM memory history update failed: %s", exc)
+
+        if self._memory_session_path:
+            delete_session(self._memory_session_path)
+            self._memory_session_path = None
 
     def run(self) -> OrchestratorResult:
         """
@@ -277,6 +462,8 @@ class Orchestrator:
             data_path=bool(self.config.data_path),
         )
         logger.info(f"=== Démarrage orchestration {self.session_id} ===")
+
+        self._init_memory_session()
 
         try:
             # Transition vers INIT → ANALYZE
@@ -309,6 +496,8 @@ class Orchestrator:
                 self.config.orchestration_logger.save_to_jsonl()
             except Exception as e:
                 logger.warning(f"Échec de la sauvegarde finale des logs: {e}")
+
+        self._finalize_memory(result)
 
         return result
 
@@ -601,18 +790,22 @@ class Orchestrator:
             self._errors.extend(result.errors)
             # Par défaut, on itère si le validator échoue
             decision = ValidationDecision.ITERATE
+            self._last_validation_data = None
+            self._last_validator_summary = ""
         else:
             decision_str = result.data.get("decision", "ITERATE")
             try:
                 decision = ValidationDecision(decision_str)
             except ValueError:
                 decision = ValidationDecision.ITERATE
+            self._last_validation_data = result.data
+            self._last_validator_summary = result.content or ""
 
         logger.info(f"Validator décision: {decision.value}")
         self._log_event("validator_decision", decision=decision.value)
 
         # Enregistrer l'historique de l'itération
-        self._record_iteration()
+        self._record_iteration(decision.value)
 
         # Transition selon la décision
         if decision == ValidationDecision.APPROVE:
@@ -856,7 +1049,16 @@ class Orchestrator:
 
         # Séquentiel par défaut
         if n_workers <= 1 or len(proposals) <= 1:
-            for proposal in proposals:
+            # Barre de progression pour les tests de propositions
+            proposal_iterator = tqdm(
+                proposals,
+                desc="Testing proposals",
+                unit="proposal",
+                disable=not TQDM_AVAILABLE,
+                leave=False
+            ) if len(proposals) > 1 else proposals
+
+            for proposal in proposal_iterator:
                 params = proposal.get("parameters", {})
                 if not params:
                     continue
@@ -976,7 +1178,7 @@ class Orchestrator:
 
         return best
 
-    def _record_iteration(self) -> None:
+    def _record_iteration(self, decision: Optional[str] = None) -> None:
         """Enregistre l'itération actuelle dans l'historique."""
         entry = {
             "iteration": self.state_machine.iteration,
@@ -993,6 +1195,8 @@ class Orchestrator:
 
         entry["proposals_count"] = len(self.context.strategist_proposals)
         entry["concerns_count"] = len(self.context.critic_concerns)
+        if decision:
+            entry["decision"] = decision
 
         self.context.iteration_history.append(entry)
 
@@ -1005,7 +1209,9 @@ class Orchestrator:
             max_drawdown=entry.get("max_drawdown"),
             proposals_count=entry.get("proposals_count", 0),
             concerns_count=entry.get("concerns_count", 0),
+            decision=decision,
         )
+        self._append_memory_iteration(entry)
 
     def _generate_final_report(self) -> str:
         """Génère un rapport final détaillé incluant les statistiques du tracker."""

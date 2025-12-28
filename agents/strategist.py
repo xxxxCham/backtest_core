@@ -197,6 +197,7 @@ Respond ONLY in valid JSON format with this exact structure:
             "iteration_history": context.iteration_history,
             # Résumé des paramètres déjà testés dans cette session
             "session_params_summary": getattr(context, 'session_params_summary', None),
+            "memory_summary": context.memory_summary,
         }
 
         return render_prompt("strategist.jinja2", template_context)

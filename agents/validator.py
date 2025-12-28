@@ -290,6 +290,7 @@ Respond ONLY in valid JSON format with this exact structure:
             "iteration_history": context.iteration_history,
             "best_metrics": best_metrics_dict,
             "current_params": context.current_params,
+            "memory_summary": context.memory_summary,
         }
 
         return render_prompt("validator.jinja2", template_context)

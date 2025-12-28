@@ -154,11 +154,44 @@ Response format (JSON):
     "insights": ["insight1", "insight2"]
 }
 
+🚨 CRITICAL REQUIREMENT FOR "continue" / "change_direction":
+- You MUST provide ALL parameters in "next_parameters" field
+- DO NOT return empty {} or null for "next_parameters"
+- Each parameter must have a concrete numeric value
+- If you cannot decide on parameters, use action="stop" instead
+
+✅ VALID EXAMPLE (continue with all parameters):
+{
+    "action": "continue",
+    "confidence": 0.75,
+    "next_hypothesis": "Testing slow=25 to capture longer trends",
+    "next_parameters": {
+        "fast": 10,
+        "slow": 25,
+        "k_sl": 1.5,
+        "k_tp": 3.0
+    },
+    "reasoning": "Slow period correlates with Sharpe improvement in range 20-25",
+    "insights": ["Higher slow periods reduce false signals", "Maintain fast/slow ratio ~1:2.5"]
+}
+
+❌ INVALID (will cause fallback to defaults):
+{
+    "action": "continue",
+    "next_parameters": {}  # ← EMPTY, DO NOT DO THIS
+}
+
+❌ INVALID (missing parameters):
+{
+    "action": "continue",
+    "next_parameters": {"fast": 10}  # ← INCOMPLETE, must include ALL params
+}
+
 Actions:
-- "continue": Run another backtest with next_parameters
+- "continue": Run another backtest with next_parameters (MUST provide all params)
 - "accept": Accept current best as final solution
 - "stop": Stop due to diminishing returns or constraints
-- "change_direction": Abandon current approach, try something different"""
+- "change_direction": Abandon current approach, try something different (MUST provide all params)"""
 
     def __init__(
         self,
@@ -386,7 +419,26 @@ Actions:
             )
 
             # Demander une décision au LLM
-            decision = self._get_llm_decision(context)
+            decision = self._get_llm_decision(context, session)
+
+            # VALIDATION STRICTE : Forcer STOP si next_parameters vide pour continue/change_direction
+            if decision.action in ("continue", "change_direction"):
+                if not decision.next_parameters or len(decision.next_parameters) == 0:
+                    optim_id = f"{session.strategy_name}_{session.start_time.strftime('%Y%m%d_%H%M%S')}"
+                    logger.error(
+                        f"LLM_INVALID_DECISION optim_id={optim_id} iteration={session.current_iteration} "
+                        f"action_original={decision.action} action_forced=stop "
+                        f"reason=next_parameters_empty_or_missing"
+                    )
+                    # Forcer STOP au lieu d'utiliser defaults silencieusement
+                    original_action = decision.action
+                    decision.action = "stop"
+                    decision.reasoning = (
+                        f"LLM chose '{original_action}' but provided no parameters. "
+                        f"Stopping to avoid using defaults silently. "
+                        f"Original reasoning: {decision.reasoning}"
+                    )
+
             session.decisions.append(decision)
 
             # Logger: décision prise
@@ -430,7 +482,7 @@ Actions:
             elif decision.action in ("continue", "change_direction"):
                 # Valider et corriger les paramètres
                 next_params = self._validate_parameters(
-                    decision.next_parameters, param_bounds, initial_params
+                    decision.next_parameters, param_bounds, initial_params, session
                 )
 
                 # Logger: changement de paramètres
@@ -589,10 +641,42 @@ Actions:
 
         return "\n".join(lines)
 
-    def _get_llm_decision(self, context: str) -> IterationDecision:
+    def _get_llm_decision(self, context: str, session: OptimizationSession) -> IterationDecision:
         """Obtient une décision du LLM."""
 
+        # Identifiant pour corrélation logs (optim_id = strategy + timestamp)
+        import hashlib
+        import time
+        optim_id = f"{session.strategy_name}_{session.start_time.strftime('%Y%m%d_%H%M%S')}"
+
+        # LLM_CALL_START
+        logger.info(
+            f"LLM_CALL_START optim_id={optim_id} iteration={session.current_iteration} "
+            f"model={self.llm_config.get('model', 'unknown')} temperature=0.5 "
+            f"tokens_max={self.llm_config.get('max_tokens', 0)} "
+            f"timeout={self.llm_config.get('timeout', 0)}"
+        )
+
+        # LLM_PROMPT_META
+        context_hash = hashlib.sha256(context.encode()).hexdigest()[:8]
+        logger.debug(
+            f"LLM_PROMPT_META optim_id={optim_id} iteration={session.current_iteration} "
+            f"prompt_hash={context_hash} prompt_chars={len(context)} "
+            f"prompt_tokens={len(context.split())} template_version=v1.0"
+        )
+
+        # Appel LLM avec mesure latence
+        start_time = time.time()
         response = self._call_llm(context, json_mode=True, temperature=0.5)
+        latency = time.time() - start_time
+
+        # LLM_RESPONSE_META
+        tokens_out = len(response.content.split()) if response.content else 0
+        logger.info(
+            f"LLM_RESPONSE_META optim_id={optim_id} iteration={session.current_iteration} "
+            f"latency_sec={latency:.2f} tokens_out={tokens_out} "
+            f"finish_reason=complete"
+        )
 
         if not response.content:
             logger.error("❌ LLM n'a pas répondu (response.content vide)")
@@ -627,6 +711,23 @@ Actions:
         if insights is None:
             insights = []
 
+        # LLM_DECISION_PARSED
+        reasoning_hash = hashlib.sha256(str(data.get("reasoning", "")).encode()).hexdigest()[:8]
+        logger.info(
+            f"LLM_DECISION_PARSED optim_id={optim_id} iteration={session.current_iteration} "
+            f"action={action} confidence={data.get('confidence', 0.5):.2f} "
+            f"next_params_count={len(next_params) if next_params else 0} "
+            f"next_params_keys={list(next_params.keys()) if next_params else []} "
+            f"reasoning_hash={reasoning_hash}"
+        )
+
+        # LLM_FALLBACK_USED - Warning si next_parameters vide pour continue/change_direction
+        if action in ("continue", "change_direction") and not next_params:
+            logger.warning(
+                f"LLM_FALLBACK_USED optim_id={optim_id} iteration={session.current_iteration} "
+                f"action={action} fallback=will_use_defaults cause=next_params_empty"
+            )
+
         return IterationDecision(
             action=action,
             confidence=data.get("confidence", 0.5),
@@ -641,10 +742,21 @@ Actions:
         params: Dict[str, Any],
         bounds: Dict[str, tuple],
         defaults: Dict[str, Any],
+        session: OptimizationSession,
     ) -> Dict[str, Any]:
         """Valide et corrige les paramètres avec checks robustes."""
 
+        # Identifiant pour corrélation logs
+        optim_id = f"{session.strategy_name}_{session.start_time.strftime('%Y%m%d_%H%M%S')}"
+
+        # VALIDATION_START
+        logger.info(
+            f"VALIDATION_START optim_id={optim_id} iteration={session.current_iteration} "
+            f"validating=parameters proposed={params} bounds_count={len(bounds)}"
+        )
+
         validated = {}
+        used_defaults = []  # Track params qui utilisent defaults
 
         for param, bound_spec in bounds.items():
             try:
@@ -662,12 +774,17 @@ Actions:
                     # Valeur scalaire (cas edge)
                     min_val = max_val = float(bound_spec) if not isinstance(bound_spec, (tuple, list)) else float(bound_spec[0])
 
-                value = params.get(param, defaults.get(param))
+                value_proposed = params.get(param)
+                value_default = defaults.get(param)
+                value = value_proposed if value_proposed is not None else value_default
 
                 if value is None:
                     value = (min_val + max_val) / 2
+                    used_defaults.append(param)
                 else:
                     value = float(value)
+
+                value_before_clamp = value
 
                 # Clamp dans les bornes
                 value = max(min_val, min(max_val, value))
@@ -678,9 +795,27 @@ Actions:
 
                 validated[param] = value
 
+                # VALIDATION_RULE_RESULT - Log détail validation
+                status = "pass" if value_proposed is not None else "used_default"
+                action = "clamped" if abs(value - value_before_clamp) > 1e-9 else "accepted"
+
+                logger.debug(
+                    f"VALIDATION_RULE_RESULT optim_id={optim_id} iteration={session.current_iteration} "
+                    f"param={param} rule=bounds_check proposed={value_proposed} "
+                    f"default={value_default} bounds=({min_val},{max_val}) "
+                    f"final={value} status={status} action={action}"
+                )
+
             except (ValueError, TypeError, IndexError) as e:
                 logger.error(f"Param {param} validation failed: {e}, use default")
                 validated[param] = defaults.get(param, 0)
+                used_defaults.append(param)
+
+        # VALIDATION_END
+        logger.info(
+            f"VALIDATION_END optim_id={optim_id} iteration={session.current_iteration} "
+            f"validated={validated} used_defaults={used_defaults} verdict=accepted"
+        )
 
         return validated
 

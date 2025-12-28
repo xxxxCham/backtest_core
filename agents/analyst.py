@@ -261,6 +261,7 @@ Respond ONLY in valid JSON format with this exact structure:
             "min_sharpe": context.min_sharpe,
             "max_drawdown_limit": context.max_drawdown_limit,
             "min_trades": context.min_trades,
+            "memory_summary": context.memory_summary,
         }
 
         # Rendre le template

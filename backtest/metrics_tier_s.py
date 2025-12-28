@@ -23,6 +23,13 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+# Import optionnel de tabulate pour tableaux formatés
+try:
+    from tabulate import tabulate
+    TABULATE_AVAILABLE = True
+except ImportError:
+    TABULATE_AVAILABLE = False
+
 
 @dataclass
 class TierSMetrics:
@@ -563,14 +570,66 @@ def calculate_tier_s_metrics(
     )
 
 
-def format_tier_s_report(metrics: TierSMetrics) -> str:
+def format_tier_s_report(metrics: TierSMetrics, use_table: bool = True) -> str:
     """
     Formate un rapport des métriques Tier S.
+
+    Args:
+        metrics: Métriques Tier S à formater
+        use_table: Utiliser tabulate pour un format tableau (défaut: True)
+
+    Returns:
+        Rapport formaté en texte
     """
     grade_colors = {"A": "🟢", "B": "🔵", "C": "🟡", "D": "🟠", "F": "🔴"}
     grade_emoji = grade_colors.get(metrics.tier_s_grade, "⚪")
-    
-    report = f"""
+
+    if TABULATE_AVAILABLE and use_table:
+        # Version avec tabulate (format tableau élégant)
+        header = f"\n{'='*70}\n  MÉTRIQUES TIER S (INSTITUTIONNEL)\n{'='*70}"
+        grade_line = f"\n  GRADE: {grade_emoji} {metrics.tier_s_grade}  |  SCORE: {metrics.tier_s_score:.1f}/100\n"
+
+        # Tableau des ratios de risque
+        risk_ratios = [
+            ["Sortino Ratio", f"{metrics.sortino_ratio:.3f}"],
+            ["Calmar Ratio", f"{metrics.calmar_ratio:.3f}"],
+            ["SQN (Van Tharp)", f"{metrics.sqn:.3f}"],
+            ["Martin Ratio (UPI)", f"{metrics.martin_ratio:.3f}"],
+        ]
+
+        # Tableau récupération & stress
+        recovery = [
+            ["Recovery Factor", f"{metrics.recovery_factor:.3f}"],
+            ["Gain/Pain Ratio", f"{metrics.gain_pain_ratio:.3f}"],
+            ["Ulcer Index", f"{metrics.ulcer_index:.3f}%"],
+        ]
+
+        # Tableau R-Multiple
+        r_multiple = [
+            ["Avg R-Multiple", f"{metrics.avg_r_multiple:.3f}R"],
+            ["Expectancy (R)", f"{metrics.expectancy_r:.3f}R"],
+        ]
+
+        # Tableau ajustements
+        adjustments = [
+            ["Outlier-Adj Sharpe", f"{metrics.outlier_adjusted_sharpe:.3f}"],
+        ]
+
+        report = header + grade_line
+        report += f"\n{'─'*70}\n  RATIOS DE RISQUE AJUSTÉ\n{'─'*70}\n"
+        report += tabulate(risk_ratios, tablefmt="simple", colalign=("left", "right"))
+        report += f"\n\n{'─'*70}\n  RÉCUPÉRATION & STRESS\n{'─'*70}\n"
+        report += tabulate(recovery, tablefmt="simple", colalign=("left", "right"))
+        report += f"\n\n{'─'*70}\n  R-MULTIPLE\n{'─'*70}\n"
+        report += tabulate(r_multiple, tablefmt="simple", colalign=("left", "right"))
+        report += f"\n\n{'─'*70}\n  AJUSTEMENTS\n{'─'*70}\n"
+        report += tabulate(adjustments, tablefmt="simple", colalign=("left", "right"))
+        report += f"\n{'='*70}\n"
+
+        return report
+    else:
+        # Fallback: version ASCII originale
+        report = f"""
 ╔══════════════════════════════════════════════════════════╗
 ║          MÉTRIQUES TIER S (INSTITUTIONNEL)               ║
 ╠══════════════════════════════════════════════════════════╣
@@ -595,7 +654,7 @@ def format_tier_s_report(metrics: TierSMetrics) -> str:
 ║   Outlier-Adj Sharpe:  {metrics.outlier_adjusted_sharpe:>10.3f}                     ║
 ╚══════════════════════════════════════════════════════════╝
 """
-    return report
+        return report
 
 
 __all__ = [

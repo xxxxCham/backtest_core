@@ -181,6 +181,7 @@ class AgentContext:
     strategist_proposals: List[Dict[str, Any]] = field(default_factory=list)
     critic_assessment: str = ""
     critic_concerns: List[str] = field(default_factory=list)
+    memory_summary: str = ""
 
     def to_summary_str(self) -> str:
         """Résumé textuel pour le LLM."""

@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 IMPORT_ERROR = ""  # Initialisé avant le try/except
 try:
     from backtest.engine import BacktestEngine, RunResult
+    from backtest.storage import get_storage
     from data.loader import discover_available_data, load_ohlcv
     from indicators.registry import calculate_indicator
     from strategies.base import get_strategy, list_strategies
@@ -109,9 +110,12 @@ except ImportError as e:
 # Import composants UI (toujours disponibles)
 from ui.components.charts import (
     render_comparison_chart,
+    render_equity_and_drawdown,
     render_ohlcv_with_trades,
     render_ohlcv_with_trades_and_indicators,
+    render_returns_distribution,
     render_strategy_param_diagram,
+    render_trade_pnl_distribution,
 )
 from utils.observability import (
     generate_run_id,
@@ -876,6 +880,190 @@ def load_selected_data(
     return df, msg
 
 
+def _parse_run_timestamp(value: Optional[str]) -> Optional[pd.Timestamp]:
+    if not value:
+        return None
+    try:
+        return pd.Timestamp(value)
+    except Exception:
+        return None
+
+
+def _format_run_timestamp(value: Optional[str]) -> str:
+    ts = _parse_run_timestamp(value)
+    if ts is None:
+        return value or "n/a"
+    if ts.tzinfo is not None:
+        ts = ts.tz_convert("UTC")
+    if ts.hour == 0 and ts.minute == 0 and ts.second == 0:
+        return ts.strftime("%Y-%m-%d")
+    return ts.strftime("%Y-%m-%d %H:%M")
+
+
+def _format_run_period(start: Optional[str], end: Optional[str]) -> str:
+    start_fmt = _format_run_timestamp(start)
+    end_fmt = _format_run_timestamp(end)
+    if start_fmt == "n/a" and end_fmt == "n/a":
+        return "n/a"
+    return f"{start_fmt} -> {end_fmt}"
+
+
+def _find_saved_run_meta(storage: Any, run_id: str) -> Optional[Any]:
+    for meta in storage.list_results():
+        if meta.run_id == run_id:
+            return meta
+    return None
+
+
+def _build_saved_run_label(meta: Any) -> str:
+    period = _format_run_period(meta.period_start, meta.period_end)
+    return (
+        f"{meta.strategy} | {meta.symbol}/{meta.timeframe} | {period} | {meta.run_id}"
+    )
+
+
+def _save_result_to_storage(
+    storage: Any,
+    result: Optional[RunResult],
+) -> Tuple[bool, str]:
+    if result is None:
+        return False, "No result to save."
+    run_id = result.meta.get("run_id") or generate_run_id()
+    existing_ids = {meta.run_id for meta in storage.list_results()}
+    if run_id in existing_ids:
+        return False, f"Run already saved: {run_id}"
+    try:
+        saved_id = storage.save_result(result, run_id=run_id)
+    except Exception as exc:
+        return False, f"Save failed: {exc}"
+    return True, f"Saved run: {saved_id}"
+
+
+def _maybe_auto_save_run(result: Optional[RunResult]) -> None:
+    if result is None:
+        return
+    if not st.session_state.get("auto_save_final_run", False):
+        return
+    if result.meta.get("loaded_from_storage"):
+        return
+    if not BACKEND_AVAILABLE:
+        return
+    try:
+        storage = get_storage()
+    except Exception as exc:
+        st.session_state["saved_runs_status"] = f"Auto-save failed: {exc}"
+        return
+    saved, msg = _save_result_to_storage(storage, result)
+    if msg:
+        st.session_state["saved_runs_status"] = msg
+
+
+def render_saved_runs_panel(
+    result: Optional[RunResult],
+    strategy_key: str,
+    symbol: str,
+    timeframe: str,
+) -> None:
+    st.sidebar.subheader("Saved runs")
+    if not BACKEND_AVAILABLE:
+        st.sidebar.info("Saved runs unavailable (backend not available).")
+        return
+    try:
+        storage = get_storage()
+    except Exception as exc:
+        st.sidebar.error(f"Storage error: {exc}")
+        return
+
+    status_msg = st.session_state.pop("saved_runs_status", None)
+    if status_msg:
+        st.sidebar.info(status_msg)
+
+    st.sidebar.checkbox(
+        "Auto-save final run",
+        value=False,
+        key="auto_save_final_run",
+    )
+
+    if result is not None:
+        if st.sidebar.button("Save current run", key="save_current_run"):
+            saved, msg = _save_result_to_storage(storage, result)
+            if saved:
+                st.sidebar.success(msg)
+            else:
+                st.sidebar.warning(msg)
+
+    filter_current = st.sidebar.checkbox(
+        "Filter to current selection",
+        value=True,
+        key="saved_runs_filter_current",
+    )
+    filter_text = st.sidebar.text_input(
+        "Filter text",
+        value="",
+        key="saved_runs_filter_text",
+    )
+
+    runs = storage.list_results()
+    if filter_current:
+        runs = [
+            r for r in runs
+            if r.strategy == strategy_key
+            and r.symbol == symbol
+            and r.timeframe == timeframe
+        ]
+    if filter_text:
+        filter_l = filter_text.lower()
+        runs = [
+            r for r in runs
+            if filter_l in _build_saved_run_label(r).lower()
+            or filter_l in r.run_id.lower()
+        ]
+
+    if not runs:
+        st.sidebar.info("No saved runs.")
+        return
+
+    run_ids = [r.run_id for r in runs]
+    label_map = {r.run_id: _build_saved_run_label(r) for r in runs}
+    if st.session_state.get("saved_runs_selected") not in run_ids:
+        st.session_state["saved_runs_selected"] = run_ids[0]
+    selected_run_id = st.sidebar.selectbox(
+        "Select run",
+        options=run_ids,
+        format_func=lambda rid: label_map.get(rid, rid),
+        key="saved_runs_selected",
+    )
+    selected_meta = next(
+        (r for r in runs if r.run_id == selected_run_id),
+        None,
+    )
+    if selected_meta is not None:
+        period_label = _format_run_period(
+            selected_meta.period_start,
+            selected_meta.period_end,
+        )
+        st.sidebar.caption(f"Period: {period_label}")
+        st.sidebar.caption(
+            f"Trades: {selected_meta.n_trades} | Bars: {selected_meta.n_bars}"
+        )
+        sharpe = selected_meta.metrics.get("sharpe_ratio", 0)
+        ret_pct = selected_meta.metrics.get("total_return_pct", 0)
+        max_dd = selected_meta.metrics.get("max_drawdown", 0)
+        st.sidebar.caption(
+            f"Sharpe: {sharpe:.2f} | Return: {ret_pct:.1f}% | MaxDD: {max_dd:.1f}%"
+        )
+
+    load_data = st.sidebar.checkbox(
+        "Load data for charts",
+        value=True,
+        key="saved_runs_load_data",
+    )
+    if st.sidebar.button("Load selected run", key="load_selected_run"):
+        st.session_state["pending_run_load_id"] = selected_run_id
+        st.session_state["pending_run_load_data"] = load_data
+        st.rerun()
+
+
 def safe_run_backtest(
     engine: BacktestEngine,
     df: pd.DataFrame,
@@ -1393,12 +1581,45 @@ except Exception as e:
     available_timeframes = ["1h", "4h", "1d"]
     data_status.error(f"Erreur scan: {e}")
 
+# Prefill data selectors for a pending saved run load.
+pending_meta = None
+pending_run_id = st.session_state.get("pending_run_load_id")
+if pending_run_id:
+    try:
+        storage = get_storage()
+        pending_meta = _find_saved_run_meta(storage, pending_run_id)
+    except Exception as exc:
+        st.session_state["saved_runs_status"] = f"Pending load failed: {exc}"
+        pending_meta = None
+
+if pending_meta is not None:
+    if pending_meta.symbol and pending_meta.symbol not in available_tokens:
+        available_tokens = [pending_meta.symbol] + available_tokens
+    if pending_meta.timeframe and pending_meta.timeframe not in available_timeframes:
+        available_timeframes = [pending_meta.timeframe] + available_timeframes
+    if pending_meta.symbol:
+        st.session_state["symbol_select"] = pending_meta.symbol
+    if pending_meta.timeframe:
+        st.session_state["timeframe_select"] = pending_meta.timeframe
+    st.session_state["use_date_filter"] = True
+    start_ts = _parse_run_timestamp(pending_meta.period_start)
+    end_ts = _parse_run_timestamp(pending_meta.period_end)
+    if start_ts is not None:
+        st.session_state["start_date"] = start_ts.date()
+    if end_ts is not None:
+        st.session_state["end_date"] = end_ts.date()
+
 # Sélection du symbole avec BTCUSDC par défaut
 btc_idx = (
     available_tokens.index("BTCUSDC")
     if "BTCUSDC" in available_tokens else 0
 )
-symbol = st.sidebar.selectbox("Symbole", available_tokens, index=btc_idx)
+symbol = st.sidebar.selectbox(
+    "Symbole",
+    available_tokens,
+    index=btc_idx,
+    key="symbol_select",
+)
 
 # Sélection du timeframe avec 30m par défaut
 tf_idx = (
@@ -1408,21 +1629,31 @@ tf_idx = (
 timeframe = st.sidebar.selectbox(
     "Timeframe",
     available_timeframes,
-    index=tf_idx
+    index=tf_idx,
+    key="timeframe_select",
 )
 
 # Filtre de dates optionnel (activé par défaut sur janvier 2025)
 use_date_filter = st.sidebar.checkbox(
     "Filtrer par dates",
     value=True,
-    help="Désactivé = utilise toutes les données disponibles"
+    help="Désactivé = utilise toutes les données disponibles",
+    key="use_date_filter",
 )
 if use_date_filter:
     col1, col2 = st.sidebar.columns(2)
     with col1:
-        start_date = st.date_input("Début", value=pd.Timestamp("2025-01-01"))
+        start_date = st.date_input(
+            "Début",
+            value=pd.Timestamp("2025-01-01"),
+            key="start_date",
+        )
     with col2:
-        end_date = st.date_input("Fin", value=pd.Timestamp("2025-01-31"))
+        end_date = st.date_input(
+            "Fin",
+            value=pd.Timestamp("2025-01-31"),
+            key="end_date",
+        )
 else:
     start_date = None
     end_date = None
@@ -1436,6 +1667,37 @@ if st.session_state.get("ohlcv_cache_key") != current_data_key:
     st.session_state["last_winner_metrics"] = None
     st.session_state["last_winner_origin"] = None
     st.session_state["last_winner_meta"] = None
+
+pending_run_id = st.session_state.get("pending_run_load_id")
+if pending_run_id:
+    try:
+        storage = get_storage()
+        result = storage.load_result(pending_run_id)
+        st.session_state["last_run_result"] = result
+        st.session_state["last_winner_params"] = result.meta.get("params", {})
+        st.session_state["last_winner_metrics"] = result.metrics
+        st.session_state["last_winner_origin"] = "storage"
+        st.session_state["last_winner_meta"] = result.meta
+        if st.session_state.get("pending_run_load_data", True):
+            df_loaded, msg = load_selected_data(
+                symbol, timeframe, start_date, end_date
+            )
+            if df_loaded is None:
+                st.session_state["saved_runs_status"] = (
+                    f"Data load failed: {msg}"
+                )
+            else:
+                st.session_state["saved_runs_status"] = (
+                    f"Run loaded with data: {msg}"
+                )
+        else:
+            st.session_state["saved_runs_status"] = (
+                f"Run loaded: {pending_run_id}"
+            )
+    except Exception as exc:
+        st.session_state["saved_runs_status"] = f"Load failed: {exc}"
+    st.session_state.pop("pending_run_load_id", None)
+    st.session_state.pop("pending_run_load_data", None)
 
 if st.sidebar.button("Charger donnees", key="load_ohlcv_button"):
     df_loaded, msg = load_selected_data(
@@ -2385,6 +2647,12 @@ else:
         height=650,
     )
 
+render_saved_runs_panel(
+    st.session_state.get("last_run_result"),
+    strategy_key,
+    symbol,
+    timeframe,
+)
 
 # ============================================================================
 # ZONE PRINCIPALE - EXÉCUTION ET RÉSULTATS
@@ -2469,6 +2737,7 @@ if run_button:
         st.session_state["last_winner_metrics"] = winner_metrics
         st.session_state["last_winner_origin"] = winner_origin
         st.session_state["last_winner_meta"] = winner_meta
+        _maybe_auto_save_run(result)
 
     elif optimization_mode == "Grille de Paramètres":
         # ===== MODE GRILLE =====
@@ -2708,6 +2977,7 @@ if run_button:
                 st.session_state["last_winner_metrics"] = winner_metrics
                 st.session_state["last_winner_origin"] = winner_origin
                 st.session_state["last_winner_meta"] = winner_meta
+                _maybe_auto_save_run(result)
         else:
             show_status("error", "Aucun résultat valide")
             st.session_state.is_running = False
@@ -3011,6 +3281,8 @@ if run_button:
                         strategy_name=strategy_key,
                         data=df,
                         initial_params=params,
+                        data_symbol=symbol,
+                        data_timeframe=timeframe,
                         role_model_config=role_model_config,
                         use_walk_forward=llm_use_walk_forward,
                         orchestration_logger=orchestration_logger,
@@ -3114,6 +3386,7 @@ if run_button:
                         st.session_state["last_winner_metrics"] = winner_metrics
                         st.session_state["last_winner_origin"] = winner_origin
                         st.session_state["last_winner_meta"] = winner_meta
+                        _maybe_auto_save_run(result)
             except Exception as e:
                 show_status("error", f"Erreur optimisation multi-agents: {e}")
                 st.code(traceback.format_exc())
@@ -3265,6 +3538,7 @@ if run_button:
                     st.session_state["last_winner_metrics"] = winner_metrics
                     st.session_state["last_winner_origin"] = winner_origin
                     st.session_state["last_winner_meta"] = winner_meta
+                    _maybe_auto_save_run(result)
 
             except Exception as e:
                 live_status.update(label=f"❌ Erreur: {e}", state="error")
@@ -3397,6 +3671,20 @@ if result is not None:
             except Exception as exc:
                 st.error(f"Save failed: {exc}")
 
+    # --- Courbe d'Équité et Drawdown ---
+    st.subheader("💰 Courbe d'Équité")
+
+    if result is not None and hasattr(result, 'equity') and result.equity is not None:
+        initial_capital = params.get('initial_capital', 10000.0)
+        render_equity_and_drawdown(
+            equity=result.equity,
+            initial_capital=initial_capital,
+            key="equity_drawdown_main",
+            height=550,
+        )
+    elif result is not None:
+        st.info("Courbe d'équité non disponible pour cette stratégie")
+
     # --- Graphique OHLCV avec Trades ---
     st.subheader("📈 Prix et Trades")
 
@@ -3467,6 +3755,32 @@ if result is not None:
             st.text(f"Win Rate: {result.metrics['win_rate']:.1f}%")
             st.text(f"Profit Factor: {result.metrics['profit_factor']:.2f}")
             st.text(f"Expectancy: ${result.metrics['expectancy']:.2f}")
+
+    # --- Analyse Statistique Avancée ---
+    if result is not None and not result.trades.empty:
+        with st.expander("📊 Analyse Statistique Avancée", expanded=False):
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Distribution des P&L par trade
+                render_trade_pnl_distribution(
+                    trades_df=result.trades,
+                    title="Distribution des P&L par Trade",
+                    key="pnl_dist_main",
+                    height=400,
+                )
+
+            with col2:
+                # Distribution des rendements
+                if hasattr(result, 'returns') and result.returns is not None:
+                    render_returns_distribution(
+                        returns=result.returns,
+                        title="Distribution des Rendements",
+                        key="returns_dist_main",
+                        height=400,
+                    )
+                else:
+                    st.info("Rendements non disponibles pour cette analyse")
 
     # --- Liste des Trades ---
     if result is not None and not result.trades.empty:

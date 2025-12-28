@@ -2,15 +2,51 @@
 Backtest Core - Logging Simplifié
 =================================
 
-Configuration du logging simple et efficace.
+Configuration du logging simple et efficace avec colorisation optionnelle.
 """
 
 import logging
 import sys
+import uuid
+from datetime import datetime
 from typing import Optional
+
+# Import optionnel de colorama pour logs colorés
+try:
+    from colorama import Fore, Style, init
+    init(autoreset=True)
+    COLORAMA_AVAILABLE = True
+except ImportError:
+    COLORAMA_AVAILABLE = False
+    # Fallback: pas de couleurs
+    class _DummyColor:
+        def __getattr__(self, name):
+            return ""
+    Fore = Style = _DummyColor()
 
 # Cache des loggers pour éviter duplication
 _loggers: dict[str, logging.Logger] = {}
+
+
+class ColoredFormatter(logging.Formatter):
+    """Formatter avec colorisation par niveau de log."""
+
+    # Couleurs par niveau
+    COLORS = {
+        logging.DEBUG: Fore.CYAN,
+        logging.INFO: Fore.GREEN,
+        logging.WARNING: Fore.YELLOW,
+        logging.ERROR: Fore.RED,
+        logging.CRITICAL: Fore.RED + Style.BRIGHT,
+    }
+
+    def format(self, record):
+        """Formate le message avec couleurs."""
+        if COLORAMA_AVAILABLE:
+            # Appliquer la couleur selon le niveau
+            levelname_color = self.COLORS.get(record.levelno, "")
+            record.levelname = f"{levelname_color}{record.levelname}{Style.RESET_ALL}"
+        return super().format(record)
 
 
 def get_logger(name: Optional[str] = None) -> logging.Logger:
@@ -41,8 +77,8 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
         handler = logging.StreamHandler(sys.stdout)
         handler.setLevel(logging.INFO)
 
-        # Format simple et lisible
-        formatter = logging.Formatter(
+        # Format simple et lisible avec colorisation
+        formatter = ColoredFormatter(
             "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
             datefmt="%H:%M:%S"
         )
@@ -78,4 +114,36 @@ def set_level(level: str) -> None:
             handler.setLevel(log_level)
 
 
-__all__ = ["get_logger", "set_level"]
+class CountingHandler(logging.Handler):
+    """
+    Handler qui compte les warnings et erreurs pour statistiques de run.
+
+    Usage:
+        counting_handler = CountingHandler()
+        logger.addHandler(counting_handler)
+
+        # Plus tard
+        warnings_count = counting_handler.warnings
+        errors_count = counting_handler.errors
+    """
+
+    def __init__(self):
+        """Initialise le compteur."""
+        super().__init__()
+        self.warnings = 0
+        self.errors = 0
+
+    def emit(self, record):
+        """Compte les warnings et erreurs."""
+        if record.levelno == logging.WARNING:
+            self.warnings += 1
+        elif record.levelno >= logging.ERROR:
+            self.errors += 1
+
+    def reset(self):
+        """Réinitialise les compteurs."""
+        self.warnings = 0
+        self.errors = 0
+
+
+__all__ = ["get_logger", "set_level", "CountingHandler"]
