@@ -1892,6 +1892,7 @@ def render_trade_pnl_distribution(
         return
 
     st.markdown(f"#### {title}")
+    st.caption("📊 Graphique généré avec **Seaborn** (histogramme + KDE)")
 
     # Configuration style seaborn
     sns.set_style("darkgrid")
@@ -1932,7 +1933,7 @@ def render_trade_pnl_distribution(
     ax.spines['right'].set_color('#a8b2d1')
     ax.spines['left'].set_color('#a8b2d1')
 
-    st.pyplot(fig, use_container_width=True, key=key)
+    st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
 
@@ -1960,6 +1961,7 @@ def render_returns_distribution(
         return
 
     st.markdown(f"#### {title}")
+    st.caption("📊 Graphique généré avec **Seaborn** (histogramme + KDE)")
 
     # Configuration style seaborn
     sns.set_style("darkgrid")
@@ -2001,7 +2003,7 @@ def render_returns_distribution(
     ax.spines['right'].set_color('#a8b2d1')
     ax.spines['left'].set_color('#a8b2d1')
 
-    st.pyplot(fig, use_container_width=True, key=key)
+    st.pyplot(fig, use_container_width=True)
     plt.close(fig)
 
 

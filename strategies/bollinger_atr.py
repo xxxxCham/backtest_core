@@ -99,7 +99,7 @@ class BollingerATRStrategy(StrategyBase):
             ),
             "atr_percentile": ParameterSpec(
                 name="atr_percentile",
-                min_val=10, max_val=60, default=30,
+                min_val=0, max_val=60, default=30,
                 param_type="int",
                 description="Percentile volatilite minimum (ATR)"
             ),

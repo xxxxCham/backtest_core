@@ -119,6 +119,8 @@ def simulate_trades(
     # Convertir en arrays pour performance
     timestamps = df.index.values
     closes = df["close"].values
+    lows = df["low"].values if "low" in df.columns else closes.copy()
+    highs = df["high"].values if "high" in df.columns else closes.copy()
     signal_values = signals.values if hasattr(signals, "values") else signals
 
     n_bars = len(closes)
@@ -186,19 +188,17 @@ def simulate_trades(
                 exit_condition = True
                 exit_reason = "signal_reverse"
 
-            # 2. Stop-loss (intrabar check avec high/low si disponible)
+            # 2. Stop-loss (intrabar check avec high/low)
             if position == 1:
                 sl_price = entry_price * (1 - k_sl * 0.01)
-                # Utiliser low si disponible pour vérification intrabar, sinon close
-                check_price = df.loc[timestamp, "low"] if "low" in df.columns else close_price
-                if check_price <= sl_price:
+                # Utiliser low pour vérification intrabar
+                if lows[i] <= sl_price:
                     exit_condition = True
                     exit_reason = "stop_loss"
             elif position == -1:
                 sl_price = entry_price * (1 + k_sl * 0.01)
-                # Utiliser high si disponible pour vérification intrabar, sinon close
-                check_price = df.loc[timestamp, "high"] if "high" in df.columns else close_price
-                if check_price >= sl_price:
+                # Utiliser high pour vérification intrabar
+                if highs[i] >= sl_price:
                     exit_condition = True
                     exit_reason = "stop_loss"
 

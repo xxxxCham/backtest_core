@@ -4,7 +4,7 @@ Backtest Core - Streamlit Application v2
 
 Interface utilisateur robuste avec:
 - Validation des paramètres avec contraintes
-Save failed: st.session_state.versioned_preset_version cannot be modified after the widget with key versioned_preset_version is instantiated.Save failed: st.session_state.versioned_preset_version cannot be modified after the widget with key versioned_preset_version is instantiated.- Feedback utilisateur clair (success/error/warning)
+- Feedback utilisateur clair (success/error/warning)
 - Gestion d'erreurs complète
 - Visualisation améliorée des résultats
 
@@ -262,8 +262,8 @@ PARAM_CONSTRAINTS = {
         "description": "Période ATR (2-100)"
     },
     "atr_percentile": {
-        "min": 10, "max": 60, "step": 1, "default": 30,
-        "description": "Percentile ATR (10-60)"
+        "min": 0, "max": 60, "step": 1, "default": 30,
+        "description": "Percentile ATR (0-60)"
     },
     "entry_z": {
         "min": 0.5, "max": 5.0, "step": 0.1, "default": 2.0,
@@ -1072,6 +1072,7 @@ def safe_run_backtest(
     symbol: str,
     timeframe: str,
     run_id: Optional[str] = None,
+    silent_mode: bool = False,
 ) -> Tuple[Optional[RunResult], str]:
     """
     Exécute un backtest avec gestion d'erreurs complète.
@@ -1095,7 +1096,8 @@ def safe_run_backtest(
             strategy=strategy,
             params=params,
             symbol=symbol,
-            timeframe=timeframe
+            timeframe=timeframe,
+            silent_mode=silent_mode
         )
 
         pnl = result.metrics.get("total_pnl", 0)
@@ -2717,7 +2719,8 @@ if run_button:
 
         with st.spinner("⚙️ Exécution du backtest..."):
             result, result_msg = safe_run_backtest(
-                engine, df, strategy_key, params, symbol, timeframe
+                engine, df, strategy_key, params, symbol, timeframe,
+                silent_mode=not debug_enabled  # Logs complets seulement si debug activé
             )
 
         if result is None:
@@ -2806,7 +2809,8 @@ if run_button:
             """Exécute un seul backtest et retourne le résultat."""
             try:
                 result_i, msg_i = safe_run_backtest(
-                    engine, df, strategy_key, param_combo, symbol, timeframe
+                    engine, df, strategy_key, param_combo, symbol, timeframe,
+                    silent_mode=not debug_enabled  # Logs complets seulement si debug activé
                 )
 
                 # Convertir np.float64 en float natif
@@ -2965,7 +2969,8 @@ if run_button:
             # Récupérer le dict original depuis le mapping
             best_params = param_combos_map.get(best['params'], {})
             result, _ = safe_run_backtest(
-                engine, df, strategy_key, best_params, symbol, timeframe
+                engine, df, strategy_key, best_params, symbol, timeframe,
+                silent_mode=not debug_enabled  # Logs complets seulement si debug activé
             )
             if result is not None:
                 winner_params = best_params
@@ -3078,6 +3083,7 @@ if run_button:
                                 params_cmp,
                                 token,
                                 tf,
+                                silent_mode=not debug_enabled  # Logs complets seulement si debug activé
                             )
                             if result_cmp is None:
                                 comparison_errors.append(
@@ -3374,7 +3380,8 @@ if run_button:
                 best_params = orchestrator_result.final_params or {}
                 if best_params:
                     result, _ = safe_run_backtest(
-                        engine, df, strategy_key, best_params, symbol, timeframe
+                        engine, df, strategy_key, best_params, symbol, timeframe,
+                        silent_mode=not debug_enabled  # Logs complets seulement si debug activé
                     )
                     if result is not None:
                         winner_params = best_params
@@ -3526,7 +3533,8 @@ if run_button:
                 # Relancer le backtest avec les meilleurs paramètres
                 best_params = session.best_result.request.parameters
                 result, _ = safe_run_backtest(
-                    engine, df, strategy_key, best_params, symbol, timeframe
+                    engine, df, strategy_key, best_params, symbol, timeframe,
+                    silent_mode=not debug_enabled  # Logs complets seulement si debug activé
                 )
                 if result is not None:
                     winner_params = best_params
@@ -3758,7 +3766,7 @@ if result is not None:
 
     # --- Analyse Statistique Avancée ---
     if result is not None and not result.trades.empty:
-        with st.expander("📊 Analyse Statistique Avancée", expanded=False):
+        with st.expander("📊 Analyse Statistique Avancée (Seaborn)", expanded=True):
             col1, col2 = st.columns(2)
 
             with col1:
