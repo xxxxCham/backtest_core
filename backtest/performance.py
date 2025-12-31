@@ -21,7 +21,7 @@ Skip-if: Vous n'avez besoin que des résultats bruts sans métriques.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -36,6 +36,40 @@ from backtest.metrics_tier_s import (
 )
 
 logger = get_logger(__name__)
+
+
+class PerformanceMetricsDict(TypedDict, total=False):
+    total_pnl: float
+    total_return_pct: float
+    annualized_return: float
+    cagr: float
+    sharpe_ratio: float
+    sortino_ratio: float
+    max_drawdown: float
+    max_drawdown_duration_days: float
+    volatility_annual: float
+    total_trades: int
+    win_rate: float
+    profit_factor: float
+    avg_win: float
+    avg_loss: float
+    largest_win: float
+    largest_loss: float
+    avg_trade_duration_hours: float
+    avg_trade_pnl: float
+    calmar_ratio: float
+    risk_reward_ratio: float
+    expectancy: float
+    account_ruined: bool
+    min_equity: float
+    tier_s: Optional[Dict[str, Any]]
+    sqn: float
+    recovery_factor: float
+    ulcer_index: float
+    martin_ratio: float
+    gain_pain_ratio: float
+    tier_s_score: float
+    tier_s_grade: str
 
 
 @dataclass
@@ -78,7 +112,7 @@ class PerformanceMetrics:
     # Métriques Tier S (optionnelles)
     tier_s: Optional[TierSMetrics] = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> PerformanceMetricsDict:
         """Convertit en dictionnaire."""
         return {
             "total_pnl": self.total_pnl,
@@ -463,7 +497,7 @@ def calculate_metrics(
     include_tier_s: bool = False,
     sharpe_method: str = "daily_resample",  # "standard", "trading_days" ou "daily_resample"
     run_id: Optional[str] = None  # Pour logging structuré
-) -> Dict[str, Any]:
+) -> PerformanceMetricsDict:
     """
     Calcule toutes les métriques de performance.
 
@@ -489,7 +523,7 @@ def calculate_metrics(
         - La méthode "daily_resample" évite les biais liés aux equity "sparse"
           (qui ne changent qu'aux trades, créant beaucoup de returns nuls)
     """
-    metrics = {}
+    metrics: PerformanceMetricsDict = {}
 
     # === Métriques de rendement ===
     if not equity.empty:
@@ -701,7 +735,7 @@ class PerformanceCalculator:
     def __init__(self, initial_capital: float = 10000.0, include_tier_s: bool = False):
         self.initial_capital = initial_capital
         self.include_tier_s = include_tier_s
-        self._last_metrics: Optional[Dict[str, Any]] = None
+        self._last_metrics: Optional[PerformanceMetricsDict] = None
         self._last_tier_s: Optional[TierSMetrics] = None
 
     def summarize(
@@ -710,7 +744,7 @@ class PerformanceCalculator:
         trades_df: pd.DataFrame,
         periods_per_year: int = 252,
         sharpe_method: str = "daily_resample"
-    ) -> Dict[str, Any]:
+    ) -> PerformanceMetricsDict:
         """
         Calcule un résumé complet des performances.
 
@@ -752,7 +786,7 @@ class PerformanceCalculator:
 
         return metrics
 
-    def format_report(self, metrics: Optional[Dict[str, Any]] = None) -> str:
+    def format_report(self, metrics: Optional[PerformanceMetricsDict] = None) -> str:
         """
         Formate un rapport lisible des métriques.
         """
@@ -801,6 +835,7 @@ class PerformanceCalculator:
 __all__ = [
     "PerformanceCalculator",
     "PerformanceMetrics",
+    "PerformanceMetricsDict",
     "TierSMetrics",
     "calculate_metrics",
     "calculate_tier_s_metrics",

@@ -22,12 +22,14 @@ Skip-if: Vous ne changez qu'un agent spécifique.
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from .llm_client import LLMClient, LLMMessage, LLMResponse
 from .state_machine import ValidationResult
@@ -66,21 +68,38 @@ class MetricsSnapshot:
     avg_trade_duration: float = 0.0
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MetricsSnapshot:
+    def from_dict(cls, data: Mapping[str, Any]) -> MetricsSnapshot:
         """Crée depuis un dictionnaire."""
+        total_return = data.get("total_return")
+        if total_return is None:
+            total_return_pct = data.get("total_return_pct", 0.0)
+            total_return = total_return_pct / 100.0
+
+        max_drawdown = data.get("max_drawdown", 0.0)
+        if abs(max_drawdown) > 1.0:
+            max_drawdown = max_drawdown / 100.0
+
+        win_rate = data.get("win_rate", 0.0)
+        if win_rate > 1.0:
+            win_rate = win_rate / 100.0
+
+        avg_trade_duration = data.get("avg_trade_duration")
+        if avg_trade_duration is None:
+            avg_trade_duration = data.get("avg_trade_duration_hours", 0.0)
+
         return cls(
-            total_return=data.get("total_return", 0.0),
+            total_return=total_return,
             sharpe_ratio=data.get("sharpe_ratio", 0.0),
             sortino_ratio=data.get("sortino_ratio", 0.0),
-            max_drawdown=data.get("max_drawdown", 0.0),
-            win_rate=data.get("win_rate", 0.0),
+            max_drawdown=max_drawdown,
+            win_rate=win_rate,
             profit_factor=data.get("profit_factor", 0.0),
             sqn=data.get("sqn", 0.0),
             calmar_ratio=data.get("calmar_ratio", 0.0),
             recovery_factor=data.get("recovery_factor", 0.0),
             ulcer_index=data.get("ulcer_index", 0.0),
             total_trades=data.get("total_trades", 0),
-            avg_trade_duration=data.get("avg_trade_duration", 0.0),
+            avg_trade_duration=avg_trade_duration,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -276,7 +295,7 @@ class AgentResult:
         cls,
         role: AgentRole,
         content: str,
-        data: Dict[str, Any] = None,
+        data: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> AgentResult:
         """Crée un résultat de succès."""
@@ -328,7 +347,7 @@ class BaseAgent(ABC):
     - validate_result(): Validation du résultat produit
     """
 
-    def __init__(self, llm_client: LLMClient):
+    def __init__(self, llm_client: LLMClient) -> None:
         """
         Initialise l'agent.
 

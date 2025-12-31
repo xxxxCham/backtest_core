@@ -1,15 +1,23 @@
 """
-Backtest Core - Checkpoint Manager
-==================================
+Module-ID: utils.checkpoint
 
-Sauvegarde et reprise automatique de l'état des opérations longues.
+Purpose: Gestionnaire de checkpoints pour sauvegarde/reprise automatique d'opérations longues (sweeps, optimisations).
 
-Permet de:
-- Sauvegarder l'état d'un sweep en cours
-- Reprendre après un crash ou interruption
-- Récupérer les résultats partiels
+Role in pipeline: resilience / state management
 
-Utilise JSON pour la portabilité et la lisibilité.
+Key components: CheckpointManager, CheckpointMetadata, checkpoint_context (context manager)
+
+Inputs: operation_type (str), state (dict), checkpoint_dir (Path optionnel)
+
+Outputs: Fichiers JSON checkpoint (state + metadata), resume capability après crash/interruption
+
+Dependencies: json, pathlib, dataclasses, utils.log, hashlib
+
+Conventions: Checkpoints JSON pour portabilité/lisibilité; checkpoint_id unique (hash params); progress 0.0-1.0; auto-save périodique; resume transparente via checkpoint_context(); nettoyage automatique anciens checkpoints.
+
+Read-if: Gestion checkpoints pour sweeps, recovery après crash, ou state persistence long-running ops.
+
+Skip-if: Opérations courtes sans besoin de resume/recovery.
 """
 
 import json

@@ -23,14 +23,14 @@ Skip-if: Vous ne faites que des stratégies/indicateurs.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
 from strategies.base import StrategyBase
 
-from backtest.performance import calculate_metrics
+from backtest.performance import PerformanceMetricsDict, calculate_metrics
 
 # Import simulateur rapide (Numba) avec fallback
 try:
@@ -51,7 +51,7 @@ from backtest.simulator import (
     calculate_returns,
     simulate_trades,
 )
-from data.indicator_bank import get_indicator_bank
+from data.indicator_bank import IndicatorBank, get_indicator_bank
 from indicators.registry import calculate_indicator
 from utils.config import Config
 from utils.data import detect_gaps
@@ -66,6 +66,9 @@ from utils.version import get_git_commit
 
 # Logger par défaut (sans run_id)
 _default_logger = get_obs_logger(__name__)
+
+if TYPE_CHECKING:
+    from backtest.execution import ExecutionEngine
 
 
 @dataclass
@@ -83,10 +86,10 @@ class RunResult:
     equity: pd.Series
     returns: pd.Series
     trades: pd.DataFrame
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    metrics: PerformanceMetricsDict = field(default_factory=dict)
     meta: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validation des données."""
         if not isinstance(self.equity, pd.Series):
             raise TypeError("equity doit être une pd.Series")
@@ -141,7 +144,7 @@ class BacktestEngine:
         initial_capital: float = 10000.0,
         config: Optional[Config] = None,
         run_id: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Initialise le moteur.
 
@@ -156,7 +159,7 @@ class BacktestEngine:
         self.logger = get_obs_logger(__name__, run_id=self.run_id)
         self.last_run_meta: Dict[str, Any] = {}
         self.counters: Optional[PerfCounters] = None
-        self.indicator_bank = None
+        self.indicator_bank: Optional[IndicatorBank] = None
 
         self.logger.info("BacktestEngine init capital=%s", initial_capital)
 
@@ -440,7 +443,7 @@ class BacktestEngine:
         data_hash = bank.get_data_hash(df) if bank is not None else None
 
         for indicator_name in strategy.required_indicators:
-            self.logger.debug(f"  Calcul indicateur: {indicator_name}")
+            self.logger.debug("  Calcul indicateur: %s", indicator_name)
 
             # Extraire les paramètres spécifiques à l'indicateur
             indicator_params = self._extract_indicator_params(strategy, indicator_name, params)
@@ -465,12 +468,12 @@ class BacktestEngine:
                             data_hash=data_hash
                         )
             except Exception as e:
-                self.logger.warning(f"  ⚠️ Erreur calcul {indicator_name}: {e}")
+                self.logger.warning("  ⚠️ Erreur calcul %s: %s", indicator_name, e)
                 indicators[indicator_name] = None
 
         return indicators
 
-    def _get_indicator_bank(self, params: Dict[str, Any]):
+    def _get_indicator_bank(self, params: Dict[str, Any]) -> Optional[IndicatorBank]:
         cache_enabled = params.get("indicator_cache", True)
         if not cache_enabled:
             return None
@@ -486,7 +489,7 @@ class BacktestEngine:
             self.indicator_bank = get_indicator_bank(cache_dir=cache_dir, **kwargs)
         return self.indicator_bank
 
-    def _build_execution_engine(self, params: Dict[str, Any]):
+    def _build_execution_engine(self, params: Dict[str, Any]) -> Optional["ExecutionEngine"]:
         execution_model = params.get("execution_model")
         if execution_model is None:
             execution_model = getattr(self.config, "execution_model", None)
@@ -526,7 +529,7 @@ class BacktestEngine:
 
     def _extract_indicator_params(
         self,
-        strategy,
+        strategy: StrategyBase,
         indicator_name: str,
         params: Dict[str, Any]
     ) -> Dict[str, Any]:

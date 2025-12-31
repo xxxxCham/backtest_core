@@ -22,6 +22,8 @@ Skip-if: Vous ne touchez qu’au moteur backtest/ (engine/simulator/performance)
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import hashlib
 import json
 import logging

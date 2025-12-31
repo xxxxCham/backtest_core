@@ -22,6 +22,8 @@ Skip-if: Vous utilisez la config par défaut.
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 import os
 import random
@@ -200,6 +202,21 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         recommended_for=["strategist", "critic"],
         avg_response_time_s=100.0,
     ),
+    # Llama 3.3 70B - Multi-GPU optimisé
+    "llama3.3:70b-instruct-q4_K_M": ModelInfo(
+        name="llama3.3:70b-instruct-q4_K_M",
+        category=ModelCategory.HEAVY,
+        description="Llama 3.3 70B Instruct Q4 - Multi-GPU, raisonnement avancé",
+        recommended_for=["critic", "validator"],
+        avg_response_time_s=300.0,
+    ),
+    "llama3.3-70b-optimized": ModelInfo(
+        name="llama3.3-70b-optimized",
+        category=ModelCategory.HEAVY,
+        description="Llama 3.3 70B Optimisé - Config multi-GPU personnalisée",
+        recommended_for=["critic", "validator"],
+        avg_response_time_s=300.0,
+    ),
 }
 
 
@@ -272,13 +289,13 @@ class RoleModelConfig:
 
     critic: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="critic",
-        models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
+        models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b", "llama3.3-70b-optimized"],
         allow_heavy_after_iteration=2,
     ))
 
     validator: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="validator",
-        models=["deepseek-r1-distill:14b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
+        models=["deepseek-r1-distill:14b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b", "llama3.3-70b-optimized"],
         allow_heavy_after_iteration=3,
     ))
 
@@ -297,7 +314,17 @@ class RoleModelConfig:
             return self._installed_models
 
         models = data.get("models", [])
-        self._installed_models = {m.get("name", "") for m in models if m.get("name")}
+        # Normaliser les noms (enlever tags :latest, :70b, etc.) pour compatibilité avec KNOWN_MODELS
+        normalized_names = set()
+        for m in models:
+            name = m.get("name", "")
+            if name:
+                # Ajouter nom complet ET nom sans tag pour compatibilité
+                normalized_names.add(name)
+                if ":" in name:
+                    normalized_names.add(name.split(":")[0])
+
+        self._installed_models = normalized_names
         logger.debug("Modeles installes: %s", len(self._installed_models))
 
         return self._installed_models

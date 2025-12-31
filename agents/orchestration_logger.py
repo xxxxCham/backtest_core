@@ -20,13 +20,15 @@ Read-if: Ajout types actions, modification format JSONL, ou intégration UI.
 Skip-if: Vous ne debuggez pas l'orchestration.
 """
 
+# pylint: disable=logging-fstring-interpolation
+
 import json
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from utils.log import get_logger
 
@@ -34,7 +36,9 @@ logger = get_logger(__name__)
 
 
 class OrchestrationActionType(Enum):
-    """Types d'actions d'orchestration."""
+    """
+
+Types d'actions d'orchestration."""
 
     # Cycle de vie orchestration
     RUN_START = "run_start"
@@ -192,7 +196,7 @@ class OrchestrationLogger:
         session_id: Optional[str] = None,
         auto_save: bool = True,
         save_path: Optional[Path] = None,
-        on_event: Optional[callable] = None,
+        on_event: Optional[Callable] = None,
     ):
         """
         Initialize le logger d'orchestration.
@@ -217,7 +221,7 @@ class OrchestrationLogger:
         if self._auto_save:
             self._save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def set_on_event_callback(self, callback: callable) -> None:
+    def set_on_event_callback(self, callback: Callable) -> None:
         """Définit le callback appelé à chaque nouvel événement."""
         self._on_event_callback = callback
 

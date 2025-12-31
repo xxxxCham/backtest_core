@@ -716,6 +716,12 @@ def parameter_values(
     if min_val >= max_val:
         return np.array([min_val])
 
+    granularity = float(granularity)
+    if granularity < 0.0:
+        granularity = 0.0
+    elif granularity > 1.0:
+        granularity = 1.0
+
     range_size = max_val - min_val
 
     # Granularité maximale = juste la médiane
@@ -725,9 +731,10 @@ def parameter_values(
             return np.array([int(round(median))])
         return np.array([median])
 
-    # Calculer le nombre de valeurs selon la granularité
-    # Plus granularité est élevée, moins on a de valeurs
-    effective_steps = max(1, int(base_steps * (1 - granularity)))
+    # Calculer le nombre de valeurs selon la granularité.
+    # Plus la granularité est élevée, plus on réduit agressivement.
+    # Forme non-linéaire pour éviter une explosion combinatoire avec de nombreux paramètres.
+    effective_steps = max(1, int(base_steps * (1 - granularity) ** 2))
 
     # Réduction dynamique pour petites plages
     # Si la plage est < 5% de la valeur moyenne, réduire encore
@@ -1394,11 +1401,78 @@ ATR_CHANNEL_PRESET = Preset(
 )
 
 
+BOLLINGER_ATR_PRESET = Preset(
+    name="Bollinger ATR",
+    description="Configuration pour stratégie Bollinger + filtre ATR. ~128-2000 combinaisons selon granularité.",
+    parameters={
+        "bb_period": ParameterSpec(
+            name="bb_period",
+            min_val=10,
+            max_val=40,
+            default=20,
+            param_type="int",
+            description="Période des bandes de Bollinger",
+        ),
+        "bb_std": ParameterSpec(
+            name="bb_std",
+            min_val=1.5,
+            max_val=3.0,
+            default=2.0,
+            param_type="float",
+            description="Écart-type des bandes",
+        ),
+        "entry_z": ParameterSpec(
+            name="entry_z",
+            min_val=1.0,
+            max_val=3.0,
+            default=2.0,
+            param_type="float",
+            description="Seuil Z-score d'entrée",
+        ),
+        "atr_period": ParameterSpec(
+            name="atr_period",
+            min_val=7,
+            max_val=21,
+            default=14,
+            param_type="int",
+            description="Période ATR",
+        ),
+        "atr_percentile": ParameterSpec(
+            name="atr_percentile",
+            min_val=10,
+            max_val=60,
+            default=30,
+            param_type="int",
+            description="Percentile de filtre volatilité (ATR)",
+        ),
+        "k_sl": ParameterSpec(
+            name="k_sl",
+            min_val=0.5,
+            max_val=3.0,
+            default=1.5,
+            param_type="float",
+            description="Multiplicateur stop-loss (ATR)",
+        ),
+        "leverage": ParameterSpec(
+            name="leverage",
+            min_val=1,
+            max_val=5,
+            default=2,
+            param_type="int",
+            description="Levier de trading",
+        ),
+    },
+    indicators=["bollinger", "atr"],
+    default_granularity=0.7,
+)
+
+
 # --- 5.2. Registre PRESETS ---
 
 PRESETS: Dict[str, Preset] = {
     "safe_ranges": SAFE_RANGES_PRESET,
     "minimal": MINIMAL_PRESET,
+    "bollinger_atr": BOLLINGER_ATR_PRESET,
     "ema_cross": EMA_CROSS_PRESET,
     "macd_cross": MACD_CROSS_PRESET,
     "rsi_reversal": RSI_REVERSAL_PRESET,

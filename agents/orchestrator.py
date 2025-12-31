@@ -22,16 +22,18 @@ Skip-if: Vous ne modifiez qu’un agent isolé ou le moteur de backtest pur.
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, TYPE_CHECKING
 
 from .analyst import AnalystAgent
-from .base_agent import AgentContext, MetricsSnapshot, ParameterConfig
+from .base_agent import AgentContext, BaseAgent, MetricsSnapshot, ParameterConfig
 from .critic import CriticAgent
 from .integration import run_walk_forward_for_agent
 from .llm_client import LLMConfig, create_llm_client
@@ -60,8 +62,11 @@ except ImportError:
     TQDM_AVAILABLE = False
     # Fallback: tqdm est une fonction identité
 
-    def tqdm(iterable, **kwargs):
+    def tqdm(iterable: Iterable[Any], **kwargs: Any) -> Iterable[Any]:
         return iterable
+
+if TYPE_CHECKING:  # pragma: no cover
+    import pandas as pd
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +82,7 @@ class OrchestratorConfig:
 
     # Données
     data_path: str = ""
-    data: Optional[Any] = None
+    data: Optional["pd.DataFrame"] = None
     data_symbol: str = ""
     data_timeframe: str = ""
     data_date_range: str = ""
@@ -114,7 +119,7 @@ class OrchestratorConfig:
 
     # Callbacks (optionnels)
     on_state_change: Optional[Callable[[AgentState, AgentState], None]] = None
-    on_iteration_complete: Optional[Callable[[int, Dict], None]] = None
+    on_iteration_complete: Optional[Callable[[int, Dict[str, Any]], None]] = None
     on_backtest_needed: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
 
 
@@ -173,7 +178,7 @@ class Orchestrator:
         ...     print(f"Optimized params: {result.final_params}")
     """
 
-    def __init__(self, config: OrchestratorConfig):
+    def __init__(self, config: OrchestratorConfig) -> None:
         """
         Initialise l'Orchestrator.
 
@@ -218,7 +223,7 @@ class Orchestrator:
         self.param_tracker = SessionParameterTracker(session_id=self.session_id)
 
         # Données chargées (pour walk-forward)
-        self._loaded_data: Optional[Any] = getattr(config, "data", None)
+        self._loaded_data: Optional["pd.DataFrame"] = getattr(config, "data", None)
 
         # Orchestration logger (optionnel, non bloquant)
         self._orch_logger: Any = None
@@ -1317,7 +1322,7 @@ class Orchestrator:
             success = False
 
         # Statistiques LLM (avec fallback si agent n'a pas de stats)
-        def _get_agent_stats(agent):
+        def _get_agent_stats(agent: BaseAgent) -> Dict[str, int]:
             """Récupère les stats d'un agent de manière sûre."""
             stats = getattr(agent, "stats", {})
             return {

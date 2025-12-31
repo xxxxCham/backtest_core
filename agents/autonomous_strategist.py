@@ -22,6 +22,8 @@ Skip-if: Vous utilisez uniquement le mode orchestré sans exécution de backtest
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 
 # Import search space statistics
@@ -855,7 +857,7 @@ Actions:
         """
         return AgentResult(
             success=True,
-            role=self.role,
+            agent_role=self.role,
             content="Use optimize() method for autonomous optimization",
             data={},
             execution_time_ms=0,

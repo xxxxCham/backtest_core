@@ -676,12 +676,5 @@ __all__ = [
     "martin_ratio",
     "gain_pain_ratio",
     "r_multiple_stats",
-]
-
-
-# Docstring update summary
-# - Docstring de module normalisée (LLM-friendly) centrée sur métriques institutionnelles
-# - Conventions scores (0-100) et grades (A-F) explicitées
-# - Read-if/Skip-if ajoutés pour guider la lecture
     "outlier_adjusted_sharpe",
 ]

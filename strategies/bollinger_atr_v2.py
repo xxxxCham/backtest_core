@@ -1,20 +1,25 @@
 """
-Backtest Core - Bollinger Bands + ATR Strategy V2
-==================================================
+Module-ID: strategies.bollinger_atr_v2
 
-Stratégie de mean-reversion basée sur les Bandes de Bollinger
-avec filtre de volatilité ATR et stop-loss Bollinger paramétrable.
+Purpose: Stratégie mean-reversion Bollinger Bands + ATR avec stop-loss Bollinger paramétrable (V2).
 
-Améliorations V2:
-- Stop-loss basé sur les bandes de Bollinger (au lieu de ATR)
-- Facteur de stop-loss paramétrable (bb_stop_factor: 0.2 à 2.0)
-- Stop-loss fixe au moment de l'entrée (ne bouge pas)
+Role in pipeline: trading strategy
 
-Logique:
-- LONG: Prix touche/dépasse la bande inférieure (oversold)
-- SHORT: Prix touche/dépasse la bande supérieure (overbought)
-- Filtre ATR: Ne trade que si volatilité > seuil (évite marchés plats)
-- Stop-loss: Basé sur distance Bollinger × bb_stop_factor
+Key components: BollingerATRStrategyV2, register_strategy("bollinger_atr_v2")
+
+Inputs: DataFrame OHLCV, paramètres (bb_period, bb_std, entry_z, atr_period, atr_percentile, bb_stop_factor, leverage)
+
+Outputs: StrategyResult (signaux LONG/SHORT, prix, stop-loss Bollinger, métadata)
+
+Dependencies: pandas, numpy, utils.parameters, strategies.base
+
+Conventions: LONG sur bande inférieure (oversold), SHORT sur bande supérieure (overbought); stop-loss fixe basé sur Bollinger distance × bb_stop_factor (0.2-2.0); filtre ATR exclut marchés plats; signaux 1/-1/0.
+
+Améliorations V2 vs V1: Stop-loss basé Bollinger au lieu ATR; facteur stop paramétrable; stop fixe à l'entrée (ne bouge pas).
+
+Read-if: Configuration V2 spécifique, paramètres stop-loss Bollinger, ou logique mean-reversion Bollinger+ATR.
+
+Skip-if: Vous utilisez V1 ou V3, ou autres stratégies.
 """
 
 from typing import Any, Dict, List, Optional

@@ -22,6 +22,8 @@ Skip-if: Vous ne touchez qu'à analyze/critique/validate.
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import logging
 import time
 from typing import Any, Dict, List

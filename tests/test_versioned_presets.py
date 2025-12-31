@@ -20,6 +20,17 @@ Read-if: Modification versioning system ou file structure.
 Skip-if: Tests presets non critiques.
 """
 
+import pytest
+
+from utils.parameters import (
+    DEFAULT_STRATEGY_VERSION,
+    list_strategy_versions,
+    load_strategy_version,
+    resolve_latest_version,
+    save_versioned_preset,
+    validate_before_use,
+)
+
 
 def test_resolve_latest_version_default(tmp_path, monkeypatch):
     monkeypatch.setenv("BACKTEST_PRESETS_DIR", str(tmp_path))

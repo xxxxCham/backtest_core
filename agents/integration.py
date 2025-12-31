@@ -22,7 +22,9 @@ Skip-if: Vous ne changez que les stratégies/indicateurs ou la UI.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+# pylint: disable=logging-fstring-interpolation
+
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 import numpy as np
 import pandas as pd
@@ -52,6 +54,91 @@ _logger = get_obs_logger(__name__)
 MIN_DAYS_FOR_WALK_FORWARD = 180  # 6 mois minimum
 
 
+class AgentBacktestMetrics(TypedDict):
+    sharpe_ratio: float
+    sortino_ratio: float
+    total_return: float
+    max_drawdown: float
+    win_rate: float
+    profit_factor: float
+    total_trades: int
+    sqn: float
+    calmar_ratio: float
+    recovery_factor: float
+    equity_curve: Optional[List[float]]
+    trades: Optional[List[Dict[str, Any]]]
+    run_id: str
+
+
+class WalkForwardMetrics(TypedDict):
+    train_sharpe: float
+    test_sharpe: float
+    overfitting_ratio: float
+    classic_ratio: float
+    degradation_pct: float
+    test_stability_std: float
+    n_valid_folds: int
+
+
+def extract_dataframe_timestamps(
+    data: pd.DataFrame
+) -> Tuple[pd.Timestamp, pd.Timestamp]:
+    """
+    Extrait les timestamps de début et fin d'un DataFrame OHLCV.
+
+    Gère automatiquement:
+    - DatetimeIndex
+    - Colonne 'timestamp' ou 'date' (datetime ou numérique ms/s)
+
+    Args:
+        data: DataFrame OHLCV
+
+    Returns:
+        Tuple (start_datetime, end_datetime)
+
+    Raises:
+        ValueError: Si aucun timestamp n'est trouvé ou format invalide
+
+    Example:
+        >>> start, end = extract_dataframe_timestamps(df)
+        >>> duration_days = (end - start).days
+    """
+    # Cas 1: DatetimeIndex
+    if isinstance(data.index, pd.DatetimeIndex):
+        return data.index[0], data.index[-1]
+
+    # Cas 2: Colonne timestamp/date
+    col = None
+    if "timestamp" in data.columns:
+        col = "timestamp"
+    elif "date" in data.columns:
+        col = "date"
+    else:
+        raise ValueError(
+            "DataFrame must have DatetimeIndex or 'timestamp'/'date' column"
+        )
+
+    ts_col = data[col]
+
+    # Déjà en datetime
+    if pd.api.types.is_datetime64_any_dtype(ts_col):
+        return ts_col.iloc[0], ts_col.iloc[-1]
+
+    # Numérique: détecter ms vs s
+    if pd.api.types.is_numeric_dtype(ts_col):
+        first_val = ts_col.iloc[0]
+        # Heuristique: >1e12 = millisecondes, sinon secondes
+        unit = "ms" if first_val > 1e12 else "s"
+        return (
+            pd.to_datetime(first_val, unit=unit),
+            pd.to_datetime(ts_col.iloc[-1], unit=unit)
+        )
+
+    raise ValueError(
+        f"Column '{col}' must be datetime or numeric, got {ts_col.dtype}"
+    )
+
+
 def validate_walk_forward_period(
     data: pd.DataFrame,
     min_days: int = MIN_DAYS_FOR_WALK_FORWARD,
@@ -79,29 +166,8 @@ def validate_walk_forward_period(
         ...     print(f"⚠️ {msg}")
         ...     # Désactiver walk-forward
     """
-    # Extraire les timestamps
-    if isinstance(data.index, pd.DatetimeIndex):
-        start_dt = data.index[0]
-        end_dt = data.index[-1]
-    elif "timestamp" in data.columns:
-        # Essayer de convertir en datetime si ce n'est pas déjà le cas
-        ts_col = data["timestamp"]
-        if pd.api.types.is_datetime64_any_dtype(ts_col):
-            start_dt = ts_col.iloc[0]
-            end_dt = ts_col.iloc[-1]
-        elif pd.api.types.is_numeric_dtype(ts_col):
-            # Si timestamp numérique, détecter ms vs s
-            first_val = ts_col.iloc[0]
-            if first_val > 1e12:
-                start_dt = pd.to_datetime(first_val, unit="ms")
-                end_dt = pd.to_datetime(ts_col.iloc[-1], unit="ms")
-            else:
-                start_dt = pd.to_datetime(first_val, unit="s")
-                end_dt = pd.to_datetime(ts_col.iloc[-1], unit="s")
-        else:
-            raise ValueError("Timestamp column must be datetime or numeric")
-    else:
-        raise ValueError("DataFrame must have DatetimeIndex or 'timestamp' column")
+    # Extraire les timestamps (fonction helper centralisée)
+    start_dt, end_dt = extract_dataframe_timestamps(data)
 
     # Calculer la durée en jours
     duration = (end_dt - start_dt).days
@@ -134,7 +200,7 @@ def run_backtest_for_agent(
     initial_capital: float = 10000.0,
     config: Optional[Config] = None,
     run_id: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> AgentBacktestMetrics:
     """
     Exécute un backtest et retourne les métriques pour un agent.
 
@@ -179,7 +245,7 @@ def run_backtest_for_agent(
         max_drawdown_pct = metrics.get("max_drawdown", 0)
         win_rate_pct = metrics.get("win_rate", 0)
 
-        output = {
+        output: AgentBacktestMetrics = {
             "sharpe_ratio": metrics.get("sharpe_ratio", 0),
             "sortino_ratio": metrics.get("sortino_ratio", 0),
             "total_return": total_return_pct / 100.0,
@@ -223,7 +289,7 @@ def run_walk_forward_for_agent(
     initial_capital: float = 10000.0,
     config: Optional[Config] = None,
     n_workers: int = 1,
-) -> Dict[str, Any]:
+) -> WalkForwardMetrics:
     """
     Exécute une validation walk-forward et retourne les métriques.
 
@@ -437,7 +503,7 @@ def create_optimizer_from_engine(
     # Créer la fonction de backtest
     def backtest_fn(
         strategy: str, params: Dict[str, Any], df: pd.DataFrame
-    ) -> Dict[str, Any]:
+    ) -> AgentBacktestMetrics:
         return run_backtest_for_agent(
             strategy_name=strategy,
             params=params,
@@ -453,7 +519,7 @@ def create_optimizer_from_engine(
         df: pd.DataFrame,
         n_windows: int = 6,  # Optimisé pour 2 ans de données
         train_ratio: float = 0.75,  # 75/25 pour meilleur compromis
-    ) -> Dict[str, Any]:
+    ) -> WalkForwardMetrics:
         return run_walk_forward_for_agent(
             strategy_name=strategy,
             params=params,
@@ -539,7 +605,7 @@ def get_strategy_param_bounds(
 def get_strategy_param_space(
     strategy_name: str,
     include_step: bool = True,
-) -> Dict[str, Tuple]:
+) -> Dict[str, Union[Tuple[float, float], Tuple[float, float, float]]]:
     """
     Récupère l'espace des paramètres avec step si disponible.
 
@@ -739,7 +805,7 @@ def create_orchestrator_with_backtest(
         ))
 
     # Créer le callback de backtest
-    def on_backtest_needed(params: Dict[str, Any]) -> Dict[str, Any]:
+    def on_backtest_needed(params: Dict[str, Any]) -> AgentBacktestMetrics:
         return run_backtest_for_agent(
             strategy_name=strategy_name,
             params=params,
@@ -750,13 +816,9 @@ def create_orchestrator_with_backtest(
 
     data_date_range = ""
     try:
-        if isinstance(data.index, pd.DatetimeIndex):
-            data_date_range = f"{data.index[0]} -> {data.index[-1]}"
-        elif "timestamp" in data.columns or "date" in data.columns:
-            col = "timestamp" if "timestamp" in data.columns else "date"
-            dates = pd.to_datetime(data[col])
-            data_date_range = f"{dates.iloc[0]} -> {dates.iloc[-1]}"
-    except Exception:
+        start_dt, end_dt = extract_dataframe_timestamps(data)
+        data_date_range = f"{start_dt} -> {end_dt}"
+    except (ValueError, Exception):
         data_date_range = ""
 
     # Créer la config

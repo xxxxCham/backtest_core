@@ -18,11 +18,10 @@ Conventions: AgentType enum, ActivityType categorization, metrics snapshot
 Read-if: Afficher timeline agents LLM.
 
 Skip-if: Pas d'agents LLM ou monitoring minimal.
-"""
 
 Usage:
-  >>> from ui.components.agent_timeline import render_agent_timeline
-  >>> render_agent_timeline(timeline)
+    >>> from ui.components.agent_timeline import render_agent_timeline
+    >>> render_agent_timeline(timeline)
 """
 
 from __future__ import annotations

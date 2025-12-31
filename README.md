@@ -1,6 +1,6 @@
 # 🚀 Backtest Core
 
-**Système de backtesting algorithmique avancé avec optimisation multi-agents LLM**
+Systeme de backtesting algorithmique avance avec optimisation multi-agents LLM.
 
 Plateforme complète pour développer, tester et optimiser des stratégies de trading quantitatives avec une interface Streamlit moderne et un système d'agents LLM intelligents.
 
@@ -23,14 +23,16 @@ Plateforme complète pour développer, tester et optimiser des stratégies de tr
 
 ### Option 1: Script Automatique (Recommandé)
 
-**Windows:**
+#### Windows
+
 ```bash
 git clone https://github.com/VOTRE_USERNAME/backtest_core.git
 cd backtest_core
 install.bat
-```
+```text
 
-**Linux/macOS:**
+#### Linux/macOS
+
 ```bash
 git clone https://github.com/VOTRE_USERNAME/backtest_core.git
 cd backtest_core
@@ -58,7 +60,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-📖 **Documentation complète**: Voir [INSTALL.md](INSTALL.md)
+📖 **Note**: L'installation manuelle ci-dessus suffit pour démarrer.
 
 ---
 
@@ -77,6 +79,12 @@ streamlit run ui/app.py
 L'interface s'ouvre automatiquement sur `http://localhost:8501`
 
 ---
+
+## 🤖 Instructions & historique (agents)
+
+Pour les agents (Copilot / Claude Code / Codex / autres), la **source unique de vérité** (règles + journal daté des changements) est :
+
+- [AGENTS.md](AGENTS.md)
 
 ## 📖 Documentation
 
@@ -163,6 +171,37 @@ backtest_core/
 | **LLM**            | Ollama (Mistral, Llama)        |
 | **Optimisation**   | Optuna 3.0+ (Bayesian)         |
 | **Données**        | PyArrow (Parquet)              |
+
+---
+
+## 🧠 Modèles LLM Avancés (Optionnel)
+
+Le système multi-agents supporte plusieurs modèles LLM via Ollama. Pour les tâches critiques nécessitant un raisonnement profond:
+
+### Llama-3.3-70B-Instruct (Multi-GPU)
+
+Configuration optimisée pour distributions multi-GPU avec offloading RAM:
+
+```bash
+# Installation et configuration automatique
+python tools/setup_llama33_70b.py
+
+# Vérification de l'intégration
+python tools/test_llama33_70b.py
+```
+
+#### Prerequis
+
+- 2 GPUs NVIDIA (recommandé: 20GB+ VRAM chacun)
+- 32GB+ RAM DDR5 pour offloading
+- ~40GB espace disque
+
+#### Caracteristiques
+
+- Distribution automatique sur 2 GPUs
+- Quantization Q4 (~40GB VRAM total)
+- Utilisé pour rôles Critic (iter>=2) et Validator (iter>=3)
+- Temps de réponse: ~5 min pour analyses complexes
 
 ---
 

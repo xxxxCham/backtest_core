@@ -22,6 +22,8 @@ Skip-if: Vous appelez juste le client via create_llm_client().
 
 from __future__ import annotations
 
+# pylint: disable=logging-fstring-interpolation
+
 import json
 import logging
 import os

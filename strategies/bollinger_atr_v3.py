@@ -1,23 +1,25 @@
 """
-Backtest Core - Bollinger Bands + ATR Strategy V3
-==================================================
+Module-ID: strategies.bollinger_atr_v3
 
-Stratégie de mean-reversion basée sur les Bandes de Bollinger
-avec ENTRÉES ET STOP-LOSS VARIABLES sur échelle unifiée.
+Purpose: Stratégie mean-reversion Bollinger+ATR avec entrées ET stop-loss VARIABLES sur échelle unifiée (V3 - Pure Logic).
 
-Version V3 - Pure Logic:
-- Échelle unifiée: 0% = lower, 50% = middle, 100% = upper
-- Entrées LONG variables: -50% à +20% (en dessous de lower → vers middle)
-- Entrées SHORT variables: +80% à +150% (vers upper → au-dessus)
-- Stop-loss depuis prix d'entrée: 0.1 à 1.0 × distance totale
+Role in pipeline: trading strategy / analysis base
 
-Cette version sert de BASE D'ANALYSE pour identifier patterns avant filtrage.
+Key components: BollingerATRStrategyV3, register_strategy("bollinger_atr_v3")
 
-Logique:
-- LONG: Prix atteint entry_level calculé à partir de lower_band
-- SHORT: Prix atteint entry_level calculé à partir de lower_band (échelle unifiée)
-- Filtre ATR: Ne trade que si volatilité > seuil
-- Stop-loss: Fixe depuis entry_price, basé sur distance Bollinger
+Inputs: DataFrame OHLCV, paramètres (bb_period, bb_std, entry_level_long, entry_level_short, atr_period, atr_percentile, stop_distance, leverage)
+
+Outputs: StrategyResult (signaux LONG/SHORT variables, prix, stop-loss calculés, metadata)
+
+Dependencies: pandas, numpy, utils.parameters, strategies.base
+
+Conventions: Échelle unifiée 0%=lower, 50%=middle, 100%=upper; LONG variables -50% à +20% (sous lower → middle); SHORT variables +80% à +150% (vers/au-dessus upper); stop-loss 0.1-1.0 × distance depuis entry_price; filtre ATR volatilité; BASE D'ANALYSE pour patterns pre-filtre.
+
+V3 Innovations: Entrées/stop variables vs fixes V2; échelle unifiée exploratoire; base patterns avant filtrage.
+
+Read-if: Analyse patterns Bollinger exploratoires, échelle unifiée, ou logique V3 entrées/stop variables.
+
+Skip-if: Vous préférez V1/V2 fixes ou autres stratégies.
 """
 
 from typing import Any, Dict, List, Optional
