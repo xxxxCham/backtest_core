@@ -1,11 +1,23 @@
 """
-Backtest Core - Momentum Indicator
-==================================
+Module-ID: indicators.momentum
 
-Momentum mesure le taux de changement absolu du prix sur une période.
-Simple mais efficace pour détecter accélération/décélération.
+Purpose: Indicateur Momentum - taux changement prix simple.
 
-Formula: Momentum = Close - Close[n periods ago]
+Role in pipeline: data
+
+Key components: momentum, MomentumSettings, calculate_momentum
+
+Inputs: DataFrame avec close; period
+
+Outputs: np.ndarray (différence close actuel - close n periodes avant)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: Momentum = Close - Close[n]; simple mais efficace accélération/décélération.
+
+Read-if: Modification période.
+
+Skip-if: Vous utilisez juste calculate_indicator('momentum').
 """
 
 from dataclasses import dataclass

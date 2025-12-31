@@ -1,13 +1,23 @@
 """
-Backtest Core - Bollinger Bands Indicator
-=========================================
+Module-ID: indicators.bollinger
 
-Implémentation vectorisée des Bandes de Bollinger.
+Purpose: Indicateur Bandes de Bollinger (volatilité + centre) vectorisé.
 
-Formule:
-- Middle Band = SMA(close, period)
-- Upper Band = Middle + (std_dev * StdDev(close, period))
-- Lower Band = Middle - (std_dev * StdDev(close, period))
+Role in pipeline: data
+
+Key components: bollinger_bands, BollingerSettings, calculate_bollinger
+
+Inputs: DataFrame avec close; window, std_dev (nombre d'écarts-types)
+
+Outputs: Dict{upper, middle, lower} ou Tuple
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: middle = SMA; upper/lower = +/- std_dev * volatilité; vectorisé.
+
+Read-if: Modification period, nombre écarts-types, ou output format.
+
+Skip-if: Vous utilisez juste calculate_indicator('bollinger').
 """
 
 from dataclasses import dataclass

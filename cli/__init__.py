@@ -1,16 +1,31 @@
 """
-Backtest Core - Module CLI
-==========================
+Module-ID: cli.__init__
 
-Interface en ligne de commande pour le moteur de backtesting.
+Purpose: Package CLI - parser argparse, routing commands, entry point.
+
+Role in pipeline: CLI interface
+
+Key components: create_parser(), add_subcommands(), main()
+
+Inputs: sys.argv command-line args
+
+Outputs: Dispatched to cmd_* functions
+
+Dependencies: argparse, .commands
+
+Conventions: Sous-commandes via add_parser(); --verbose/-v global; help auto-generated.
+
+Read-if: Ajout/modification sous-commande ou argument structure.
+
+Skip-if: Vous appelez main() depuis __main__.py.
 """
 
 import argparse
-import sys
 from typing import Optional
 
 from .commands import (
     cmd_backtest,
+    cmd_check_gpu,
     cmd_export,
     cmd_info,
     cmd_indicators,
@@ -24,7 +39,7 @@ from .commands import (
 
 def create_parser() -> argparse.ArgumentParser:
     """Crée le parser principal avec toutes les sous-commandes."""
-    
+
     parser = argparse.ArgumentParser(
         prog="backtest_core",
         description="Moteur de backtesting pour stratégies de trading",
@@ -38,7 +53,7 @@ Exemples:
   %(prog)s sweep -s ema_cross -d data.parquet --granularity 0.3
         """
     )
-    
+
     # Parser parent avec arguments communs
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument(
@@ -67,14 +82,14 @@ Exemples:
         type=str,
         help="Fichier de configuration TOML"
     )
-    
+
     # Sous-commandes
     subparsers = parser.add_subparsers(
         title="Commandes",
         dest="command",
         description="Commandes disponibles"
     )
-    
+
     # === LIST ===
     list_parser = subparsers.add_parser(
         "list",
@@ -105,7 +120,7 @@ Exemples:
         action="store_true",
         help="Sortie au format JSON"
     )
-    
+
     # === INFO ===
     info_parser = subparsers.add_parser(
         "info",
@@ -127,7 +142,7 @@ Exemples:
         action="store_true",
         help="Sortie au format JSON"
     )
-    
+
     # === BACKTEST ===
     backtest_parser = subparsers.add_parser(
         "backtest",
@@ -199,7 +214,7 @@ Exemples:
         default="json",
         help="Format de sortie (défaut: json)"
     )
-    
+
     # === SWEEP ===
     sweep_parser = subparsers.add_parser(
         "sweep",
@@ -291,7 +306,7 @@ Exemples:
         default=10,
         help="Nombre de meilleurs résultats à afficher (défaut: 10)"
     )
-    
+
     # === VALIDATE ===
     validate_parser = subparsers.add_parser(
         "validate",
@@ -314,7 +329,7 @@ Exemples:
         action="store_true",
         help="Valider tout le système"
     )
-    
+
     # === EXPORT ===
     export_parser = subparsers.add_parser(
         "export",
@@ -343,7 +358,7 @@ Exemples:
         type=str,
         help="Template de rapport personnalisé"
     )
-    
+
     # === OPTUNA ===
     optuna_parser = subparsers.add_parser(
         "optuna",
@@ -468,7 +483,7 @@ Exemples:
         type=int,
         help="Arrêt anticipé après N trials sans amélioration (None = désactivé)"
     )
-    
+
     # === VISUALIZE ===
     visualize_parser = subparsers.add_parser(
         "visualize",
@@ -518,7 +533,20 @@ Exemples:
         action="store_true",
         help="Ne pas ouvrir le graphique dans le navigateur"
     )
-    
+
+    # === CHECK-GPU ===
+    check_gpu_parser = subparsers.add_parser(
+        "check-gpu",
+        parents=[common_parser],
+        help="Diagnostic GPU et benchmark",
+        description="Vérifie CuPy, CUDA, GPUs disponibles et benchmark CPU vs GPU"
+    )
+    check_gpu_parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Exécuter un benchmark CPU vs GPU (EMA 10k points)"
+    )
+
     return parser
 
 
@@ -526,16 +554,16 @@ def main(args: Optional[list] = None) -> int:
     """Point d'entrée principal du CLI."""
     parser = create_parser()
     parsed = parser.parse_args(args)
-    
+
     # Si aucune commande, afficher l'aide
     if parsed.command is None:
         parser.print_help()
         return 0
-    
+
     # Configuration globale
     import numpy as np
     np.random.seed(parsed.seed)
-    
+
     # Dispatcher vers la commande appropriée
     commands = {
         "list": cmd_list,
@@ -548,8 +576,9 @@ def main(args: Optional[list] = None) -> int:
         "validate": cmd_validate,
         "export": cmd_export,
         "visualize": cmd_visualize,
+        "check-gpu": cmd_check_gpu,
     }
-    
+
     try:
         handler = commands.get(parsed.command)
         if handler:

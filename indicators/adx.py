@@ -1,21 +1,23 @@
 """
-Backtest Core - ADX Indicator
-=============================
+Module-ID: indicators.adx
 
-Average Directional Index (ADX) et indicateurs directionnels (+DI, -DI).
-Mesure la force de la tendance (pas sa direction).
+Purpose: Indicateur ADX (force tendance) + DI+ (haussier) + DI- (baissier).
 
-Composants:
-- +DI (Positive Directional Indicator): Force du mouvement haussier
-- -DI (Negative Directional Indicator): Force du mouvement baissier
-- ADX: Moyenne lissée de DX, mesure la force de la tendance
+Role in pipeline: data
 
-Interprétation:
-- ADX < 20: Tendance faible ou range
-- ADX 20-40: Tendance modérée
-- ADX > 40: Tendance forte
-- +DI > -DI: Tendance haussière
-- -DI > +DI: Tendance baissière
+Key components: adx, calculate_adx, ADXSettings, plus_di, minus_di
+
+Inputs: DataFrame avec high, low, close; period (14 standard)
+
+Outputs: Dict{adx, plus_di, minus_di} ou Tuple
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: ADX lissé 14 périodes; +DI/DI- direction; <20 faible, >40 forte tendance.
+
+Read-if: Modification période, lissage ADX.
+
+Skip-if: Vous utilisez juste calculate_indicator('adx').
 """
 
 from typing import Dict, Tuple, Union

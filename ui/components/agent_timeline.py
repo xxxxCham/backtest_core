@@ -1,8 +1,28 @@
 """
-Agent Activity Timeline - Suivi visuel des décisions des agents LLM.
+Module-ID: ui.components.agent_timeline
 
-Composant Phase 5.4 pour visualiser l'activité des agents d'optimisation
-avec timeline interactive et détails des décisions.
+Purpose: Timeline visuelle activité agents LLM - events détails par agent (Analyst, Strategist, Critic, Validator).
+
+Role in pipeline: visualization/monitoring
+
+Key components: AgentActivity, AgentActivityTimeline, render_agent_timeline(), render_mini_timeline()
+
+Inputs: Agent events (timestamps, decisions, metrics)
+
+Outputs: Plotly interactive timeline Streamlit
+
+Dependencies: streamlit, plotly, dataclasses
+
+Conventions: AgentType enum, ActivityType categorization, metrics snapshot
+
+Read-if: Afficher timeline agents LLM.
+
+Skip-if: Pas d'agents LLM ou monitoring minimal.
+"""
+
+Usage:
+  >>> from ui.components.agent_timeline import render_agent_timeline
+  >>> render_agent_timeline(timeline)
 """
 
 from __future__ import annotations
@@ -55,12 +75,12 @@ class DecisionType(Enum):
 
 # Couleurs par agent
 AGENT_COLORS = {
-    AgentType.ANALYST: "#2196f3",      # Bleu
-    AgentType.STRATEGIST: "#4caf50",   # Vert
-    AgentType.CRITIC: "#ff9800",       # Orange
-    AgentType.VALIDATOR: "#9c27b0",    # Violet
-    AgentType.ORCHESTRATOR: "#607d8b", # Gris-bleu
-    AgentType.EXECUTOR: "#00bcd4",     # Cyan
+    AgentType.ANALYST: "#2196f3",       # Bleu
+    AgentType.STRATEGIST: "#4caf50",    # Vert
+    AgentType.CRITIC: "#ff9800",        # Orange
+    AgentType.VALIDATOR: "#9c27b0",     # Violet
+    AgentType.ORCHESTRATOR: "#607d8b",  # Gris-bleu
+    AgentType.EXECUTOR: "#00bcd4",      # Cyan
 }
 
 # Icônes par type d'activité
@@ -79,7 +99,14 @@ ACTIVITY_ICONS = {
 
 @dataclass
 class AgentActivity:
-    """Une activité d'un agent."""
+    """
+    Data carrier for a single agent event inside the orchestration timeline.
+
+    Responsible for keeping metadata (agent type, activity type, iteration, duration)
+    so that the UI can plot decisions and alerts without leaking orchestration logic.
+    Lifecycle: created by `AgentActivityTimeline.log_activity` when the orchestrator
+    reports a new event, then rendered in the Streamlit timeline panels.
+    """
     timestamp: datetime
     agent: AgentType
     activity_type: ActivityType
@@ -87,7 +114,7 @@ class AgentActivity:
     details: Dict[str, Any] = field(default_factory=dict)
     duration_ms: Optional[float] = None
     iteration: int = 0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire."""
         return {
@@ -99,7 +126,7 @@ class AgentActivity:
             "duration_ms": self.duration_ms,
             "iteration": self.iteration,
         }
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AgentActivity":
         """Crée depuis un dictionnaire."""
@@ -124,7 +151,7 @@ class MetricsSnapshot:
     max_drawdown: float
     win_rate: float
     params: Dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire."""
         return {
@@ -140,14 +167,20 @@ class MetricsSnapshot:
 
 @dataclass
 class AgentDecision:
-    """Une décision prise par un agent."""
+    """
+    Represents a discrete decision emitted by an agent.
+
+    Encapsulates agent identity, reasoning and confidence so that the UI can render
+    proposal/approval flows in the timeline. Decisions are collected during a run and
+    displayed in the Streamlit detail tab, never altering engine state.
+    """
     timestamp: datetime
     agent: AgentType
     decision: DecisionType
     reasoning: str
     confidence: float = 0.0
     iteration: int = 0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire."""
         return {
@@ -162,16 +195,19 @@ class AgentDecision:
 
 class AgentActivityTimeline:
     """
-    Timeline d'activité des agents.
-    
-    Enregistre et visualise toutes les activités des agents
-    pendant une session d'optimisation.
+    Stateful container that records agent activities, decisions, and metrics for a session.
+
+    Position: UI instrumentation layer that subscribes to orchestrator events.
+    Responsibilities: aggregate activities/decisions per iteration, compute summary,
+    expose serialization helpers, and drive the timeline renderers.
+    Lifecycle: created at start of a backtest session, receives `log_activity`/`log_decision`,
+    then passed to Streamlit renderers (`render_agent_timeline`, `render_mini_timeline`).
     """
-    
+
     def __init__(self, session_name: str = "Session"):
         """
         Initialise la timeline.
-        
+
         Args:
             session_name: Nom de la session
         """
@@ -181,34 +217,34 @@ class AgentActivityTimeline:
         self._metrics_history: List[MetricsSnapshot] = []
         self._decisions: List[AgentDecision] = []
         self._current_iteration = 0
-    
+
     @property
     def activities(self) -> List[AgentActivity]:
         """Liste des activités."""
         return self._activities
-    
+
     @property
     def metrics_history(self) -> List[MetricsSnapshot]:
         """Historique des métriques."""
         return self._metrics_history
-    
+
     @property
     def decisions(self) -> List[AgentDecision]:
         """Liste des décisions."""
         return self._decisions
-    
+
     @property
     def duration(self) -> timedelta:
         """Durée totale de la session."""
         if not self._activities:
             return timedelta(0)
         return self._activities[-1].timestamp - self.start_time
-    
+
     @property
     def current_iteration(self) -> int:
         """Itération courante."""
         return self._current_iteration
-    
+
     def log_activity(
         self,
         agent: AgentType,
@@ -219,14 +255,14 @@ class AgentActivityTimeline:
     ) -> AgentActivity:
         """
         Enregistre une activité.
-        
+
         Args:
             agent: Type d'agent
             activity_type: Type d'activité
             message: Message descriptif
             details: Détails supplémentaires
             duration_ms: Durée en millisecondes
-            
+
         Returns:
             L'activité créée
         """
@@ -241,7 +277,7 @@ class AgentActivityTimeline:
         )
         self._activities.append(activity)
         return activity
-    
+
     def log_metrics(
         self,
         sharpe_ratio: float,
@@ -252,14 +288,14 @@ class AgentActivityTimeline:
     ) -> MetricsSnapshot:
         """
         Enregistre un snapshot de métriques.
-        
+
         Args:
             sharpe_ratio: Sharpe ratio
             total_return: Rendement total
             max_drawdown: Drawdown maximum
             win_rate: Taux de victoire
             params: Paramètres utilisés
-            
+
         Returns:
             Le snapshot créé
         """
@@ -274,7 +310,7 @@ class AgentActivityTimeline:
         )
         self._metrics_history.append(snapshot)
         return snapshot
-    
+
     def log_decision(
         self,
         agent: AgentType,
@@ -284,13 +320,13 @@ class AgentActivityTimeline:
     ) -> AgentDecision:
         """
         Enregistre une décision.
-        
+
         Args:
             agent: Agent qui prend la décision
             decision: Type de décision
             reasoning: Raisonnement
             confidence: Niveau de confiance (0-1)
-            
+
         Returns:
             La décision créée
         """
@@ -304,36 +340,36 @@ class AgentActivityTimeline:
         )
         self._decisions.append(dec)
         return dec
-    
+
     def next_iteration(self) -> int:
         """Passe à l'itération suivante."""
         self._current_iteration += 1
         return self._current_iteration
-    
+
     def get_activities_by_agent(self, agent: AgentType) -> List[AgentActivity]:
         """Filtre les activités par agent."""
         return [a for a in self._activities if a.agent == agent]
-    
+
     def get_activities_by_iteration(self, iteration: int) -> List[AgentActivity]:
         """Filtre les activités par itération."""
         return [a for a in self._activities if a.iteration == iteration]
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """
         Génère un résumé de la timeline.
-        
+
         Returns:
             Dict avec statistiques de la session
         """
         activities_by_agent = {}
         for agent in AgentType:
             activities_by_agent[agent.value] = len(self.get_activities_by_agent(agent))
-        
+
         decisions_by_type = {}
         for dec in self._decisions:
             key = dec.decision.value
             decisions_by_type[key] = decisions_by_type.get(key, 0) + 1
-        
+
         best_metrics = None
         if self._metrics_history:
             best = max(self._metrics_history, key=lambda m: m.sharpe_ratio)
@@ -343,7 +379,7 @@ class AgentActivityTimeline:
                 "total_return": best.total_return,
                 "params": best.params,
             }
-        
+
         return {
             "session_name": self.session_name,
             "duration_seconds": self.duration.total_seconds(),
@@ -354,7 +390,7 @@ class AgentActivityTimeline:
             "decisions_by_type": decisions_by_type,
             "best_metrics": best_metrics,
         }
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Sérialise en dictionnaire."""
         return {
@@ -365,11 +401,11 @@ class AgentActivityTimeline:
             "metrics_history": [m.to_dict() for m in self._metrics_history],
             "decisions": [d.to_dict() for d in self._decisions],
         }
-    
+
     def to_json(self) -> str:
         """Sérialise en JSON."""
         return json.dumps(self.to_dict(), indent=2)
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AgentActivityTimeline":
         """Charge depuis un dictionnaire."""
@@ -385,13 +421,17 @@ class AgentActivityTimeline:
 
 def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
     """
-    Crée une figure Plotly de la timeline.
-    
+    Builds the Plotly figure used by the timeline renderer.
+
+    This function anchors the streamlit panel with a Gantt-like view of agent activities
+    and a summary of metrics history. It is called with the timeline produced by
+    `AgentActivityTimeline` just before plotting.
+
     Args:
-        timeline: Timeline à visualiser
-        
+        timeline: Timeline containing the current run's activities and metrics.
+
     Returns:
-        Figure Plotly
+        Plotly Figure ready for `st.plotly_chart`.
     """
     fig = make_subplots(
         rows=2,
@@ -401,17 +441,17 @@ def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
         row_heights=[0.6, 0.4],
         subplot_titles=("Timeline des agents", "Évolution des métriques"),
     )
-    
+
     # Timeline des activités par agent
     for agent in AgentType:
         activities = timeline.get_activities_by_agent(agent)
         if not activities:
             continue
-        
+
         x = [a.timestamp for a in activities]
         y = [agent.value for a in activities]
         text = [f"{ACTIVITY_ICONS.get(a.activity_type, '')} {a.message}" for a in activities]
-        
+
         fig.add_trace(
             go.Scatter(
                 x=x,
@@ -431,13 +471,13 @@ def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
             row=1,
             col=1,
         )
-    
+
     # Évolution des métriques
     if timeline.metrics_history:
         timestamps = [m.timestamp for m in timeline.metrics_history]
         sharpe = [m.sharpe_ratio for m in timeline.metrics_history]
         returns = [m.total_return * 100 for m in timeline.metrics_history]
-        
+
         fig.add_trace(
             go.Scatter(
                 x=timestamps,
@@ -450,7 +490,7 @@ def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
             row=2,
             col=1,
         )
-        
+
         fig.add_trace(
             go.Scatter(
                 x=timestamps,
@@ -464,7 +504,7 @@ def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
             row=2,
             col=1,
         )
-    
+
     # Styling
     fig.update_layout(
         height=600,
@@ -478,7 +518,7 @@ def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
             x=1,
         ),
     )
-    
+
     fig.update_yaxes(
         title_text="Agent",
         row=1,
@@ -486,9 +526,9 @@ def create_timeline_figure(timeline: AgentActivityTimeline) -> go.Figure:
         categoryorder="array",
         categoryarray=[a.value for a in AgentType],
     )
-    
+
     fig.update_yaxes(title_text="Sharpe / Return (%)", row=2, col=1)
-    
+
     return fig
 
 
@@ -497,33 +537,35 @@ def render_agent_timeline(
     key: str = "agent_timeline",
 ) -> None:
     """
-    Rendu Streamlit de la timeline.
-    
+    Streamlit panel that surfaces agent activity and metrics history.
+
+    Called after each orchestration run to visualize session health for analysts.
+
     Args:
-        timeline: Timeline à afficher
-        key: Clé unique pour les widgets
+        timeline: Activity timeline collected from the orchestrator.
+        key: Unique widget key to allow reruns without collision.
     """
     if not STREAMLIT_AVAILABLE:
         return
-    
+
     st.subheader(f"🤖 Timeline - {timeline.session_name}")
-    
+
     # Métriques résumé
     summary = timeline.get_summary()
-    
+
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("⏱️ Durée", f"{summary['duration_seconds']:.1f}s")
     col2.metric("🔄 Itérations", summary["total_iterations"])
     col3.metric("📝 Activités", summary["total_activities"])
     col4.metric("⚖️ Décisions", summary["total_decisions"])
-    
+
     # Graphique timeline
     fig = create_timeline_figure(timeline)
     st.plotly_chart(fig, width='stretch', key=f"{key}_chart")
-    
+
     # Détails par onglets
     tab1, tab2, tab3 = st.tabs(["📋 Activités", "⚖️ Décisions", "📊 Métriques"])
-    
+
     with tab1:
         # Filtrer par agent
         agent_filter = st.multiselect(
@@ -532,17 +574,17 @@ def render_agent_timeline(
             default=[a.value for a in AgentType],
             key=f"{key}_agent_filter",
         )
-        
+
         # Afficher les activités récentes
         activities = [
             a for a in reversed(timeline.activities)
             if a.agent.value in agent_filter
         ][:50]  # Limiter à 50
-        
+
         for activity in activities:
             icon = ACTIVITY_ICONS.get(activity.activity_type, "•")
             color = AGENT_COLORS.get(activity.agent, "#666")
-            
+
             with st.container():
                 col1, col2 = st.columns([1, 4])
                 with col1:
@@ -559,13 +601,13 @@ def render_agent_timeline(
                         with st.expander("Détails"):
                             st.json(activity.details)
                 st.divider()
-    
+
     with tab2:
         for dec in reversed(timeline.decisions):
             icon = "✅" if dec.decision == DecisionType.APPROVE else \
                    "❌" if dec.decision == DecisionType.REJECT else \
                    "🔄" if dec.decision == DecisionType.ITERATE else "⏹️"
-            
+
             col1, col2, col3 = st.columns([1, 2, 2])
             with col1:
                 st.markdown(f"### {icon}")
@@ -575,10 +617,10 @@ def render_agent_timeline(
                 st.write(f"Par: {dec.agent.value}")
             with col3:
                 st.progress(dec.confidence, text=f"Confiance: {dec.confidence:.0%}")
-            
+
             st.caption(dec.reasoning)
             st.divider()
-    
+
     with tab3:
         if timeline.metrics_history:
             # Tableau des métriques
@@ -591,9 +633,9 @@ def render_agent_timeline(
                     "Drawdown": f"{m.max_drawdown:.2%}",
                     "Win Rate": f"{m.win_rate:.1%}",
                 })
-            
+
             st.dataframe(data, width='stretch')
-            
+
             # Best result
             if summary["best_metrics"]:
                 st.success(
@@ -602,7 +644,7 @@ def render_agent_timeline(
                 )
         else:
             st.info("Aucune métrique enregistrée")
-    
+
     # Export
     with st.expander("📥 Export"):
         col1, col2 = st.columns(2)
@@ -625,23 +667,25 @@ def render_mini_timeline(
     key: str = "mini_timeline",
 ) -> None:
     """
-    Rendu compact de la timeline pour sidebar.
-    
+    Compact sidebar summary of the most recent agent events.
+
+    Used by the sidebar to keep orchestration feedback visible while running backtests.
+
     Args:
-        timeline: Timeline à afficher
-        max_activities: Nombre max d'activités à afficher
-        key: Clé unique
+        timeline: Same timeline instance rendered in the main panel.
+        max_activities: Maximum number items shown for quick review.
+        key: Widget key to avoid Streamlit collisions.
     """
     if not STREAMLIT_AVAILABLE:
         return
-    
+
     st.markdown("### 🤖 Agents")
-    
+
     # Statut rapide
     col1, col2 = st.columns(2)
     col1.metric("Iter", timeline.current_iteration)
     col2.metric("Acts", len(timeline.activities))
-    
+
     # Dernières activités
     st.markdown("**Récent:**")
     for activity in list(reversed(timeline.activities))[:max_activities]:

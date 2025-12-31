@@ -1,9 +1,23 @@
 """
-Backtest Core - Volume Weighted Average Price (VWAP)
-====================================================
+Module-ID: indicators.vwap
 
-VWAP = prix moyen pondéré par le volume sur une période.
-Référence institutionnelle pour évaluer si le prix est au-dessus/en-dessous de la moyenne.
+Purpose: Indicateur VWAP (prix moyen pondéré par volume) institutionnel.
+
+Role in pipeline: data
+
+Key components: vwap, VWAPSettings, calculate_vwap
+
+Inputs: DataFrame avec high, low, close, volume; anchored, period flags
+
+Outputs: np.ndarray (VWAP cumulatif ou glissant)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: VWAP = somme(prix*vol) / somme(vol); ancré ou glissant; prix institutionnel de ref.
+
+Read-if: Modification ancrage, période glissante.
+
+Skip-if: Vous utilisez juste calculate_indicator('vwap').
 """
 
 from dataclasses import dataclass

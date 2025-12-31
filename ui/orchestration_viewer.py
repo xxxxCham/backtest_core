@@ -1,9 +1,23 @@
 """
-UI Component : Visualiseur de Logs d'Orchestration LLM
-=======================================================
+Module-ID: ui.orchestration_viewer
 
-Composant Streamlit pour afficher les logs d'orchestration des agents LLM
-de manière interactive et structurée.
+Purpose: Affiche les logs d'orchestration des agents LLM de manière interactive dans l'UI Streamlit.
+
+Role in pipeline: reporting / orchestration
+
+Key components: render_orchestration_logs
+
+Inputs: OrchestrationLogger instance
+
+Outputs: Interface Streamlit avec logs et métriques
+
+Dependencies: agents.orchestration_logger, streamlit
+
+Conventions: Logs structurés avec timestamps et actions
+
+Read-if: Besoin d'afficher les logs d'orchestration LLM
+
+Skip-if: Pas d'utilisation d'agents LLM ou pas besoin de visualisation des logs
 """
 
 from typing import List, Optional
@@ -260,7 +274,7 @@ def _get_status_color(status: OrchestrationStatus) -> str:
         OrchestrationStatus.FAILED: "#f8d7da",     # Rouge clair
         OrchestrationStatus.VALIDATED: "#d1ecf1",   # Bleu clair
         OrchestrationStatus.REJECTED: "#f8d7da",    # Rouge clair
-        OrchestrationStatus.IN_PROGRESS: "#fff3cd", # Jaune clair
+        OrchestrationStatus.IN_PROGRESS: "#fff3cd",  # Jaune clair
         OrchestrationStatus.PENDING: "#e7e7e7",     # Gris clair
     }
     return colors.get(status, "#ffffff")
@@ -401,33 +415,33 @@ def render_full_orchestration_viewer(
 class LiveOrchestrationViewer:
     """
     Composant pour afficher les logs d'orchestration en temps réel.
-    
+
     Utilise un callback pour se mettre à jour à chaque nouvel événement.
     """
-    
+
     def __init__(self, container_key: str = "live_orch"):
         """
         Initialise le viewer live.
-        
+
         Args:
             container_key: Clé unique pour le conteneur Streamlit
         """
         self.container_key = container_key
         self._events: List[OrchestrationLogEntry] = []
         self._max_display = 20  # Derniers événements affichés
-        
+
     def add_event(self, entry: OrchestrationLogEntry) -> None:
         """Ajoute un événement à la liste."""
         self._events.append(entry)
-        
+
     def get_callback(self):
         """Retourne le callback pour OrchestrationLogger."""
         return self.add_event
-    
+
     def render(self, placeholder, show_header: bool = True) -> None:
         """
         Affiche les événements dans le placeholder donné.
-        
+
         Args:
             placeholder: st.empty() ou conteneur Streamlit
             show_header: Si True, affiche un header avec stats
@@ -436,16 +450,16 @@ class LiveOrchestrationViewer:
             if show_header:
                 self._render_header()
             self._render_events()
-    
+
     def _render_header(self) -> None:
         """Affiche le header avec statistiques."""
         col1, col2, col3, col4 = st.columns(4)
-        
+
         # Compter par type
         agents = set(e.agent for e in self._events if e.agent)
         iterations = set(e.iteration for e in self._events)
         completed = sum(1 for e in self._events if e.status == OrchestrationStatus.COMPLETED)
-        
+
         with col1:
             st.metric("🎯 Événements", len(self._events))
         with col2:
@@ -454,42 +468,42 @@ class LiveOrchestrationViewer:
             st.metric("🔄 Itérations", max(iterations) if iterations else 0)
         with col4:
             st.metric("✅ Complétés", completed)
-    
+
     def _render_events(self) -> None:
         """Affiche les derniers événements."""
         if not self._events:
             st.info("⏳ En attente des événements...")
             return
-        
+
         # Afficher les derniers événements (plus récents en haut)
         recent = self._events[-self._max_display:][::-1]
-        
+
         for event in recent:
             self._render_single_event(event)
-    
+
     def _render_single_event(self, event: OrchestrationLogEntry) -> None:
         """Affiche un événement unique avec style."""
         emoji = event._get_emoji()
         status_color = _get_status_color(event.status)
         text_color = _get_contrast_text_color(status_color)
         timestamp_bg, timestamp_border = _get_timestamp_chip_colors(text_color)
-        
+
         # Timestamp
         try:
             timestamp = datetime.fromisoformat(event.timestamp).strftime("%H:%M:%S.%f")[:-3]
         except Exception:
             timestamp = event.timestamp[:12]
-        
+
         # Agent et modèle
         agent = event.agent or ""
         model = ""
         if isinstance(event.details, dict):
             model = event.details.get("model", "")
         agent_info = f"{agent}" + (f" ({model})" if model else "")
-        
+
         # Action
         action = event.action_type.value.replace("_", " ").title()
-        
+
         # Détails résumés
         detail_summary = ""
         if isinstance(event.details, dict):
@@ -506,10 +520,10 @@ class LiveOrchestrationViewer:
                         detail_summary = f"Sharpe: {results['sharpe_ratio']:.3f}"
             elif "reason" in event.details:
                 detail_summary = str(event.details["reason"])[:60]
-        
+
         # HTML
         html = f"""
-        <div style="background: {status_color}; color: {text_color}; 
+        <div style="background: {status_color}; color: {text_color};
                     padding: 8px 12px; border-radius: 6px; margin: 4px 0;
                     border-left: 4px solid rgba(0,0,0,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -536,7 +550,7 @@ def render_live_orchestration_panel(
 ) -> None:
     """
     Affiche un panneau de suivi live de l'orchestration.
-    
+
     Args:
         orchestration_logger: Logger d'orchestration avec les événements
         placeholder: st.empty() pour les mises à jour
@@ -549,10 +563,10 @@ def render_live_orchestration_panel(
             total = iteration_info.get("total", 1)
             progress = min(current / max(total, 1), 1.0)
             st.progress(progress, text=f"Itération {current}/{total}")
-        
+
         # Stats rapides
         col1, col2, col3 = st.columns(3)
-        
+
         logs = orchestration_logger.logs
         with col1:
             st.metric("📊 Événements", len(logs))
@@ -562,16 +576,16 @@ def render_live_orchestration_panel(
             # Dernier agent actif
             last_agent = logs[-1].agent if logs else "—"
             st.metric("🤖 Dernier agent", last_agent or "—")
-        
+
         # Afficher les 10 derniers événements
         st.markdown("**📋 Derniers événements:**")
         recent = logs[-10:][::-1] if logs else []
-        
+
         for event in recent:
             emoji = event._get_emoji()
             agent = event.agent or "System"
             action = event.action_type.value.replace("_", " ").title()
-            
+
             # Couleur selon statut
             if event.status == OrchestrationStatus.COMPLETED:
                 color = "#28a745"
@@ -581,7 +595,7 @@ def render_live_orchestration_panel(
                 color = "#ffc107"
             else:
                 color = "#6c757d"
-            
+
             st.markdown(
                 f"<span style='color:{color}'>{emoji}</span> "
                 f"**[{escape(agent)}]** {escape(action)}",

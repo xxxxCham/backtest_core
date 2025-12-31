@@ -1,11 +1,23 @@
 """
-Session Parameter Tracker
-==========================
+Module-ID: utils.session_param_tracker
 
-Track les combinaisons de paramètres testées DURANT UNE MÊME SESSION D'OPTIMISATION
-pour empêcher les LLMs de tester deux fois les mêmes paramètres.
+Purpose: Déduplie paramètres testés DANS UNE SESSION d'optimisation (vs run_tracker cross-sessions).
 
-Différent de run_tracker.py qui déduplique entre différents backtests.
+Role in pipeline: optimization
+
+Key components: SessionParameterTracker, TestedParams, compute_hash()
+
+Inputs: Dict de paramètres, scores (Sharpe, return)
+
+Outputs: Hash param, flag already_tested, tested_history
+
+Dependencies: hashlib, json, dataclasses, datetime
+
+Conventions: Normalisation JSON + tri clés pour hash stable; stockage session-local.
+
+Read-if: Modification hachage ou détection doublons intra-session.
+
+Skip-if: Vous appelez tracker.is_already_tested(params).
 """
 
 import hashlib
@@ -127,7 +139,7 @@ class SessionParameterTracker:
 
         # Vérifier si déjà présent (sécurité)
         if param_hash in self.tested_hashes:
-            logger.warning(f"Tentative d'enregistrement de paramètres déjà testés (ignoré)")
+            logger.warning("Tentative d'enregistrement de paramètres déjà testés (ignoré)")
             return
 
         self.tested_params.append(tested)
@@ -187,11 +199,11 @@ class SessionParameterTracker:
 
         summary = [
             f"📊 Résumé Session: {self.session_id}",
-            f"",
+            "",
             f"🔢 Tests effectués: {self.total_tests}",
             f"🚫 Duplications évitées: {self.duplicates_prevented}",
-            f"",
-            f"✅ PARAMÈTRES DÉJÀ TESTÉS (NE PAS RETESTER):",
+            "",
+            "✅ PARAMÈTRES DÉJÀ TESTÉS (NE PAS RETESTER):",
         ]
 
         # Lister tous les paramètres testés

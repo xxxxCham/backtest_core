@@ -1,3 +1,24 @@
+"""
+Module-ID: tests.test_template_robustness
+
+Purpose: Tester robustesse templates Jinja2 (fallback N/A si champs manquent, pas de TypeError).
+
+Role in pipeline: testing
+
+Key components: test_format_float_handles_missing, test_critic_template_renders_without_walk_forward
+
+Inputs: Template string/name, context dict (optionnel avec fields manquants)
+
+Outputs: Rendered HTML string (pas d'exception)
+
+Dependencies: pytest, utils.template
+
+Conventions: Fallback N/A pour variables manquantes; pas d'erreurs rendu.
+
+Read-if: Modification templates Jinja2 ou filters.
+
+Skip-if: Tests templates non critiques.
+"""
 
 from utils.template import render_prompt, render_prompt_from_string
 

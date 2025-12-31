@@ -1,12 +1,23 @@
 """
-Backtest Core - RSI Strategy
-============================
+Module-ID: strategies.rsi_reversal
 
-Stratégie basée sur le RSI (Relative Strength Index).
-Détecte les conditions de surachat et survente pour les renversements.
+Purpose: Stratégie mean-reversion basée sur seuils surédapte/survente RSI.
 
-Cette stratégie est un mean-reversion classique qui exploite
-les excès de marché.
+Role in pipeline: core
+
+Key components: RSIReversalStrategy, rsi_period, overbought_threshold, oversold_threshold
+
+Inputs: DataFrame OHLCV avec colonne close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur seuils RSI)
+
+Dependencies: strategies.base, indicators.rsi, utils.parameters, pandas, numpy
+
+Conventions: oversold < 50 < overbought; RSI période standard 14; signaux confirmés.
+
+Read-if: Modification seuils RSI, période, ou logique renversement.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List

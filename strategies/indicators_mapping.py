@@ -1,18 +1,26 @@
 """
-Backtest Core - Mapping Stratégies → Indicateurs
-=================================================
+Module-ID: strategies.indicators_mapping
 
-Fichier de référence centralisé qui associe chaque stratégie à ses indicateurs.
-Ce mapping est utilisé par l'UI pour charger automatiquement les bons
-indicateurs.
+Purpose: Mapping centralisé stratégies → indicateurs pour chargement automatique UI.
 
-Structure:
-- required_indicators: Indicateurs chargés automatiquement par le moteur
-- internal_indicators: Indicateurs calculés internement par la stratégie
-- all_indicators: Tous les indicateurs utilisés (requis + internes)
+Role in pipeline: core / data
+
+Key components: StrategyIndicatorsMapping, get_strategy_indicators, IndicatorRequirement
+
+Inputs: Strategy name, configuration
+
+Outputs: Dict[str, List[IndicatorRequirement]] (required + internal + all)
+
+Dependencies: strategies.base, indicators.registry, dataclasses
+
+Conventions: required_indicators chargés par moteur; internal_indicators calculés par strat; all_indicators = union complète.
+
+Read-if: Ajout nouvelle stratégie/indicateur, modification deps.
+
+Skip-if: Vous ne changez qu'une stratégie.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Set
 
 
@@ -25,6 +33,7 @@ class StrategyIndicators:
     internal_indicators: List[str]  # Calculés par la stratégie
     description: str
     ui_label: str = ""
+    ui_indicators: List[str] = field(default_factory=list)
 
     @property
     def all_indicators(self) -> Set[str]:
@@ -34,6 +43,13 @@ class StrategyIndicators:
     def display_label(self) -> str:
         """Libelle d'affichage pour l'UI."""
         return self.ui_label or self.name
+
+    def ui_indicator_list(self) -> List[str]:
+        """Indicateurs affiches dans l'UI (ordre preserve)."""
+        if self.ui_indicators:
+            return list(self.ui_indicators)
+        combined = self.required_indicators + self.internal_indicators
+        return list(dict.fromkeys(combined))
 
 
 # =============================================================================
@@ -49,7 +65,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         required_indicators=["atr", "ema"],
         # ATR pour canal, EMA fournie en externe
         internal_indicators=[],  # Canal calculé à partir de l'EMA + ATR
-        description="Breakout sur canal ATR avec filtre EMA"
+        description="Breakout sur canal ATR avec filtre EMA",
+        ui_indicators=["atr_channel", "atr"],
     ),
 
     # 2. EMA Cross
@@ -58,7 +75,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📈 EMA Crossover (Trend Following)",
         required_indicators=[],
         internal_indicators=["ema"],  # EMA rapide/lente calculées internement
-        description="Croisement EMA simple (Golden/Death Cross)"
+        description="Croisement EMA simple (Golden/Death Cross)",
+        ui_indicators=["ema"],
     ),
 
     # 3. Bollinger ATR
@@ -67,7 +85,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📉 Bollinger + ATR (Mean Reversion)",
         required_indicators=["bollinger", "atr"],
         internal_indicators=[],
-        description="Mean-reversion Bollinger avec filtre volatilité ATR"
+        description="Mean-reversion Bollinger avec filtre volatilité ATR",
+        ui_indicators=["bollinger", "atr"],
     ),
 
     # 3b. Bollinger ATR V2 (Stop-Loss Bollinger paramétrable)
@@ -76,7 +95,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📉 Bollinger + ATR V2 (Stop Bollinger)",
         required_indicators=["bollinger", "atr"],
         internal_indicators=[],
-        description="Mean-reversion Bollinger avec stop-loss Bollinger paramétrable (bb_stop_factor: 0.2-2.0)"
+        description="Mean-reversion Bollinger avec stop-loss Bollinger paramétrable (bb_stop_factor: 0.2-2.0)",
+        ui_indicators=["bollinger", "atr"],
     ),
 
     # 3c. Bollinger ATR V3 (Entrée/Stop/TP Variables - Pure Logic)
@@ -85,7 +105,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📉 Bollinger + ATR V3 (Entrée/Stop/TP Variables)",
         required_indicators=["bollinger", "atr"],
         internal_indicators=[],
-        description="Mean-reversion Bollinger avec entrées variables (-50% à +150%), stop/TP depuis entry_price, amplitude BB testable (1σ-4σ)"
+        description="Mean-reversion Bollinger avec entrées variables (-50% à +150%), stop/TP depuis entry_price, amplitude BB testable (1σ-4σ)",
+        ui_indicators=["bollinger", "atr"],
     ),
 
     # 4. MACD Cross
@@ -94,7 +115,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📊 MACD Crossover (Momentum)",
         required_indicators=["macd"],
         internal_indicators=[],
-        description="Croisement MACD avec ligne signal"
+        description="Croisement MACD avec ligne signal",
+        ui_indicators=["macd"],
     ),
 
     # 5. RSI Reversal
@@ -103,7 +125,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="🔄 RSI Reversal (Mean Reversion)",
         required_indicators=["rsi"],
         internal_indicators=[],
-        description="Mean-reversion sur niveaux RSI (survente/surachat)"
+        description="Mean-reversion sur niveaux RSI (survente/surachat)",
+        ui_indicators=["rsi"],
     ),
 
     # 6. MA Crossover
@@ -112,7 +135,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📐 MA Crossover (SMA Trend)",
         required_indicators=[],
         internal_indicators=["sma"],
-        description="Croisement SMA rapide/lente"
+        description="Croisement SMA rapide/lente",
+        ui_indicators=["ma"],
     ),
 
     # 7. EMA Stochastic Scalp
@@ -121,7 +145,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="⚡ EMA + Stochastic (Scalping)",
         required_indicators=["stochastic"],
         internal_indicators=["ema"],
-        description="Scalping avec filtre EMA et timing Stochastic"
+        description="Scalping avec filtre EMA et timing Stochastic",
+        ui_indicators=["ema", "stochastic"],
     ),
 
     # 8. Bollinger Dual
@@ -130,7 +155,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="📊 Bollinger Dual (Mean Reversion)",
         required_indicators=["bollinger"],
         internal_indicators=["sma", "ema"],
-        description="Bollinger + franchissement MA"
+        description="Bollinger + franchissement MA",
+        ui_indicators=["bollinger", "ma"],
     ),
 
     # 9. RSI Trend Filtered
@@ -139,7 +165,8 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_label="🔄 RSI Trend Filtered (Mean Rev.)",
         required_indicators=["rsi"],
         internal_indicators=["ema"],
-        description="RSI filtre par tendance EMA"
+        description="RSI filtre par tendance EMA",
+        ui_indicators=["rsi", "ema"],
     ),
 }
 
@@ -200,6 +227,16 @@ def get_internal_indicators(strategy_name: str) -> List[str]:
         raise KeyError(f"Stratégie '{strategy_name}' inconnue")
 
     return STRATEGY_INDICATORS_MAP[strategy_name].internal_indicators
+
+
+def get_ui_indicators(strategy_name: str) -> List[str]:
+    """
+    Retourne la liste des indicateurs a afficher dans l'UI.
+    """
+    if strategy_name not in STRATEGY_INDICATORS_MAP:
+        raise KeyError(f"Stratégie '{strategy_name}' inconnue")
+
+    return STRATEGY_INDICATORS_MAP[strategy_name].ui_indicator_list()
 
 
 def list_strategies() -> List[str]:
@@ -282,6 +319,7 @@ __all__ = [
     "get_required_indicators",
     "get_all_indicators",
     "get_internal_indicators",
+    "get_ui_indicators",
     "list_strategies",
     "get_strategy_info",
     "format_strategy_summary",

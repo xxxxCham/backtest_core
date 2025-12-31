@@ -1,16 +1,23 @@
 """
-Client LLM unifié pour Ollama et OpenAI.
+Module-ID: agents.llm_client
 
-Abstraction permettant d'utiliser indifféremment:
-- Ollama (local, gratuit)
-- OpenAI API (cloud, payant)
-- Compatible OpenAI (LM Studio, etc.)
+Purpose: Client LLM unifié supportant Ollama (local) et OpenAI (cloud) avec abstraction commune.
 
-Configuration via variables d'environnement:
-    BACKTEST_LLM_PROVIDER=ollama|openai
-    BACKTEST_LLM_MODEL=llama3.2|gpt-4|...
-    OPENAI_API_KEY=sk-...
-    OLLAMA_HOST=http://localhost:11434
+Role in pipeline: orchestration
+
+Key components: LLMClient (abstract), OllamaClient, OpenAIClient, LLMConfig, LLMMessage, LLMResponse
+
+Inputs: LLMConfig (provider, model, params), messages, système prompt
+
+Outputs: LLMResponse (texte/JSON, usage tokens, timing)
+
+Dependencies: httpx, pydantic, utils.log
+
+Conventions: json_mode force JSON strict; parse_json gère blocs ```json ``` et inline; timeout adaptatif pour reasoning models (deepseek-r1, o1); fallback parsing si JSON mode échoue.
+
+Read-if: Ajout providers, modification parsing, ou gestion erreurs LLM.
+
+Skip-if: Vous appelez juste le client via create_llm_client().
 """
 
 from __future__ import annotations

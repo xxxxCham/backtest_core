@@ -1,12 +1,26 @@
 """
-Backtest Core - Gestion de Version
-===================================
+Module-ID: utils.version
 
-Utilitaires pour récupérer les informations de version et commit Git.
+Purpose: Gestion version et traçabilité Git (commit hash pour reproducibilité).
+
+Role in pipeline: observability
+
+Key components: get_git_commit(), get_version(), BUILD_INFO
+
+Inputs: None (queries Git locally)
+
+Outputs: Commit hash short/long, version string, build metadata
+
+Dependencies: subprocess, pathlib
+
+Conventions: git rev-parse pour commit; short=True (7 chars) défaut.
+
+Read-if: Modification version retrieval ou build metadata.
+
+Skip-if: Vous appelez get_git_commit().
 """
 
 import subprocess
-from typing import Optional
 
 
 def get_git_commit(short: bool = True) -> str:

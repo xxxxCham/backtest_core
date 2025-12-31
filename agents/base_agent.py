@@ -1,10 +1,23 @@
 """
-Base Agent - Classe abstraite pour tous les agents LLM.
+Module-ID: agents.base_agent
 
-Définit le contrat commun:
-- Contexte d'entrée (AgentContext)
-- Résultat de sortie (AgentResult)
-- Méthodes execute() et validate()
+Purpose: Classe abstraite et structures communes pour tous les agents LLM (Analyst/Strategist/Critic/Validator).
+
+Role in pipeline: orchestration
+
+Key components: BaseAgent (abstract), AgentRole, MetricsSnapshot, ParameterConfig, AgentContext, AgentResult
+
+Inputs: AgentContext (état partagé entre agents)
+
+Outputs: AgentResult (succès/erreur + résultat typé)
+
+Dependencies: agents.llm_client, agents.state_machine, utils.log
+
+Conventions: Chaque agent implémente execute() et role property; _call_llm() helper pour requêtes LLM; AgentContext immuable entre appels.
+
+Read-if: Modification contrat agent, ajout de nouvelles structures, ou intégration LLM.
+
+Skip-if: Vous ne changez qu'un agent spécifique.
 """
 
 from __future__ import annotations

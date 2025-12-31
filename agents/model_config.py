@@ -1,31 +1,23 @@
 """
-Configuration multi-modèles par rôle d'agent.
+Module-ID: agents.model_config
 
-Permet d'attribuer différents modèles LLM selon le rôle:
-- ANALYST: Analyse quantitative (modèles rapides recommandés)
-- STRATEGIST: Propositions créatives (modèles moyens)
-- CRITIC: Évaluation critique (modèles lourds pour réflexion profonde)
-- VALIDATOR: Décision finale (modèles lourds occasionnellement)
+Purpose: Configuration multi-modèles par rôle d'agent avec sélection intelligente (rapide/lourd par itération).
 
-Features:
-- Configuration par rôle avec plusieurs modèles possibles
-- Sélection aléatoire parmi les modèles configurés
-- Catégorisation des modèles par taille/vitesse
-- Exclusion des modèles lourds pour les premières itérations
+Role in pipeline: orchestration
 
-Usage:
-    >>> from agents.model_config import RoleModelConfig, get_model_for_role
-    >>>
-    >>> # Configuration par défaut
-    >>> config = RoleModelConfig()
-    >>>
-    >>> # Obtenir un modèle pour un rôle
-    >>> model = config.get_model("analyst", iteration=1)
-    >>> print(model)  # "deepseek-r1:8b" (rapide)
-    >>>
-    >>> # Obtenir un modèle pour réflexion profonde
-    >>> model = config.get_model("critic", iteration=5, allow_heavy=True)
-    >>> print(model)  # "deepseek-r1:70b" (lourd, autorisé)
+Key components: RoleModelConfig, ModelCategory, KNOWN_MODELS, get_model
+
+Inputs: role (analyst/strategist/critic/validator), iteration, allow_heavy flag
+
+Outputs: Modèle sélectionné (aléatoire parmi configurés), fallback si non dispo
+
+Dependencies: utils.log, httpx (Ollama discovery)
+
+Conventions: ANALYST=rapide, STRATEGIST=moyen, CRITIC/VALIDATOR=lourd optionnel; early iterations excluent modèles lourds; fallback cascade si modèle absent.
+
+Read-if: Ajout modèles, configuration par rôle, ou règles de sélection itérative.
+
+Skip-if: Vous utilisez la config par défaut.
 """
 
 from __future__ import annotations

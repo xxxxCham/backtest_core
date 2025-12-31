@@ -1,14 +1,23 @@
 """
-Backtest Core - ATR Channel Strategy
-====================================
+Module-ID: strategies.atr_channel
 
-Stratégie de breakout basée sur les canaux ATR.
-Achète sur cassure de la bande supérieure (EMA + ATR*mult).
-Vend sur cassure de la bande inférieure (EMA - ATR*mult).
+Purpose: Stratégie de breakout sur canaux ATR autour d'une EMA centrale.
 
-Indicateurs requis:
-- ATR: Average True Range pour la volatilité
-- EMA: Moyenne mobile exponentielle pour le centre du canal
+Role in pipeline: core
+
+Key components: ATRChannelStrategy, ema_period, atr_period, atr_mult
+
+Inputs: DataFrame OHLCV avec colonnes high, low, close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur breakouts canaux)
+
+Dependencies: strategies.base, indicators.atr, indicators.ema, utils.parameters
+
+Conventions: atr_mult > 0; EMA centre du canal; volatilité ATR définit largeur bandes.
+
+Read-if: Modification breakout logic, bandes ATR, ou EMA.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List

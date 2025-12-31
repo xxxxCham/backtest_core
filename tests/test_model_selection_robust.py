@@ -1,15 +1,30 @@
-"""Tests unitaires pour la robustesse de la sélection de modèles LLM."""
+"""
+Module-ID: tests.test_model_selection_robust
+
+Purpose: Tester robustesse sélection modèles LLM (retry Ollama, fallback lists, timeout).
+
+Role in pipeline: testing
+
+Key components: TestModelSelectionRobustness, test_retry_on_ollama_connection_error
+
+Inputs: Mock httpx.get, patch time.sleep, RoleModelConfig
+
+Outputs: Retry logic validée, fallback OK si Ollama down
+
+Dependencies: pytest, unittest.mock, agents.model_config
+
+Conventions: 3 retries max; timeout 2s; connection error handling.
+
+Read-if: Modification retry logic ou fallback.
+
+Skip-if: Tests model selection non critiques.
+"""
 
 import logging
-import sys
 import time
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Fix imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from agents.model_config import RoleModelConfig
 
@@ -20,7 +35,7 @@ class TestModelSelectionRobustness:
     def test_retry_on_ollama_connection_error(self):
         """Test: retry automatique si Ollama non accessible initialement."""
         with patch("agents.model_config.httpx.get") as mock_get, \
-             patch("agents.model_config.time.sleep") as _mock_sleep:
+             patch("agents.model_config.time.sleep"):
             # Simule 2 échecs puis succès
             mock_get.side_effect = [
                 Exception("Connection refused"),  # Tentative 1: échec
@@ -47,7 +62,7 @@ class TestModelSelectionRobustness:
     def test_fallback_to_configured_models_when_ollama_down(self):
         """Test: fallback sur modèles configurés si Ollama inaccessible."""
         with patch("agents.model_config.httpx.get") as mock_get, \
-             patch("agents.model_config.time.sleep") as _mock_sleep:
+             patch("agents.model_config.time.sleep"):
             # Simule Ollama inaccessible (timeout sur toutes tentatives)
             mock_get.side_effect = Exception("Connection refused")
 
@@ -82,7 +97,7 @@ class TestModelSelectionRobustness:
     def test_no_warning_when_models_available_after_retry(self, caplog):
         """Test: aucun warning si modèles trouvés après retry."""
         with patch("agents.model_config.httpx.get") as mock_get, \
-             patch("agents.model_config.time.sleep") as _mock_sleep:
+             patch("agents.model_config.time.sleep"):
             # Première tentative échoue, deuxième réussit
             mock_get.side_effect = [
                 Exception("Connection refused"),
@@ -135,7 +150,7 @@ class TestModelSelectionRobustness:
             mock_get.side_effect = Exception("Connection refused")
 
             _ = time.time()
-            _config = RoleModelConfig()
+            RoleModelConfig()
             _ = time.time()
 
             # Par défaut: 5 tentatives => 4 sleeps (backoff exponentiel: 1,2,4,8)
@@ -162,7 +177,6 @@ class TestModelSelectionRobustness:
             # Le comportement actuel: niveau 2 activé car installed_models vide après filtrage
             # On s'attend à un modèle configuré (martain7r/finance-llama-8b:q4_k_m par exemple)
             assert model in ["deepseek-r1:8b", "mistral:7b-instruct", "martain7r/finance-llama-8b:q4_k_m", "gemma3:12b", "completely-unknown:99b"]
-
 
     def test_empty_ollama_response(self):
         """Test: Ollama retourne 0 modèles (installé mais vide)."""

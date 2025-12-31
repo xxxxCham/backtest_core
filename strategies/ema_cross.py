@@ -1,12 +1,23 @@
 """
-Backtest Core - EMA Crossover Strategy
-======================================
+Module-ID: strategies.ema_cross
 
-Stratégie de suivi de tendance basée sur le croisement de deux EMAs.
+Purpose: Stratégie de suivi de tendance par croisement de deux EMAs (Golden/Death Cross).
 
-Logique:
-- LONG: EMA rapide croise EMA lente à la hausse (Golden Cross)
-- SHORT: EMA rapide croise EMA lente à la baisse (Death Cross)
+Role in pipeline: core
+
+Key components: EMACrossStrategy, fast_period, slow_period, leverage
+
+Inputs: DataFrame OHLCV avec colonnes close, optionnel volume
+
+Outputs: StrategyResult (signaux 1/-1/0 sur croisements EMA)
+
+Dependencies: strategies.base, utils.parameters, pandas, numpy
+
+Conventions: fast_period < slow_period obligatoire; EMA calculées internement; leverage appliqué après signaux.
+
+Read-if: Modification logique croisement, seuils entrée, ou preset.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List, Optional

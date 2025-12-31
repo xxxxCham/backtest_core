@@ -1,17 +1,23 @@
 """
-Backtest Core - Monte Carlo Sampling
-====================================
+Module-ID: backtest.monte_carlo
 
-Échantillonnage intelligent pour l'optimisation paramétrique.
+Purpose: Échantillonnage intelligent de l'espace des paramètres (random/LHS/Sobol) pour optimisation plus rapide.
 
-Au lieu de tester toutes les combinaisons (grille exhaustive),
-on échantillonne aléatoirement l'espace des paramètres de façon
-stratégique pour trouver de bonnes configurations plus rapidement.
+Role in pipeline: optimization
 
-Méthodes disponibles:
-- Random Sampling: Échantillonnage uniforme aléatoire
-- Latin Hypercube: Distribution uniforme sur l'espace entier
-- Sobol Sequence: Quasi-random pour meilleure couverture
+Key components: SamplingMethod, ParameterSpace, sample_parameters, MonteCarlo
+
+Inputs: param_space Dict, n_samples, méthode (RANDOM/LATIN_HYPERCUBE/SOBOL)
+
+Outputs: Échantillons (liste de dicts de paramètres)
+
+Dependencies: numpy, optionnel: scipy.stats (LHS)
+
+Conventions: Paramètres en fractions [0,1] puis redimensionnés; log_scale si demandé; échantillonnage uniforme sur l'espace.
+
+Read-if: Optimisation via Monte Carlo au lieu de sweep exhaustif, ou échantillonnage intelligent.
+
+Skip-if: Vous utilisez sweep/optuna/pareto au lieu d'échantillonnage aléatoire.
 """
 
 import numpy as np
@@ -35,7 +41,7 @@ class SamplingMethod(Enum):
 class ParameterSpace:
     """
     Définition de l'espace des paramètres à échantillonner.
-    
+
     Attributes:
         name: Nom du paramètre
         min_val: Valeur minimale
@@ -48,14 +54,14 @@ class ParameterSpace:
     max_val: float
     param_type: str = "float"
     log_scale: bool = False
-    
+
     def sample(self, u: float) -> Any:
         """
         Convertit une valeur uniforme [0,1] en valeur du paramètre.
-        
+
         Args:
             u: Valeur uniforme entre 0 et 1
-            
+
         Returns:
             Valeur dans l'espace du paramètre
         """
@@ -67,7 +73,7 @@ class ParameterSpace:
         else:
             # Échantillonnage linéaire
             value = self.min_val + u * (self.max_val - self.min_val)
-        
+
         if self.param_type == "int":
             return int(round(value))
         return value
@@ -77,7 +83,7 @@ class ParameterSpace:
 class MonteCarloSampler:
     """
     Échantillonneur Monte Carlo pour optimisation paramétrique.
-    
+
     Attributes:
         param_spaces: Liste des espaces de paramètres
         n_samples: Nombre d'échantillons à générer
@@ -88,16 +94,16 @@ class MonteCarloSampler:
     n_samples: int = 100
     method: SamplingMethod = SamplingMethod.LATIN_HYPERCUBE
     seed: Optional[int] = 42
-    
+
     def __post_init__(self):
         if self.seed is not None:
             np.random.seed(self.seed)
         self._dim = len(self.param_spaces)
-    
+
     def generate_samples(self) -> List[Dict[str, Any]]:
         """
         Génère les échantillons selon la méthode choisie.
-        
+
         Returns:
             Liste de dictionnaires {param_name: value}
         """
@@ -109,7 +115,7 @@ class MonteCarloSampler:
             uniform_samples = self._sobol_sampling()
         else:
             raise ValueError(f"Méthode inconnue: {self.method}")
-        
+
         # Convertir les valeurs uniformes en valeurs de paramètres
         samples = []
         for row in uniform_samples:
@@ -117,50 +123,50 @@ class MonteCarloSampler:
             for i, space in enumerate(self.param_spaces):
                 sample[space.name] = space.sample(row[i])
             samples.append(sample)
-        
+
         logger.info(
             f"Monte Carlo: {len(samples)} échantillons générés "
             f"({self.method.value}, {self._dim} dimensions)"
         )
-        
+
         return samples
-    
+
     def _random_sampling(self) -> np.ndarray:
         """Échantillonnage aléatoire uniforme."""
         return np.random.rand(self.n_samples, self._dim)
-    
+
     def _latin_hypercube_sampling(self) -> np.ndarray:
         """
         Latin Hypercube Sampling (LHS).
-        
+
         Garantit une meilleure couverture de l'espace que l'aléatoire pur.
         Chaque dimension est divisée en n_samples intervalles égaux,
         et on place exactement un point dans chaque intervalle.
         """
         result = np.zeros((self.n_samples, self._dim))
-        
+
         for dim in range(self._dim):
             # Créer n_samples intervalles
             cut_points = np.linspace(0, 1, self.n_samples + 1)
-            
+
             # Échantillonner uniformément dans chaque intervalle
             for i in range(self.n_samples):
                 low = cut_points[i]
                 high = cut_points[i + 1]
                 result[i, dim] = np.random.uniform(low, high)
-            
+
             # Mélanger pour éviter les corrélations
             np.random.shuffle(result[:, dim])
-        
+
         return result
-    
+
     def _sobol_sampling(self) -> np.ndarray:
         """
         Séquence de Sobol (quasi-random).
-        
+
         Meilleure distribution que l'aléatoire, propriétés de
         low-discrepancy pour une couverture uniforme.
-        
+
         Implémentation simplifiée - pour production, utiliser scipy.stats.qmc
         """
         try:
@@ -176,7 +182,7 @@ class MonteCarloSampler:
 class MonteCarloResult:
     """
     Résultat d'une optimisation Monte Carlo.
-    
+
     Attributes:
         samples: Paramètres testés
         scores: Scores obtenus (ex: Sharpe ratio)
@@ -189,26 +195,26 @@ class MonteCarloResult:
     best_params: Dict[str, Any]
     best_score: float
     convergence_history: List[float] = field(default_factory=list)
-    
+
     @property
     def n_evaluated(self) -> int:
         """Nombre d'évaluations effectuées."""
         return len(self.scores)
-    
+
     def top_k(self, k: int = 5) -> List[Tuple[Dict[str, Any], float]]:
         """
         Retourne les k meilleures configurations.
-        
+
         Args:
             k: Nombre de configurations à retourner
-            
+
         Returns:
             Liste de tuples (params, score) triés par score décroissant
         """
         paired = list(zip(self.samples, self.scores))
         paired.sort(key=lambda x: x[1], reverse=True)
         return paired[:k]
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire pour export."""
         return {
@@ -217,7 +223,7 @@ class MonteCarloResult:
             "best_score": self.best_score,
             "convergence": self.convergence_history,
             "top_5": [
-                {"params": p, "score": s} 
+                {"params": p, "score": s}
                 for p, s in self.top_k(5)
             ],
         }
@@ -226,10 +232,10 @@ class MonteCarloResult:
 class MonteCarloOptimizer:
     """
     Optimiseur Monte Carlo pour recherche de paramètres.
-    
+
     Utilise l'échantillonnage intelligent pour explorer l'espace
     des paramètres sans tester toutes les combinaisons.
-    
+
     Example:
         >>> optimizer = MonteCarloOptimizer(
         ...     param_spaces=[
@@ -241,7 +247,7 @@ class MonteCarloOptimizer:
         >>> result = optimizer.optimize(evaluate_fn)
         >>> print(f"Best: {result.best_params} -> {result.best_score}")
     """
-    
+
     def __init__(
         self,
         param_spaces: List[ParameterSpace],
@@ -253,7 +259,7 @@ class MonteCarloOptimizer:
     ):
         """
         Initialise l'optimiseur.
-        
+
         Args:
             param_spaces: Espaces des paramètres
             n_samples: Nombre d'échantillons
@@ -268,14 +274,14 @@ class MonteCarloOptimizer:
         self.seed = seed
         self.early_stop_patience = early_stop_patience
         self.early_stop_threshold = early_stop_threshold
-        
+
         self._sampler = MonteCarloSampler(
             param_spaces=param_spaces,
             n_samples=n_samples,
             method=method,
             seed=seed,
         )
-    
+
     def optimize(
         self,
         evaluate_fn: Callable[[Dict[str, Any]], float],
@@ -284,18 +290,18 @@ class MonteCarloOptimizer:
     ) -> MonteCarloResult:
         """
         Lance l'optimisation Monte Carlo.
-        
+
         Args:
             evaluate_fn: Fonction d'évaluation (params -> score)
             constraints_fn: Fonction de validation des contraintes (optionnel)
             progress_callback: Callback de progression (current, total, best_score)
-            
+
         Returns:
             MonteCarloResult avec les meilleurs paramètres
         """
         # Générer les échantillons
         all_samples = self._sampler.generate_samples()
-        
+
         # Filtrer par contraintes si spécifiées
         if constraints_fn is not None:
             samples = [s for s in all_samples if constraints_fn(s)]
@@ -305,22 +311,22 @@ class MonteCarloOptimizer:
             )
         else:
             samples = all_samples
-        
+
         if not samples:
             raise ValueError("Aucun échantillon valide après filtrage des contraintes")
-        
+
         # Évaluer les échantillons
         scores = []
         best_score = float('-inf')
         best_params = None
         convergence = []
         no_improvement_count = 0
-        
+
         for i, params in enumerate(samples):
             try:
                 score = evaluate_fn(params)
                 scores.append(score)
-                
+
                 # Tracking du meilleur
                 if score > best_score + self.early_stop_threshold:
                     best_score = score
@@ -328,13 +334,13 @@ class MonteCarloOptimizer:
                     no_improvement_count = 0
                 else:
                     no_improvement_count += 1
-                
+
                 convergence.append(best_score)
-                
+
                 # Callback de progression
                 if progress_callback is not None:
                     progress_callback(i + 1, len(samples), best_score)
-                
+
                 # Early stopping
                 if no_improvement_count >= self.early_stop_patience:
                     logger.info(
@@ -342,19 +348,19 @@ class MonteCarloOptimizer:
                         f"(pas d'amélioration depuis {self.early_stop_patience})"
                     )
                     break
-                    
+
             except Exception as e:
                 logger.warning(f"Erreur évaluation {params}: {e}")
                 scores.append(float('-inf'))
-        
+
         # Tronquer les samples si early stop
         evaluated_samples = samples[:len(scores)]
-        
+
         logger.info(
             f"Monte Carlo terminé: {len(scores)} évaluations, "
             f"meilleur score = {best_score:.4f}"
         )
-        
+
         return MonteCarloResult(
             samples=evaluated_samples,
             scores=scores,
@@ -362,7 +368,7 @@ class MonteCarloOptimizer:
             best_score=best_score,
             convergence_history=convergence,
         )
-    
+
     @classmethod
     def from_strategy(
         cls,
@@ -373,23 +379,23 @@ class MonteCarloOptimizer:
     ) -> "MonteCarloOptimizer":
         """
         Crée un optimiseur à partir d'une stratégie enregistrée.
-        
+
         Args:
             strategy_name: Nom de la stratégie
             n_samples: Nombre d'échantillons
             method: Méthode d'échantillonnage
             **kwargs: Arguments additionnels
-            
+
         Returns:
             MonteCarloOptimizer configuré
         """
         from strategies.base import get_strategy
-        
+
         strategy_class = get_strategy(strategy_name)
         strategy = strategy_class()
-        
+
         param_spaces = []
-        
+
         if hasattr(strategy, 'parameter_specs'):
             for name, spec in strategy.parameter_specs.items():
                 param_spaces.append(ParameterSpace(
@@ -398,12 +404,12 @@ class MonteCarloOptimizer:
                     max_val=spec.max_val,
                     param_type=spec.param_type,
                 ))
-        
+
         if not param_spaces:
             raise ValueError(
                 f"Stratégie {strategy_name} n'a pas de parameter_specs"
             )
-        
+
         return cls(
             param_spaces=param_spaces,
             n_samples=n_samples,
@@ -423,25 +429,25 @@ def monte_carlo_sweep(
 ) -> MonteCarloResult:
     """
     Lance un sweep Monte Carlo sur une stratégie.
-    
+
     Fonction de convenance qui combine MonteCarloOptimizer
     avec le BacktestEngine.
-    
+
     Args:
         strategy_name: Nom de la stratégie
         data: DataFrame OHLCV
         n_samples: Nombre d'échantillons
-        method: Méthode d'échantillonnage  
+        method: Méthode d'échantillonnage
         metric: Métrique à optimiser
         seed: Seed reproductibilité
         constraints_fn: Contraintes sur les paramètres
-        
+
     Returns:
         MonteCarloResult
-        
+
     Example:
         >>> result = monte_carlo_sweep(
-        ...     "ema_cross", 
+        ...     "ema_cross",
         ...     data,
         ...     n_samples=50,
         ...     constraints_fn=lambda p: p["slow_period"] > p["fast_period"]
@@ -450,7 +456,7 @@ def monte_carlo_sweep(
     """
     from backtest.engine import BacktestEngine
     from strategies.base import get_strategy
-    
+
     # Créer l'optimiseur
     optimizer = MonteCarloOptimizer.from_strategy(
         strategy_name,
@@ -458,16 +464,16 @@ def monte_carlo_sweep(
         method=method,
         seed=seed,
     )
-    
+
     # Créer le moteur de backtest
     engine = BacktestEngine(initial_capital=10000.0)
     strategy_class = get_strategy(strategy_name)
-    
+
     def evaluate(params: Dict[str, Any]) -> float:
         """Évalue une configuration de paramètres."""
         strategy = strategy_class()
         result = engine.run(data, strategy, params)
-        
+
         # Récupérer la métrique demandée
         metrics = result.metrics
         if hasattr(metrics, metric):
@@ -475,7 +481,13 @@ def monte_carlo_sweep(
         elif hasattr(metrics, 'to_dict'):
             return metrics.to_dict().get(metric, 0.0)
         return 0.0
-    
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur échantillonnage intelligent
+# - Conventions méthodes (RANDOM/LHS/SOBOL) et log_scale explicitées
+# - Read-if/Skip-if ajoutés pour guider la lecture
+
     # Lancer l'optimisation
     return optimizer.optimize(
         evaluate_fn=evaluate,

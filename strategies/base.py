@@ -1,14 +1,23 @@
 """
-Backtest Core - Strategy Base Class
-===================================
+Module-ID: strategies.base
 
-Classe de base pour toutes les stratégies de trading.
-Définit l'interface standard que le moteur de backtest attend.
+Purpose: Classe abstraite et contrat pour toutes les stratégies de trading.
 
-Architecture préparée pour:
-1. Exécution autonome par le moteur de backtest
-2. Future intégration avec agents LLM (DynamicStrategy)
-3. Système de presets et granularité
+Role in pipeline: core
+
+Key components: StrategyBase (abstract), StrategyResult (dataclass), register_strategy (decorator)
+
+Inputs: DataFrame OHLCV, paramètres utilisateur, indicateurs pré-calculés
+
+Outputs: StrategyResult (signaux, prix, stop/target, metadata)
+
+Dependencies: pandas, numpy, utils.parameters, dataclasses
+
+Conventions: Signaux standardisés (1=long, -1=short, 0=flat); paramètres clampés aux bornes; indicateurs calculés ou fournis; preset/granularité support.
+
+Read-if: Création nouvelle stratégie, modification interface ou patterns standards.
+
+Skip-if: Vous ne changez qu'une stratégie spécifique.
 """
 
 from abc import ABC, abstractmethod

@@ -1,6 +1,23 @@
-"""Tests de persistance JSONL pour OrchestrationLogger.
+"""
+Module-ID: tests.test_orchestration_logger_persistence
 
-But: éviter un trace.jsonl qui ne contient que le header.
+Purpose: Tester persistence JSONL OrchestrationLogger (header + events sauvegardés, pas de fichier vide).
+
+Role in pipeline: testing
+
+Key components: test_orchestration_logger_writes_events_to_jsonl, tmp_path fixture
+
+Inputs: OrchestrationLogger, événements via log() API, tmp_path
+
+Outputs: trace.jsonl avec header + événements (≥3 lignes)
+
+Dependencies: pytest, agents.orchestration_logger
+
+Conventions: JSONL format; 1 header + N événements; auto_save optionnel.
+
+Read-if: Modification persistence ou format log.
+
+Skip-if: Tests persistence non critiques.
 """
 
 from __future__ import annotations

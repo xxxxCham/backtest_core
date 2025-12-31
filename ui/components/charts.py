@@ -1,83 +1,26 @@
 """
-Backtest Core - Chart Components
-=================================
+Module-ID: ui.components.charts
 
-Composants de graphiques réutilisables avec Plotly.
+Purpose: Renderers Plotly/Seaborn pour UI - equity, OHLCV, comparaisons, stratégie diagrams.
 
-Features:
-- Courbe d'équité + Drawdown
-- Prix OHLCV avec indicateurs
-- Marqueurs de trades (entrée/sortie)
-- Graphiques de comparaison de résultats
-- Style moderne et cohérent
+Role in pipeline: visualization
 
-Usage:
-    >>> from ui.components.charts import render_equity_and_drawdown
-    >>> render_equity_and_drawdown(equity, drawdown)
+Key components: render_equity_and_drawdown(), render_ohlcv_with_trades(), render_comparison_chart()
 
-TABLE DES MATIÈRES
-==================
+Inputs: Series/DataFrames (equity, OHLCV, metrics), trade results
 
-1. IMPORTS ET CONFIGURATION GLOBALE (lignes ~20-80)
-   - Imports standards
-   - Imports optionnels (seaborn, plotly-resampler)
-   - Configuration logger
+Outputs: Plotly figures, Streamlit renderers
 
-2. CONSTANTES ET CONFIGURATION (lignes ~80-150)
-   - COLOR_PALETTE: Palette de couleurs cohérente
-   - DEFAULT_LAYOUT_CONFIG: Configuration Plotly par défaut
-   - Constantes de seuils et paramètres
-   - Constantes Seaborn
+Dependencies: plotly, seaborn, pandas, streamlit (optionnel)
 
-3. HELPERS UTILITAIRES GÉNÉRAUX (lignes ~150-250)
-   - _wrap_with_resampler: Downsampling intelligent
-   - _apply_axis_interaction: Configuration des axes interactifs
-   - _normalize_trades_df: Normalisation des colonnes de trades
+Conventions: Couleurs cohérentes; resampler pour performance; tooltips interactifs.
 
-4. HELPERS DE STYLE PLOTLY (lignes ~250-350)
-   - _apply_chart_layout: Application du style cohérent
-   - _get_base_layout_config: Configuration de base
-   - _apply_dark_theme: Thème sombre
+Read-if: Modification styling/layout graphiques ou ajout nouveau chart type.
 
-5. HELPERS DE CALCUL POUR DIAGRAMMES (lignes ~350-500)
-   - _create_synthetic_price: Génération de prix synthétiques
-   - _calculate_bollinger: Calcul des bandes de Bollinger
-   - _calculate_atr: Calcul de l'ATR (Average True Range)
-
-6. HELPERS DIAGRAMMES DE STRATÉGIES (lignes ~500-1400)
-   - _render_bollinger_atr_diagram: Diagramme Bollinger ATR v1
-   - _render_bollinger_atr_v2_diagram: Diagramme Bollinger ATR v2
-   - _render_bollinger_atr_v3_diagram: Diagramme Bollinger ATR v3
-   - _render_ema_cross_diagram: Diagramme EMA Cross
-   - _render_macd_cross_diagram: Diagramme MACD Cross
-   - _render_rsi_reversal_diagram: Diagramme RSI Reversal
-   - _render_atr_channel_diagram: Diagramme ATR Channel
-
-7. HELPERS SEABORN (lignes ~1400-1500)
-   - _apply_seaborn_dark_style: Application du style sombre Seaborn
-
-8. FONCTIONS PUBLIQUES - EQUITY CURVES (lignes ~1500-1700)
-   - render_equity_and_drawdown: Courbe d'équité avec drawdown
-   - render_equity_curve: Courbe d'équité simple
-
-9. FONCTIONS PUBLIQUES - OHLCV CHARTS (lignes ~1700-2200)
-   - render_ohlcv_with_trades: Prix OHLCV avec marqueurs de trades
-   - render_ohlcv_with_trades_and_indicators: Prix avec indicateurs et trades
-   - render_ohlcv_with_indicators: Prix avec indicateurs uniquement
-
-10. FONCTIONS PUBLIQUES - COMPARISON (lignes ~2200-2300)
-    - render_comparison_chart: Comparaison de résultats
-
-11. FONCTIONS PUBLIQUES - STRATEGY DIAGRAMS (lignes ~2300-2400)
-    - render_strategy_param_diagram: Dispatcher pour diagrammes de stratégies
-
-12. FONCTIONS PUBLIQUES - DISTRIBUTIONS (lignes ~2400-2600)
-    - render_trade_pnl_distribution: Distribution des P&L
-    - render_returns_distribution: Distribution des rendements
-
-13. API PUBLIQUE (lignes ~2600-2620)
-    - __all__: Liste des exports publics
+Skip-if: Vous appelez render_equity_and_drawdown(equity, drawdown).
 """
+
+# pylint: disable=too-many-lines
 
 # ============================================================================
 # 1. IMPORTS ET CONFIGURATION GLOBALE
@@ -212,12 +155,18 @@ def _wrap_with_resampler(fig: go.Figure, n_datapoints: int) -> go.Figure:
         Figure Plotly (wrappée ou non)
     """
     if PLOTLY_RESAMPLER_AVAILABLE and n_datapoints > RESAMPLER_THRESHOLD:
-        logger.info(f"Dataset large ({n_datapoints:,} points) - Activation du resampler")
+        logger.info(
+            "Dataset large (%s points) - Activation du resampler",
+            "{:,}".format(n_datapoints),
+        )
         try:
             # Convertir en FigureResampler pour downsampling intelligent
             return FigureResampler(fig, default_n_shown_samples=2000)
         except Exception as e:
-            logger.warning(f"Échec du resampler: {e} - Utilisation de la figure standard")
+            logger.warning(
+                "Echec du resampler: %s - Utilisation de la figure standard",
+                e,
+            )
             return fig
     return fig
 
@@ -350,20 +299,34 @@ def _apply_dark_theme(fig: go.Figure) -> None:
 # 5. HELPERS DE CALCUL POUR DIAGRAMMES
 # ============================================================================
 
-def _create_synthetic_price(n: int = 160) -> tuple:
+def _create_synthetic_price(n: int = 160, volatility: float = 2.5) -> tuple:
     """
     Crée un prix synthétique pour les diagrammes de stratégies.
 
     Args:
         n: Nombre de points
+        volatility: Facteur de volatilité (défaut: 2.5 pour simulation réaliste)
 
     Returns:
         Tuple (x, price, price_series)
     """
+    np.random.seed(42)  # Reproductibilité
     x = np.arange(n)
+
+    # Tendance de fond (sinusoïdale lente)
     base = 100 + 4 * np.sin(np.linspace(0, 4 * np.pi, n))
-    noise = 0.9 * np.sin(np.linspace(0, 11 * np.pi, n))
-    price = base + noise
+
+    # Oscillations moyennes fréquences
+    mid_freq = 0.9 * np.sin(np.linspace(0, 11 * np.pi, n))
+
+    # Bruit réaliste avec marche aléatoire
+    random_walk = np.random.randn(n).cumsum() * 0.3
+
+    # Chocs de volatilité (pics aléatoires)
+    shocks = np.random.randn(n) * volatility
+
+    # Composition finale
+    price = base + mid_freq + random_walk + shocks
     price_series = pd.Series(price)
     return x, price, price_series
 
@@ -433,7 +396,7 @@ def _calculate_atr(
 def _render_bollinger_atr_diagram(
     params: Dict[str, Any],
     key: str,
-    n: int = 160,
+    n: int = 300,  # Augmenté pour mieux voir l'effet des périodes élevées
 ) -> None:
     """
     Diagramme pour la stratégie Bollinger ATR v1.
@@ -441,7 +404,7 @@ def _render_bollinger_atr_diagram(
     Args:
         params: Paramètres de la stratégie
         key: Clé unique Streamlit
-        n: Nombre de points de données
+        n: Nombre de points de données (augmenté à 300 pour périodes élevées)
     """
     x, price, price_series = _create_synthetic_price(n)
 
@@ -582,7 +545,7 @@ def _render_bollinger_atr_diagram(
 def _render_bollinger_atr_v2_diagram(
     params: Dict[str, Any],
     key: str,
-    n: int = 160,
+    n: int = 300,
 ) -> None:
     """
     Diagramme pour la stratégie Bollinger ATR v2 (stop-loss basé sur Bollinger).
@@ -590,7 +553,7 @@ def _render_bollinger_atr_v2_diagram(
     Args:
         params: Paramètres de la stratégie
         key: Clé unique Streamlit
-        n: Nombre de points de données
+        n: Nombre de points de données (augmenté à 300 pour périodes élevées)
     """
     x, price, price_series = _create_synthetic_price(n)
 
@@ -751,7 +714,7 @@ def _render_bollinger_atr_v2_diagram(
 def _render_bollinger_atr_v3_diagram(
     params: Dict[str, Any],
     key: str,
-    n: int = 160,
+    n: int = 300,
 ) -> None:
     """
     Diagramme pour la stratégie Bollinger ATR v3 (entrées, stop et TP variables).
@@ -759,7 +722,7 @@ def _render_bollinger_atr_v3_diagram(
     Args:
         params: Paramètres de la stratégie
         key: Clé unique Streamlit
-        n: Nombre de points de données
+        n: Nombre de points de données (augmenté à 300 pour périodes élevées)
     """
     x, price, price_series = _create_synthetic_price(n)
 
@@ -2194,6 +2157,7 @@ def render_trade_pnl_distribution(
         key: Clé unique Streamlit
         height: Hauteur du graphique
     """
+    _ = key
     if not SEABORN_AVAILABLE:
         st.warning("⚠️ Seaborn non disponible - Distribution non affichée")
         return
@@ -2274,6 +2238,7 @@ def render_returns_distribution(
         key: Clé unique Streamlit
         height: Hauteur du graphique
     """
+    _ = key
     if not SEABORN_AVAILABLE:
         st.warning("⚠️ Seaborn non disponible - Distribution non affichée")
         return

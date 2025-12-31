@@ -1,14 +1,23 @@
 """
-Backtest Core - Fast Trade Simulator (Numba-accelerated)
-=======================================================
+Module-ID: backtest.simulator_fast
 
-Version haute performance du simulateur de trades utilisant Numba JIT.
-Jusqu'à 100x plus rapide que la version Python pure.
+Purpose: Version haute performance de simulate_trades via Numba JIT (100x accélération vs Python pur).
 
-Usage:
-    from backtest.simulator_fast import simulate_trades_fast
+Role in pipeline: execution / performance
 
-    trades_df = simulate_trades_fast(df, signals, params)
+Key components: _simulate_trades_numba, simulate_trades_fast, calculate_equity_fast, HAS_NUMBA flag
+
+Inputs: OHLCV arrays (closes, highs, lows), signaux, paramètres (leverage, slippage, fees)
+
+Outputs: Trades arrays (entry_ts, exit_ts, pnl, etc.), equity curve, returns
+
+Dependencies: numpy, pandas, optionnel: numba (JIT); fallback simulator.py si numba absent
+
+Conventions: HAS_NUMBA = False si numba non dispo (fallback Python OK); données arrays numpy; signaux 1/-1/0.
+
+Read-if: Optimisation simulation ou fallback à simulator_fast.
+
+Skip-if: simulator.py Python pur performant suffisamment.
 """
 
 from typing import Any, Dict, List, Tuple
@@ -18,7 +27,7 @@ import pandas as pd
 
 # Numba pour JIT compilation
 try:
-    from numba import njit, prange
+    from numba import njit
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
@@ -514,6 +523,12 @@ def simulate_batch(
             results[idx] = trades
 
     return results
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur simulation haute perf (Numba JIT)
+# - Conventions HAS_NUMBA flag et fallback simulator.py explicitées
+# - Read-if/Skip-if ajoutés pour tri rapide
 
 
 __all__ = [

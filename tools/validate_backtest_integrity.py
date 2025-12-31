@@ -12,9 +12,10 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
-import numpy as np
-from backtest.engine import BacktestEngine
+import pandas as pd  # noqa: E402
+import numpy as np  # noqa: E402
+from backtest.engine import BacktestEngine  # noqa: E402
+
 
 def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
     """
@@ -44,7 +45,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
     equity = result.equity
 
     if verbose:
-        print(f"📊 Résumé:")
+        print("📊 Résumé:")
         print(f"   Trades: {len(trades_df)}")
         print(f"   Période: {df.index[0]} → {df.index[-1]}")
         print(f"   Durée: {(df.index[-1] - df.index[0]).days} jours")
@@ -59,18 +60,18 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
         errors.append(f"total_trades ({total_trades}) ≠ len(trades_df) ({len(trades_df)})")
 
     if verbose:
-        print(f"✓ Test 1: Nombre de trades")
+        print("✓ Test 1: Nombre de trades")
         print(f"   total_trades = {total_trades} (type: {type(total_trades).__name__})")
         print(f"   len(trades_df) = {len(trades_df)}")
         if errors:
             print(f"   ❌ {errors[-1]}")
         else:
-            print(f"   ✅ OK")
+            print("   ✅ OK")
         print()
 
     # 3. Vérifier timestamps valides
     if verbose:
-        print(f"✓ Test 2: Validité des timestamps")
+        print("✓ Test 2: Validité des timestamps")
 
     df_start = df.index[0]
     df_end = df.index[-1]
@@ -116,17 +117,17 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
         warnings.append(f"{len(incomplete_trades)} trades incomplets (fermés à la fin)")
         if verbose:
             print(f"   ⚠️  {len(incomplete_trades)} trades fermés à la dernière barre")
-            print(f"      (Position ouverte en fin de backtest)")
+            print("      (Position ouverte en fin de backtest)")
 
     if not errors and not warnings:
         if verbose:
-            print(f"   ✅ Tous les timestamps valides")
+            print("   ✅ Tous les timestamps valides")
 
     print()
 
     # 4. Cohérence P&L
     if verbose:
-        print(f"✓ Test 3: Cohérence P&L")
+        print("✓ Test 3: Cohérence P&L")
 
     # P&L individuel
     sum_pnl_trades = trades_df['pnl'].sum()
@@ -138,7 +139,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
         metrics_pnl = metrics.get('total_return', None)
         if metrics_pnl is not None:
             if verbose:
-                print(f"   ℹ️  'total_pnl' absent, utilise 'total_return'")
+                print("   ℹ️  'total_pnl' absent, utilise 'total_return'")
 
     if metrics_pnl is not None:
         diff_pnl = abs(sum_pnl_trades - metrics_pnl)
@@ -159,7 +160,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
 
     # 5. Cohérence Equity
     if verbose:
-        print(f"✓ Test 4: Cohérence Equity")
+        print("✓ Test 4: Cohérence Equity")
 
     equity_start = equity.iloc[0]
     equity_end = equity.iloc[-1]
@@ -192,7 +193,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
 
     # 6. Vérifier que l'equity varie (mark-to-market fonctionne)
     if verbose:
-        print(f"✓ Test 5: Mark-to-Market")
+        print("✓ Test 5: Mark-to-Market")
 
     # Compter combien de barres ont une equity différente
     equity_changes = (equity.diff().fillna(0) != 0).sum()
@@ -202,7 +203,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
         warnings.append(f"Equity a seulement {equity_unique_values} valeurs uniques (MTM suspect)")
         if verbose:
             print(f"   ⚠️  Equity a {equity_unique_values} valeurs uniques sur {len(equity)} barres")
-            print(f"      (Mark-to-market pourrait ne pas fonctionner)")
+            print("      (Mark-to-market pourrait ne pas fonctionner)")
     else:
         if verbose:
             print(f"   ✅ Equity varie correctement : {equity_changes}/{len(equity)} changements")
@@ -211,7 +212,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
 
     # 7. Vérifier entry < exit pour chaque trade
     if verbose:
-        print(f"✓ Test 6: Ordre des timestamps")
+        print("✓ Test 6: Ordre des timestamps")
 
     invalid_order = trades_df[entry_ts >= exit_ts]
     if len(invalid_order) > 0:
@@ -222,7 +223,7 @@ def validate_backtest_result(result, df, initial_capital=10000.0, verbose=True):
                 print(f"      Entry: {row['entry_ts']}, Exit: {row['exit_ts']}")
     else:
         if verbose:
-            print(f"   ✅ Tous les trades ont entry < exit")
+            print("   ✅ Tous les trades ont entry < exit")
 
     print()
 

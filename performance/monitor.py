@@ -1,23 +1,23 @@
 """
-Backtest Core - Performance Monitor Module
-==========================================
+Module-ID: performance.monitor
 
-Monitoring temps réel des ressources système pendant l'exécution.
-Utilise rich pour affichage console et psutil pour métriques.
+Purpose: Monitoring temps réel système (CPU, mémoire, I/O, GPU) pendant exécution.
 
-Usage:
-    >>> from performance.monitor import PerformanceMonitor, ResourceTracker
-    >>>
-    >>> # Option 1: Context manager avec affichage live
-    >>> with PerformanceMonitor() as monitor:
-    ...     run_backtest()
-    ...     print(monitor.get_stats())
-    >>>
-    >>> # Option 2: Tracker background
-    >>> tracker = ResourceTracker()
-    >>> tracker.start()
-    >>> run_backtest()
-    >>> stats = tracker.stop()
+Role in pipeline: observability
+
+Key components: PerformanceMonitor, ResourceTracker, psutil wrapper, Rich display
+
+Inputs: None (reads system metrics)
+
+Outputs: Stats {cpu_pct, mem_mb, io_r_mb, gpu_mem_mb}, timeline
+
+Dependencies: psutil, threading, time, rich (optionnel)
+
+Conventions: Background thread safe; thread-safe stats dict; 1s interval.
+
+Read-if: Modification metrics collection ou refresh interval.
+
+Skip-if: Vous appelez monitor.get_stats().
 """
 
 from __future__ import annotations

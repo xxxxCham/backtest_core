@@ -90,6 +90,58 @@ python __main__.py sweep -s ema_cross -d BTCUSDC_1h.parquet --granularity 0.9 --
 
 ---
 
+### `check-gpu` - Diagnostic GPU et benchmark
+
+```bash
+python -m backtest_core check-gpu [OPTIONS]
+```
+
+| Paramètre | Type | Défaut | Description |
+|-----------|------|--------|-------------|
+| `--benchmark` | flag | `False` | Exécuter benchmark CPU vs GPU (EMA 10k points) |
+| `--quiet` | flag | `False` | Mode silencieux (stats minimales) |
+| `--no-color` | flag | `False` | Désactiver couleurs |
+
+**Informations affichées :**
+- CuPy : Version installée
+- CUDA : Version du runtime
+- GPUs : Nombre détecté
+- Pour chaque GPU :
+  - Nom
+  - Compute Capability (architecture)
+  - VRAM Totale / Libre / Utilisée
+  - Multiprocesseurs, Max Threads/Block, Warp Size
+
+**Exemple :**
+```powershell
+# Diagnostic simple
+python __main__.py check-gpu
+
+# Avec benchmark CPU vs GPU
+python __main__.py check-gpu --benchmark
+```
+
+**Output exemple :**
+```
+Diagnostic GPU
+==============
+✓ CuPy installé: version 13.6.0
+✓ CUDA Runtime: 12.9
+✓ GPU(s) détecté(s): 2
+
+Détails des GPUs
+----------------
+  GPU 0: NVIDIA GeForce RTX 5080
+    Compute Capability:  12.0
+    VRAM Totale:         15.92 GB
+    VRAM Libre:          14.52 GB (91.2%)
+    VRAM Utilisée:       1.40 GB (8.8%)
+```
+
+**Status** : ✅ Implémenté (30/12/2025)
+
+---
+
 ### `list` - Lister les ressources
 
 ```bash

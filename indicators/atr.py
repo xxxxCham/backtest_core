@@ -1,12 +1,23 @@
 """
-Backtest Core - ATR (Average True Range) Indicator
-==================================================
+Module-ID: indicators.atr
 
-Implémentation vectorisée de l'ATR.
+Purpose: Indicateur volatilité ATR (Average True Range) vectorisé.
 
-Formule:
-- True Range = max(high-low, abs(high-prev_close), abs(low-prev_close))
-- ATR = EMA(TR, period) ou SMA(TR, period)
+Role in pipeline: data
+
+Key components: atr, ATRSettings, calculate_atr, true_range
+
+Inputs: DataFrame avec high, low, close; period, method (SMA/EMA)
+
+Outputs: np.ndarray (volatilité ATR) ou Dict avec TR
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: True Range normalisé; ATR lissé par SMA ou EMA; vectorisé NumPy.
+
+Read-if: Modification formula true range, smoothing method.
+
+Skip-if: Vous utilisez juste calculate_indicator('atr').
 """
 
 from dataclasses import dataclass

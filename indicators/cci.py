@@ -1,13 +1,23 @@
 """
-Backtest Core - Commodity Channel Index (CCI)
-=============================================
+Module-ID: indicators.cci
 
-Le CCI mesure l'écart du prix par rapport à sa moyenne, normalisé.
-Développé par Donald Lambert (1980).
+Purpose: Indicateur CCI (Commodity Channel Index) - écart normalisé du prix.
 
-Interprétation:
-- CCI > +100 : Surachat
-- CCI < -100 : Survente
+Role in pipeline: data
+
+Key components: cci, CCISettings, calculate_cci
+
+Inputs: DataFrame avec high, low, close; period, constant (0.015)
+
+Outputs: np.ndarray (oscillateur)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: CCI = (prix - SMA) / (constante * mad); >100 surachat, <-100 survente.
+
+Read-if: Modification période, constante normalisation.
+
+Skip-if: Vous utilisez juste calculate_indicator('cci').
 """
 
 from dataclasses import dataclass

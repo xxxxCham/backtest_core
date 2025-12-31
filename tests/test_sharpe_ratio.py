@@ -1,3 +1,25 @@
+"""
+Module-ID: tests.test_sharpe_ratio
+
+Purpose: Tester calcul Sharpe ratio (standard, daily resample, edge cases).
+
+Role in pipeline: testing
+
+Key components: test_sharpe_ratio_standard_expected_value, test_sharpe_ratio_no_trades, test_sharpe_ratio_daily_resample
+
+Inputs: Returns Series, equity Series, parametres (periods_per_year, method)
+
+Outputs: Sharpe ratio float (ou 0.0 si pas de trades)
+
+Dependencies: pytest, numpy, pandas, backtest.performance
+
+Conventions: Annualisé 252 périodes par défaut; edge cases retours=0.
+
+Read-if: Modification Sharpe calculation ou tests.
+
+Skip-if: Tests unitaires non critiques.
+"""
+
 import numpy as np
 import pandas as pd
 import pytest

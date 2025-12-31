@@ -1,8 +1,23 @@
 """
-Backtest Core - Pi Cycle Indicator
-==================================
+Module-ID: indicators.pi_cycle
 
-Commonly used with BTC tops: SMA(111) crosses above 2 * SMA(350).
+Purpose: Indicateur Pi Cycle BTC - SMA(111) croise au-dessus 2*SMA(350).
+
+Role in pipeline: technical indicator
+
+Key components: PiCycleSettings, pi_cycle()
+
+Inputs: [close], short_period, long_period, multiplier
+
+Outputs: dict {short_sma, long_sma_doubled, signal, crossover}
+
+Dependencies: numpy, pandas, indicators.ema, indicators.registry
+
+Conventions: Signal=1 si court > long*2, sinon 0
+
+Read-if: Utiliser Pi Cycle pour tops BTC.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

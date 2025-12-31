@@ -1,39 +1,23 @@
 """
-Backtest Core - Storage System
-==============================
+Module-ID: backtest.storage
 
-Système de sauvegarde et chargement automatique des résultats de backtests.
+Purpose: Persister et indexer les résultats de backtests pour rechargement/recherche rapide.
 
-Features:
-- Sauvegarde automatique dans backtest_results/{run_id}/
-- Format JSON pour métadonnées + Parquet pour séries temporelles
-- Index/catalogue des résultats pour recherche rapide
-- Compression optionnelle
-- Chargement rapide avec filtres
+Role in pipeline: persistence / reporting
 
-Structure de stockage:
-    backtest_results/
-    ├── index.json                  # Catalogue de tous les runs
-    ├── {run_id_1}/
-    │   ├── metadata.json          # Paramètres et métriques
-    │   ├── equity.parquet         # Courbe d'équité
-    │   └── trades.parquet         # Historique des trades
-    ├── {run_id_2}/
-    │   └── ...
-    └── ...
+Key components: ResultStorage, StoredResultMetadata, get_storage
 
-Usage:
-    >>> from backtest.storage import ResultStorage
-    >>>
-    >>> # Sauvegarder
-    >>> storage = ResultStorage()
-    >>> storage.save_result(run_result, auto_cleanup_old=True)
-    >>>
-    >>> # Charger
-    >>> result = storage.load_result(run_id)
-    >>>
-    >>> # Rechercher
-    >>> results = storage.search_results(strategy="bollinger_atr", min_sharpe=1.5)
+Inputs: RunResult, run_id, auto_cleanup flag
+
+Outputs: Fichiers JSON/Parquet dans backtest_results/{run_id}/, index.json
+
+Dependencies: pandas, pathlib, json, optionnel: pyarrow (Parquet)
+
+Conventions: Structure run_id/metadata.json + equity.parquet + trades.parquet; index.json catalogue; auto_cleanup garde N derniers runs.
+
+Read-if: Persistance résultats, recherche historique, ou gestion stockage.
+
+Skip-if: Backtests ponctuels sans sauvegarde.
 """
 
 from __future__ import annotations
@@ -737,3 +721,9 @@ __all__ = [
     "StoredResultMetadata",
     "get_storage",
 ]
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur persistance/indexation
+# - Conventions structure répertoires et index.json explicitées
+# - Read-if/Skip-if ajoutés pour tri rapide

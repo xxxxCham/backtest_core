@@ -1,9 +1,23 @@
 """
-Logging d'Orchestration LLM
-============================
+Module-ID: agents.orchestration_logger
 
-Système de logging structuré pour tracer toutes les actions des agents LLM
-pendant l'optimisation autonome.
+Purpose: Tracer toutes les actions des agents LLM en JSONL avec auto-save thread-safe et callback UI.
+
+Role in pipeline: orchestration / monitoring
+
+Key components: OrchestrationLogger, OrchestrationLogEntry, OrchestrationActionType, get_orchestration_logger
+
+Inputs: action_type, données contexte, session_id
+
+Outputs: Logs JSONL dans runs/<session>/trace.jsonl, callbacks UI optionnels
+
+Dependencies: pathlib, json, threading, utils.log
+
+Conventions: JSONL auto-flush toutes les N entrées; thread-safe via Lock; singleton global; timestamps UTC; callback optionnel pour UI temps réel.
+
+Read-if: Ajout types actions, modification format JSONL, ou intégration UI.
+
+Skip-if: Vous ne debuggez pas l'orchestration.
 """
 
 import json

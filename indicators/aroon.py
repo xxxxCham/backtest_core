@@ -1,13 +1,23 @@
 """
-Backtest Core - Aroon Indicator
-===============================
+Module-ID: indicators.aroon
 
-Aroon mesure le temps écoulé depuis le plus haut/plus bas sur une période.
-Développé par Tushar Chande (1995).
+Purpose: Indicateur Aroon (Aroon Up/Down) - temps depuis haut/bas.
 
-Interprétation:
-- Aroon Up > 70 et Aroon Down < 30 : Forte tendance haussière
-- Aroon Down > 70 et Aroon Up < 30 : Forte tendance baissière
+Role in pipeline: data
+
+Key components: aroon, AroonSettings, calculate_aroon, aroon_up, aroon_down
+
+Inputs: DataFrame avec high, low; period
+
+Outputs: Dict{aroon_up, aroon_down} ou Tuple
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: Aroon Up = (period - bars_since_high) / period * 100; >70 tendance, <30 faible.
+
+Read-if: Modification période, formule bars_since.
+
+Skip-if: Vous utilisez juste calculate_indicator('aroon').
 """
 
 from dataclasses import dataclass

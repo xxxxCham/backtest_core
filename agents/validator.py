@@ -1,14 +1,23 @@
 """
-Agent Validator - Validation finale et décision.
+Module-ID: agents.validator
 
-Rôle:
-- Prendre la décision finale (APPROVE/REJECT/ITERATE)
-- Synthétiser les évaluations des agents précédents
-- Vérifier les critères d'acceptation
-- Générer le rapport final
+Purpose: Prendre la décision finale (APPROVE/REJECT/ITERATE/ABORT) avec synthèse des agents.
 
-Input: Context complet avec tous les rapports
-Output: Décision finale avec justification
+Role in pipeline: orchestration
+
+Key components: ValidatorAgent, ValidationDecision, ValidatorResponse
+
+Inputs: AgentContext complet (analyst_result, propositions, critic_evaluation)
+
+Outputs: ValidationDecision (APPROVE/REJECT/ITERATE/ABORT) avec justifications
+
+Dependencies: agents.base_agent, agents.state_machine, utils.template
+
+Conventions: Decision irrévocable une fois APPROVED/REJECTED; ITERATE remet à ANALYZE; ABORT → FAILED; template Jinja2.
+
+Read-if: Modification critères décision, seuils approbation, ou logique d'itération.
+
+Skip-if: Vous ne changez que analyze/propose/critique.
 """
 
 from __future__ import annotations

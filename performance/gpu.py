@@ -1,23 +1,23 @@
 """
-Backtest Core - GPU Acceleration Module
-=======================================
+Module-ID: performance.gpu
 
-Accélération GPU optionnelle pour les calculs d'indicateurs.
-Utilise CuPy et/ou Numba CUDA si disponibles.
+Purpose: Accélération GPU optionnelle - CuPy arrays, Numba CUDA kernels, détection.
 
-Note: Ce module est optionnel. Si CuPy/Numba ne sont pas installés,
-les calculs se feront sur CPU de manière transparente.
+Role in pipeline: performance optimization
 
-Installation GPU:
-    pip install cupy-cuda12x  # Pour CUDA 12.x
-    pip install numba
+Key components: gpu_available(), GPUIndicatorCalculator, CuPy/Numba wrappers, fallback CPU
 
-Usage:
-    >>> from performance.gpu import gpu_available, GPUIndicatorCalculator
-    >>>
-    >>> if gpu_available():
-    ...     calc = GPUIndicatorCalculator()
-    ...     sma = calc.sma(prices, period=20)
+Inputs: NumPy arrays, GPU device ID
+
+Outputs: CuPy GPU arrays (si disponible) sinon NumPy CPU arrays
+
+Dependencies: cupy (optionnel), numba (optionnel), numpy
+
+Conventions: GPU optional; transparent CPU fallback; device management.
+
+Read-if: Modification GPU kernel ou device selection.
+
+Skip-if: Vous appelez gpu_available() ou GPUIndicatorCalculator.sma().
 """
 
 from __future__ import annotations
@@ -61,63 +61,63 @@ float64 = None  # Pour éviter NameError si utilisé quelque part
 class GPUDeviceManager:
     """
     Gestionnaire de device GPU - Approche prudente single-GPU.
-    
+
     Stratégie:
     1. Détecte tous les GPUs disponibles
     2. Sélectionne le plus puissant (par mémoire) par défaut
     3. Verrouille sur ce device pour toute la session
     4. Évite les switch de device intempestifs
-    
+
     Environment variables:
         CUDA_VISIBLE_DEVICES: Limite les GPUs visibles
         BACKTEST_GPU_ID: Force un GPU spécifique (0, 1, ...)
     """
-    
+
     _instance: Optional['GPUDeviceManager'] = None
     _initialized: bool = False
-    
+
     def __new__(cls):
         """Singleton pattern."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
-    
+
     def __init__(self):
         if GPUDeviceManager._initialized:
             return
-            
+
         self._device_id: Optional[int] = None
         self._device_name: str = "CPU"
         self._device_memory_gb: float = 0.0
         self._available_devices: List[dict] = []
         self._locked: bool = False
-        
+
         if HAS_CUPY:
             self._detect_devices()
             self._select_best_device()
-        
+
         GPUDeviceManager._initialized = True
-    
+
     def _detect_devices(self) -> None:
         """Détecte tous les GPUs disponibles."""
         if not HAS_CUPY:
             return
-            
+
         try:
             device_count = cp.cuda.runtime.getDeviceCount()
             logger.info(f"GPUDeviceManager: {device_count} GPU(s) détecté(s)")
-            
+
             for device_id in range(device_count):
                 try:
                     props = cp.cuda.runtime.getDeviceProperties(device_id)
                     name = props["name"].decode() if isinstance(props["name"], bytes) else props["name"]
-                    
+
                     # Récupérer mémoire en activant temporairement le device
                     with cp.cuda.Device(device_id):
                         mem_info = cp.cuda.runtime.memGetInfo()
                         total_mem_gb = mem_info[1] / (1024**3)
                         free_mem_gb = mem_info[0] / (1024**3)
-                    
+
                     device_info = {
                         "id": device_id,
                         "name": name,
@@ -127,19 +127,19 @@ class GPUDeviceManager:
                     }
                     self._available_devices.append(device_info)
                     logger.info(f"  GPU {device_id}: {name} ({total_mem_gb:.1f} GB)")
-                    
+
                 except Exception as e:
                     logger.warning(f"  GPU {device_id}: Erreur détection - {e}")
-                    
+
         except Exception as e:
             logger.error(f"GPUDeviceManager: Erreur énumération GPUs - {e}")
-    
+
     def _select_best_device(self) -> None:
         """Sélectionne le meilleur GPU (plus de mémoire = plus puissant généralement)."""
         if not self._available_devices:
             logger.warning("GPUDeviceManager: Aucun GPU disponible")
             return
-        
+
         # Vérifier si un GPU est forcé via variable d'environnement
         forced_gpu = os.environ.get("BACKTEST_GPU_ID")
         if forced_gpu is not None:
@@ -154,50 +154,50 @@ class GPUDeviceManager:
                     logger.warning(f"GPUDeviceManager: GPU {forced_id} non trouvé, sélection auto")
             except ValueError:
                 logger.warning(f"GPUDeviceManager: BACKTEST_GPU_ID invalide: {forced_gpu}")
-        
+
         # Sélectionner le GPU avec le plus de mémoire totale
         best_device = max(self._available_devices, key=lambda d: d["total_memory_gb"])
         self._set_device(best_device)
-        
+
         if len(self._available_devices) > 1:
             logger.info(
                 f"GPUDeviceManager: Sélection automatique du GPU le plus puissant: "
                 f"{best_device['name']} (GPU {best_device['id']})"
             )
-    
+
     def _set_device(self, device_info: dict) -> None:
         """Configure et verrouille sur un device."""
         if not HAS_CUPY:
             return
-            
+
         self._device_id = device_info["id"]
         self._device_name = device_info["name"]
         self._device_memory_gb = device_info["total_memory_gb"]
-        
+
         # Activer le device et le verrouiller
         cp.cuda.Device(self._device_id).use()
         self._locked = True
-        
+
         logger.info(
             f"GPUDeviceManager: Verrouillé sur GPU {self._device_id} "
             f"({self._device_name}, {self._device_memory_gb:.1f} GB)"
         )
-    
+
     @property
     def device_id(self) -> Optional[int]:
         """ID du device actif."""
         return self._device_id
-    
+
     @property
     def device_name(self) -> str:
         """Nom du device actif."""
         return self._device_name
-    
+
     @property
     def available_devices(self) -> List[dict]:
         """Liste des devices disponibles."""
         return self._available_devices.copy()
-    
+
     def ensure_device(self) -> None:
         """S'assure que le bon device est actif (appeler avant calculs GPU)."""
         if self._locked and self._device_id is not None and HAS_CUPY:
@@ -208,7 +208,7 @@ class GPUDeviceManager:
                     f"Attendu {self._device_id}, actuel {current_device}. Correction..."
                 )
                 cp.cuda.Device(self._device_id).use()
-    
+
     def get_info(self) -> dict:
         """Retourne les informations sur le GPU actif."""
         return {
@@ -253,7 +253,7 @@ def get_gpu_info() -> dict:
         "numba_cuda_available": HAS_NUMBA_CUDA,
         "gpu_available": gpu_available(),
     }
-    
+
     if HAS_CUPY and _gpu_manager:
         manager_info = _gpu_manager.get_info()
         info.update({
@@ -263,7 +263,7 @@ def get_gpu_info() -> dict:
             "device_locked": manager_info["locked"],
             "available_gpu_count": manager_info["available_devices"],
         })
-        
+
         # Ajouter mémoire libre actuelle
         if manager_info["device_id"] is not None:
             try:
@@ -272,7 +272,7 @@ def get_gpu_info() -> dict:
                 info["cupy_memory_free_gb"] = mem_info[0] / (1024**3)
             except Exception as e:
                 info["cupy_error"] = str(e)
-    
+
     return info
 
 
@@ -304,34 +304,34 @@ def get_array_module(arr: Any):
 class GPUIndicatorCalculator:
     """
     Calculateur d'indicateurs avec accélération GPU.
-    
+
     Utilise CuPy pour les opérations vectorielles sur GPU.
     Fallback automatique sur CPU si GPU non disponible.
-    
+
     Le GPUDeviceManager garantit l'utilisation d'un seul GPU
     (le plus puissant par défaut) pour éviter les problèmes
     de switch entre GPUs.
-    
+
     Example:
         >>> calc = GPUIndicatorCalculator(use_gpu=True)
-        >>> 
+        >>>
         >>> # SMA sur GPU
         >>> sma = calc.sma(prices, period=20)
-        >>> 
+        >>>
         >>> # EMA sur GPU
         >>> ema = calc.ema(prices, period=12)
-        >>> 
+        >>>
         >>> # Bollinger Bands sur GPU
         >>> upper, middle, lower = calc.bollinger_bands(prices, period=20, std=2.0)
     """
-    
+
     # Seuil minimum pour utiliser le GPU (overhead transfert)
     MIN_SAMPLES_FOR_GPU = 5000
-    
+
     def __init__(self, use_gpu: bool = True, min_samples: int = 5000):
         """
         Initialise le calculateur GPU.
-        
+
         Args:
             use_gpu: Activer le GPU si disponible
             min_samples: Seuil minimum pour utiliser le GPU
@@ -339,7 +339,7 @@ class GPUIndicatorCalculator:
         self.use_gpu = use_gpu and gpu_available()
         self.min_samples = min_samples
         self._gpu_manager = get_gpu_manager() if self.use_gpu else None
-        
+
         if self.use_gpu and self._gpu_manager:
             info = self._gpu_manager.get_info()
             logger.info(
@@ -348,78 +348,78 @@ class GPUIndicatorCalculator:
             )
         else:
             logger.info("GPUIndicatorCalculator: Mode CPU")
-    
+
     def _ensure_device(self) -> None:
         """S'assure que le bon GPU est actif avant calcul."""
         if self._gpu_manager:
             self._gpu_manager.ensure_device()
-    
+
     def _should_use_gpu(self, n_samples: int) -> bool:
         """Détermine si le GPU doit être utilisé pour cette taille de données."""
         return self.use_gpu and n_samples >= self.min_samples
-    
+
     def _to_array(self, data: Union[np.ndarray, pd.Series], use_gpu: bool) -> Any:
         """Convertit les données en array (GPU ou CPU)."""
         if isinstance(data, pd.Series):
             arr = data.values.astype(np.float64)
         else:
             arr = np.asarray(data, dtype=np.float64)
-        
+
         if use_gpu and HAS_CUPY:
             self._ensure_device()  # Vérifier device avant transfert
             return cp.asarray(arr)
         return arr
-    
+
     def _to_numpy(self, arr: Any) -> np.ndarray:
         """Convertit un array en numpy."""
         if HAS_CUPY and isinstance(arr, cp.ndarray):
             return cp.asnumpy(arr)
         return np.asarray(arr)
-    
+
     def sma(self, prices: Union[np.ndarray, pd.Series], period: int) -> np.ndarray:
         """
         Simple Moving Average avec accélération GPU.
-        
+
         Args:
             prices: Array de prix
             period: Période de la moyenne
-            
+
         Returns:
             Array SMA (même taille que prices)
         """
         n = len(prices)
         use_gpu = self._should_use_gpu(n)
         xp = cp if use_gpu and HAS_CUPY else np
-        
+
         arr = self._to_array(prices, use_gpu)
         result = xp.full(n, xp.nan, dtype=xp.float64)
-        
+
         # Calcul rolling mean
         cumsum = xp.cumsum(arr)
         result[period-1:] = (cumsum[period-1:] - xp.concatenate([[0], cumsum[:-period]])) / period
-        
+
         return self._to_numpy(result)
-    
+
     def ema(self, prices: Union[np.ndarray, pd.Series], period: int) -> np.ndarray:
         """
         Exponential Moving Average avec accélération GPU.
-        
+
         Args:
             prices: Array de prix
             period: Période de l'EMA
-            
+
         Returns:
             Array EMA
         """
         n = len(prices)
         use_gpu = self._should_use_gpu(n)
         xp = cp if use_gpu and HAS_CUPY else np
-        
+
         arr = self._to_array(prices, use_gpu)
-        
+
         # Alpha = 2 / (period + 1)
         alpha = 2.0 / (period + 1)
-        
+
         # EMA récursif (difficile à paralléliser entièrement)
         # On utilise une approximation ou on fait sur CPU si trop petit
         if not use_gpu or n < 10000:
@@ -430,68 +430,68 @@ class GPUIndicatorCalculator:
             for i in range(1, n):
                 ema[i] = alpha * arr_cpu[i] + (1 - alpha) * ema[i-1]
             return ema
-        
+
         # GPU approximation avec filter
         result = xp.zeros(n, dtype=xp.float64)
         result[0] = arr[0]
-        
+
         # Vectorized approximation (moins précis mais plus rapide)
         xp.power(1 - alpha, xp.arange(n))
         for i in range(1, n):
             result[i] = alpha * arr[i] + (1 - alpha) * result[i-1]
-        
+
         return self._to_numpy(result)
-    
+
     def rsi(self, prices: Union[np.ndarray, pd.Series], period: int = 14) -> np.ndarray:
         """
         Relative Strength Index avec accélération GPU.
-        
+
         Args:
             prices: Array de prix
             period: Période RSI (défaut: 14)
-            
+
         Returns:
             Array RSI (0-100)
         """
         n = len(prices)
         use_gpu = self._should_use_gpu(n)
         xp = cp if use_gpu and HAS_CUPY else np
-        
+
         arr = self._to_array(prices, use_gpu)
-        
+
         # Calcul des deltas
         delta = xp.diff(arr)
-        
+
         # Gains et pertes
         gains = xp.where(delta > 0, delta, 0)
         losses = xp.where(delta < 0, -delta, 0)
-        
+
         # Moyennes mobiles exponentielles
         alpha = 1.0 / period
-        
+
         avg_gain = xp.zeros(n, dtype=xp.float64)
         avg_loss = xp.zeros(n, dtype=xp.float64)
-        
+
         # Premier calcul: moyenne simple
         if n > period:
             avg_gain[period] = xp.mean(gains[:period])
             avg_loss[period] = xp.mean(losses[:period])
-            
+
             # EMA récursif
             for i in range(period + 1, n):
                 avg_gain[i] = alpha * gains[i-1] + (1 - alpha) * avg_gain[i-1]
                 avg_loss[i] = alpha * losses[i-1] + (1 - alpha) * avg_loss[i-1]
-        
+
         # RSI (éviter division par zéro avec np.errstate)
         with np.errstate(divide='ignore', invalid='ignore'):
             rs = xp.where(avg_loss != 0, avg_gain / avg_loss, 100)
         rsi = 100 - (100 / (1 + rs))
-        
+
         # NaN pour les premières valeurs
         rsi[:period] = xp.nan
-        
+
         return self._to_numpy(rsi)
-    
+
     def bollinger_bands(
         self,
         prices: Union[np.ndarray, pd.Series],
@@ -500,41 +500,41 @@ class GPUIndicatorCalculator:
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Bollinger Bands avec accélération GPU.
-        
+
         Args:
             prices: Array de prix
             period: Période de la moyenne (défaut: 20)
             std_dev: Nombre d'écarts-types (défaut: 2.0)
-            
+
         Returns:
             Tuple (upper_band, middle_band, lower_band)
         """
         n = len(prices)
         use_gpu = self._should_use_gpu(n)
         xp = cp if use_gpu and HAS_CUPY else np
-        
+
         arr = self._to_array(prices, use_gpu)
-        
+
         # Middle band = SMA
         middle = xp.full(n, xp.nan, dtype=xp.float64)
         std = xp.full(n, xp.nan, dtype=xp.float64)
-        
+
         # Rolling mean et std
         for i in range(period - 1, n):
             window = arr[i - period + 1:i + 1]
             middle[i] = xp.mean(window)
             std[i] = xp.std(window)
-        
+
         # Upper et lower bands
         upper = middle + std_dev * std
         lower = middle - std_dev * std
-        
+
         return (
             self._to_numpy(upper),
             self._to_numpy(middle),
             self._to_numpy(lower)
         )
-    
+
     def atr(
         self,
         high: Union[np.ndarray, pd.Series],
@@ -544,41 +544,41 @@ class GPUIndicatorCalculator:
     ) -> np.ndarray:
         """
         Average True Range avec accélération GPU.
-        
+
         Args:
             high: Array des plus hauts
             low: Array des plus bas
             close: Array des clôtures
             period: Période ATR (défaut: 14)
-            
+
         Returns:
             Array ATR
         """
         n = len(close)
         use_gpu = self._should_use_gpu(n)
         xp = cp if use_gpu and HAS_CUPY else np
-        
-        h = self._to_array(high, use_gpu)
-        l = self._to_array(low, use_gpu)
-        c = self._to_array(close, use_gpu)
-        
+
+        high_arr = self._to_array(high, use_gpu)
+        low_arr = self._to_array(low, use_gpu)
+        close_arr = self._to_array(close, use_gpu)
+
         # True Range
-        tr1 = h - l
-        tr2 = xp.abs(h - xp.concatenate([[c[0]], c[:-1]]))
-        tr3 = xp.abs(l - xp.concatenate([[c[0]], c[:-1]]))
-        
+        tr1 = high_arr - low_arr
+        tr2 = xp.abs(high_arr - xp.concatenate([[close_arr[0]], close_arr[:-1]]))
+        tr3 = xp.abs(low_arr - xp.concatenate([[close_arr[0]], close_arr[:-1]]))
+
         tr = xp.maximum(tr1, xp.maximum(tr2, tr3))
-        
+
         # ATR = EMA du True Range
         atr = xp.full(n, xp.nan, dtype=xp.float64)
         atr[period-1] = xp.mean(tr[:period])
-        
+
         alpha = 1.0 / period
         for i in range(period, n):
             atr[i] = alpha * tr[i] + (1 - alpha) * atr[i-1]
-        
+
         return self._to_numpy(atr)
-    
+
     def macd(
         self,
         prices: Union[np.ndarray, pd.Series],
@@ -588,29 +588,29 @@ class GPUIndicatorCalculator:
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         MACD avec accélération GPU.
-        
+
         Args:
             prices: Array de prix
             fast_period: Période EMA rapide (défaut: 12)
             slow_period: Période EMA lente (défaut: 26)
             signal_period: Période ligne signal (défaut: 9)
-            
+
         Returns:
             Tuple (macd_line, signal_line, histogram)
         """
         # EMA rapide et lente
         fast_ema = self.ema(prices, fast_period)
         slow_ema = self.ema(prices, slow_period)
-        
+
         # MACD line
         macd_line = fast_ema - slow_ema
-        
+
         # Signal line (EMA du MACD)
         signal_line = self.ema(macd_line, signal_period)
-        
+
         # Histogram
         histogram = macd_line - signal_line
-        
+
         return macd_line, signal_line, histogram
 
 
@@ -619,25 +619,25 @@ class GPUIndicatorCalculator:
 def benchmark_gpu_cpu(n_samples: int = 100000, n_runs: int = 5) -> dict:
     """
     Compare les performances GPU vs CPU.
-    
+
     Args:
         n_samples: Nombre d'échantillons
         n_runs: Nombre de runs pour moyenne
-        
+
     Returns:
         Dict avec timings et speedup
     """
     prices = np.random.randn(n_samples).cumsum() + 100
-    
+
     results = {
         "n_samples": n_samples,
         "n_runs": n_runs,
         "gpu_available": gpu_available(),
     }
-    
+
     # CPU benchmark
     calc_cpu = GPUIndicatorCalculator(use_gpu=False)
-    
+
     cpu_times = []
     for _ in range(n_runs):
         start = time.time()
@@ -646,16 +646,16 @@ def benchmark_gpu_cpu(n_samples: int = 100000, n_runs: int = 5) -> dict:
         calc_cpu.rsi(prices, 14)
         calc_cpu.bollinger_bands(prices, 20, 2.0)
         cpu_times.append(time.time() - start)
-    
+
     results["cpu_avg_time"] = np.mean(cpu_times)
-    
+
     # GPU benchmark (si disponible)
     if gpu_available():
         calc_gpu = GPUIndicatorCalculator(use_gpu=True, min_samples=0)
-        
+
         # Warmup
         calc_gpu.sma(prices[:1000], 20)
-        
+
         gpu_times = []
         for _ in range(n_runs):
             start = time.time()
@@ -664,8 +664,8 @@ def benchmark_gpu_cpu(n_samples: int = 100000, n_runs: int = 5) -> dict:
             calc_gpu.rsi(prices, 14)
             calc_gpu.bollinger_bands(prices, 20, 2.0)
             gpu_times.append(time.time() - start)
-        
+
         results["gpu_avg_time"] = np.mean(gpu_times)
         results["speedup"] = results["cpu_avg_time"] / results["gpu_avg_time"]
-    
+
     return results

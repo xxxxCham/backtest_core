@@ -1,14 +1,23 @@
 """
-Agent Critic - Évaluation critique des propositions.
+Module-ID: agents.critic
 
-Rôle:
-- Évaluer le risque d'overfitting de chaque proposition
-- Identifier les problèmes potentiels
-- Filtrer les propositions trop risquées
-- Challenger les hypothèses du Strategist
+Purpose: Évaluer critiquement les propositions pour détecter overfitting et risques cachés.
 
-Input: Context + Propositions du Strategist
-Output: Évaluation critique avec scores et filtrage
+Role in pipeline: orchestration
+
+Key components: CriticAgent, CriticEvaluation, CriticResponse
+
+Inputs: AgentContext (proposals du Strategist, walk-forward metrics si dispos)
+
+Outputs: CriticResponse (évals par proposition, concerns consolidés, propositions approuvées)
+
+Dependencies: agents.base_agent, utils.template, backtest.validation (walk-forward)
+
+Conventions: Ratios overfitting calculés à partir de walk-forward si dispos; concern_severity (LOW/MEDIUM/HIGH/CRITICAL); template Jinja2.
+
+Read-if: Modification logique critique, seuils overfitting, ou intégration walk-forward.
+
+Skip-if: Vous ne modifiez que analyze/propose/validate.
 """
 
 from __future__ import annotations

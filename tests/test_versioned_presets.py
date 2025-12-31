@@ -1,13 +1,24 @@
-import pytest
+"""
+Module-ID: tests.test_versioned_presets
 
-from utils.parameters import (
-    DEFAULT_STRATEGY_VERSION,
-    list_strategy_versions,
-    load_strategy_version,
-    resolve_latest_version,
-    save_versioned_preset,
-    validate_before_use,
-)
+Purpose: Tester système versioning presets (roundtrip save/load, resolve latest, validation).
+
+Role in pipeline: testing
+
+Key components: test_resolve_latest_version, test_versioned_preset_roundtrip, fixtures monkeypatch
+
+Inputs: Versioned preset params dict, tmp_path, env var BACKTEST_PRESETS_DIR
+
+Outputs: Loaded preset dict matched saved, version resolved
+
+Dependencies: pytest, utils.parameters
+
+Conventions: DEFAULT_STRATEGY_VERSION constant; roundtrip fidelité; validation avant use.
+
+Read-if: Modification versioning system ou file structure.
+
+Skip-if: Tests presets non critiques.
+"""
 
 
 def test_resolve_latest_version_default(tmp_path, monkeypatch):

@@ -1,9 +1,23 @@
 """
-Backtest Core - Data Loader
-===========================
+Module-ID: data.loader
 
-Fonctions de chargement des données OHLCV avec normalisation automatique.
-Supporte les formats CSV, Parquet, JSON et Feather.
+Purpose: Chargement OHLCV multi-formats (CSV, Parquet, JSON, Feather) + découverte auto.
+
+Role in pipeline: data input
+
+Key components: load_ohlcv(), discover_available_data(), _get_data_dir()
+
+Inputs: CSV/Parquet/JSON/Feather files, env vars BACKTEST_DATA_DIR/TRADX_DATA_ROOT
+
+Outputs: Normalized pandas DataFrame {timestamp, open, high, low, close, volume}
+
+Dependencies: pandas, pathlib, numpy, functools
+
+Conventions: DatetimeIndex; OHLCV colonnes lowercase; env var priority; @lru_cache.
+
+Read-if: Modification formats supports ou paths par défaut.
+
+Skip-if: Vous appelez load_ohlcv(filename).
 """
 
 import os

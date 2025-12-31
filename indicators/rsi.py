@@ -1,12 +1,23 @@
 """
-Backtest Core - RSI (Relative Strength Index) Indicator
-=======================================================
+Module-ID: indicators.rsi
 
-Implémentation vectorisée du RSI.
+Purpose: Indicateur RSI (Relative Strength Index) momentum vectorisé.
 
-Formule:
-- RS = Average Gain / Average Loss
-- RSI = 100 - (100 / (1 + RS))
+Role in pipeline: data
+
+Key components: rsi, RSISettings, calculate_rsi
+
+Inputs: DataFrame avec close; period (typique 14)
+
+Outputs: np.ndarray (0-100 oscillateur)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: Valeurs 0-100; >70 surachat, <30 survente; RSI lissé.
+
+Read-if: Modification période, lissage gains/pertes.
+
+Skip-if: Vous utilisez juste calculate_indicator('rsi').
 """
 
 from dataclasses import dataclass

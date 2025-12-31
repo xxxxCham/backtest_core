@@ -1,13 +1,23 @@
 """
-Backtest Core - Bollinger Dual Strategy
-========================================
+Module-ID: strategies.bollinger_dual
 
-Stratégie basée sur les bandes de Bollinger avec double condition d'entrée:
-- Signal LONG : Prix < Bande Basse + Franchissement haussier MA
-- Signal SHORT: Prix > Bande Haute + Franchissement baissier MA
-- Trailing stop dynamique à partir de la médiane
+Purpose: Stratégie mean-reversion avec bandes Bollinger double + confirmation MA.
 
-Basé sur ThreadX Framework.
+Role in pipeline: core
+
+Key components: BollingerDualStrategy, bb_window, bb_std, ma_window, ma_type
+
+Inputs: DataFrame OHLCV avec colonnes high, low, close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur conditions bandes+MA)
+
+Dependencies: strategies.base, indicators.bollinger, indicators.sma/ema, utils.parameters
+
+Conventions: Double condition (bandes + MA); trailing stop dynamique; volume optionnel.
+
+Read-if: Modification conditions entrée, seuils bandes, ou logique MA.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from dataclasses import dataclass

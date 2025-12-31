@@ -1,8 +1,23 @@
 """
-Backtest Core - Configuration Centralisée
-=========================================
+Module-ID: utils.config
 
-Gestion simple de la configuration du moteur.
+Purpose: Configuration centralisée du moteur (data_dir, frais, slippage, etc.).
+
+Role in pipeline: core
+
+Key components: Config (dataclass), singleton pattern, env var override
+
+Inputs: Fichier config, variables d'environnement
+
+Outputs: Config dict accessible globalement
+
+Dependencies: dataclasses, pathlib, json
+
+Conventions: BPS pour frais/slippage; data_dir obligatoire; env vars override config file.
+
+Read-if: Modification params config, defaults, ou env var parsing.
+
+Skip-if: Vous appelez juste Config.get_instance().
 """
 
 import json

@@ -1,22 +1,23 @@
 """
-Backtest Core - Live Sweep Monitor Component
-============================================
+Module-ID: ui.components.sweep_monitor
 
-Composant Streamlit pour le suivi temps réel des optimisations (sweep).
-Affiche la progression, les meilleurs résultats et les métriques en direct.
+Purpose: Monitor live pour sweeps/optimisation - progress, ETA, top results, ranking.
 
-Usage:
-    >>> import streamlit as st
-    >>> from ui.components.sweep_monitor import SweepMonitor, render_sweep_progress
-    >>> 
-    >>> # Créer le moniteur
-    >>> monitor = SweepMonitor(total_combinations=1000)
-    >>> 
-    >>> # Dans la boucle de sweep:
-    >>> for params in param_grid:
-    >>>     result = run_backtest(params)
-    >>>     monitor.update(params, result)
-    >>>     render_sweep_progress(monitor)
+Role in pipeline: visualization/monitoring
+
+Key components: SweepMonitor, render_sweep_progress(), render_sweep_summary(), SweepStats
+
+Inputs: Sweep updates {completed, total, current_result}
+
+Outputs: Progress bar, ETA estimate, top-N table, live chart updates
+
+Dependencies: streamlit (optionnel), plotly (optionnel), numpy, dataclasses
+
+Conventions: ETA based on rolling avg; refresh 100ms; top-5 constant display.
+
+Read-if: Modification ETA algo ou layout progress.
+
+Skip-if: Vous appelez render_sweep_progress(monitor).
 """
 
 from __future__ import annotations
@@ -33,7 +34,6 @@ except ImportError:
 
 try:
     import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
@@ -43,17 +43,22 @@ import numpy as np
 
 @dataclass
 class SweepResult:
-    """Résultat d'une évaluation de sweep."""
+    """
+    Stores the parameters, metrics and timing of a single sweep evaluation.
+
+    Used by `SweepMonitor` to surface the latest runs and compute leaderboards
+    without coupling to the backtest engine.
+    """
     params: Dict[str, Any]
     metrics: Dict[str, float]
     timestamp: datetime = field(default_factory=lambda: datetime.now())
     duration_ms: float = 0.0
-    
+
     @property
     def sharpe(self) -> float:
         """Raccourci pour Sharpe Ratio."""
         return self.metrics.get('sharpe_ratio', 0.0)
-    
+
     @property
     def total_return(self) -> float:
         """Raccourci pour rendement total."""
@@ -62,39 +67,44 @@ class SweepResult:
 
 @dataclass
 class SweepStats:
-    """Statistiques du sweep en cours."""
+    """
+    Running statistics for an in-progress sweep.
+
+    Tracks counts, elapsed time and provides ETA/rate helpers so renderers can
+    present useful progress indicators.
+    """
     total_combinations: int = 0
     evaluated: int = 0
     pruned: int = 0
     errors: int = 0
     start_time: Optional[datetime] = None
-    
+
     @property
     def progress_percent(self) -> float:
         """Pourcentage de progression."""
         if self.total_combinations == 0:
             return 0.0
         return (self.evaluated / self.total_combinations) * 100
-    
+
     @property
     def elapsed(self) -> timedelta:
         """Temps écoulé."""
         if not self.start_time:
             return timedelta(0)
         return datetime.now() - self.start_time
-    
+
     @property
     def elapsed_seconds(self) -> float:
         """Temps écoulé en secondes."""
         return self.elapsed.total_seconds()
-    
+
     @property
     def rate(self) -> float:
         """Taux d'évaluation (eval/sec)."""
         if self.elapsed_seconds == 0:
             return 0.0
         return self.evaluated / self.elapsed_seconds
-    
+
     @property
     def eta(self) -> Optional[timedelta]:
         """Temps estimé restant."""
@@ -102,14 +112,14 @@ class SweepStats:
             return None
         remaining = self.total_combinations - self.evaluated
         return timedelta(seconds=remaining / self.rate)
-    
+
     @property
     def eta_str(self) -> str:
         """ETA formaté."""
         eta = self.eta
         if eta is None:
             return "Calcul..."
-        
+
         total_secs = int(eta.total_seconds())
         if total_secs < 60:
             return f"{total_secs}s"
@@ -123,11 +133,16 @@ class SweepStats:
 
 class SweepMonitor:
     """
-    Moniteur de progression pour les optimisations sweep.
-    
-    Collecte les résultats et fournit des statistiques en temps réel.
+    Stateful progress tracker for grid sweeps (optimizations, grid search).
+
+    Lifecycle:
+      - Created before a sweep begins with known total combinations.
+      - `.update()` is called per evaluation and top results are updated.
+      - Handed to `render_sweep_progress`/`render_sweep_summary` for UI render.
+    Responsibilities:
+      - Record metrics, maintain top-K leaders, and expose ETA/progress.
     """
-    
+
     def __init__(
         self,
         total_combinations: int,
@@ -144,7 +159,7 @@ class SweepMonitor:
         # Note: Utiliser les clés correctes retournées par calculate_metrics
         self.objectives = objectives or ['sharpe_ratio', 'total_return_pct', 'max_drawdown']
         self.top_k = top_k
-        
+
         self._results: List[SweepResult] = []
         self._top_results: Dict[str, List[SweepResult]] = {
             obj: [] for obj in self.objectives
@@ -154,11 +169,11 @@ class SweepMonitor:
             obj: [] for obj in self.objectives
         }
         self._last_update = None
-    
+
     def start(self):
         """Démarre le monitoring."""
         self._stats.start_time = datetime.now()
-    
+
     def update(
         self,
         params: Dict[str, Any],
@@ -169,7 +184,7 @@ class SweepMonitor:
     ):
         """
         Met à jour avec un nouveau résultat.
-        
+
         Args:
             params: Paramètres évalués
             metrics: Métriques résultantes
@@ -179,70 +194,70 @@ class SweepMonitor:
         """
         if self._stats.start_time is None:
             self.start()
-        
+
         if error:
             self._stats.errors += 1
             return
-        
+
         if pruned:
             self._stats.pruned += 1
             return
-        
+
         self._stats.evaluated += 1
-        
+
         result = SweepResult(
             params=params,
             metrics=metrics,
             duration_ms=duration_ms,
         )
         self._results.append(result)
-        
+
         # Mettre à jour l'historique des métriques
         for obj in self.objectives:
             if obj in metrics:
                 self._metric_history[obj].append(metrics[obj])
-        
+
         # Mettre à jour les top résultats
         self._update_top_results(result)
         self._last_update = datetime.now()
-    
+
     def _update_top_results(self, result: SweepResult):
         """Met à jour les meilleurs résultats."""
         for obj in self.objectives:
             if obj not in result.metrics:
                 continue
-            
+
             top = self._top_results[obj]
             top.append(result)
-            
+
             # Trier et garder le top_k
             reverse = obj != 'max_drawdown'  # Minimiser le drawdown
             top.sort(key=lambda r: r.metrics.get(obj, 0), reverse=reverse)
             self._top_results[obj] = top[:self.top_k]
-    
+
     @property
     def stats(self) -> SweepStats:
         """Retourne les statistiques."""
         return self._stats
-    
+
     @property
     def results(self) -> List[SweepResult]:
         """Retourne tous les résultats."""
         return list(self._results)
-    
+
     def get_top_results(self, objective: str) -> List[SweepResult]:
         """Retourne les meilleurs résultats pour un objectif."""
         return self._top_results.get(objective, [])
-    
+
     def get_best_result(self, objective: str) -> Optional[SweepResult]:
         """Retourne le meilleur résultat pour un objectif."""
         top = self.get_top_results(objective)
         return top[0] if top else None
-    
+
     def get_metric_history(self, objective: str) -> List[float]:
         """Retourne l'historique d'une métrique."""
         return self._metric_history.get(objective, [])
-    
+
     @property
     def is_complete(self) -> bool:
         """Indique si le sweep est terminé."""
@@ -254,7 +269,7 @@ def _create_progress_chart(stats: SweepStats) -> go.Figure:
     evaluated = stats.evaluated
     pruned = stats.pruned
     remaining = stats.total_combinations - evaluated - pruned
-    
+
     fig = go.Figure(data=[go.Pie(
         values=[evaluated, pruned, remaining],
         labels=['Évalués', 'Prunés', 'Restants'],
@@ -263,7 +278,7 @@ def _create_progress_chart(stats: SweepStats) -> go.Figure:
         textinfo='percent',
         textposition='outside',
     )])
-    
+
     fig.update_layout(
         height=200,
         margin=dict(l=20, r=20, t=20, b=20),
@@ -276,7 +291,7 @@ def _create_progress_chart(stats: SweepStats) -> go.Figure:
             showarrow=False
         )],
     )
-    
+
     return fig
 
 
@@ -286,14 +301,14 @@ def _create_metric_evolution_chart(
 ) -> go.Figure:
     """Crée le graphique d'évolution des métriques."""
     fig = go.Figure()
-    
+
     colors = ['#1f77b4', '#2ca02c', '#ff7f0e', '#d62728']
-    
+
     for i, obj in enumerate(objectives):
         values = history.get(obj, [])
         if not values:
             continue
-        
+
         # Calculer la moyenne mobile
         window = min(20, len(values))
         if window > 1:
@@ -302,14 +317,14 @@ def _create_metric_evolution_chart(
         else:
             moving_avg = values
             x_values = list(range(len(values)))
-        
+
         fig.add_trace(go.Scatter(
             x=x_values,
             y=moving_avg,
             name=obj.replace('_', ' ').title(),
             line=dict(color=colors[i % len(colors)], width=2),
         ))
-    
+
     fig.update_layout(
         height=200,
         margin=dict(l=40, r=20, t=30, b=30),
@@ -317,7 +332,7 @@ def _create_metric_evolution_chart(
         xaxis=dict(title="Évaluations"),
         yaxis=dict(title="Valeur"),
     )
-    
+
     return fig
 
 
@@ -329,19 +344,19 @@ def _create_param_impact_chart(
     """Crée un graphique d'impact d'un paramètre."""
     if not results:
         return go.Figure()
-    
+
     # Extraire les données
     param_values = []
     metric_values = []
-    
+
     for r in results:
         if param_name in r.params and objective in r.metrics:
             param_values.append(r.params[param_name])
             metric_values.append(r.metrics[objective])
-    
+
     if not param_values:
         return go.Figure()
-    
+
     fig = go.Figure(data=go.Scatter(
         x=param_values,
         y=metric_values,
@@ -354,14 +369,14 @@ def _create_param_impact_chart(
             colorbar=dict(title=objective),
         ),
     ))
-    
+
     fig.update_layout(
         height=200,
         margin=dict(l=40, r=20, t=30, b=30),
         xaxis=dict(title=param_name),
         yaxis=dict(title=objective),
     )
-    
+
     return fig
 
 
@@ -372,60 +387,63 @@ def render_sweep_progress(
     show_evolution: bool = True,
 ):
     """
-    Render le composant Sweep Monitor dans Streamlit.
-    
+    Streamlit panel that renders live sweep progress and leaderboards.
+
+    Called inside the grid search loop to provide real-time feedback,
+    including gauges, evolution chart and top results per objective.
+
     Args:
-        monitor: Instance de SweepMonitor
-        key: Clé unique pour le composant
-        show_top_results: Afficher les meilleurs résultats
-        show_evolution: Afficher l'évolution des métriques
+        monitor: Stateful sweep tracker updated per result.
+        key: Unique widget key for rerun safety.
+        show_top_results: Toggle the leaderboard section.
+        show_evolution: Toggle the metrics evolution chart.
     """
     if not STREAMLIT_AVAILABLE:
         raise ImportError("Streamlit non disponible")
-    
+
     stats = monitor.stats
-    
+
     # Header avec stats principales
     st.subheader("🔄 Sweep Progress")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         st.metric(
             "Progression",
             f"{stats.progress_percent:.1f}%",
             f"{stats.evaluated}/{stats.total_combinations}",
         )
-    
+
     with col2:
         st.metric(
             "Vitesse",
             f"{stats.rate:.1f}/s",
             f"{stats.elapsed_seconds:.0f}s écoulés",
         )
-    
+
     with col3:
         st.metric("ETA", stats.eta_str)
-    
+
     with col4:
         st.metric(
             "Prunés/Erreurs",
             f"{stats.pruned}",
             f"{stats.errors} erreurs",
         )
-    
+
     # Barre de progression
     st.progress(stats.progress_percent / 100)
-    
+
     # Graphiques côte à côte
     if PLOTLY_AVAILABLE:
         col_left, col_right = st.columns(2)
-        
+
         with col_left:
             st.markdown("**Distribution**")
             fig = _create_progress_chart(stats)
             st.plotly_chart(fig, width='stretch', key=f"{key}_progress")
-        
+
         if show_evolution and monitor.get_metric_history(monitor.objectives[0]):
             with col_right:
                 st.markdown("**Évolution des métriques**")
@@ -434,29 +452,29 @@ def render_sweep_progress(
                     monitor.objectives,
                 )
                 st.plotly_chart(fig, width='stretch', key=f"{key}_evolution")
-    
+
     # Meilleurs résultats
     if show_top_results:
         st.markdown("**🏆 Meilleurs résultats**")
-        
+
         tabs = st.tabs([obj.replace('_', ' ').title() for obj in monitor.objectives])
-        
+
         for i, obj in enumerate(monitor.objectives):
             with tabs[i]:
                 top_results = monitor.get_top_results(obj)
-                
+
                 if top_results:
                     # Tableau des résultats
                     data = []
                     for rank, r in enumerate(top_results[:5], 1):
                         row = {
                             "Rank": rank,
-                            **{k: f"{v:.4f}" if isinstance(v, float) else v 
+                            **{k: f"{v:.4f}" if isinstance(v, float) else v
                                for k, v in r.params.items()},
                             obj: f"{r.metrics.get(obj, 0):.4f}",
                         }
                         data.append(row)
-                    
+
                     st.dataframe(data, width='stretch')
                 else:
                     st.info("Pas encore de résultats")
@@ -464,34 +482,36 @@ def render_sweep_progress(
 
 def render_sweep_summary(monitor: SweepMonitor, key: str = "sweep_summary"):
     """
-    Render un résumé final du sweep.
-    
+    Summary view rendered once the sweep completes.
+
+    Highlights total duration, rate, pruning ratio and best parameter sets per objective.
+
     Args:
-        monitor: Instance de SweepMonitor terminé
-        key: Clé unique
+        monitor: SweepMonitor that tracked the recently finished sweep.
+        key: Widget key for the summary block.
     """
     if not STREAMLIT_AVAILABLE:
         return
-    
+
     stats = monitor.stats
-    
+
     st.success(f"✅ Sweep terminé - {stats.evaluated} combinaisons évaluées")
-    
+
     # Stats finales
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.metric("Durée totale", f"{stats.elapsed_seconds:.1f}s")
-    
+
     with col2:
         st.metric("Vitesse moyenne", f"{stats.rate:.2f}/s")
-    
+
     with col3:
         st.metric("Taux de pruning", f"{(stats.pruned/stats.total_combinations)*100:.1f}%")
-    
+
     # Meilleurs paramètres
     st.markdown("### 🏆 Meilleurs paramètres")
-    
+
     for obj in monitor.objectives:
         best = monitor.get_best_result(obj)
         if best:

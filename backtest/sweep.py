@@ -1,29 +1,23 @@
 """
-Backtest Core - Sweep Engine
-============================
+Module-ID: backtest.sweep
 
-Moteur de sweep paramétrique avec parallélisation et monitoring.
-Permet d'exécuter des grilles de paramètres en parallèle avec suivi temps réel.
+Purpose: Optimiser les paramètres via grid search parallélisé avec suivi temps réel et filtrage par contraintes.
 
-Usage:
-    >>> from backtest.sweep import SweepEngine
-    >>>
-    >>> engine = SweepEngine(max_workers=8)
-    >>> 
-    >>> param_grid = {
-    ...     "bb_period": [15, 20, 25],
-    ...     "atr_mult": [1.5, 2.0, 2.5],
-    ...     "entry_z": [1.5, 2.0],
-    ... }
-    >>>
-    >>> results = engine.run_sweep(
-    ...     df=data,
-    ...     strategy=BollingerATRStrategy(),
-    ...     param_grid=param_grid,
-    ...     show_progress=True
-    ... )
-    >>>
-    >>> print(results.best_result)
+Role in pipeline: optimization
+
+Key components: SweepEngine, SweepResult, SweepResultItem, run_sweep
+
+Inputs: param_grid (Dict ou liste), stratégie, DataFrame OHLCV, max_workers, constraints optionnelles
+
+Outputs: SweepResult (best_result, all_results, stats, timing)
+
+Dependencies: backtest.engine, performance.parallel, performance.monitor, utils.parameters
+
+Conventions: Combinaisons générées via product(); contraintes appliquées; résultats triés par métrique cible; nb combinaisons plafonné.
+
+Read-if: Paramétragedu sweep, parallelisation, monitoring ou ajout de contraintes.
+
+Skip-if: Vous utilisez optuna/pareto au lieu de sweep classique.
 """
 
 from __future__ import annotations
@@ -62,7 +56,7 @@ class SweepResultItem:
     error: Optional[str] = None
 
 
-@dataclass 
+@dataclass
 class SweepResults:
     """Résultats complets d'un sweep paramétrique."""
     items: List[SweepResultItem]
@@ -72,7 +66,7 @@ class SweepResults:
     n_completed: int
     n_failed: int
     resource_stats: Optional[Dict[str, Any]] = None
-    
+
     def to_dataframe(self) -> pd.DataFrame:
         """Convertit les résultats en DataFrame."""
         rows = []
@@ -82,25 +76,25 @@ class SweepResults:
                 row["error"] = item.error
             rows.append(row)
         return pd.DataFrame(rows)
-    
+
     def get_top_n(self, n: int = 10, metric: str = "sharpe_ratio") -> pd.DataFrame:
         """Retourne les N meilleures combinaisons."""
         df = self.to_dataframe()
         if metric in df.columns:
             return df.nlargest(n, metric)
         return df.head(n)
-    
+
     def summary(self) -> str:
         """Retourne un résumé textuel."""
         sharpe = self.best_metrics.get('sharpe_ratio', 0)
         total_pnl = self.best_metrics.get('total_pnl', 0)
         win_rate = self.best_metrics.get('win_rate', 0)
-        
+
         # Gérer le cas où les valeurs sont des strings (N/A)
         sharpe_str = f"{sharpe:.2f}" if isinstance(sharpe, (int, float)) else str(sharpe)
         pnl_str = f"${total_pnl:,.2f}" if isinstance(total_pnl, (int, float)) else str(total_pnl)
         wr_str = f"{win_rate:.1f}%" if isinstance(win_rate, (int, float)) else str(win_rate)
-        
+
         return f"""
 Sweep Results Summary
 =====================
@@ -119,34 +113,40 @@ Best Metrics:
 """
 
 
-def _run_single_backtest(
+def _run_single_backtest_wrapper(
     params: Dict[str, Any],
     df: pd.DataFrame,
     strategy: "StrategyBase",
     initial_capital: float,
 ) -> Dict[str, Any]:
     """
-    Worker function pour exécuter un backtest (picklable).
-    
+    Wrapper function pour exécuter un backtest en parallèle (picklable).
+
+    Cette fonction est conçue pour être utilisée avec concurrent.futures:
+    - Accepte tous les arguments nécessaires explicitement
+    - Retourne un dict avec params, metrics, success, error
+    - Gère les exceptions de manière robuste
+
     Args:
         params: Paramètres de la stratégie
         df: DataFrame OHLCV
         strategy: Instance de stratégie
         initial_capital: Capital initial
-        
+
     Returns:
-        Dict avec params et metrics
+        Dict avec clés: params, metrics, success, error (optionnel)
     """
     try:
         engine = BacktestEngine(initial_capital=initial_capital)
         result = engine.run(df=df, strategy=strategy, params=params)
-        
+
         return {
             "params": params,
             "metrics": result.metrics,
             "success": True,
         }
     except Exception as e:
+        logger.error(f"Backtest failed for params {params}: {e}")
         return {
             "params": params,
             "metrics": {},
@@ -158,17 +158,17 @@ def _run_single_backtest(
 class SweepEngine:
     """
     Moteur de sweep paramétrique avec parallélisation et monitoring.
-    
+
     Features:
     - Exécution parallèle sur tous les CPU
     - Monitoring temps réel (CPU, RAM)
     - Barre de progression
     - Arrêt anticipé optionnel
     - Profiling optionnel
-    
+
     Example:
         >>> engine = SweepEngine(max_workers=8)
-        >>> 
+        >>>
         >>> results = engine.run_sweep(
         ...     df=data,
         ...     strategy=my_strategy,
@@ -178,10 +178,10 @@ class SweepEngine:
         ...     },
         ...     optimize_for="sharpe_ratio"
         ... )
-        >>> 
+        >>>
         >>> print(results.best_params)
     """
-    
+
     def __init__(
         self,
         max_workers: Optional[int] = None,
@@ -217,7 +217,7 @@ class SweepEngine:
             f"SweepEngine initialisé: {self._runner.max_workers} workers, "
             f"capital=${initial_capital:,.0f}, auto_save={auto_save}"
         )
-    
+
     def run_sweep(
         self,
         df: pd.DataFrame,
@@ -231,7 +231,7 @@ class SweepEngine:
     ) -> SweepResults:
         """
         Exécute un sweep paramétrique complet.
-        
+
         Args:
             df: DataFrame OHLCV
             strategy: Stratégie à tester
@@ -240,143 +240,134 @@ class SweepEngine:
             minimize: True pour minimiser (ex: drawdown)
             show_progress: Afficher la progression
             early_stop_threshold: Arrêter si métrique atteint ce seuil
-            
+
         Returns:
             SweepResults avec tous les résultats et le meilleur
         """
         self._stop_requested = False
         start_time = time.time()
-        
+
         # Calculer les statistiques d'espace de recherche
         try:
             stats = compute_search_space_stats(param_grid, max_combinations=100000)
             logger.info(f"Search space: {stats.summary()}")
-            
+
             if stats.warnings:
                 for warning in stats.warnings:
                     logger.warning(f"⚠️ {warning}")
-            
+
             # Log détaillé par paramètre
             for param_name, count in stats.per_param_counts.items():
                 if count > 0:
                     logger.debug(f"  {param_name}: {count} valeurs")
         except Exception as e:
             logger.warning(f"Failed to compute search space stats: {e}")
-        
+
         # Générer toutes les combinaisons
         combinations = generate_param_grid(param_grid)
         n_combos = len(combinations)
-        
+
         logger.info(f"Démarrage sweep: {n_combos} combinaisons")
-        
+
         # Résoudre la stratégie si c'est un nom
         if isinstance(strategy, str):
             strategy = self._get_strategy_by_name(strategy)
-        
+
         # Tracker de ressources
         tracker = ResourceTracker(interval=1.0)
         tracker.start()
-        
+
         results: List[SweepResultItem] = []
         best_value = float("-inf") if not minimize else float("inf")
         best_params: Dict[str, Any] = {}
         best_metrics: Dict[str, Any] = {}
-        
+
         # Profiler optionnel
         profiler = Profiler("sweep") if self.enable_profiling else None
         if profiler:
             profiler.start()
-        
+
         try:
+            # Callback de progression pour intégration avec ProgressBar
+            pbar = None
             if show_progress:
-                # Avec barre de progression
-                with ProgressBar(total=n_combos, description="Sweep") as pbar:
-                    for i, params in enumerate(combinations):
-                        if self._stop_requested:
-                            logger.info("Sweep arrêté par demande utilisateur")
-                            break
-                        
-                        # Exécuter le backtest
-                        result = _run_single_backtest(
-                            params=params,
-                            df=df,
-                            strategy=strategy,
-                            initial_capital=self.initial_capital,
-                        )
-                        
-                        item = SweepResultItem(
-                            params=result["params"],
-                            metrics=result.get("metrics", {}),
-                            success=result["success"],
-                            error=result.get("error"),
-                        )
-                        results.append(item)
-                        
-                        # Mise à jour du meilleur
-                        if item.success and optimize_for in item.metrics:
-                            value = item.metrics[optimize_for]
-                            is_better = (
-                                (not minimize and value > best_value) or
-                                (minimize and value < best_value)
-                            )
-                            if is_better:
-                                best_value = value
-                                best_params = item.params.copy()
-                                best_metrics = item.metrics.copy()
-                        
-                        # Early stopping
-                        if early_stop_threshold is not None:
-                            if (not minimize and best_value >= early_stop_threshold) or \
-                               (minimize and best_value <= early_stop_threshold):
-                                logger.info(f"Early stop: {optimize_for}={best_value:.4f}")
-                                break
-                        
-                        pbar.advance()
-            else:
-                # Sans barre de progression
-                for params in combinations:
-                    if self._stop_requested:
-                        break
-                    
-                    result = _run_single_backtest(
-                        params=params,
-                        df=df,
-                        strategy=strategy,
-                        initial_capital=self.initial_capital,
-                    )
-                    
+                pbar = ProgressBar(total=n_combos, description="Sweep")
+                pbar.__enter__()
+
+            def progress_callback(current: int, total: int):
+                """Callback appelé par ParallelRunner pour mettre à jour la progress bar."""
+                if pbar:
+                    pbar.update(current)
+
+            # Exécution parallèle via ParallelRunner
+            parallel_result = self._runner.run_sweep(
+                run_func=_run_single_backtest_wrapper,
+                param_grid=combinations,
+                progress_callback=progress_callback if show_progress else None,
+                # Fixed kwargs passés à chaque appel de _run_single_backtest_wrapper
+                df=df,
+                strategy=strategy,
+                initial_capital=self.initial_capital,
+            )
+
+            if pbar:
+                pbar.__exit__(None, None, None)
+
+            # Traiter les résultats du ParallelRunner
+            for item_data in parallel_result.results:
+                if item_data.get("success"):
+                    result = item_data["result"]
                     item = SweepResultItem(
                         params=result["params"],
                         metrics=result.get("metrics", {}),
                         success=result["success"],
                         error=result.get("error"),
                     )
-                    results.append(item)
-                    
-                    if item.success and optimize_for in item.metrics:
-                        value = item.metrics[optimize_for]
-                        is_better = (
-                            (not minimize and value > best_value) or
-                            (minimize and value < best_value)
-                        )
-                        if is_better:
-                            best_value = value
-                            best_params = item.params.copy()
-                            best_metrics = item.metrics.copy()
-        
+                else:
+                    # Cas d'erreur
+                    item = SweepResultItem(
+                        params=item_data["params"],
+                        metrics={},
+                        success=False,
+                        error=item_data.get("error", "Unknown error"),
+                    )
+
+                results.append(item)
+
+                # Mise à jour du meilleur
+                if item.success and optimize_for in item.metrics:
+                    value = item.metrics[optimize_for]
+                    is_better = (
+                        (not minimize and value > best_value) or
+                        (minimize and value < best_value)
+                    )
+                    if is_better:
+                        best_value = value
+                        best_params = item.params.copy()
+                        best_metrics = item.metrics.copy()
+
+                        # Early stopping (post-traitement)
+                        if early_stop_threshold is not None:
+                            if (not minimize and best_value >= early_stop_threshold) or \
+                               (minimize and best_value <= early_stop_threshold):
+                                logger.info(f"Early stop: {optimize_for}={best_value:.4f}")
+                                # Note: avec ParallelRunner, les tâches restantes sont déjà lancées
+                                # mais on arrête le traitement des résultats
+                                break
+
         finally:
             # Arrêter le tracking
             resource_stats = tracker.stop()
-            
+
             if profiler:
                 profiler.stop()
                 if self.enable_profiling:
                     profiler.print_stats(top_n=10)
-        
+
         total_time = time.time() - start_time
         n_completed = sum(1 for r in results if r.success)
         n_failed = sum(1 for r in results if not r.success)
-        
+
         logger.info(f"Sweep terminé: {n_completed}/{n_combos} en {total_time:.1f}s")
         logger.info(f"Meilleur {optimize_for}: {best_value:.4f}")
 
@@ -406,7 +397,7 @@ class SweepEngine:
                 logger.warning(f"⚠️ Sauvegarde automatique échouée: {e}")
 
         return sweep_results
-    
+
     def run_sweep_parallel(
         self,
         df: pd.DataFrame,
@@ -418,45 +409,45 @@ class SweepEngine:
     ) -> SweepResults:
         """
         Exécute un sweep paramétrique en parallèle (multiprocessing).
-        
+
         Note: Le multiprocessing nécessite que strategy soit picklable.
         Pour des stratégies complexes, utilisez run_sweep().
-        
+
         Args:
             df: DataFrame OHLCV
             strategy: Stratégie à tester
             param_grid: Dict des plages de paramètres
             optimize_for: Métrique à optimiser
             minimize: True pour minimiser
-            
+
         Returns:
             SweepResults
         """
         start_time = time.time()
-        
+
         combinations = generate_param_grid(param_grid)
         n_combos = len(combinations)
-        
+
         logger.info(f"Démarrage sweep parallèle: {n_combos} combinaisons, {self._runner.max_workers} workers")
-        
+
         if isinstance(strategy, str):
             strategy = self._get_strategy_by_name(strategy)
-        
+
         # Utiliser le runner parallèle
         parallel_result = self._runner.run_sweep(
-            run_func=_run_single_backtest,
+            run_func=_run_single_backtest_wrapper,
             param_grid=combinations,
             df=df,
             strategy=strategy,
             initial_capital=self.initial_capital,
         )
-        
+
         # Convertir les résultats
         results: List[SweepResultItem] = []
         best_value = float("-inf") if not minimize else float("inf")
         best_params: Dict[str, Any] = {}
         best_metrics: Dict[str, Any] = {}
-        
+
         for item in parallel_result.results:
             if item.get("success"):
                 result_item = SweepResultItem(
@@ -471,9 +462,9 @@ class SweepEngine:
                     success=False,
                     error=item.get("error"),
                 )
-            
+
             results.append(result_item)
-            
+
             if result_item.success and optimize_for in result_item.metrics:
                 value = result_item.metrics[optimize_for]
                 is_better = (
@@ -484,7 +475,7 @@ class SweepEngine:
                     best_value = value
                     best_params = result_item.params.copy()
                     best_metrics = result_item.metrics.copy()
-        
+
         total_time = time.time() - start_time
 
         sweep_results = SweepResults(
@@ -511,23 +502,23 @@ class SweepEngine:
                 logger.warning(f"⚠️ Sauvegarde automatique échouée: {e}")
 
         return sweep_results
-    
+
     def request_stop(self):
         """Demande l'arrêt du sweep en cours."""
         self._stop_requested = True
         self._runner.request_stop()
         logger.info("Arrêt du sweep demandé")
-    
+
     def _get_strategy_by_name(self, name: str) -> "StrategyBase":
         """Récupère une stratégie par son nom."""
         from strategies import list_strategies, get_strategy
-        
+
         available = list_strategies()
         name_lower = name.lower().replace("-", "_").replace(" ", "_")
-        
+
         if name_lower not in available:
             raise ValueError(f"Stratégie inconnue: {name}. Disponibles: {available}")
-        
+
         return get_strategy(name_lower)()
 
 
@@ -542,17 +533,17 @@ def quick_sweep(
 ) -> SweepResults:
     """
     Fonction raccourcie pour un sweep rapide.
-    
+
     Args:
         df: DataFrame OHLCV
         strategy: Stratégie à tester
         param_grid: Grille de paramètres
         optimize_for: Métrique cible
         max_workers: Nombre de workers
-        
+
     Returns:
         SweepResults
-        
+
     Example:
         >>> results = quick_sweep(
         ...     df=data,
@@ -568,3 +559,9 @@ def quick_sweep(
         optimize_for=optimize_for,
         show_progress=True,
     )
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur grid search parallélisé
+# - Conventions génération/contraintes/tri explicitées
+# - Read-if/Skip-if ajoutés pour orienter le tri

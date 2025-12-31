@@ -1,13 +1,23 @@
 """
-Backtest Core - MACD Cross Strategy
-====================================
+Module-ID: strategies.macd_cross
 
-Stratégie basée sur les croisements MACD.
-Signal d'achat quand MACD croise la ligne Signal vers le haut.
-Signal de vente quand MACD croise la ligne Signal vers le bas.
+Purpose: Stratégie momentum basée sur croisement de MACD et signal line.
 
-Cette stratégie est un trend-following classique qui capture
-les tendances établies avec des signaux confirmés.
+Role in pipeline: core
+
+Key components: MACDCrossStrategy, fast_period, slow_period, signal_period
+
+Inputs: DataFrame OHLCV avec colonne close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur croisements MACD/signal)
+
+Dependencies: strategies.base, indicators.macd, utils.parameters, pandas, numpy
+
+Conventions: fast < slow < signal obligatoires; histogram comme filtre optionnel; momentum validé.
+
+Read-if: Modification logique croisement MACD, seuils, ou signal.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List

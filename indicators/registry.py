@@ -1,8 +1,23 @@
 """
-Backtest Core - Indicator Registry
-==================================
+Module-ID: indicators.registry
 
-Registre centralisé des indicateurs pour faciliter l'accès et le calcul.
+Purpose: Registre centralisé des indicateurs pour calcul + mapping unifié.
+
+Role in pipeline: core
+
+Key components: IndicatorRegistry, register_indicator, calculate_indicator, get_indicator
+
+Inputs: Nom indicateur, DataFrame OHLCV, paramètres
+
+Outputs: Résultats indicateur (np.ndarray ou Dict)
+
+Dependencies: Tous les modules indicators, pandas, numpy
+
+Conventions: Registry singleton; API uniforme calculate_indicator(name, df, **params); fallback type checking.
+
+Read-if: Ajout indicateur, modification API registre.
+
+Skip-if: Vous appelez juste calculate_indicator().
 """
 
 from dataclasses import dataclass
@@ -405,17 +420,17 @@ register_indicator(
 )
 
 # Late imports for indicators that self-register to avoid circular imports.
-from . import amplitude_hunter  # noqa: F401
-from . import fear_greed  # noqa: F401
-from . import fibonacci  # noqa: F401
-from . import ichimoku  # noqa: F401
-from . import onchain_smoothing  # noqa: F401
-from . import pi_cycle  # noqa: F401
-from . import pivot_points  # noqa: F401
-from . import psar  # noqa: F401
-from . import standard_deviation  # noqa: F401
-from . import volume_oscillator  # noqa: F401
-from . import vortex  # noqa: F401
+from . import amplitude_hunter  # noqa: F401,E402
+from . import fear_greed  # noqa: F401,E402
+from . import fibonacci  # noqa: F401,E402
+from . import ichimoku  # noqa: F401,E402
+from . import onchain_smoothing  # noqa: F401,E402
+from . import pi_cycle  # noqa: F401,E402
+from . import pivot_points  # noqa: F401,E402
+from . import psar  # noqa: F401,E402
+from . import standard_deviation  # noqa: F401,E402
+from . import volume_oscillator  # noqa: F401,E402
+from . import vortex  # noqa: F401,E402
 
 
 class IndicatorRegistry:

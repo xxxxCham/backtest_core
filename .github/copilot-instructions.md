@@ -528,8 +528,9 @@ devient après implémentation :
 | 18/12/2025 | **Documentation Orchestration** : `docs/ORCHESTRATION_LOGS.md`, guide complet utilisation et API | [Architecture](#architecture) |
 | 25/12/2025 | Multi-agent parity: n_workers (parallel proposals), UI live orchestration, JSONL persistence, Ollama retries | [agents/](#agents-phase-3---14122025) |
 | 25/12/2025 | Bugfix templates: `critic.jinja2` robuste aux variables WF manquantes + test non-régression | [agents/](#agents-phase-3---14122025) |
+| 30/12/2025 | **Bugfix AutonomousStrategist** : Correction AttributeError `self.llm_config` → accès via `self.llm.config` | [agents/](#agents-phase-3---14122025) |
 
 ---
 
-*Dernière mise à jour : 25/12/2025 (v1.8.2)*
+*Dernière mise à jour : 30/12/2025 (v1.8.3)*
 

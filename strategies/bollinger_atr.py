@@ -1,15 +1,23 @@
 """
-Backtest Core - Bollinger Bands + ATR Strategy
-==============================================
+Module-ID: strategies.bollinger_atr
 
-Stratégie de mean-reversion basée sur les Bandes de Bollinger
-avec filtre de volatilité ATR.
+Purpose: Stratégie de breakout basée sur les Bandes de Bollinger et ATR (volatilité).
 
-Logique:
-- LONG: Prix touche/dépasse la bande inférieure (oversold)
-- SHORT: Prix touche/dépasse la bande supérieure (overbought)
-- Filtre ATR: Ne trade que si volatilité > seuil (évite marchés plats)
-- Stop-loss: Basé sur multiple de l'ATR
+Role in pipeline: core
+
+Key components: BollingerATRStrategy, bb_window, bb_std, atr_period, atr_multiplier
+
+Inputs: DataFrame OHLCV avec colonnes high, low, close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur breakouts bandes/ATR)
+
+Dependencies: strategies.base, indicators.bollinger, indicators.atr, utils.parameters
+
+Conventions: bb_window > atr_period recommandé; bandes supérieures/inférieures + filtrage ATR; volume optionnel.
+
+Read-if: Modification breakout logic, seuils volatilité, ou constraints.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List, Optional

@@ -1,8 +1,23 @@
 """
-Backtest Core - Utilitaires de Données
-=======================================
+Module-ID: utils.data
 
-Fonctions pour l'analyse et validation des données OHLCV.
+Purpose: Utilitaires analyse/validation données OHLCV (détection gaps, stats).
+
+Role in pipeline: data quality
+
+Key components: detect_gaps(), DataFrame validators
+
+Inputs: pandas DataFrame avec DatetimeIndex OHLCV
+
+Outputs: Gap dict {gaps_count, gaps_pct, gaps_sample}, validation results
+
+Dependencies: pandas
+
+Conventions: DatetimeIndex requis; fréquence inférée si non fournie.
+
+Read-if: Modification validation données ou détection gaps.
+
+Skip-if: Vous utilisez juste detect_gaps().
 """
 
 import pandas as pd

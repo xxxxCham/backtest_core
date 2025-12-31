@@ -1,8 +1,23 @@
 """
-Backtest Core - On-chain Smoothing
-==================================
+Module-ID: indicators.onchain_smoothing
 
-Generic smoothing for an on-chain series (or any column).
+Purpose: Lissage générique on-chain - applique EMA/SMA à colonne quelconque.
+
+Role in pipeline: technical indicator
+
+Key components: OnchainSmoothingSettings, onchain_smoothing()
+
+Inputs: [on_chain_series] ou colonne quelconque, period, type (ema/sma)
+
+Outputs: numpy array lissée
+
+Dependencies: numpy, pandas, indicators.ema, indicators.registry
+
+Conventions: Type: ema ou sma; fleuriste EMA
+
+Read-if: Lisser données on-chain ou custom.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

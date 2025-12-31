@@ -1,14 +1,27 @@
 """
-Backtest Core - Logging Simplifié
-=================================
+Module-ID: utils.log
 
-Configuration du logging simple et efficace avec colorisation optionnelle.
+Purpose: Logging simplifié avec colorisation optionnelle (legacy).
+
+Role in pipeline: core
+
+Key components: get_logger, ColoredFormatter, setup_logging
+
+Inputs: Module name, level (DEBUG/INFO/WARNING/ERROR)
+
+Outputs: Logger configuré avec couleurs optionnelles
+
+Dependencies: logging, colorama (optionnel), sys
+
+Conventions: Colorama auto-detect; fallback sans couleurs; logger par module.
+
+Read-if: Modification format logs, niveaux, couleurs.
+
+Skip-if: Vous utilisez juste get_logger().
 """
 
 import logging
 import sys
-import uuid
-from datetime import datetime
 from typing import Optional
 
 # Import optionnel de colorama pour logs colorés
@@ -19,9 +32,11 @@ try:
 except ImportError:
     COLORAMA_AVAILABLE = False
     # Fallback: pas de couleurs
+
     class _DummyColor:
         def __getattr__(self, name):
             return ""
+
     Fore = Style = _DummyColor()
 
 # Cache des loggers pour éviter duplication

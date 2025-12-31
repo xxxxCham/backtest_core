@@ -1,9 +1,23 @@
 """
-Lightweight memory helpers for LLM optimization runs.
+Module-ID: utils.llm_memory
 
-Stores:
-- A per-session JSON file (ephemeral, updated each iteration)
-- A per-strategy/symbol/timeframe JSONL history (append-only, approved only)
+Purpose: Lightweight memory pour runs LLM - session ephemeral + history JSONL append-only.
+
+Role in pipeline: orchestration / data
+
+Key components: SessionMemory, HistoryStorage, LLMMemoryTracker, approved-only persistence
+
+Inputs: Session id, strategy/symbol/timeframe, propositions + évaluations
+
+Outputs: Fichiers JSON session (mutable), JSONL history (append-only)
+
+Dependencies: json, pathlib, datetime, collections
+
+Conventions: Session mutable par run; history immuable (approved results); dirs runs/llm_memory/session et history.
+
+Read-if: Modification format fichiers, logique session/history.
+
+Skip-if: Vous utilisez juste LLMMemoryTracker.save().
 """
 
 from __future__ import annotations
@@ -321,4 +335,3 @@ def _format_param(value: Any) -> str:
     if isinstance(value, float):
         return f"{value:.4g}"
     return str(value)
-

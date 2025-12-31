@@ -1,8 +1,23 @@
 """
-Backtest Core CLI - Commandes
-=============================
+Module-ID: cli.commands
 
-Implémentation des commandes CLI.
+Purpose: Implémentation CLI commands - backtest, sweep, optuna, validate, export, visualize.
+
+Role in pipeline: CLI interface
+
+Key components: cmd_backtest(), cmd_sweep(), cmd_optuna(), Colors, normalize_metric_name(), METRIC_ALIASES
+
+Inputs: argparse parsed args (strategy, data, params, etc.)
+
+Outputs: Console output, JSON results, HTML/CSV exports, visualization
+
+Dependencies: argparse, json, pathlib, pandas, numpy
+
+Conventions: Metric aliases (sharpe → sharpe_ratio); couleurs ANSI (désactivable --no-color); progress bars.
+
+Read-if: Ajout commande CLI ou modification format output.
+
+Skip-if: Vous appelez cmd_backtest(args) depuis main.
 """
 
 import json
@@ -28,6 +43,7 @@ METRIC_ALIASES = {
     "total_return_pct": "total_return_pct",
 }
 
+
 def normalize_metric_name(metric: str) -> str:
     """Normalise le nom d'une métrique CLI en nom interne."""
     return METRIC_ALIASES.get(metric, metric)
@@ -43,7 +59,7 @@ class Colors:
     BLUE = "\033[94m"
     MAGENTA = "\033[95m"
     CYAN = "\033[96m"
-    
+
     @classmethod
     def disable(cls):
         """Désactive les couleurs."""
@@ -81,26 +97,35 @@ def format_table(headers: List[str], rows: List[List[str]], padding: int = 2) ->
     """Formate une table en texte."""
     if not rows:
         return "  (aucune donnée)"
-    
+
     # Calculer largeurs
     widths = [len(h) for h in headers]
     for row in rows:
         for i, cell in enumerate(row):
             if i < len(widths):
                 widths[i] = max(widths[i], len(str(cell)))
-    
+
     # Header
     lines = []
     header_line = "  ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
     lines.append(f"  {Colors.BOLD}{header_line}{Colors.RESET}")
     lines.append("  " + "  ".join("-" * w for w in widths))
-    
+
     # Rows
     for row in rows:
         row_line = "  ".join(str(cell).ljust(widths[i]) for i, cell in enumerate(row))
         lines.append(f"  {row_line}")
-    
+
     return "\n".join(lines)
+
+
+def format_bytes(bytes_count: float) -> str:
+    """Formate un nombre de bytes en unité lisible."""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes_count < 1024.0:
+            return f"{bytes_count:.2f} {unit}"
+        bytes_count /= 1024.0
+    return f"{bytes_count:.2f} PB"
 
 
 def _apply_date_filter(df: pd.DataFrame, start: str | None, end: str | None) -> pd.DataFrame:
@@ -129,9 +154,9 @@ def cmd_list(args) -> int:
     """Liste les ressources disponibles."""
     if args.no_color:
         Colors.disable()
-    
+
     resource = args.resource
-    
+
     if resource == "strategies":
         return _list_strategies(args)
     elif resource == "indicators":
@@ -140,7 +165,7 @@ def cmd_list(args) -> int:
         return _list_data(args)
     elif resource == "presets":
         return _list_presets(args)
-    
+
     return 0
 
 
@@ -153,9 +178,9 @@ def cmd_indicators(args) -> int:
 def _list_strategies(args) -> int:
     """Liste les stratégies."""
     from strategies import list_strategies, get_strategy
-    
+
     strategies = list_strategies()
-    
+
     if args.json:
         data = []
         for name in strategies:
@@ -169,9 +194,9 @@ def _list_strategies(args) -> int:
                 })
         print(json.dumps(data, indent=2))
         return 0
-    
+
     print_header(f"Stratégies disponibles ({len(strategies)})")
-    
+
     rows = []
     for name in sorted(strategies):
         strat = get_strategy(name)
@@ -182,7 +207,7 @@ def _list_strategies(args) -> int:
             if len(instance.required_indicators) > 3:
                 indicators += "..."
             rows.append([name, desc, indicators])
-    
+
     print(format_table(["Nom", "Description", "Indicateurs"], rows))
     return 0
 
@@ -190,9 +215,9 @@ def _list_strategies(args) -> int:
 def _list_indicators(args) -> int:
     """Liste les indicateurs."""
     from indicators.registry import list_indicators, get_indicator
-    
+
     indicators = list_indicators()
-    
+
     if args.json:
         data = []
         for name in indicators:
@@ -205,9 +230,9 @@ def _list_indicators(args) -> int:
                 })
         print(json.dumps(data, indent=2))
         return 0
-    
+
     print_header(f"Indicateurs disponibles ({len(indicators)})")
-    
+
     rows = []
     for name in sorted(indicators):
         info = get_indicator(name)
@@ -215,7 +240,7 @@ def _list_indicators(args) -> int:
             cols = ", ".join(info.required_columns)
             desc = info.description[:40] if info.description else ""
             rows.append([name, cols, desc])
-    
+
     print(format_table(["Nom", "Colonnes", "Description"], rows))
     return 0
 
@@ -224,17 +249,17 @@ def _list_data(args) -> int:
     """Liste les fichiers de données."""
     import os
     from data.loader import discover_available_data
-    
+
     # Récupérer tokens et timeframes
     tokens, timeframes = discover_available_data()
-    
+
     # Chercher les fichiers via variable d'environnement ou répertoire par défaut
     env_data_dir = os.environ.get("BACKTEST_DATA_DIR")
     if env_data_dir:
         data_dir = Path(env_data_dir)
     else:
         data_dir = Path(__file__).parent.parent / "data" / "sample_data"
-    
+
     data_files = []
     if data_dir.exists():
         # Format parquet uniquement (selon variable d'environnement)
@@ -242,7 +267,7 @@ def _list_data(args) -> int:
         # Aussi chercher CSV et Feather comme fallback
         data_files.extend(data_dir.glob("*.csv"))
         data_files.extend(data_dir.glob("*.feather"))
-    
+
     if args.json:
         print(json.dumps({
             "data_dir": str(data_dir),
@@ -251,56 +276,56 @@ def _list_data(args) -> int:
             "files": [str(f) for f in data_files]
         }, indent=2))
         return 0
-    
+
     print_header(f"Fichiers de données ({len(data_files)})")
-    
+
     if env_data_dir:
         print_info(f"Répertoire: {data_dir} (via $BACKTEST_DATA_DIR)")
     else:
         print_info(f"Répertoire: {data_dir}")
-    
+
     if not data_files:
         print_warning("Aucun fichier de données trouvé")
         if not env_data_dir:
             print_info("Définissez $env:BACKTEST_DATA_DIR ou placez des fichiers .parquet dans data/sample_data/")
         return 0
-    
+
     rows = []
     for f in sorted(data_files):
         path = Path(f)
         size = path.stat().st_size / 1024 if path.exists() else 0
         rows.append([path.name, f"{size:.1f} KB", path.suffix])
-    
+
     print(format_table(["Fichier", "Taille", "Format"], rows))
-    
+
     # Afficher aussi les tokens et timeframes
     if tokens:
         print(f"\n{Colors.BOLD}Tokens:{Colors.RESET} {', '.join(tokens)}")
     if timeframes:
         print(f"{Colors.BOLD}Timeframes:{Colors.RESET} {', '.join(timeframes)}")
-    
+
     return 0
 
 
 def _list_presets(args) -> int:
     """Liste les presets."""
     from utils.parameters import SAFE_RANGES_PRESET, MINIMAL_PRESET, EMA_CROSS_PRESET
-    
+
     presets = [SAFE_RANGES_PRESET, MINIMAL_PRESET, EMA_CROSS_PRESET]
-    
+
     if args.json:
         data = [p.to_dict() for p in presets]
         print(json.dumps(data, indent=2))
         return 0
-    
+
     print_header(f"Presets disponibles ({len(presets)})")
-    
+
     rows = []
     for p in presets:
         n_params = len(p.parameters)
         combos = p.estimate_combinations()
         rows.append([p.name, p.description[:40], str(n_params), f"~{combos:,}"])
-    
+
     print(format_table(["Nom", "Description", "Params", "Combinaisons"], rows))
     return 0
 
@@ -313,29 +338,29 @@ def cmd_info(args) -> int:
     """Affiche les informations détaillées d'une ressource."""
     if args.no_color:
         Colors.disable()
-    
+
     if args.resource_type == "strategy":
         return _info_strategy(args)
     elif args.resource_type == "indicator":
         return _info_indicator(args)
-    
+
     return 0
 
 
 def _info_strategy(args) -> int:
     """Affiche les infos d'une stratégie."""
     from strategies import get_strategy, list_strategies
-    
+
     name = args.name.lower()
     strat_class = get_strategy(name)
-    
+
     if not strat_class:
         print_error(f"Stratégie '{name}' non trouvée")
         print_info(f"Disponibles: {', '.join(list_strategies())}")
         return 1
-    
+
     strat = strat_class()
-    
+
     if args.json:
         data = {
             "name": name,
@@ -346,34 +371,34 @@ def _info_strategy(args) -> int:
         }
         print(json.dumps(data, indent=2))
         return 0
-    
+
     print_header(f"Stratégie: {name}")
     print(f"  Description: {getattr(strat, 'description', 'N/A')}")
     print(f"  Indicateurs: {', '.join(strat.required_indicators)}")
-    
+
     print(f"\n{Colors.BOLD}Paramètres par défaut:{Colors.RESET}")
     for k, v in strat.default_params.items():
         print(f"    {k}: {v}")
-    
+
     print(f"\n{Colors.BOLD}Plages d'optimisation:{Colors.RESET}")
     for k, (min_v, max_v) in strat.param_ranges.items():
         print(f"    {k}: [{min_v}, {max_v}]")
-    
+
     return 0
 
 
 def _info_indicator(args) -> int:
     """Affiche les infos d'un indicateur."""
     from indicators.registry import get_indicator, list_indicators
-    
+
     name = args.name.lower()
     info = get_indicator(name)
-    
+
     if not info:
         print_error(f"Indicateur '{name}' non trouvé")
         print_info(f"Disponibles: {', '.join(list_indicators())}")
         return 1
-    
+
     if args.json:
         data = {
             "name": info.name,
@@ -383,11 +408,11 @@ def _info_indicator(args) -> int:
         }
         print(json.dumps(data, indent=2))
         return 0
-    
+
     print_header(f"Indicateur: {name}")
     print(f"  Description: {info.description}")
     print(f"  Colonnes requises: {', '.join(info.required_columns)}")
-    
+
     if info.settings_class:
         print(f"\n{Colors.BOLD}Paramètres (Settings):{Colors.RESET}")
         import inspect
@@ -396,7 +421,7 @@ def _info_indicator(args) -> int:
             if param_name != "self":
                 default = param.default if param.default != inspect.Parameter.empty else "requis"
                 print(f"    {param_name}: {default}")
-    
+
     return 0
 
 
@@ -408,23 +433,23 @@ def cmd_backtest(args) -> int:
     """Exécute un backtest."""
     if args.no_color:
         Colors.disable()
-    
+
     import os
     import json as json_module
     from pathlib import Path
-    
+
     from backtest.engine import BacktestEngine
     from strategies import get_strategy, list_strategies
-    
+
     # Validation stratégie
     strategy_name = args.strategy.lower()
     strat_class = get_strategy(strategy_name)
-    
+
     if not strat_class:
         print_error(f"Stratégie '{strategy_name}' non trouvée")
         print_info(f"Disponibles: {', '.join(list_strategies())}")
         return 1
-    
+
     # Validation données - chercher dans BACKTEST_DATA_DIR si chemin relatif
     data_path = Path(args.data)
     if not data_path.exists():
@@ -434,19 +459,19 @@ def cmd_backtest(args) -> int:
             data_path = Path(env_data_dir) / args.data
         else:
             data_path = Path(__file__).parent.parent / "data" / "sample_data" / args.data
-    
+
     if not data_path.exists():
         print_error(f"Fichier non trouvé: {args.data}")
         print_info(f"Répertoire de recherche: {data_path.parent}")
         return 1
-    
+
     # Parser paramètres JSON
     try:
         params = json_module.loads(args.params)
     except json_module.JSONDecodeError as e:
         print_error(f"Paramètres JSON invalides: {e}")
         return 1
-    
+
     if not args.quiet:
         print_header("Backtest")
         print(f"  Stratégie: {strategy_name}")
@@ -456,11 +481,11 @@ def cmd_backtest(args) -> int:
         if params:
             print(f"  Paramètres: {params}")
         print()
-    
+
     # Chargement données
     if not args.quiet:
         print_info("Chargement des données...")
-    
+
     # Utiliser les fonctions internes pour charger directement depuis le fichier
     from data.loader import _read_file, _normalize_ohlcv
     df = _read_file(data_path)
@@ -470,32 +495,32 @@ def cmd_backtest(args) -> int:
     except ValueError as e:
         print_error(str(e))
         return 1
-    
+
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
-    
+
     # Exécution backtest
     if not args.quiet:
         print_info("Exécution du backtest...")
-    
+
     # Créer la configuration avec les frais
     from utils.config import Config
     config_kwargs = {"fees_bps": args.fees_bps}
     if args.slippage_bps is not None:
         config_kwargs["slippage_bps"] = args.slippage_bps
     config = Config(**config_kwargs)
-    
+
     engine = BacktestEngine(
         initial_capital=args.capital,
         config=config,
     )
-    
+
     # Extraire symbol et timeframe du nom de fichier (ex: BTCUSDC_1h.parquet)
     stem = data_path.stem
     parts = stem.split("_")
     symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
     timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
-    
+
     result = engine.run(
         df=df,
         strategy=strategy_name,
@@ -503,7 +528,7 @@ def cmd_backtest(args) -> int:
         symbol=symbol,
         timeframe=timeframe
     )
-    
+
     # Affichage résultats
     if not args.quiet:
         print()
@@ -512,11 +537,11 @@ def cmd_backtest(args) -> int:
         if result.meta.get("period_start") and result.meta.get("period_end"):
             print(f"    Period: {result.meta['period_start']} -> {result.meta['period_end']}")
         print(f"\n  Trades: {len(result.trades)}")
-    
+
     # Export si demandé
     if args.output:
         output_path = Path(args.output)
-        
+
         # Gérer metrics qui peut être un dict ou un objet avec to_dict()
         if hasattr(result.metrics, 'to_dict'):
             metrics_dict = result.metrics.to_dict()
@@ -524,7 +549,7 @@ def cmd_backtest(args) -> int:
             metrics_dict = result.metrics
         else:
             metrics_dict = vars(result.metrics)
-        
+
         # Gérer trades qui est un DataFrame
         if isinstance(result.trades, pd.DataFrame):
             trades_list = result.trades.to_dict('records')
@@ -538,7 +563,7 @@ def cmd_backtest(args) -> int:
                 trades_list = list(result.trades)
         else:
             trades_list = []
-        
+
         output_data = {
             "strategy": strategy_name,
             "params": params,
@@ -549,7 +574,7 @@ def cmd_backtest(args) -> int:
             "n_trades": len(result.trades),
             "trades": trades_list,
         }
-        
+
         if args.format == "json":
             with open(output_path, "w") as f:
                 json_module.dump(output_data, f, indent=2, default=str)
@@ -557,17 +582,17 @@ def cmd_backtest(args) -> int:
             pd.DataFrame(result.trades).to_csv(output_path, index=False)
         elif args.format == "parquet":
             pd.DataFrame(result.trades).to_parquet(output_path)
-        
+
         if not args.quiet:
             print_success(f"Résultats exportés: {output_path}")
-    
+
     return 0
 
 
 def _print_metrics(metrics):
     """Affiche les métriques de performance."""
     m = metrics.to_dict() if hasattr(metrics, "to_dict") else metrics
-    
+
     total_return_pct = m.get("total_return_pct")
     if total_return_pct is None:
         total_return_pct = m.get("total_return", 0) * 100
@@ -591,23 +616,23 @@ def cmd_sweep(args) -> int:
     """Exécute une optimisation paramétrique."""
     if args.no_color:
         Colors.disable()
-    
+
     import os
     from pathlib import Path
     import json as json_module
-    
+
     from backtest.engine import BacktestEngine
     from strategies import get_strategy
     from utils.parameters import generate_param_grid, ParameterSpec, compute_search_space_stats
-    
+
     # Validation stratégie
     strategy_name = args.strategy.lower()
     strat_class = get_strategy(strategy_name)
-    
+
     if not strat_class:
         print_error(f"Stratégie '{strategy_name}' non trouvée")
         return 1
-    
+
     # Résolution du chemin des données
     data_path = Path(args.data)
     if not data_path.exists():
@@ -616,13 +641,13 @@ def cmd_sweep(args) -> int:
             data_path = Path(env_data_dir) / args.data
         else:
             data_path = Path(__file__).parent.parent / "data" / "sample_data" / args.data
-    
+
     if not data_path.exists():
         print_error(f"Fichier non trouvé: {args.data}")
         return 1
-    
+
     strat = strat_class()
-    
+
     if not args.quiet:
         print_header("Optimisation Paramétrique (Sweep)")
         print(f"  Stratégie: {strategy_name}")
@@ -631,7 +656,7 @@ def cmd_sweep(args) -> int:
         print(f"  Métrique: {args.metric}")
         print(f"  Workers: {args.parallel}")
         print()
-    
+
     # Construire les specs de paramètres
     param_specs = {}
     for name, (min_v, max_v) in strat.param_ranges.items():
@@ -644,7 +669,7 @@ def cmd_sweep(args) -> int:
             default=default,
             param_type=param_type,
         )
-    
+
     # Générer la grille
     try:
         grid = generate_param_grid(
@@ -656,15 +681,15 @@ def cmd_sweep(args) -> int:
         print_error(str(e))
         print_info("Augmentez --granularity ou --max-combinations")
         return 1
-    
+
     # Afficher les statistiques d'espace de recherche (unifié)
     stats = compute_search_space_stats(param_specs, max_combinations=args.max_combinations, granularity=args.granularity)
-    
+
     if not args.quiet:
         print_info(f"Espace de recherche: {stats.total_combinations:,} combinaisons")
         for pname, pcount in stats.per_param_counts.items():
             print(f"    {pname}: {pcount} valeurs")
-    
+
     # Charger données avec les fonctions internes
     from data.loader import _read_file, _normalize_ohlcv
     df = _read_file(data_path)
@@ -674,34 +699,34 @@ def cmd_sweep(args) -> int:
     except ValueError as e:
         print_error(str(e))
         return 1
-    
+
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
         print_info("Lancement de l'optimisation...")
         print()
-    
+
     # Extraire symbol et timeframe du nom de fichier
     stem = data_path.stem
     parts = stem.split("_")
     symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
     timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
-    
+
     # Créer la configuration avec les frais
     from utils.config import Config
     config_kwargs = {"fees_bps": args.fees_bps}
     if args.slippage_bps is not None:
         config_kwargs["slippage_bps"] = args.slippage_bps
     config = Config(**config_kwargs)
-    
+
     # Exécuter le sweep
     results = []
-    
+
     for i, params in enumerate(grid):
         engine = BacktestEngine(
             initial_capital=args.capital,
             config=config,
         )
-        
+
         try:
             result = engine.run(
                 df=df,
@@ -715,10 +740,10 @@ def cmd_sweep(args) -> int:
                 metrics = result.metrics.to_dict()
             else:
                 metrics = dict(result.metrics)
-            
+
             # Normaliser le nom de la métrique
             metric_key = normalize_metric_name(args.metric)
-            
+
             results.append({
                 "params": params,
                 "metrics": metrics,
@@ -727,35 +752,35 @@ def cmd_sweep(args) -> int:
         except Exception as e:
             if args.verbose:
                 print_warning(f"Erreur avec {params}: {e}")
-        
+
         # Progress
         if not args.quiet and (i + 1) % 10 == 0:
             print(f"\r  Progress: {i+1}/{len(grid)} ({100*(i+1)/len(grid):.1f}%)", end="", flush=True)
-    
+
     if not args.quiet:
         print("\r" + " " * 50 + "\r", end="")
-    
+
     # Trier par score (métrique déjà normalisée)
     metric_key = normalize_metric_name(args.metric)
     reverse = args.metric != "max_drawdown"  # Plus bas = mieux pour drawdown
-    
+
     results.sort(key=lambda x: x.get("score", 0), reverse=reverse)
-    
+
     # Afficher les meilleurs
     if not args.quiet:
         print_header(f"Top {args.top} Résultats (tri par {args.metric})")
-        
+
         for i, r in enumerate(results[:args.top]):
             print(f"\n  {Colors.BOLD}#{i+1}{Colors.RESET}")
             print(f"    Paramètres: {r['params']}")
             print(f"    Sharpe: {r['metrics'].get('sharpe_ratio', 0):.3f}")
             print(f"    Return: {r['metrics'].get('total_return_pct', 0):+.2f}%")
             print(f"    Drawdown: {r['metrics'].get('max_drawdown', 0):.2f}%")
-    
+
     # Export
     if args.output:
         output_path = Path(args.output)
-        
+
         export_data = {
             "strategy": strategy_name,
             "granularity": args.granularity,
@@ -763,14 +788,14 @@ def cmd_sweep(args) -> int:
             "n_combinations": len(grid),
             "results": results,
         }
-        
+
         with open(output_path, "w") as f:
             json_module.dump(export_data, f, indent=2, default=str)
-        
+
         if not args.quiet:
             print()
             print_success(f"Résultats exportés: {output_path}")
-    
+
     return 0
 
 
@@ -782,18 +807,18 @@ def cmd_validate(args) -> int:
     """Valide la configuration."""
     if args.no_color:
         Colors.disable()
-    
+
     print_header("Validation")
-    
+
     errors = []
     warnings = []
-    
+
     # Valider stratégies
     if args.all or args.strategy:
         from strategies import list_strategies, get_strategy
-        
+
         strategies = [args.strategy] if args.strategy else list_strategies()
-        
+
         print(f"\n{Colors.BOLD}Stratégies:{Colors.RESET}")
         for name in strategies:
             strat = get_strategy(name)
@@ -811,11 +836,11 @@ def cmd_validate(args) -> int:
             else:
                 print_error(f"  {name}: non trouvée")
                 errors.append(f"Stratégie {name} non trouvée")
-    
+
     # Valider indicateurs
     if args.all:
         from indicators.registry import list_indicators, get_indicator
-        
+
         print(f"\n{Colors.BOLD}Indicateurs:{Colors.RESET}")
         for name in list_indicators():
             info = get_indicator(name)
@@ -824,20 +849,20 @@ def cmd_validate(args) -> int:
             else:
                 print_error(f"  {name}: fonction manquante")
                 errors.append(f"Indicateur {name}: fonction manquante")
-    
+
     # Valider données
     if args.all or args.data:
         from data.loader import _read_file, _normalize_ohlcv
         from pathlib import Path
-        
+
         print(f"\n{Colors.BOLD}Données:{Colors.RESET}")
-        
+
         if args.data:
             data_files = [args.data]
         else:
             data_dir = Path("data/sample_data")
             data_files = list(data_dir.glob("*.parquet")) + list(data_dir.glob("*.csv"))
-        
+
         for f in data_files:
             try:
                 df = _read_file(Path(f))
@@ -852,7 +877,7 @@ def cmd_validate(args) -> int:
             except Exception as e:
                 print_error(f"  {f}: {e}")
                 errors.append(f"{f}: {e}")
-    
+
     # Résumé
     print()
     if errors:
@@ -874,26 +899,26 @@ def cmd_export(args) -> int:
     """Exporte les résultats."""
     if args.no_color:
         Colors.disable()
-    
+
     import json as json_module
     from pathlib import Path
-    
+
     input_path = Path(args.input)
-    
+
     if not input_path.exists():
         print_error(f"Fichier non trouvé: {input_path}")
         return 1
-    
+
     # Charger les résultats
     with open(input_path) as f:
         data = json_module.load(f)
-    
+
     # Déterminer le fichier de sortie
     if args.output:
         output_path = Path(args.output)
     else:
         output_path = input_path.with_suffix(f".{args.format}")
-    
+
     if args.format == "html":
         _export_html(data, output_path)
     elif args.format == "csv":
@@ -903,7 +928,7 @@ def cmd_export(args) -> int:
     else:
         print_error(f"Format non supporté: {args.format}")
         return 1
-    
+
     print_success(f"Export réussi: {output_path}")
     return 0
 
@@ -929,21 +954,21 @@ def _export_html(data: dict, output_path: Path):
 <body>
     <h1>Rapport de Backtest</h1>
     <p>Stratégie: <strong>{data.get('strategy', 'N/A')}</strong></p>
-    
+
     <h2>Métriques</h2>
     <div class="metrics">
 """
-    
+
     metrics = data.get("metrics", {})
     for key, value in metrics.items():
         if isinstance(value, float):
             css_class = "positive" if value > 0 else "negative"
             html += f'        <p class="metric">{key}: <span class="{css_class}">{value:.4f}</span></p>\n'
-    
+
     html += """    </div>
 </body>
 </html>"""
-    
+
     with open(output_path, "w") as f:
         f.write(html)
 
@@ -966,10 +991,10 @@ def _export_csv(data: dict, output_path: Path):
 def _export_excel(data: dict, output_path: Path):
     """Export en Excel."""
     try:
-        import openpyxl
+        import openpyxl  # noqa: F401
     except ImportError:
         raise ImportError("openpyxl requis pour export Excel: pip install openpyxl")
-    
+
     results = data.get("results", [])
     if results:
         rows = []
@@ -984,7 +1009,7 @@ def _export_excel(data: dict, output_path: Path):
 
 __all__ = [
     "cmd_list",
-    "cmd_info", 
+    "cmd_info",
     "cmd_backtest",
     "cmd_sweep",
     "cmd_validate",
@@ -1001,38 +1026,37 @@ def cmd_optuna(args) -> int:
     """Exécute une optimisation bayésienne via Optuna."""
     if args.no_color:
         Colors.disable()
-    
+
     import os
     from pathlib import Path
     import json as json_module
-    
+
     # Vérifier que Optuna est disponible
     try:
         from backtest.optuna_optimizer import (
             OptunaOptimizer,
-            ParamSpec,
             suggest_param_space,
             OPTUNA_AVAILABLE,
         )
     except ImportError:
         print_error("Module optuna_optimizer non trouvé")
         return 1
-    
+
     if not OPTUNA_AVAILABLE:
         print_error("Optuna n'est pas installé: pip install optuna")
         return 1
-    
+
     from strategies import get_strategy, list_strategies
-    
+
     # Validation stratégie
     strategy_name = args.strategy.lower()
     strat_class = get_strategy(strategy_name)
-    
+
     if not strat_class:
         print_error(f"Stratégie '{strategy_name}' non trouvée")
         print_info(f"Stratégies disponibles: {', '.join(list_strategies())}")
         return 1
-    
+
     # Résolution du chemin des données
     data_path = Path(args.data)
     if not data_path.exists():
@@ -1041,11 +1065,11 @@ def cmd_optuna(args) -> int:
             data_path = Path(env_data_dir) / args.data
         else:
             data_path = Path(__file__).parent.parent / "data" / "sample_data" / args.data
-    
+
     if not data_path.exists():
         print_error(f"Fichier non trouvé: {args.data}")
         return 1
-    
+
     if not args.quiet:
         print_header("Optimisation Bayésienne (Optuna)")
         print(f"  Stratégie: {strategy_name}")
@@ -1058,7 +1082,7 @@ def cmd_optuna(args) -> int:
         if args.multi_objective:
             print("  Mode: Multi-objectif (Pareto)")
         print()
-    
+
     # Charger données
     from data.loader import _read_file, _normalize_ohlcv
     df = _read_file(data_path)
@@ -1068,13 +1092,13 @@ def cmd_optuna(args) -> int:
     except ValueError as e:
         print_error(str(e))
         return 1
-    
+
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
-    
+
     # Construire le param_space
     strat = strat_class()
-    
+
     if args.param_space:
         # Param space personnalisé via JSON
         try:
@@ -1085,10 +1109,11 @@ def cmd_optuna(args) -> int:
     else:
         # Param space automatique depuis la stratégie
         param_space = suggest_param_space(strategy_name)
-        
+
         # Enrichir avec les param_ranges de la stratégie si non couvert
         for name, (min_v, max_v) in strat.param_ranges.items():
             if name not in param_space:
+
                 default = strat.default_params.get(name, (min_v + max_v) / 2)
                 param_type = "int" if isinstance(default, int) else "float"
                 param_space[name] = {
@@ -1096,11 +1121,11 @@ def cmd_optuna(args) -> int:
                     "low": min_v,
                     "high": max_v,
                 }
-    
+
     if not param_space:
         print_error(f"Aucun param_space défini pour {strategy_name}")
         return 1
-    
+
     # Contraintes
     constraints = []
     if args.constraints:
@@ -1108,20 +1133,20 @@ def cmd_optuna(args) -> int:
             parts = c.split(",")
             if len(parts) == 3:
                 constraints.append((parts[0], parts[1], parts[2]))
-    
+
     # Extraire symbol et timeframe
     stem = data_path.stem
     parts = stem.split("_")
     symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
     timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
-    
+
     # Créer l'optimiseur
     from utils.config import Config
     config_kwargs = {"fees_bps": args.fees_bps}
     if args.slippage_bps is not None:
         config_kwargs["slippage_bps"] = args.slippage_bps
     config = Config(**config_kwargs)
-    
+
     optimizer = OptunaOptimizer(
         strategy_name=strategy_name,
         data=df,
@@ -1134,13 +1159,13 @@ def cmd_optuna(args) -> int:
         timeframe=timeframe,
         seed=args.seed,
     )
-    
+
     if not args.quiet:
         print_info(f"Lancement optimisation ({args.n_trials} trials)...")
         if args.early_stop_patience:
             print_info(f"Early stopping activé: patience={args.early_stop_patience}")
         print()
-    
+
     # Lancer l'optimisation
     try:
         if args.multi_objective:
@@ -1152,19 +1177,19 @@ def cmd_optuna(args) -> int:
                     directions.append("minimize")
                 else:
                     directions.append("maximize")
-            
+
             result = optimizer.optimize_multi_objective(
                 n_trials=args.n_trials,
                 metrics=metrics,
                 directions=directions,
                 timeout=args.timeout,
             )
-            
+
             if not args.quiet:
                 print_header("Résultats Multi-Objectif (Front de Pareto)")
                 print(f"  Solutions Pareto: {len(result.pareto_front)}")
                 print()
-                
+
                 for i, sol in enumerate(result.pareto_front[:args.top]):
                     print(f"  {Colors.BOLD}Solution #{i+1}{Colors.RESET}")
                     print(f"    Paramètres: {sol['params']}")
@@ -1174,7 +1199,7 @@ def cmd_optuna(args) -> int:
             # Mono-objectif (normaliser la métrique)
             metric_key = normalize_metric_name(args.metric)
             direction = "minimize" if args.metric == "max_drawdown" else "maximize"
-            
+
             result = optimizer.optimize(
                 n_trials=args.n_trials,
                 metric=metric_key,
@@ -1184,14 +1209,14 @@ def cmd_optuna(args) -> int:
                 timeout=args.timeout,
                 show_progress=not args.quiet,
             )
-            
+
             if not args.quiet:
                 print_header(f"Résultats Optuna (Top {args.top})")
                 print(f"  Trials: {result.n_completed}/{args.n_trials} complétés")
                 print(f"  Pruned: {result.n_pruned}")
                 print(f"  Temps total: {result.total_time:.1f}s")
                 print()
-                
+
                 print(f"  {Colors.GREEN}Meilleur résultat:{Colors.RESET}")
                 print(f"    Paramètres: {result.best_params}")
                 print(f"    {args.metric}: {result.best_value:.4f}")
@@ -1200,7 +1225,7 @@ def cmd_optuna(args) -> int:
                     print(f"    Return: {result.best_metrics.get('total_return_pct', 0):+.2f}%")
                     print(f"    Drawdown: {result.best_metrics.get('max_drawdown', 0)*100:.2f}%")
                 print()
-                
+
                 # Top N
                 top_df = result.get_top_n(args.top)
                 if not top_df.empty and len(top_df) > 0:
@@ -1212,18 +1237,18 @@ def cmd_optuna(args) -> int:
                         val = row.get('value', float('nan'))
                         val_str = f"{val:.4f}" if np.isfinite(val) else "N/A"
                         print(f"    #{idx+1}: {params} → {val_str}")
-    
+
     except Exception as e:
         print_error(f"Erreur lors de l'optimisation: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
         return 1
-    
+
     # Export
     if args.output:
         output_path = Path(args.output)
-        
+
         if args.multi_objective:
             export_data = {
                 "strategy": strategy_name,
@@ -1246,13 +1271,13 @@ def cmd_optuna(args) -> int:
                 "best_metrics": result.best_metrics,
                 "history": result.history,
             }
-        
+
         with open(output_path, "w") as f:
             json_module.dump(export_data, f, indent=2, default=str)
-        
+
         if not args.quiet:
             print_success(f"Résultats exportés: {output_path}")
-    
+
     return 0
 
 
@@ -1264,39 +1289,37 @@ def cmd_visualize(args) -> int:
     """Visualise les résultats d'un backtest avec graphiques interactifs."""
     if args.no_color:
         Colors.disable()
-    
+
     import json as json_module
     from pathlib import Path
-    
+
     try:
         from utils.visualization import (
-            load_and_visualize,
-            plot_trades,
             visualize_backtest,
             PLOTLY_AVAILABLE,
         )
     except ImportError as e:
         print_error(f"Module visualization non disponible: {e}")
         return 1
-    
+
     if not PLOTLY_AVAILABLE:
         print_error("Plotly requis pour la visualisation: pip install plotly")
         return 1
-    
+
     # Charger les résultats
     input_path = Path(args.input)
     if not input_path.exists():
         print_error(f"Fichier non trouvé: {input_path}")
         return 1
-    
+
     if not args.quiet:
         print_header("Visualisation des Résultats")
         print_info(f"Fichier: {input_path}")
-    
+
     # Charger les données OHLCV si fournies
     df = None
     data_path = None
-    
+
     if args.data:
         data_path = Path(args.data)
         if not data_path.exists():
@@ -1309,29 +1332,29 @@ def cmd_visualize(args) -> int:
             else:
                 print_warning(f"Fichier de données non trouvé: {args.data}")
                 data_path = None
-    
+
     # Output path
     output_path = None
     if args.output:
         output_path = Path(args.output)
     elif args.html:
         output_path = input_path.with_suffix('.html')
-    
+
     try:
         # Charger le fichier de résultats
         with open(input_path) as f:
             results_data = json_module.load(f)
-        
+
         # Déterminer le type de résultat
         result_type = results_data.get('type', 'backtest')
-        
+
         if result_type == 'sweep':
             # Résultats de sweep - prendre le meilleur
             all_results = results_data.get('results', [])
             if not all_results:
                 print_error("Aucun résultat dans le sweep")
                 return 1
-            
+
             # Trier par métrique (sharpe par défaut)
             metric_key = args.metric or 'sharpe_ratio'
             sorted_results = sorted(
@@ -1340,17 +1363,17 @@ def cmd_visualize(args) -> int:
                 reverse=True
             )
             best = sorted_results[0]
-            
+
             trades = best.get('trades', [])
             metrics = best.get('metrics', {})
             params = best.get('params', {})
             equity_curve = best.get('equity_curve')
             strategy = results_data.get('strategy', 'Unknown')
-            
+
             if not args.quiet:
                 print_info(f"Meilleur résultat (sur {len(all_results)}): {params}")
                 print_info(f"{metric_key}: {metrics.get(metric_key, 'N/A'):.4f}")
-            
+
         elif result_type in ('single_objective', 'multi_objective'):
             # Résultats Optuna
             trades = results_data.get('trades', [])
@@ -1358,17 +1381,17 @@ def cmd_visualize(args) -> int:
             params = results_data.get('best_params', {})
             equity_curve = results_data.get('equity_curve')
             strategy = results_data.get('strategy', 'Unknown')
-            
+
             if not trades:
                 print_warning("Pas de trades dans les résultats Optuna")
                 print_info(f"Meilleurs params: {params}")
                 print_info(f"Meilleure valeur: {results_data.get('best_value', 'N/A')}")
-                
+
                 # Relancer un backtest avec les meilleurs params pour avoir les trades
                 if args.data and data_path:
                     if not args.quiet:
                         print_info("Exécution du backtest avec les meilleurs paramètres...")
-                    
+
                     from backtest import BacktestEngine
                     from data.loader import _read_file, _normalize_ohlcv
                     from utils.config import Config
@@ -1409,7 +1432,7 @@ def cmd_visualize(args) -> int:
                     else:
                         metrics = vars(result.metrics)
                     equity_curve = result.equity.tolist() if hasattr(result, "equity") else None
-        
+
         else:
             # Backtest simple
             trades = results_data.get('trades', [])
@@ -1417,12 +1440,12 @@ def cmd_visualize(args) -> int:
             params = results_data.get('params', {})
             equity_curve = results_data.get('equity_curve')
             strategy = results_data.get('strategy', 'Unknown')
-        
+
         if not trades and not equity_curve:
             print_error("Aucun trade ou equity curve à visualiser")
             print_info("Assurez-vous que le fichier contient des données de trades")
             return 1
-        
+
         # Charger les données OHLCV
         if data_path and data_path.exists():
             # Charger directement depuis le fichier
@@ -1435,7 +1458,7 @@ def cmd_visualize(args) -> int:
             else:
                 print_warning(f"Format non supporté: {data_path.suffix}")
                 df = None
-            
+
             if df is not None:
                 # Normaliser les colonnes
                 df.columns = df.columns.str.lower()
@@ -1447,20 +1470,20 @@ def cmd_visualize(args) -> int:
                     df.set_index('time', inplace=True)
                 elif not isinstance(df.index, pd.DatetimeIndex):
                     df.index = pd.to_datetime(df.index)
-                
+
                 # Supprimer timezone pour éviter les problèmes de comparaison
                 if hasattr(df.index, 'tz') and df.index.tz is not None:
                     df.index = df.index.tz_localize(None)
-                    
+
                 if not args.quiet:
                     print_info(f"Données OHLCV chargées: {len(df)} barres")
-        
+
         # Préparer le titre
         title = f"Backtest - {strategy}"
         if params:
             params_str = ", ".join(f"{k}={v}" for k, v in list(params.items())[:4])
             title += f"\n({params_str})"
-        
+
         # Visualisation
         if df is not None:
             visualize_backtest(
@@ -1483,14 +1506,14 @@ def cmd_visualize(args) -> int:
                 )
                 if not args.no_show:
                     fig.show()
-                
+
                 if output_path:
                     fig.write_html(str(output_path))
                     print_success(f"Graphique sauvegardé: {output_path}")
             else:
                 print_error("Pas de données suffisantes pour visualiser")
                 return 1
-        
+
         # Stats finales
         if not args.quiet:
             print()
@@ -1499,22 +1522,204 @@ def cmd_visualize(args) -> int:
             sharpe = metrics.get('sharpe_ratio', 0)
             max_dd = metrics.get('max_drawdown', 0)
             win_rate = metrics.get('win_rate', 0)
-            
+
             pnl_color = Colors.GREEN if pnl >= 0 else Colors.RED
             print(f"  PnL:          {pnl_color}{pnl:+,.2f}{Colors.RESET}")
             print(f"  Sharpe:       {sharpe:.2f}")
             print(f"  Max DD:       {Colors.RED}{max_dd:.1f}%{Colors.RESET}")
             print(f"  Win Rate:     {win_rate*100:.1f}%")
             print(f"  Trades:       {len(trades)}")
-        
+
         if output_path:
             print_success(f"Rapport HTML: {output_path}")
-        
+
         return 0
-        
+
     except Exception as e:
         print_error(f"Erreur lors de la visualisation: {e}")
         if args.verbose:
             import traceback
             traceback.print_exc()
         return 1
+
+
+# =============================================================================
+# COMMANDE: CHECK-GPU
+# =============================================================================
+
+def cmd_check_gpu(args) -> int:
+    """Diagnostic GPU : CuPy, CUDA, GPUs disponibles et benchmark."""
+    if args.no_color:
+        Colors.disable()
+
+    import time
+
+    print_header("Diagnostic GPU", "=")
+
+    # 1. CuPy detection
+    try:
+        import cupy as cp
+        cupy_version = cp.__version__
+        print_success(f"CuPy installé: version {cupy_version}")
+    except ImportError:
+        print_error("CuPy non installé")
+        print_info("  Installation: pip install cupy-cuda12x")
+        return 1
+    except Exception as e:
+        print_error(f"Erreur import CuPy: {e}")
+        return 1
+
+    # 2. CUDA version
+    try:
+        cuda_version = cp.cuda.runtime.runtimeGetVersion()
+        cuda_major = cuda_version // 1000
+        cuda_minor = (cuda_version % 1000) // 10
+        print_success(f"CUDA Runtime: {cuda_major}.{cuda_minor}")
+    except Exception as e:
+        print_warning(f"Impossible de récupérer version CUDA: {e}")
+
+    # 3. GPUs détectés
+    try:
+        device_count = cp.cuda.runtime.getDeviceCount()
+        print_success(f"GPU(s) détecté(s): {device_count}")
+        print()
+
+        if device_count == 0:
+            print_warning("Aucun GPU détecté")
+            return 1
+
+        # Détails de chaque GPU
+        print_header("Détails des GPUs", "-")
+        for device_id in range(device_count):
+            props = cp.cuda.runtime.getDeviceProperties(device_id)
+
+            # Nom du GPU
+            name = props["name"]
+            if isinstance(name, bytes):
+                name = name.decode()
+
+            # Mémoire
+            with cp.cuda.Device(device_id):
+                mem_info = cp.cuda.runtime.memGetInfo()
+                free_mem = mem_info[0]
+                total_mem = mem_info[1]
+                used_mem = total_mem - free_mem
+
+            # Compute capability
+            compute_cap = f"{props['major']}.{props['minor']}"
+
+            # Affichage
+            print(f"\n  {Colors.BOLD}GPU {device_id}: {name}{Colors.RESET}")
+            print(f"    Compute Capability:  {compute_cap}")
+            print(f"    VRAM Totale:         {format_bytes(total_mem)}")
+            print(f"    VRAM Libre:          {format_bytes(free_mem)} ({100*free_mem/total_mem:.1f}%)")
+            print(f"    VRAM Utilisée:       {format_bytes(used_mem)} ({100*used_mem/total_mem:.1f}%)")
+
+            if not args.quiet:
+                print(f"    Multiprocesseurs:    {props.get('multiProcessorCount', 'N/A')}")
+                print(f"    Max Threads/Block:   {props.get('maxThreadsPerBlock', 'N/A')}")
+                print(f"    Warp Size:           {props.get('warpSize', 'N/A')}")
+
+    except Exception as e:
+        print_error(f"Erreur détection GPU: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+    # 4. Benchmark CPU vs GPU (si --benchmark)
+    if args.benchmark:
+        print()
+        print_header("Benchmark CPU vs GPU (EMA 10k points)", "-")
+
+        try:
+            # Données de test
+            n_samples = 10000
+            np.random.seed(42)
+            prices_np = 100 + np.cumsum(np.random.randn(n_samples) * 0.5)
+
+            # Fonction EMA simple (pour test)
+            def ema_cpu(prices, period=20):
+                """EMA sur CPU (NumPy)."""
+                alpha = 2.0 / (period + 1)
+                ema = np.zeros(len(prices))
+                ema[0] = prices[0]
+                for i in range(1, len(prices)):
+                    ema[i] = alpha * prices[i] + (1 - alpha) * ema[i-1]
+                return ema
+
+            def ema_gpu(prices, period=20):
+                """EMA sur GPU (CuPy)."""
+                alpha = 2.0 / (period + 1)
+                prices_gpu = cp.asarray(prices)
+                ema = cp.zeros(len(prices_gpu))
+                ema[0] = prices_gpu[0]
+                for i in range(1, len(prices_gpu)):
+                    ema[i] = alpha * prices_gpu[i] + (1 - alpha) * ema[i-1]
+                cp.cuda.Device().synchronize()
+                return cp.asnumpy(ema)
+
+            # Benchmark CPU
+            n_runs = 5
+            cpu_times = []
+            for _ in range(n_runs):
+                start = time.time()
+                _ = ema_cpu(prices_np, period=20)
+                cpu_times.append(time.time() - start)
+
+            cpu_avg = np.mean(cpu_times) * 1000  # en ms
+
+            # Benchmark GPU (avec warmup)
+            _ = ema_gpu(prices_np[:100], period=20)  # warmup
+
+            gpu_times = []
+            for _ in range(n_runs):
+                start = time.time()
+                _ = ema_gpu(prices_np, period=20)
+                gpu_times.append(time.time() - start)
+
+            gpu_avg = np.mean(gpu_times) * 1000  # en ms
+
+            # Speedup
+            speedup = cpu_avg / gpu_avg if gpu_avg > 0 else 0
+
+            # Affichage
+            print(f"\n  {Colors.BOLD}Résultats:{Colors.RESET}")
+            print(f"    Dataset:        {n_samples:,} points")
+            print(f"    Runs:           {n_runs}")
+            print(f"    CPU (NumPy):    {cpu_avg:.2f} ms")
+            print(f"    GPU (CuPy):     {gpu_avg:.2f} ms")
+
+            if speedup > 1:
+                print(f"    Speedup:        {Colors.GREEN}{speedup:.2f}x{Colors.RESET}")
+            elif speedup < 1 and speedup > 0:
+                print(f"    Speedup:        {Colors.YELLOW}{speedup:.2f}x{Colors.RESET} (GPU plus lent)")
+            else:
+                print(f"    Speedup:        {Colors.RED}N/A{Colors.RESET}")
+
+            print()
+            if speedup > 1:
+                print_success("GPU est plus rapide que CPU !")
+            elif speedup < 1 and speedup > 0.5:
+                print_warning("GPU légèrement plus lent (overhead transfert)")
+            elif speedup < 0.5:
+                print_warning("GPU significativement plus lent (dataset trop petit ?)")
+
+        except Exception as e:
+            print_error(f"Erreur benchmark: {e}")
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+
+    # 5. Recommandations
+    if not args.quiet:
+        print()
+        print_header("Recommandations", "-")
+        print("  • Utiliser GPU pour datasets > 5000 points")
+        print("  • Activer GPU dans indicateurs: voir RAPPORT_ANALYSE_GPU_CPU.md")
+        print("  • Variable d'environnement: BACKTEST_GPU_ID=0 (forcer GPU 0)")
+        print("  • Variable d'environnement: CUDA_VISIBLE_DEVICES=0 (limiter à GPU 0)")
+
+    print()
+    print_success("Diagnostic GPU terminé")
+    return 0

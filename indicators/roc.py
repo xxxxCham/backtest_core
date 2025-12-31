@@ -1,8 +1,23 @@
 """
-Backtest Core - Rate of Change (ROC)
-====================================
+Module-ID: indicators.roc
 
-ROC mesure le changement en pourcentage du prix sur une période.
+Purpose: Indicateur ROC (Rate of Change) - changement % prix.
+
+Role in pipeline: data
+
+Key components: roc, ROCSettings, calculate_roc
+
+Inputs: DataFrame avec close; period
+
+Outputs: np.ndarray (% changement)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: ROC = (Close - Close[n]) / Close[n] * 100; momentum en pourcent.
+
+Read-if: Modification période, normalisation %.
+
+Skip-if: Vous utilisez juste calculate_indicator('roc').
 """
 
 from dataclasses import dataclass

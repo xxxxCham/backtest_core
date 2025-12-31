@@ -10,8 +10,8 @@
 Le module `agents/` implémente un système d'optimisation autonome basé sur des agents LLM (Large Language Models). Il permet d'optimiser automatiquement les paramètres de stratégies de trading en utilisant l'intelligence artificielle.
 
 **Deux modes de fonctionnement :**
-1. **Mode Autonome (RECOMMANDÉ)** : L'agent lance réellement des backtests et itère
-2. **Mode Orchestré** : Analyse statique sans exécution de backtests
+1. **Mode Autonome (RECOMMANDE)** : L'agent lance des backtests et itere
+2. **Mode Orchestre** : Orchestrator multi-agents; backtests uniquement si un callback `on_backtest_needed` est fourni
 
 ---
 
@@ -25,6 +25,7 @@ agents/
 ├── critic.py                  → Agent Critic (détection overfitting)
 ├── validator.py               → Agent Validator (décision finale)
 ├── orchestrator.py            → Orchestrateur workflow multi-agents
+├── orchestration_logger.py    → Logging structure (JSONL) pour l'orchestration
 ├── autonomous_strategist.py   → Agent autonome avec backtests réels
 ├── backtest_executor.py       → Interface d'exécution backtests
 ├── integration.py             → Pont vers BacktestEngine
@@ -116,8 +117,8 @@ session = strategist.optimize(
 
 # Résultats
 print(f"Meilleur Sharpe: {session.best_result.sharpe_ratio:.2f}")
-print(f"Paramètres: {session.best_params}")
-print(f"Convergé en {session.iteration} itérations")
+print(f"Params: {session.best_result.request.parameters}")
+print(f"Final status: {session.final_status} after {session.current_iteration} iterations")
 
 # Méthode 2: Raccourci rapide
 session = quick_optimize(
@@ -137,9 +138,9 @@ session = quick_optimize(
 
 ---
 
-### 2. Mode Orchestré (Analyse Statique)
+### 2. Mode Orchestre (Analyse Multi-Agents)
 
-**Pour analyse sans exécution de backtests :**
+**Analyse multi-agents (backtests si callback fourni) :**
 
 ```python
 from agents import create_orchestrator_with_backtest
@@ -147,16 +148,18 @@ from agents.llm_client import LLMConfig, LLMProvider
 
 config = LLMConfig(provider=LLMProvider.OLLAMA, model="llama3.2")
 orchestrator = create_orchestrator_with_backtest(
-    llm_config=config,
     strategy_name="ema_cross",
     data=ohlcv_df,
+    initial_params={"fast_period": 12, "slow_period": 26},
+    llm_config=config,
 )
 
 result = orchestrator.run()
 
-# Résultat statique (recommandations uniquement)
-print(result.final_decision)  # APPROVE / REJECT / ITERATE
-print(result.best_proposal)
+# Resultat
+print(result.decision)      # APPROVE / REJECT / ABORT
+print(result.final_params)  # meilleurs parametres retenus
+print(result.final_report)  # rapport complet
 ```
 
 ---
@@ -218,8 +221,7 @@ config = RoleModelConfig(
 
 set_global_model_config(config)
 
-# Ou configuration aléatoire (expérimentation)
-config = RoleModelConfig.random_config()
+# Note: si plusieurs modeles sont listes pour un role, la selection est aleatoire par defaut.
 ```
 
 **Modèles connus et catégories :**
@@ -378,18 +380,17 @@ Objet retourné contenant :
 session = strategist.optimize(...)
 
 # Résultats finaux
-session.best_params           # Meilleurs paramètres trouvés
 session.best_result           # BacktestResult (métriques, trades)
-session.baseline_result       # Résultat initial (référence)
+session.all_results           # Liste des BacktestResult (baseline incluse)
+session.decisions             # Liste des IterationDecision du LLM
 
 # Historique
-session.iteration             # Nombre d'itérations
-session.history               # Liste de tous les backtests
-session.experiment_history    # ExperimentHistory détaillé
+session.current_iteration     # Iteration actuelle
+session.start_time            # Date de debut de session
 
-# Convergence
-session.converged             # True si objectif atteint
-session.convergence_reason    # "TARGET_REACHED" | "MAX_ITER" | ...
+# Statut final
+session.final_status          # "success" | "max_iterations" | "timeout" | "no_improvement"
+session.final_reasoning       # Raison finale
 
 # Métriques
 session.best_result.sharpe_ratio
@@ -420,9 +421,7 @@ strategist, executor = create_optimizer_from_engine(
     llm_config=config,
     strategy_name="ema_cross",
     data=df,
-    use_walk_forward=True,      # Activer WF
-    train_size=0.7,             # 70% train, 30% test
-    purge_gap_days=5,           # Embargo 5 jours
+    use_walk_forward=True,      # Active WF (n_windows=6, train_ratio=0.75)
 )
 
 session = strategist.optimize(executor, max_iterations=15)
@@ -433,18 +432,22 @@ session = strategist.optimize(executor, max_iterations=15)
 ### Cas 3 : Analyse de Sensibilité
 
 ```python
-from agents.backtest_executor import ExperimentHistory
+history = executor.history
 
-history = session.experiment_history
-
-# Sensibilité d'un paramètre
-sensitivity = history.analyze_sensitivity("fast_period")
-print(f"Corrélation fast_period ↔ Sharpe: {sensitivity['correlation']:.2f}")
+# Sensibilite d'un parametre
+sensitivity = history.analyze_parameter_sensitivity()
+fast_stats = sensitivity.get("fast_period")
+if fast_stats:
+    print(f"fast_period corr: {fast_stats['correlation']:.2f}")
 
 # Meilleurs runs
-top_5 = history.get_best_experiments(n=5, metric="sharpe_ratio")
+top_5 = sorted(
+    [exp for exp in history.experiments if exp.success],
+    key=lambda exp: exp.sharpe_ratio,
+    reverse=True,
+)[:5]
 for exp in top_5:
-    print(f"Sharpe {exp.result.sharpe:.2f} | Params: {exp.params}")
+    print(f"Sharpe {exp.sharpe_ratio:.2f} | Params: {exp.request.parameters}")
 ```
 
 ---
@@ -469,12 +472,7 @@ executor = BacktestExecutor(
     backtest_fn=my_backtest_function,
     strategy_name="ema_cross",
     data=df,
-    walk_forward_enabled=True,
-    walk_forward_config={
-        "n_splits": 5,
-        "train_size": 0.7,
-        "purge_gap_days": 3,
-    },
+    validation_fn=my_walk_forward_fn,  # optionnel: doit retourner train_sharpe/test_sharpe/overfitting_ratio
 )
 ```
 

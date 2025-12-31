@@ -1,9 +1,23 @@
 """
-Backtest Core - Donchian Channel
-================================
+Module-ID: indicators.donchian
 
-Canal formé par les plus hauts et plus bas sur une période.
-Utilisé pour breakout trading.
+Purpose: Indicateur Donchian Channel (breakout) - hauts/bas sur période.
+
+Role in pipeline: data
+
+Key components: donchian_channel, DonchianSettings, calculate_donchian
+
+Inputs: DataFrame avec high, low; period
+
+Outputs: Dict{upper, lower, middle} ou Tuple
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: upper = max(high); lower = min(low); middle = (upper+lower)/2; breakout signal.
+
+Read-if: Modification période, output format.
+
+Skip-if: Vous utilisez juste calculate_indicator('donchian').
 """
 
 from dataclasses import dataclass

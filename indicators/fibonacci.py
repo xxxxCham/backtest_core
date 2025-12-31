@@ -1,8 +1,23 @@
 """
-Backtest Core - Fibonacci Levels
-================================
+Module-ID: indicators.fibonacci
 
-Rolling Fibonacci retracement levels based on high/low windows.
+Purpose: Niveaux Fibonacci retracement roulants basés fenetre high/low.
+
+Role in pipeline: technical indicator
+
+Key components: FibonacciSettings, fibonacci()
+
+Inputs: [high, low], period, fibonacci_ratios
+
+Outputs: dict {fib_0, fib_236, fib_382, fib_500, fib_618, fib_786, fib_1}
+
+Dependencies: numpy, pandas, indicators.registry
+
+Conventions: Niveaux standard 0%, 23.6%, 38.2%, 50%, 61.8%, 78.6%, 100%
+
+Read-if: Utiliser Fibonacci pour niveaux support/resistance.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass, field

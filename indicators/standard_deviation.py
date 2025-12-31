@@ -1,8 +1,23 @@
 """
-Backtest Core - Standard Deviation
-==================================
+Module-ID: indicators.standard_deviation
 
-Rolling standard deviation of a price series.
+Purpose: Écart-type roulant d'une série de prix - mesure volatilité.
+
+Role in pipeline: technical indicator
+
+Key components: StandardDeviationSettings, standard_deviation()
+
+Inputs: [close] ou [prix], period
+
+Outputs: numpy array standard deviation
+
+Dependencies: numpy, pandas, indicators.registry
+
+Conventions: Été pondéré par défaut (ddof=0)
+
+Read-if: Analyser volatilité prix.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

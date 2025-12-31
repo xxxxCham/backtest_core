@@ -1,8 +1,23 @@
 """
-Backtest Core - Performance Calculator
-======================================
+Module-ID: backtest.performance
 
-Calcul des métriques de performance standard et avancées.
+Purpose: Calculer les métriques de performance standard et avancées (rendement, risque, Sharpe, trades, etc.).
+
+Role in pipeline: metrics
+
+Key components: PerformanceMetrics, calculate_metrics, drawdown_series, format_metrics_report
+
+Inputs: PnL array, trades list, returns array, capital initial, durée en jours
+
+Outputs: PerformanceMetrics (dataclass complète), rapports formatés
+
+Dependencies: numpy, pandas, backtest.metrics_tier_s, utils.log
+
+Conventions: PnL en devise de base; rendements en fractions [0,1] ou pourcentages; durées en jours; Sharpe annualisé (252 jours).
+
+Read-if: Calcul métriques, rapports perfo, ou modification formules.
+
+Skip-if: Vous n'avez besoin que des résultats bruts sans métriques.
 """
 
 from dataclasses import dataclass
@@ -56,6 +71,10 @@ class PerformanceMetrics:
     risk_reward_ratio: float
     expectancy: float
 
+    # Protection ruine
+    account_ruined: bool = False
+    min_equity: float = 0.0
+
     # Métriques Tier S (optionnelles)
     tier_s: Optional[TierSMetrics] = None
 
@@ -83,6 +102,8 @@ class PerformanceMetrics:
             "calmar_ratio": self.calmar_ratio,
             "risk_reward_ratio": self.risk_reward_ratio,
             "expectancy": self.expectancy,
+            "account_ruined": self.account_ruined,
+            "min_equity": self.min_equity,
             "tier_s": self.tier_s.to_dict() if self.tier_s else None
         }
 
@@ -124,12 +145,16 @@ def drawdown_series(equity: pd.Series) -> pd.Series:
 
     Returns:
         Série de drawdown (valeurs négatives, 0 = au pic)
+        Clampe à -100% max (ruine du compte)
     """
     if equity.empty:
         return pd.Series([], dtype=np.float64)
 
     running_max = equity.expanding().max()
-    drawdown = (equity / running_max) - 1.0
+
+    # Protection contre équité négative : calcul puis clamp à -100%
+    drawdown_raw = equity - running_max  # Perte absolue
+    drawdown = (drawdown_raw / running_max).clip(lower=-1.0)  # Ratio clampe
 
     return drawdown
 
@@ -141,8 +166,6 @@ def max_drawdown(equity: pd.Series) -> float:
 
     dd = drawdown_series(equity)
     return float(dd.min()) if not dd.empty else 0.0
-
-
 
 
 def sharpe_ratio(
@@ -162,6 +185,7 @@ def sharpe_ratio(
     quelques trades non nuls sont disponibles.
     '''
     returns_series = returns.copy() if isinstance(returns, pd.Series) else pd.Series(returns)
+    _ = run_id
 
     # SHARPE_INPUT - Log entrée (désactivé pour performance)
     # if run_id:
@@ -236,51 +260,51 @@ def sharpe_ratio(
         is_short_backtest = backtest_days < 30
 
     # MIN_SAMPLES adaptatif : 2 pour backtests courts, 3 sinon
-    MIN_SAMPLES_FOR_SHARPE = 2 if is_short_backtest else 3
-    MIN_NON_ZERO_RETURNS = 2 if is_short_backtest else 3
-    if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
+    min_samples_for_sharpe = 2 if is_short_backtest else 3
+    min_non_zero_returns = 2 if is_short_backtest else 3
+    if len(returns_clean) < min_samples_for_sharpe:
         # if run_id:  # Désactivé pour performance
         #     logger.warning(
         #         f"SHARPE_ZERO run_id={run_id} reason=min_samples "
-        #         f"samples={len(returns_clean)} min_required={MIN_SAMPLES_FOR_SHARPE} "
+        #         f"samples={len(returns_clean)} min_required={min_samples_for_sharpe} "
         #         f"adaptive=True backtest_days={backtest_days if backtest_days else 'N/A'}"
         #     )
         # else:
         #     logger.debug(
         #         "sharpe_ratio_insufficient_samples samples=%s < min=%s, returning 0.0",
         #         len(returns_clean),
-        #         MIN_SAMPLES_FOR_SHARPE,
+        #         min_samples_for_sharpe,
         #     )
         return 0.0
 
     if method == "trading_days":
         returns_clean = returns_clean[returns_clean != 0.0]
-        if len(returns_clean) < MIN_SAMPLES_FOR_SHARPE:
+        if len(returns_clean) < min_samples_for_sharpe:
             # if run_id:  # Désactivé pour performance
             #     logger.warning(
             #         f"SHARPE_ZERO run_id={run_id} reason=min_samples_after_trading_days_filter "
-            #         f"samples={len(returns_clean)} min_required={MIN_SAMPLES_FOR_SHARPE}"
+            #         f"samples={len(returns_clean)} min_required={min_samples_for_sharpe}"
             #     )
             # else:
             #     logger.debug(
             #         "sharpe_ratio_insufficient_samples_after_filter samples=%s < min=%s, returning 0.0",
             #         len(returns_clean),
-            #         MIN_SAMPLES_FOR_SHARPE,
+            #         min_samples_for_sharpe,
             #     )
             return 0.0
     non_zero_count = int((returns_clean != 0.0).sum())
-    if non_zero_count < MIN_NON_ZERO_RETURNS:
+    if non_zero_count < min_non_zero_returns:
         # if run_id:  # Désactivé pour performance
         #     logger.warning(
         #         f"SHARPE_ZERO run_id={run_id} reason=min_non_zero "
-        #         f"non_zero={non_zero_count} min_required={MIN_NON_ZERO_RETURNS} "
+        #         f"non_zero={non_zero_count} min_required={min_non_zero_returns} "
         #         f"total_samples={len(returns_clean)} adaptive=True backtest_days={backtest_days if backtest_days else 'N/A'}"
         #     )
         # else:
         #     logger.debug(
         #         "sharpe_ratio_insufficient_non_zero non_zero=%s < min=%s, returning 0.0",
         #         non_zero_count,
-        #         MIN_NON_ZERO_RETURNS,
+        #         min_non_zero_returns,
         #     )
         return 0.0
 
@@ -322,26 +346,23 @@ def sharpe_ratio(
 
     sharpe = (mean_excess * np.sqrt(periods_per_year)) / std_returns if periods_per_year else 0.0
 
-    MAX_SHARPE = 20.0
-    clamped = False
-    if abs(sharpe) > MAX_SHARPE:
+    max_sharpe = 20.0
+    if abs(sharpe) > max_sharpe:
         # logger.warning(  # Désactivé pour performance
         #     "sharpe_ratio_clamped value=%.2f clamped_to=+/-%.1f std=%.6f mean=%.6f samples=%s",
         #     sharpe,
-        #     MAX_SHARPE,
+        #     max_sharpe,
         #     std_returns,
         #     mean_excess,
         #     len(returns_clean),
         # )
-        sharpe = np.sign(sharpe) * MAX_SHARPE
-        clamped = True
-
+        sharpe = np.sign(sharpe) * max_sharpe
     # SHARPE_OUTPUT - Désactivé pour performance
     # if run_id:
     #     logger.info(
     #         f"SHARPE_OUTPUT run_id={run_id} sharpe_final={float(sharpe):.4f} "
-    #         f"fallback_reason={'clamped' if clamped else 'none'} "
-    #         f"thresholds_applied=min_samples:{MIN_SAMPLES_FOR_SHARPE},min_non_zero:{MIN_NON_ZERO_RETURNS},min_vol:{min_annual_vol}"
+    #         f"fallback_reason=clamped "
+    #         f"thresholds_applied=min_samples:{min_samples_for_sharpe},min_non_zero:{min_non_zero_returns},min_vol:{min_annual_vol}"
     #     )
 
     return float(sharpe)
@@ -511,6 +532,17 @@ def calculate_metrics(
         equity=equity  # Passer equity pour daily_resample
     )
     metrics["max_drawdown"] = max_drawdown(equity) * 100  # En %
+
+    # Détection de la ruine du compte
+    metrics["account_ruined"] = bool((equity <= 0).any()) if not equity.empty else False
+    if metrics["account_ruined"]:
+        min_equity = float(equity.min())
+        metrics["min_equity"] = min_equity
+        logger.warning(
+            "ACCOUNT_RUINED equity_min=%.2f trades_until_ruin=%s",
+            min_equity,
+            len(equity[equity > 0]),
+        )
 
     # Volatilité annualisée
     volatility_returns = returns
@@ -751,13 +783,19 @@ class PerformanceCalculator:
 ║   Gain Moyen:          ${avg_win:>12,.2f}                 ║
 ║   Perte Moyenne:       ${avg_loss:>12,.2f}                ║
 ╚══════════════════════════════════════════════════════════╝
-""".format(**metrics)
+""".format(**metrics)  # pylint: disable=consider-using-f-string
 
         # Ajouter rapport Tier S si disponible
         if self._last_tier_s:
             report += format_tier_s_report(self._last_tier_s)
 
         return report
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur calcul des métriques
+# - Conventions unités (devise, fractions, jours, annualisé) explicitées
+# - Read-if/Skip-if ajoutés pour tri rapide
 
 
 __all__ = [

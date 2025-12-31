@@ -5,16 +5,17 @@ Backtest Core - Agents LLM Module
 Système d'optimisation autonome par agents LLM.
 
 Architecture:
-- Orchestrator: Machine à états pilotant le workflow
-- 4 Agents spécialisés: Analyst, Strategist, Critic, Validator
-- AutonomousStrategist: Agent autonome avec capacité de lancer des backtests
-- BacktestExecutor: Interface pour exécuter des backtests depuis les agents
-- State Machine: Transitions validées à chaque étape
+- Orchestrator: State machine du workflow multi-agents
+- 4 Agents specialises: Analyst, Strategist, Critic, Validator
+- AutonomousStrategist: agent autonome capable de lancer des backtests
+- BacktestExecutor: interface pour executer des backtests depuis les agents
+- State Machine: transitions validees a chaque etape
 
 Workflows:
 
-1. Mode Orchestré (analyse statique):
-    INIT → ANALYZE → PROPOSE → CRITIQUE → VALIDATE → [APPROVE/REJECT/ITERATE]
+1. Mode Orchestre (multi-agents, backtests si callback fourni):
+    INIT -> ANALYZE -> PROPOSE -> CRITIQUE -> VALIDATE -> ITERATE -> ...
+    Terminaison: APPROVED / REJECTED / FAILED
 
 2. Mode Autonome (avec backtests réels):
     >>> strategist.optimize(executor, params, bounds) → OptimizationSession
@@ -39,12 +40,13 @@ Usage Mode Autonome (RECOMMANDÉ):
     ... )
     >>> print(f"Best: {session.best_result.sharpe_ratio}")
 
-Usage Mode Orchestré (analyse sans exécution):
+Usage Mode Orchestre (analysis-only si aucun callback de backtest):
     >>> from agents import Orchestrator, OrchestratorConfig
     >>>
     >>> config = OrchestratorConfig(
     ...     strategy_name="ema_cross",
     ...     data_path="data/BTCUSDT_1h.parquet",
+    ...     on_backtest_needed=my_backtest_callback,
     ...     max_iterations=10,
     ... )
     >>> orchestrator = Orchestrator(config)
@@ -88,22 +90,22 @@ def _configure_agents_logger() -> None:
 
 _configure_agents_logger()
 
-from .analyst import AnalystAgent
-from .autonomous_strategist import (
+from .analyst import AnalystAgent  # noqa: E402
+from .autonomous_strategist import (  # noqa: E402
     AutonomousStrategist,
     IterationDecision,
     OptimizationSession,
     create_autonomous_optimizer,
 )
-from .backtest_executor import (
+from .backtest_executor import (  # noqa: E402
     BacktestExecutor,
     BacktestRequest,
     BacktestResult,
     ExperimentHistory,
 )
-from .base_agent import AgentContext, AgentResult, BaseAgent
-from .critic import CriticAgent
-from .integration import (
+from .base_agent import AgentContext, AgentResult, BaseAgent  # noqa: E402
+from .critic import CriticAgent  # noqa: E402
+from .integration import (  # noqa: E402
     create_optimizer_from_engine,
     create_orchestrator_with_backtest,
     get_strategy_param_bounds,
@@ -112,7 +114,7 @@ from .integration import (
     run_backtest_for_agent,
     run_walk_forward_for_agent,
 )
-from .llm_client import (
+from .llm_client import (  # noqa: E402
     LLMClient,
     LLMConfig,
     LLMProvider,
@@ -121,7 +123,7 @@ from .llm_client import (
     OpenAIClient,
     create_llm_client,
 )
-from .model_config import (
+from .model_config import (  # noqa: E402
     KNOWN_MODELS,
     ModelCategory,
     ModelInfo,
@@ -132,7 +134,7 @@ from .model_config import (
     list_available_models,
     set_global_model_config,
 )
-from .ollama_manager import (
+from .ollama_manager import (  # noqa: E402
     # GPU Memory Management
     GPUMemoryManager,
     LLMMemoryState,
@@ -144,15 +146,15 @@ from .ollama_manager import (
     prepare_for_llm_run,
     unload_model,
 )
-from .orchestrator import Orchestrator, OrchestratorConfig, OrchestratorResult
-from .state_machine import (
+from .orchestrator import Orchestrator, OrchestratorConfig, OrchestratorResult  # noqa: E402
+from .state_machine import (  # noqa: E402
     AgentState,
     StateMachine,
     StateTransition,
     ValidationResult,
 )
-from .strategist import StrategistAgent
-from .validator import ValidatorAgent
+from .strategist import StrategistAgent  # noqa: E402
+from .validator import ValidatorAgent  # noqa: E402
 
 __all__ = [
     # State Machine

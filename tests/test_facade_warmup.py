@@ -1,15 +1,29 @@
 """
-Tests pour la validation du warmup dans BackendFacade.
+Module-ID: tests.test_facade_warmup
 
-Vérifie que:
-1. Les fenêtres trop courtes sont détectées et neutralisées
-2. InsufficientDataError est levée si les données sont insuffisantes
-3. Les données suffisantes passent la validation
+Purpose: Valider warmup dans BackendFacade (detection fenêtres courtes, InsufficientDataError).
+
+Role in pipeline: testing
+
+Key components: test_warmup_validation, test_insufficient_data, fixtures facade/ohlcv_data
+
+Inputs: Mock DataFrame OHLCV, BacktestRequest avec validations
+
+Outputs: Pass/Fail assertions sur erreurs data
+
+Dependencies: pytest, unittest.mock, backtest.facade, backtest.errors
+
+Conventions: Fixtures pytest; mocks optionnels; tests isolés data.
+
+Read-if: Modification warmup logic ou validation data.
+
+Skip-if: Tests unitaires non critiques.
 """
+
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from unittest.mock import patch, MagicMock
 
 from backtest.facade import BackendFacade, BacktestRequest, WARMUP_MIN_DEFAULT
 from backtest.errors import InsufficientDataError, DataError

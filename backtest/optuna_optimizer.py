@@ -1,31 +1,23 @@
 """
-Backtest Core - Optuna Optimizer
-================================
+Module-ID: backtest.optuna_optimizer
 
-Optimisation bayésienne des paramètres de stratégie via Optuna.
-Réduit drastiquement le nombre de backtests nécessaires (100 vs 10k+)
-tout en trouvant des paramètres souvent meilleurs que le grid search.
+Purpose: Optimiser les paramètres via Optuna (bayésien TPE/CMA-ES) avec pruning et support multi-objectif.
 
-Avantages vs Grid Search:
-- 10-100x moins de runs pour trouver l'optimum
-- Exploration intelligente de l'espace des paramètres
-- Pruning automatique des runs peu prometteurs
-- Support multi-objectif (Pareto)
+Role in pipeline: optimization
 
-Usage:
-    >>> from backtest.optuna_optimizer import OptunaOptimizer
-    >>>
-    >>> optimizer = OptunaOptimizer(
-    ...     strategy_name="ema_cross",
-    ...     data=df,
-    ...     param_space={
-    ...         "fast_period": {"type": "int", "low": 5, "high": 50},
-    ...         "slow_period": {"type": "int", "low": 20, "high": 200},
-    ...     },
-    ... )
-    >>>
-    >>> result = optimizer.optimize(n_trials=100, metric="sharpe_ratio")
-    >>> print(result.best_params)
+Key components: OptunaOptimizer, OptunaResult, OptunaStudyConfig
+
+Inputs: strategy_name, DataFrame OHLCV, param_space Dict, n_trials, métrique(s) à optimiser, contraintes optionnelles
+
+Outputs: OptunaResult (best_params, best_value, study, history)
+
+Dependencies: optuna (TPE/CMA-ES samplers), backtest.engine, utils.observability
+
+Conventions: param_space Dict avec {"param_name": {"type": "int"/"float", "low": X, "high": Y}}; metric "sharpe_ratio" par défaut; directions {"metric": 1/-1}; pruning via MedianPruner/HyperbandPruner.
+
+Read-if: Configuration optimisation bayésienne, pruning, multi-objectif (Pareto) ou gestion des trials.
+
+Skip-if: Vous utilisez sweep/pareto au lieu d'optuna.
 """
 
 from __future__ import annotations
@@ -528,10 +520,10 @@ class OptunaOptimizer:
 
         # Préparer les callbacks (early stopping si configuré)
         final_callbacks = callbacks or []
-        
+
         # Utiliser early_stop_patience de l'argument ou de l'instance
         patience = early_stop_patience if early_stop_patience is not None else self.early_stop_patience
-        
+
         if patience and patience > 0:
             early_stop_cb = self._create_early_stop_callback(patience, direction)
             final_callbacks.append(early_stop_cb)
@@ -688,11 +680,11 @@ class OptunaOptimizer:
         # Early stopping pour multi-objectif (sur métrique primaire)
         callbacks = []
         patience = early_stop_patience if early_stop_patience is not None else self.early_stop_patience
-        
+
         if patience and patience > 0:
             # Utiliser la première métrique (index 0) comme référence pour early stopping
             early_stop_cb = self._create_early_stop_callback(
-                patience, 
+                patience,
                 directions[0],
                 metric_index=0  # Première métrique
             )
@@ -848,3 +840,9 @@ __all__ = [
     "suggest_param_space",
     "OPTUNA_AVAILABLE",
 ]
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur optimisation bayésienne
+# - Conventions Optuna (param_space format, directions, pruning) explicitées
+# - Read-if/Skip-if ajoutés pour tri rapide

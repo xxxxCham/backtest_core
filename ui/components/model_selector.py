@@ -1,20 +1,23 @@
 """
-Backtest Core - LLM Model Selector
-===================================
+Module-ID: ui.components.model_selector
 
-Helpers pour connecter l'interface Streamlit aux modèles Ollama.
+Purpose: Sélecteur modèles LLM - query Ollama, fallback list, recommendations par rôle.
 
-Features:
-- Récupère dynamiquement la liste des modèles disponibles via Ollama
-- Fournit un fallback cohérent quand Ollama n'est pas accessible
-- Centralise la logique pour que toutes les pages utilisent la même source
+Role in pipeline: configuration
 
-Usage:
-    >>> from ui.components.model_selector import get_available_models_for_ui
-    >>>
-    >>> # Dans Streamlit
-    >>> models = get_available_models_for_ui()
-    >>> selected_model = st.selectbox("Modèle LLM", models)
+Key components: get_available_models_for_ui(), FALLBACK_LLM_MODELS, role-based recommendations
+
+Inputs: Ollama endpoint (optionnel), role (Analyst/Strategist/Critic/Validator)
+
+Outputs: Model list [str] ordenée (recommandés en premier), fallback si Ollama down
+
+Dependencies: agents.ollama_manager (optionnel), log
+
+Conventions: Fallback list actualisée (Dec 2025); Ollama préféré; timeout 2s.
+
+Read-if: Modification fallback list ou role mappings.
+
+Skip-if: Vous appelez get_available_models_for_ui().
 """
 
 from __future__ import annotations

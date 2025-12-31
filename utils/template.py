@@ -1,17 +1,23 @@
 """
-Système de templates Jinja2 pour les prompts LLM.
+Module-ID: utils.template
 
-Ce module centralise la génération de tous les prompts envoyés aux agents LLM,
-en séparant le texte du code pour améliorer la maintenabilité.
+Purpose: Template Jinja2 centralisé pour prompts LLM agents.
 
-Usage:
-    from utils.template import render_prompt
+Role in pipeline: orchestration / LLM
 
-    prompt = render_prompt("analyst.jinja2", {
-        "strategy_name": "ema_cross",
-        "current_metrics": metrics,
-        ...
-    })
+Key components: render_prompt, TemplateLoader, prompt templates (analyst.jinja2, etc.)
+
+Inputs: Template name, context dict (strategy, metrics, proposals)
+
+Outputs: Prompt string formaté prêt pour LLM
+
+Dependencies: jinja2, pathlib, logging
+
+Conventions: Templates dans templates/ folder; variables contexte nommées; fallback strings si fichier manquant.
+
+Read-if: Modification templates, variables contexte.
+
+Skip-if: Vous appelez juste render_prompt().
 """
 
 from __future__ import annotations

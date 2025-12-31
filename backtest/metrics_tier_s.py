@@ -1,20 +1,23 @@
 """
-Backtest Core - Métriques Tier S (2025)
-=======================================
+Module-ID: backtest.metrics_tier_s
 
-Métriques de performance avancées utilisées par les institutions.
-Standards obligatoires pour validation anti-overfitting.
+Purpose: Calcul des métriques avancées (Sortino, Calmar, SQN, Recovery Factor, Ulcer Index, etc.) pour analyse institutionnelle.
 
-Métriques incluses:
-- Sortino Ratio (déjà dans performance.py, version améliorée ici)
-- Calmar Ratio
-- SQN (System Quality Number)
-- Recovery Factor
-- Ulcer Index
-- Martin Ratio (UPI)
-- Gain/Pain Ratio
-- R-Multiple
-- Outlier-Adjusted Sharpe
+Role in pipeline: metrics
+
+Key components: TierSMetrics, calculate_tier_s_metrics, format_tier_s_report, grade_tier_s
+
+Inputs: Returns array, trades list, max_drawdown, PnL
+
+Outputs: TierSMetrics (dataclass), tier_s_score (0-100), tier_s_grade (A/B/C/D/F)
+
+Dependencies: numpy, pandas, optionnel: tabulate (formatage)
+
+Conventions: Toutes les métriques normalisées (fractions 0-1 pour retours); scores 0-100; grades A=excellent, F=faible.
+
+Read-if: Analyse métriques avancées, scores institutionnels, ou grading stratégies.
+
+Skip-if: Vous n'utilisez que les métriques standards (Sharpe, Sortino basique).
 """
 
 from dataclasses import dataclass
@@ -34,31 +37,31 @@ except ImportError:
 @dataclass
 class TierSMetrics:
     """Container pour les métriques Tier S."""
-    
+
     # Ratios de risque ajusté
     sortino_ratio: float
     calmar_ratio: float
     sqn: float
     martin_ratio: float
-    
+
     # Facteurs de récupération
     recovery_factor: float
     gain_pain_ratio: float
-    
+
     # Indices de stress
     ulcer_index: float
-    
+
     # Métriques R-Multiple
     avg_r_multiple: float
     expectancy_r: float
-    
+
     # Sharpe ajusté
     outlier_adjusted_sharpe: float
-    
+
     # Qualité
     tier_s_score: float  # Score composite 0-100
     tier_s_grade: str    # A, B, C, D, F
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dictionnaire."""
         return {
@@ -85,33 +88,33 @@ def sortino_ratio(
 ) -> float:
     """
     Ratio de Sortino amélioré.
-    
+
     Ne pénalise que la volatilité baissière (downside deviation).
-    
+
     Formula: (R - Rf) / σ_downside
-    
+
     Args:
         returns: Série de rendements
         risk_free: Taux sans risque annuel
         periods_per_year: Périodes par an
         target_return: Rendement cible (défaut: 0)
-    
+
     Returns:
         Ratio de Sortino annualisé
     """
     if returns.empty or len(returns) < 2:
         return 0.0
-    
+
     returns_clean = returns.dropna()
     if returns_clean.empty:
         return 0.0
-    
+
     # Rendement excédentaire moyen
     rf_period = risk_free / periods_per_year
     target_period = target_return / periods_per_year
     excess_returns = returns_clean - rf_period
     mean_excess = excess_returns.mean()
-    
+
     # Downside deviation: écart-type des rendements sous le target
     # Utilise tous les rendements mais ne pénalise que les écarts négatifs
     downside_diff = np.minimum(returns_clean - target_period, 0)
@@ -123,13 +126,13 @@ def sortino_ratio(
         return float('inf') if mean_excess > 0 else 0.0
 
     downside_deviation = np.sqrt(downside_squared_sum / len(returns_clean))
-    
+
     if downside_deviation <= 1e-10:
         return float('inf') if mean_excess > 0 else 0.0
-    
+
     # Annualisation
     sortino = (mean_excess * np.sqrt(periods_per_year)) / downside_deviation
-    
+
     return float(np.clip(sortino, -100, 100))
 
 
@@ -140,56 +143,56 @@ def calmar_ratio(
 ) -> float:
     """
     Ratio de Calmar: CAGR / Max Drawdown absolu.
-    
+
     Mesure le rendement par unité de drawdown maximum.
     Bon indicateur de la relation risque/rendement sur le long terme.
-    
+
     Args:
         returns: Série de rendements
         equity: Courbe d'équité
         periods_per_year: Périodes par an
-    
+
     Returns:
         Ratio de Calmar
     """
     if returns.empty or equity.empty:
         return 0.0
-    
+
     # CAGR (Compound Annual Growth Rate)
     initial_value = equity.iloc[0]
     final_value = equity.iloc[-1]
-    
+
     if initial_value <= 0 or final_value <= 0:
         return 0.0
-    
+
     n_periods = len(equity)
     years = n_periods / periods_per_year
-    
+
     if years <= 0:
         return 0.0
-    
+
     cagr = (final_value / initial_value) ** (1 / years) - 1
-    
+
     # Max Drawdown
     running_max = equity.expanding().max()
     drawdown = (equity / running_max) - 1.0
     max_dd = abs(drawdown.min())
-    
+
     if max_dd <= 1e-10:
         return float('inf') if cagr > 0 else 0.0
-    
+
     calmar = cagr / max_dd
-    
+
     return float(np.clip(calmar, -100, 100))
 
 
 def sqn(trades_pnl: pd.Series, min_trades: int = 30) -> float:
     """
     System Quality Number (SQN) de Van Tharp.
-    
+
     Mesure la qualité d'un système de trading.
     Formula: √N × (Mean R / StdDev R)
-    
+
     Interprétation:
     - SQN < 1.6: Pauvre
     - 1.6 ≤ SQN < 2.0: En dessous de la moyenne
@@ -198,27 +201,27 @@ def sqn(trades_pnl: pd.Series, min_trades: int = 30) -> float:
     - 3.0 ≤ SQN < 5.0: Excellent
     - 5.0 ≤ SQN < 7.0: Superbe
     - SQN ≥ 7.0: Saint Graal
-    
+
     Args:
         trades_pnl: Série des P&L par trade
         min_trades: Minimum de trades pour calcul valide
-    
+
     Returns:
         SQN (plafonné à 10 pour éviter les outliers)
     """
     if trades_pnl.empty or len(trades_pnl) < min_trades:
         return 0.0
-    
+
     n = len(trades_pnl)
     mean_r = trades_pnl.mean()
     std_r = trades_pnl.std(ddof=1)
-    
+
     if std_r <= 1e-10:
         return 0.0
-    
+
     # SQN = √N × (Mean / Std)
     sqn_value = np.sqrt(n) * (mean_r / std_r)
-    
+
     # Plafonnement selon Van Tharp
     return float(np.clip(sqn_value, -10, 10))
 
@@ -229,56 +232,56 @@ def recovery_factor(
 ) -> float:
     """
     Recovery Factor: Net Profit / Max Drawdown absolu.
-    
+
     Mesure combien de fois le système a récupéré son pire drawdown.
-    
+
     Args:
         equity: Courbe d'équité
         initial_capital: Capital initial
-    
+
     Returns:
         Recovery Factor
     """
     if equity.empty:
         return 0.0
-    
+
     net_profit = equity.iloc[-1] - initial_capital
-    
+
     # Max Drawdown en valeur absolue
     running_max = equity.expanding().max()
     drawdown_abs = running_max - equity
     max_dd_abs = drawdown_abs.max()
-    
+
     if max_dd_abs <= 1e-10:
         return float('inf') if net_profit > 0 else 0.0
-    
+
     return float(np.clip(net_profit / max_dd_abs, -100, 100))
 
 
 def ulcer_index(equity: pd.Series) -> float:
     """
     Ulcer Index: Mesure du stress lié aux drawdowns.
-    
+
     Plus sensible aux drawdowns prolongés que le max drawdown simple.
     Formula: √(Σ D² / N) où D = drawdown en %
-    
+
     Args:
         equity: Courbe d'équité
-    
+
     Returns:
         Ulcer Index (plus bas = mieux)
     """
     if equity.empty or len(equity) < 2:
         return 0.0
-    
+
     # Calculer les drawdowns en %
     running_max = equity.expanding().max()
     drawdown_pct = ((equity / running_max) - 1.0) * 100
-    
+
     # Ulcer Index
     squared_dd = drawdown_pct ** 2
     ulcer = np.sqrt(squared_dd.mean())
-    
+
     return float(ulcer)
 
 
@@ -290,65 +293,65 @@ def martin_ratio(
 ) -> float:
     """
     Martin Ratio (UPI - Ulcer Performance Index).
-    
+
     Ratio rendement/ulcer index. Alternative au Sharpe utilisant
     l'Ulcer Index comme mesure de risque.
-    
+
     Formula: (Return - Rf) / Ulcer Index
-    
+
     Args:
         returns: Série de rendements
         equity: Courbe d'équité
         risk_free: Taux sans risque annuel
         periods_per_year: Périodes par an
-    
+
     Returns:
         Martin Ratio (plus haut = mieux)
     """
     if returns.empty or equity.empty:
         return 0.0
-    
+
     # Rendement annualisé
     total_return = (equity.iloc[-1] / equity.iloc[0]) - 1
     n_periods = len(equity)
     years = n_periods / periods_per_year
-    
+
     if years <= 0:
         return 0.0
-    
+
     annualized_return = ((1 + total_return) ** (1 / years) - 1) * 100
     excess_return = annualized_return - risk_free * 100
-    
+
     # Ulcer Index
     ui = ulcer_index(equity)
-    
+
     if ui <= 1e-10:
         return float('inf') if excess_return > 0 else 0.0
-    
+
     return float(np.clip(excess_return / ui, -100, 100))
 
 
 def gain_pain_ratio(trades_pnl: pd.Series) -> float:
     """
     Gain/Pain Ratio: Somme des gains / Somme des pertes.
-    
+
     Simple mais efficace pour évaluer l'asymétrie gains/pertes.
-    
+
     Args:
         trades_pnl: Série des P&L par trade
-    
+
     Returns:
         Gain/Pain ratio (> 1 = profitable)
     """
     if trades_pnl.empty:
         return 0.0
-    
+
     gains = trades_pnl[trades_pnl > 0].sum()
     losses = abs(trades_pnl[trades_pnl < 0].sum())
-    
+
     if losses <= 1e-10:
         return float('inf') if gains > 0 else 1.0
-    
+
     return float(gains / losses)
 
 
@@ -358,35 +361,35 @@ def r_multiple_stats(
 ) -> Tuple[float, float]:
     """
     Statistiques R-Multiple.
-    
+
     R = Profit / Risque Initial
     Permet de normaliser les trades par rapport au risque.
-    
+
     Args:
         trades_pnl: Série des P&L par trade
         initial_risk_per_trade: Risque initial par trade (ex: stop loss)
-    
+
     Returns:
         Tuple (avg_r_multiple, expectancy_r)
     """
     if trades_pnl.empty or initial_risk_per_trade <= 0:
         return 0.0, 0.0
-    
+
     # Convertir en R-multiples
     r_multiples = trades_pnl / initial_risk_per_trade
-    
+
     avg_r = float(r_multiples.mean())
-    
+
     # Expectancy en R
     wins = r_multiples[r_multiples > 0]
     losses = r_multiples[r_multiples < 0]
-    
+
     win_rate = len(wins) / len(r_multiples) if len(r_multiples) > 0 else 0
     avg_win_r = wins.mean() if len(wins) > 0 else 0
     avg_loss_r = abs(losses.mean()) if len(losses) > 0 else 0
-    
+
     expectancy_r = (win_rate * avg_win_r) - ((1 - win_rate) * avg_loss_r)
-    
+
     return avg_r, float(expectancy_r)
 
 
@@ -398,50 +401,50 @@ def outlier_adjusted_sharpe(
 ) -> float:
     """
     Sharpe Ratio ajusté pour les outliers.
-    
+
     Exclut les rendements extrêmes qui peuvent fausser le ratio.
-    
+
     Args:
         returns: Série de rendements
         risk_free: Taux sans risque annuel
         periods_per_year: Périodes par an
         percentile_cutoff: Percentile à exclure des deux côtés
-    
+
     Returns:
         Sharpe ratio ajusté
     """
     if returns.empty or len(returns) < 10:
         return 0.0
-    
+
     returns_clean = returns.dropna()
-    
+
     # Exclure les outliers
     lower = np.percentile(returns_clean, percentile_cutoff)
     upper = np.percentile(returns_clean, 100 - percentile_cutoff)
-    
+
     trimmed_returns = returns_clean[(returns_clean >= lower) & (returns_clean <= upper)]
-    
+
     if len(trimmed_returns) < 2:
         return 0.0
-    
+
     # Calcul du Sharpe
     rf_period = risk_free / periods_per_year
     excess_returns = trimmed_returns - rf_period
     mean_excess = excess_returns.mean()
     std_returns = trimmed_returns.std(ddof=1)
-    
+
     if std_returns <= 1e-10:
         return 0.0
-    
+
     sharpe = (mean_excess * np.sqrt(periods_per_year)) / std_returns
-    
+
     return float(np.clip(sharpe, -100, 100))
 
 
 def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
     """
     Calcule un score composite Tier S (0-100) et une note (A-F).
-    
+
     Pondération:
     - Sortino: 20%
     - Calmar: 15%
@@ -449,10 +452,10 @@ def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
     - Recovery Factor: 15%
     - Gain/Pain: 10%
     - Martin Ratio: 15%
-    
+
     Args:
         metrics: Dict des métriques Tier S
-    
+
     Returns:
         Tuple (score 0-100, grade A-F)
     """
@@ -462,7 +465,7 @@ def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
             return 50.0
         normalized = (value - bad) / (good - bad) * 100
         return float(np.clip(normalized, 0, 100))
-    
+
     # Seuils (bad, good) pour chaque métrique
     thresholds = {
         "sortino_ratio": (0, 3),
@@ -472,7 +475,7 @@ def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
         "gain_pain_ratio": (0.5, 3),
         "martin_ratio": (0, 5),
     }
-    
+
     weights = {
         "sortino_ratio": 0.20,
         "calmar_ratio": 0.15,
@@ -481,7 +484,7 @@ def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
         "gain_pain_ratio": 0.10,
         "martin_ratio": 0.15,
     }
-    
+
     score = 0.0
     for metric, (bad, good) in thresholds.items():
         value = metrics.get(metric, 0)
@@ -489,7 +492,7 @@ def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
             value = good * 2  # Traiter inf comme excellent
         normalized = normalize(value, bad, good)
         score += normalized * weights[metric]
-    
+
     # Grade
     if score >= 90:
         grade = "A"
@@ -501,7 +504,7 @@ def calculate_tier_s_score(metrics: Dict[str, float]) -> Tuple[float, str]:
         grade = "D"
     else:
         grade = "F"
-    
+
     return score, grade
 
 
@@ -516,7 +519,7 @@ def calculate_tier_s_metrics(
 ) -> TierSMetrics:
     """
     Calcule toutes les métriques Tier S.
-    
+
     Args:
         returns: Série de rendements
         equity: Courbe d'équité
@@ -525,7 +528,7 @@ def calculate_tier_s_metrics(
         initial_risk_per_trade: Risque initial par trade (pour R-multiple)
         periods_per_year: Périodes par an
         risk_free: Taux sans risque annuel
-    
+
     Returns:
         TierSMetrics avec toutes les métriques
     """
@@ -537,16 +540,16 @@ def calculate_tier_s_metrics(
     ulcer = ulcer_index(equity)
     martin = martin_ratio(returns, equity, risk_free, periods_per_year)
     gain_pain = gain_pain_ratio(trades_pnl)
-    
+
     # R-Multiple stats
     if initial_risk_per_trade is None:
         # Estimer le risque comme 2% du capital
         initial_risk_per_trade = initial_capital * 0.02
     avg_r, exp_r = r_multiple_stats(trades_pnl, initial_risk_per_trade)
-    
+
     # Sharpe ajusté
     adj_sharpe = outlier_adjusted_sharpe(returns, risk_free, periods_per_year)
-    
+
     # Score composite
     metrics_dict = {
         "sortino_ratio": sortino,
@@ -557,7 +560,7 @@ def calculate_tier_s_metrics(
         "martin_ratio": martin,
     }
     tier_score, tier_grade = calculate_tier_s_score(metrics_dict)
-    
+
     return TierSMetrics(
         sortino_ratio=sortino,
         calmar_ratio=calmar,
@@ -673,5 +676,12 @@ __all__ = [
     "martin_ratio",
     "gain_pain_ratio",
     "r_multiple_stats",
+]
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur métriques institutionnelles
+# - Conventions scores (0-100) et grades (A-F) explicitées
+# - Read-if/Skip-if ajoutés pour guider la lecture
     "outlier_adjusted_sharpe",
 ]

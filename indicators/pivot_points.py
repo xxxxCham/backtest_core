@@ -1,8 +1,23 @@
 """
-Backtest Core - Pivot Points
-============================
+Module-ID: indicators.pivot_points
 
-Classic pivot points computed from the previous bar.
+Purpose: Points pivot classiques - calculés depuis barre précédente.
+
+Role in pipeline: technical indicator
+
+Key components: PivotPointsSettings, pivot_points()
+
+Inputs: [high, low, close], method (classic/fibonacci/demark/camarilla)
+
+Outputs: dict {pivot, resistance1, resistance2, support1, support2}
+
+Dependencies: numpy, pandas, indicators.registry
+
+Conventions: Méthodes: classic, fibonacci, demark, camarilla
+
+Read-if: Utiliser pivots pour niveaux support/resistance.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

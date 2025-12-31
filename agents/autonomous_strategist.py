@@ -1,20 +1,23 @@
 """
-AutonomousStrategist - Agent capable de lancer des backtests et d'itérer.
+Module-ID: agents.autonomous_strategist
 
-C'est ici que le LLM apporte sa VRAIE valeur :
-- Il formule des hypothèses
-- Il lance des backtests pour les tester
-- Il analyse les résultats
-- Il itère avec de nouvelles idées
-- Il décide quand arrêter
+Purpose: Optimiseur autonome piloté par LLM qui itère propose → backtest → analyse → décide.
 
-Le code déterministe (métriques, seuils) reste dans les modules appropriés.
-Le LLM apporte la créativité et le raisonnement.
+Role in pipeline: orchestration
 
-GPU Memory Optimization:
-- Le LLM est déchargé du GPU pendant les calculs de backtest
-- Cela libère la VRAM pour les calculs NumPy/CuPy
-- Le LLM est rechargé automatiquement après chaque backtest
+Key components: AutonomousStrategist, OptimizationSession, IterationDecision, create_autonomous_optimizer
+
+Inputs: LLMClient/LLMConfig, BacktestExecutor/backtest_fn, DataFrame OHLCV, initial_params/param_bounds
+
+Outputs: OptimizationSession (best_result/all_results/decisions), historique de BacktestResult
+
+Dependencies: agents.backtest_executor, agents.base_agent, agents.llm_client, agents.ollama_manager, utils.parameters
+
+Conventions: target_metric="sharpe_ratio"; max_time_seconds en secondes; stop si next_parameters vide; LLM déchargé GPU durant backtests.
+
+Read-if: Vous modifiez/debuggez la boucle d'optimisation autonome ou son intégration d'exécution.
+
+Skip-if: Vous utilisez uniquement le mode orchestré sans exécution de backtests.
 """
 
 from __future__ import annotations
@@ -22,10 +25,8 @@ from __future__ import annotations
 import logging
 
 # Import search space statistics
-import sys
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
@@ -38,8 +39,6 @@ from .backtest_executor import (
 from .base_agent import AgentContext, AgentResult, AgentRole, BaseAgent
 from .llm_client import LLMClient, LLMConfig
 from .ollama_manager import GPUMemoryManager
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.parameters import compute_search_space_stats
 
 logger = logging.getLogger(__name__)
@@ -650,11 +649,16 @@ Actions:
         optim_id = f"{session.strategy_name}_{session.start_time.strftime('%Y%m%d_%H%M%S')}"
 
         # LLM_CALL_START
+        # Récupérer config depuis le client LLM
+        model_name = self.llm.config.model if hasattr(self.llm, 'config') else 'unknown'
+        max_tokens = self.llm.config.max_tokens if hasattr(self.llm, 'config') else 0
+        timeout = self.llm.config.timeout if hasattr(self.llm, 'config') else 0
+
         logger.info(
             f"LLM_CALL_START optim_id={optim_id} iteration={session.current_iteration} "
-            f"model={self.llm_config.get('model', 'unknown')} temperature=0.5 "
-            f"tokens_max={self.llm_config.get('max_tokens', 0)} "
-            f"timeout={self.llm_config.get('timeout', 0)}"
+            f"model={model_name} temperature=0.5 "
+            f"tokens_max={max_tokens} "
+            f"timeout={timeout}"
         )
 
         # LLM_PROMPT_META
@@ -911,3 +915,9 @@ def create_autonomous_optimizer(
     strategist = AutonomousStrategist(llm_client, verbose=True)
 
     return strategist, executor
+
+
+# Docstring update summary
+# - Docstring de module structurée et scannable (LLM-friendly)
+# - Conventions explicitées (métrique, unités, critères d'arrêt, GPU unload)
+# - Read-if/Skip-if ajoutés pour tri rapide

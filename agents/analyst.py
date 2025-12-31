@@ -1,14 +1,23 @@
 """
-Agent Analyst - Analyse quantitative des résultats.
+Module-ID: agents.analyst
 
-Rôle:
-- Analyser les métriques de performance
-- Identifier les forces et faiblesses
-- Détecter les patterns problématiques
-- Fournir un diagnostic structuré
+Purpose: Analyser quantitativement les résultats de backtest et diagnostiquer les forces/faiblesses.
 
-Input: Context avec métriques actuelles
-Output: Rapport d'analyse avec diagnostic et recommandations
+Role in pipeline: orchestration
+
+Key components: AnalystAgent, AnalysisResponse, KeyMetricsAssessment
+
+Inputs: AgentContext (métriques, configuration, walk-forward metrics optionnels)
+
+Outputs: AnalysisResponse (JSON Pydantic validé) avec évaluations et ratings
+
+Dependencies: agents.base_agent, utils.template, pydantic, utils.log
+
+Conventions: Ratings en patterns stricts (EXCELLENT/GOOD/FAIR/POOR/CRITICAL); fields non-null; template Jinja2 + parse_json
+
+Read-if: Modification analyse diagnostic, formules de notation, ou structure réponse.
+
+Skip-if: Vous ne changez que propose/critique/validate.
 """
 
 from __future__ import annotations

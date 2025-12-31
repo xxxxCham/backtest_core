@@ -1,29 +1,23 @@
 """
-State Machine pour le workflow d'optimisation LLM.
+Module-ID: agents.state_machine
 
-Machine à états avec transitions validées garantissant
-un cheminement rigoureux et traçable.
+Purpose: Machine à états rigide pour le workflow LLM avec transitions validées et traçabilité.
 
-États:
-    INIT        → Configuration et validation initiale
-    ANALYZE     → Analyse quantitative des résultats
-    PROPOSE     → Proposition de nouvelles configurations
-    CRITIQUE    → Évaluation critique (overfitting, risques)
-    VALIDATE    → Validation finale et décision
-    ITERATE     → Boucle d'itération
-    APPROVED    → État terminal: optimisation validée
-    REJECTED    → État terminal: optimisation rejetée
-    FAILED      → État terminal: erreur système
+Role in pipeline: orchestration
 
-Transitions:
-    INIT → ANALYZE (si données valides)
-    ANALYZE → PROPOSE (si analyse complète)
-    ANALYZE → VALIDATE (si l'analyse recommande d'arrêter)
-    PROPOSE → CRITIQUE (si propositions générées)
-    CRITIQUE → VALIDATE (si critique terminée)
-    VALIDATE → APPROVED | REJECTED | ITERATE
-    ITERATE → ANALYZE (si max_iterations non atteint)
-    * → FAILED (sur erreur)
+Key components: AgentState (enum), StateMachine, StateTransition, ValidationResult
+
+Inputs: État courant, action demandée, validateurs optionnels
+
+Outputs: Nouvel état, historique transitions, durées, erreurs
+
+Dependencies: utils.log, dataclasses
+
+Conventions: États INIT→ANALYZE→PROPOSE→CRITIQUE→VALIDATE→[APPROVED|REJECTED|ITERATE]; ITERATE reboucle à ANALYZE; *→FAILED sur erreur; iteration incrémenté sur transition ITERATE.
+
+Read-if: Modification transitions, ajout états, ou intégration validateurs custom.
+
+Skip-if: Vous ne touchez qu'aux agents isolés.
 """
 
 from __future__ import annotations

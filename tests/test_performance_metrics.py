@@ -1,3 +1,25 @@
+"""
+Module-ID: tests.test_performance_metrics
+
+Purpose: Tester calculate_metrics() - rendement annualisé calendrier, volatilité daily resample.
+
+Role in pipeline: testing
+
+Key components: test_calculate_metrics_annualized_return, test_volatility_annual_respects_daily_resample
+
+Inputs: Equity Series, returns Series, trades DataFrame
+
+Outputs: Metrics dict {annualized_return, volatility, etc.}
+
+Dependencies: pytest, numpy, pandas, backtest.performance
+
+Conventions: Temps calendaire pour annualisé; daily resample si intraday; edge cases gérés.
+
+Read-if: Modification metric calculation.
+
+Skip-if: Tests unitaires non critiques.
+"""
+
 import numpy as np
 import pandas as pd
 import pytest

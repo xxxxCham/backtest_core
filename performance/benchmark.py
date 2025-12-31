@@ -1,9 +1,23 @@
 """
-Backtest Core - Performance Benchmark Suite
-==========================================
+Module-ID: performance.benchmark
 
-Suite de benchmarks pour mesurer et comparer les performances
-des différentes implémentations (vectorisé, Numba, GPU).
+Purpose: Suite benchmarks - compare implémentations (vectorisé, Numba, GPU).
+
+Role in pipeline: performance testing
+
+Key components: Benchmark, BenchmarkResult, @timeit, run_suite(), compare()
+
+Inputs: Callable function/method, test data, iterations
+
+Outputs: BenchmarkResult {duration_ms, memory_mb, throughput_items/s}
+
+Dependencies: time, numpy, pandas, dataclasses
+
+Conventions: CSV export; statistical analysis (min/max/mean); outlier removal.
+
+Read-if: Modification benchmark methodology ou metrics.
+
+Skip-if: Vous appelez Benchmark().run() ou compare_functions().
 """
 
 from __future__ import annotations
@@ -29,7 +43,7 @@ class BenchmarkResult:
     memory_mb: float
     throughput_items_per_sec: float
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
     def __str__(self) -> str:
         return (
             f"{self.name:30s} | "
@@ -44,16 +58,16 @@ class BenchmarkComparison:
     """Comparaison de plusieurs benchmarks."""
     results: List[BenchmarkResult]
     baseline_name: Optional[str] = None
-    
+
     def summary(self) -> str:
         """Génère un résumé comparatif."""
         if not self.results:
             return "Aucun résultat"
-        
+
         # Trier par durée
         sorted_results = sorted(self.results, key=lambda r: r.duration_ms)
         baseline = self._get_baseline()
-        
+
         lines = []
         lines.append("=" * 90)
         lines.append("BENCHMARK RESULTS")
@@ -62,23 +76,23 @@ class BenchmarkComparison:
             f"{'Name':<30} | {'Time (ms)':>8} | {'Memory':>7} | {'Throughput':>10} | {'Speedup':>8}"
         )
         lines.append("-" * 90)
-        
+
         for result in sorted_results:
             speedup = baseline.duration_ms / result.duration_ms if baseline else 1.0
             speedup_str = f"{speedup:7.2f}x" if speedup != 1.0 else "baseline"
             lines.append(f"{result} | {speedup_str:>8}")
-        
+
         lines.append("=" * 90)
-        
+
         # Winner
         winner = sorted_results[0]
         if baseline and winner.name != baseline.name:
             improvement = (baseline.duration_ms - winner.duration_ms) / baseline.duration_ms * 100
             lines.append(f"\n🏆 Winner: {winner.name}")
             lines.append(f"   {improvement:.1f}% faster than baseline")
-        
+
         return "\n".join(lines)
-    
+
     def _get_baseline(self) -> Optional[BenchmarkResult]:
         """Retourne le résultat baseline."""
         if self.baseline_name:
@@ -93,7 +107,7 @@ def timer():
     """Context manager pour mesurer le temps d'exécution."""
     start = time.perf_counter()
     yield lambda: (time.perf_counter() - start) * 1000  # ms
-    
+
 
 def get_memory_usage() -> float:
     """Retourne l'utilisation mémoire actuelle en MB."""
@@ -116,7 +130,7 @@ def benchmark_function(
 ) -> BenchmarkResult:
     """
     Benchmark une fonction.
-    
+
     Args:
         func: Fonction à benchmarker
         *args: Arguments positionnels
@@ -125,35 +139,35 @@ def benchmark_function(
         warmup_runs: Nombre de runs de warm-up
         benchmark_runs: Nombre de runs de benchmark
         **kwargs: Arguments nommés
-    
+
     Returns:
         BenchmarkResult
     """
     func_name = name or func.__name__
-    
+
     # Warm-up
     for _ in range(warmup_runs):
         func(*args, **kwargs)
-    
+
     # Benchmark
     durations = []
     mem_before = get_memory_usage()
-    
+
     for _ in range(benchmark_runs):
         with timer() as get_time:
             func(*args, **kwargs)
         durations.append(get_time())
-    
+
     mem_after = get_memory_usage()
-    
+
     # Stats
     avg_duration = np.mean(durations)
     memory_used = max(0, mem_after - mem_before)
-    
+
     throughput = 0.0
     if n_items and avg_duration > 0:
         throughput = (n_items * 1000) / avg_duration  # items per second
-    
+
     return BenchmarkResult(
         name=func_name,
         duration_ms=avg_duration,
@@ -178,7 +192,7 @@ def benchmark_indicator_calculation(
 ) -> BenchmarkComparison:
     """
     Benchmark le calcul d'indicateurs techniques.
-    
+
     Compare:
     - Calcul natif pandas
     - Calcul NumPy vectorisé
@@ -188,48 +202,48 @@ def benchmark_indicator_calculation(
     np.random.seed(42)
     prices = 100 + np.cumsum(np.random.randn(data_size) * 0.5)
     prices_series = pd.Series(prices)
-    
+
     results = []
-    
+
     # 1. Pandas rolling
     def pandas_sma():
         return prices_series.rolling(window=period).mean().values
-    
+
     results.append(benchmark_function(
         pandas_sma,
         name="Pandas Rolling SMA",
         n_items=data_size
     ))
-    
+
     # 2. NumPy convolve
     def numpy_convolve():
         kernel = np.ones(period) / period
         return np.convolve(prices, kernel, mode='same')
-    
+
     results.append(benchmark_function(
         numpy_convolve,
         name="NumPy Convolve SMA",
         n_items=data_size
     ))
-    
+
     # 3. Numba (si disponible)
     try:
         from numba import njit
-        
+
         @njit(cache=True)
         def numba_sma(prices, period):
             n = len(prices)
             result = np.empty(n)
             result[:period-1] = np.nan
-            
+
             for i in range(period-1, n):
                 result[i] = np.mean(prices[i-period+1:i+1])
-            
+
             return result
-        
+
         # Warm-up compilation
         _ = numba_sma(prices, period)
-        
+
         results.append(benchmark_function(
             lambda: numba_sma(prices, period),
             name="Numba JIT SMA",
@@ -237,7 +251,7 @@ def benchmark_indicator_calculation(
         ))
     except ImportError:
         logger.warning("Numba non disponible pour benchmark")
-    
+
     return BenchmarkComparison(results, baseline_name="Pandas Rolling SMA")
 
 
@@ -247,18 +261,18 @@ def benchmark_simulator_performance(
 ) -> BenchmarkComparison:
     """
     Benchmark la simulation de trades.
-    
+
     Compare:
     - Simulateur Python pur (simulator.py)
     - Simulateur Numba (simulator_fast.py)
     """
     from backtest.simulator import simulate_trades
-    
+
     # Données de test
     np.random.seed(42)
     dates = pd.date_range("2020-01-01", periods=n_bars, freq="1h")
     close = 100 + np.cumsum(np.random.randn(n_bars) * 0.5)
-    
+
     df = pd.DataFrame({
         "timestamp": dates,
         "open": close,
@@ -267,10 +281,10 @@ def benchmark_simulator_performance(
         "close": close,
         "volume": np.random.randint(1000, 10000, n_bars)
     }).set_index("timestamp")
-    
+
     # Signaux aléatoires
     signals = pd.Series(np.random.choice([0, 1, -1], size=n_bars, p=[0.95, 0.025, 0.025]), index=df.index)
-    
+
     params = {
         "leverage": 3,
         "k_sl": 1.5,
@@ -278,9 +292,9 @@ def benchmark_simulator_performance(
         "fees_bps": 10,
         "slippage_bps": 5
     }
-    
+
     results = []
-    
+
     # 1. Simulateur standard
     results.append(benchmark_function(
         simulate_trades,
@@ -289,11 +303,11 @@ def benchmark_simulator_performance(
         n_items=n_bars,
         benchmark_runs=3
     ))
-    
+
     # 2. Simulateur Numba (si disponible)
     try:
         from backtest.simulator_fast import simulate_trades_fast, HAS_NUMBA
-        
+
         if HAS_NUMBA:
             results.append(benchmark_function(
                 simulate_trades_fast,
@@ -304,7 +318,7 @@ def benchmark_simulator_performance(
             ))
     except ImportError:
         logger.warning("simulator_fast non disponible")
-    
+
     return BenchmarkComparison(results, baseline_name="Simulator (Python)")
 
 
@@ -313,39 +327,39 @@ def benchmark_gpu_vs_cpu(
 ) -> BenchmarkComparison:
     """
     Benchmark calculs GPU vs CPU.
-    
+
     Requiert CuPy pour GPU.
     """
     from performance.device_backend import ArrayBackend
-    
+
     backend = ArrayBackend()
     results = []
-    
+
     # Données de test
     np.random.seed(42)
     data = np.random.randn(data_size)
-    
+
     # 1. CPU (NumPy)
     def numpy_operations():
         x = np.array(data)
         y = np.sqrt(np.abs(x))
         z = np.exp(-y ** 2)
         return np.sum(z)
-    
+
     results.append(benchmark_function(
         numpy_operations,
         name="NumPy (CPU)",
         n_items=data_size
     ))
-    
+
     # 2. GPU (CuPy) si disponible
     if backend.gpu_available:
         try:
             import cupy as cp
-            
+
             # Transférer données vers GPU
             data_gpu = cp.array(data)
-            
+
             def cupy_operations():
                 x = data_gpu
                 y = cp.sqrt(cp.abs(x))
@@ -353,7 +367,7 @@ def benchmark_gpu_vs_cpu(
                 result = cp.sum(z)
                 cp.cuda.Device().synchronize()
                 return float(result)
-            
+
             results.append(benchmark_function(
                 cupy_operations,
                 name="CuPy (GPU)",
@@ -361,48 +375,48 @@ def benchmark_gpu_vs_cpu(
             ))
         except ImportError:
             logger.warning("CuPy non disponible")
-    
+
     return BenchmarkComparison(results, baseline_name="NumPy (CPU)")
 
 
 def run_all_benchmarks(verbose: bool = True) -> Dict[str, BenchmarkComparison]:
     """
     Exécute tous les benchmarks.
-    
+
     Args:
         verbose: Afficher les résultats
-    
+
     Returns:
         Dict des comparaisons par catégorie
     """
     benchmarks = {}
-    
+
     logger.info("=" * 80)
     logger.info("DÉMARRAGE SUITE DE BENCHMARKS")
     logger.info("=" * 80)
-    
+
     # 1. Indicateurs
     logger.info("\n[1/3] Benchmark Indicateurs...")
     benchmarks["indicators"] = benchmark_indicator_calculation()
     if verbose:
         print(benchmarks["indicators"].summary())
-    
+
     # 2. Simulateur
     logger.info("\n[2/3] Benchmark Simulateur...")
     benchmarks["simulator"] = benchmark_simulator_performance()
     if verbose:
         print(benchmarks["simulator"].summary())
-    
+
     # 3. GPU vs CPU
     logger.info("\n[3/3] Benchmark GPU vs CPU...")
     benchmarks["gpu"] = benchmark_gpu_vs_cpu()
     if verbose:
         print(benchmarks["gpu"].summary())
-    
+
     logger.info("\n" + "=" * 80)
     logger.info("BENCHMARKS TERMINÉS")
     logger.info("=" * 80)
-    
+
     return benchmarks
 
 
@@ -412,7 +426,7 @@ def run_all_benchmarks(verbose: bool = True) -> Dict[str, BenchmarkComparison]:
 
 if __name__ == "__main__":
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Exécuter les benchmarks de performance")
     parser.add_argument(
         "--category",
@@ -431,9 +445,9 @@ if __name__ == "__main__":
         action="store_true",
         help="Mode silencieux (pas d'affichage)"
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.category == "all":
         run_all_benchmarks(verbose=not args.quiet)
     elif args.category == "indicators":

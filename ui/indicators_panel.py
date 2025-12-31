@@ -1,9 +1,23 @@
 """
-UI Component : Panel d'Indicateurs Dynamique
-=============================================
+Module-ID: ui.indicators_panel
 
-Génère l'affichage des indicateurs disponibles de manière dynamique
-à partir du registre d'indicateurs.
+Purpose: Panel d'indicateurs dynamique Streamlit - grouper et afficher indicateurs par catégorie (tendance, momentum, volatilite).
+
+Role in pipeline: visualization / input
+
+Key components: group_indicators_by_category(), render_indicator_panel(), selecteur interactif
+
+Inputs: Registry indicateurs
+
+Outputs: Interface sélection indicateurs avec catégories
+
+Dependencies: streamlit, indicators.registry
+
+Conventions: Catégories: 📈 Tendance, 📍 Momentum, 🎊 Volatilité, 💈 Volume
+
+Read-if: Modification UI sélection indicateurs ou catégorisation.
+
+Skip-if: Interface indicateurs déjà définie.
 """
 
 from typing import Dict, List

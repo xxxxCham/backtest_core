@@ -1,8 +1,23 @@
 """
-Backtest Core - EMA & SMA Indicators
-====================================
+Module-ID: indicators.ema
 
-Moyennes mobiles exponentielles et simples.
+Purpose: Indicateurs EMA (exponentielles) et SMA (simples) vectorisés.
+
+Role in pipeline: data
+
+Key components: ema, sma, EMASettings, calculate_ema
+
+Inputs: DataFrame avec close; period
+
+Outputs: np.ndarray (moyennes mobiles)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: Vectorisé NumPy; SMA simple, EMA avec alpha=2/(n+1); NaN au début.
+
+Read-if: Modification période, gestion NaN.
+
+Skip-if: Vous utilisez juste calculate_indicator('ema').
 """
 
 from dataclasses import dataclass

@@ -1,16 +1,26 @@
 """
-Générateur de données d'exemple pour les tests.
-===============================================
+Module-ID: data.sample_data.generate_sample
 
-Usage:
-    python data/sample_data/generate_sample.py
+Purpose: Générateur données d'exemple synthétiques pour tests unitaires.
+
+Role in pipeline: test data
+
+Key components: generate_sample_btcusdt(), generate_sample_multi_token(), export parquet
+
+Inputs: Output path, nombre barres
+
+Outputs: Fichier parquet OHLCV avec données réalistes
+
+Dependencies: numpy, pandas, pathlib
+
+Conventions: Seed=42 pour reproductibilité; colonnes [open, high, low, close, volume]
+
+Read-if: Générer données test ou démo.
+
+Skip-if: Vous utiliser vos données réelles.
 """
 
-import sys
 from pathlib import Path
-
-# Ajouter le répertoire parent au path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import numpy as np
 import pandas as pd

@@ -1,8 +1,23 @@
 """
-Backtest Core - Crypto Fear & Greed Index
-=========================================
+Module-ID: indicators.fear_greed
 
-Uses a provided fear/greed series and optional smoothing.
+Purpose: Index crypto Peur & Avidite - utilise série fournie + lissage optionnel.
+
+Role in pipeline: technical indicator
+
+Key components: FearGreedSettings, fear_greed()
+
+Inputs: fear_greed_series, smoothing_window, smoothing_type
+
+Outputs: numpy array fear/greed score
+
+Dependencies: numpy, pandas, indicators.ema, indicators.registry
+
+Conventions: EMA ou SMA lissage; normalisation 0-100
+
+Read-if: Utiliser Fear/Greed index pour contexte marché.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

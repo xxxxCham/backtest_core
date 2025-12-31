@@ -1,13 +1,23 @@
 """
-Backtest Core - Money Flow Index (MFI)
-======================================
+Module-ID: indicators.mfi
 
-MFI est comme le RSI mais intègre le volume.
-Mesure la pression d'achat/vente.
+Purpose: Indicateur MFI (Money Flow Index) - RSI pondéré par volume.
 
-Valeurs typiques:
-- MFI > 80 : Suracheté
-- MFI < 20 : Survendu
+Role in pipeline: data
+
+Key components: mfi, MFISettings, calculate_mfi
+
+Inputs: DataFrame avec high, low, close, volume; period (14)
+
+Outputs: np.ndarray (0-100 oscillateur)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: Similaire RSI mais intègre volume; >80 suracheté, <20 survendu.
+
+Read-if: Modification période, formule flux argent.
+
+Skip-if: Vous utilisez juste calculate_indicator('mfi').
 """
 
 from dataclasses import dataclass

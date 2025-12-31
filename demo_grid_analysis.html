@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse Profiling - Backtest Core</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0e1117;
+            color: #fafafa;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #26a69a;
+            border-bottom: 2px solid #26a69a;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #42a5f5;
+            margin-top: 40px;
+        }
+        .summary {
+            background: #1e272e;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .summary-item {
+            display: inline-block;
+            margin-right: 30px;
+        }
+        .summary-label {
+            color: #a8b2d1;
+            font-size: 0.9em;
+        }
+        .summary-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #26a69a;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #1e272e;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background: #26a69a;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #2c3e50;
+        }
+        tr:hover {
+            background: #262d35;
+        }
+        .function-name {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            color: #ffd700;
+        }
+        .metric {
+            text-align: right;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        .metric-high {
+            color: #ef5350;
+            font-weight: bold;
+        }
+        .metric-medium {
+            color: #ffa726;
+        }
+        .metric-low {
+            color: #66bb6a;
+        }
+        .section {
+            margin-bottom: 60px;
+        }
+        .warning {
+            background: #ffeb3b;
+            color: #000;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .tip {
+            background: #1e3a5f;
+            border-left: 4px solid #42a5f5;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Analyse de Performance - Backtest Core</h1>
+
+        <div class="summary">
+            <div class="summary-item">
+                <div class="summary-label">Rapport</div>
+                <div class="summary-value">demo_grid_20251229_224229.prof</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Fonctions analysées</div>
+                <div class="summary-value">50</div>
+            </div>
+        </div>
+
+        <div class="warning">
+            ⚠️ ZONES D'OPTIMISATION : Les fonctions en rouge sont les principaux goulots d'étranglement
+        </div>
+
+        <div class="section">
+            <h2>🔥 Top 30 - Temps Cumulé (avec appels internes)</h2>
+            <div class="tip">
+                📌 <strong>Temps cumulé</strong> = temps total passé dans la fonction + tout ce qu'elle appelle.
+                Ces fonctions sont les <strong>points d'entrée</strong> des zones lentes.
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fonction</th>
+                        <th>Appels</th>
+                        <th>Temps Cumulé (s)</th>
+                        <th>Par Appel (ms)</th>
+                        <th>% Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>1</td>
+                        <td class="function-name">warnings.py:505:__exit__</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>2</td>
+                        <td class="function-name">warnings.py:421:__init__</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>3</td>
+                        <td class="function-name">warnings.py:20:_showwarnmsg_impl</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.04</td>
+                        <td class="metric metric-low">0.4%</td>
+                    </tr>
+
+                    <tr>
+                        <td>4</td>
+                        <td class="function-name">contextlib.py:104:__init__</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>5</td>
+                        <td class="function-name">warnings.py:99:_showwarnmsg</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.04</td>
+                        <td class="metric metric-low">0.4%</td>
+                    </tr>
+
+                    <tr>
+                        <td>6</td>
+                        <td class="function-name">_dtype.py:326:_name_includes_bit_suffix</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>7</td>
+                        <td class="function-name">fromnumeric.py:89:_wrapreduction_any_all</td>
+                        <td class="metric">45</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">0.6%</td>
+                    </tr>
+
+                    <tr>
+                        <td>8</td>
+                        <td class="function-name">numeric.py:1420:normalize_axis_tuple</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>9</td>
+                        <td class="function-name">warnings.py:168:simplefilter</td>
+                        <td class="metric">45</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>10</td>
+                        <td class="function-name">warnings.py:120:_formatwarnmsg</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>11</td>
+                        <td class="function-name">warnings.py:184:_add_filter</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>12</td>
+                        <td class="function-name">__init__.py:280:_compile</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>13</td>
+                        <td class="function-name">numeric.py:2373:isclose</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.001</td>
+                        <td class="metric">0.04</td>
+                        <td class="metric metric-low">1.8%</td>
+                    </tr>
+
+                    <tr>
+                        <td>14</td>
+                        <td class="function-name">enum.py:202:__get__</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>15</td>
+                        <td class="function-name">contextlib.py:567:__exit__</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.02</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>16</td>
+                        <td class="function-name">__init__.py:226:compile</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>17</td>
+                        <td class="function-name">enum.py:1291:value</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>18</td>
+                        <td class="function-name">_dtype.py:23:_kind_name</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>19</td>
+                        <td class="function-name">numeric.py:171:ones</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>20</td>
+                        <td class="function-name">warnings.py:458:__init__</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>21</td>
+                        <td class="function-name">fromnumeric.py:51:_wrapfunc</td>
+                        <td class="metric">35</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>22</td>
+                        <td class="function-name">numeric.py:98:zeros_like</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>23</td>
+                        <td class="function-name">warnings.py:35:_formatwarnmsg_impl</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>24</td>
+                        <td class="function-name">warnings.py:133:filterwarnings</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>25</td>
+                        <td class="function-name">warnings.py:484:__enter__</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>26</td>
+                        <td class="function-name">_ufunc_config.py:446:__enter__</td>
+                        <td class="metric">130</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.5%</td>
+                    </tr>
+
+                    <tr>
+                        <td>27</td>
+                        <td class="function-name">array_ops.py:288:comparison_op</td>
+                        <td class="metric">50</td>
+                        <td class="metric metric-low">0.001</td>
+                        <td class="metric">0.02</td>
+                        <td class="metric metric-low">1.7%</td>
+                    </tr>
+
+                    <tr>
+                        <td>28</td>
+                        <td class="function-name">threading.py:323:wait</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.02</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>29</td>
+                        <td class="function-name">contextlib.py:141:__exit__</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>30</td>
+                        <td class="function-name">performance.py:436:calculate_metrics</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-high">0.046</td>
+                        <td class="metric">9.27</td>
+                        <td class="metric metric-high">91.8%</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>⚡ Top 30 - Temps Propre (sans appels internes)</h2>
+            <div class="tip">
+                📌 <strong>Temps propre</strong> = temps passé UNIQUEMENT dans cette fonction (hors appels).
+                Ces fonctions sont les <strong>véritables consommateurs</strong> de temps CPU.
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fonction</th>
+                        <th>Appels</th>
+                        <th>Temps Propre (s)</th>
+                        <th>Par Appel (ms)</th>
+                        <th>% Impact</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>1</td>
+                        <td class="function-name">warnings.py:505:__exit__</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.4%</td>
+                    </tr>
+
+                    <tr>
+                        <td>2</td>
+                        <td class="function-name">warnings.py:421:__init__</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>3</td>
+                        <td class="function-name">warnings.py:20:_showwarnmsg_impl</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>4</td>
+                        <td class="function-name">contextlib.py:104:__init__</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>5</td>
+                        <td class="function-name">warnings.py:99:_showwarnmsg</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>6</td>
+                        <td class="function-name">_dtype.py:326:_name_includes_bit_suffix</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.6%</td>
+                    </tr>
+
+                    <tr>
+                        <td>7</td>
+                        <td class="function-name">fromnumeric.py:89:_wrapreduction_any_all</td>
+                        <td class="metric">45</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">3.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>8</td>
+                        <td class="function-name">numeric.py:1420:normalize_axis_tuple</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.9%</td>
+                    </tr>
+
+                    <tr>
+                        <td>9</td>
+                        <td class="function-name">warnings.py:168:simplefilter</td>
+                        <td class="metric">45</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.4%</td>
+                    </tr>
+
+                    <tr>
+                        <td>10</td>
+                        <td class="function-name">warnings.py:120:_formatwarnmsg</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>11</td>
+                        <td class="function-name">warnings.py:184:_add_filter</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">2.6%</td>
+                    </tr>
+
+                    <tr>
+                        <td>12</td>
+                        <td class="function-name">__init__.py:280:_compile</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.7%</td>
+                    </tr>
+
+                    <tr>
+                        <td>13</td>
+                        <td class="function-name">numeric.py:2373:isclose</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-high">0.000</td>
+                        <td class="metric">0.02</td>
+                        <td class="metric metric-high">14.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>14</td>
+                        <td class="function-name">enum.py:202:__get__</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.2%</td>
+                    </tr>
+
+                    <tr>
+                        <td>15</td>
+                        <td class="function-name">contextlib.py:567:__exit__</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">1.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>16</td>
+                        <td class="function-name">__init__.py:226:compile</td>
+                        <td class="metric">20</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.4%</td>
+                    </tr>
+
+                    <tr>
+                        <td>17</td>
+                        <td class="function-name">enum.py:1291:value</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>18</td>
+                        <td class="function-name">_dtype.py:23:_kind_name</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>19</td>
+                        <td class="function-name">numeric.py:171:ones</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.6%</td>
+                    </tr>
+
+                    <tr>
+                        <td>20</td>
+                        <td class="function-name">warnings.py:458:__init__</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.7%</td>
+                    </tr>
+
+                    <tr>
+                        <td>21</td>
+                        <td class="function-name">fromnumeric.py:51:_wrapfunc</td>
+                        <td class="metric">35</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>22</td>
+                        <td class="function-name">numeric.py:98:zeros_like</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">1.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>23</td>
+                        <td class="function-name">warnings.py:35:_formatwarnmsg_impl</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.01</td>
+                        <td class="metric metric-low">1.0%</td>
+                    </tr>
+
+                    <tr>
+                        <td>24</td>
+                        <td class="function-name">warnings.py:133:filterwarnings</td>
+                        <td class="metric">10</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">1.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>25</td>
+                        <td class="function-name">warnings.py:484:__enter__</td>
+                        <td class="metric">55</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">2.1%</td>
+                    </tr>
+
+                    <tr>
+                        <td>26</td>
+                        <td class="function-name">_ufunc_config.py:446:__enter__</td>
+                        <td class="metric">130</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">3.9%</td>
+                    </tr>
+
+                    <tr>
+                        <td>27</td>
+                        <td class="function-name">array_ops.py:288:comparison_op</td>
+                        <td class="metric">50</td>
+                        <td class="metric metric-medium">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-medium">6.3%</td>
+                    </tr>
+
+                    <tr>
+                        <td>28</td>
+                        <td class="function-name">threading.py:323:wait</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.7%</td>
+                    </tr>
+
+                    <tr>
+                        <td>29</td>
+                        <td class="function-name">contextlib.py:141:__exit__</td>
+                        <td class="metric">25</td>
+                        <td class="metric metric-low">0.000</td>
+                        <td class="metric">0.00</td>
+                        <td class="metric metric-low">0.8%</td>
+                    </tr>
+
+                    <tr>
+                        <td>30</td>
+                        <td class="function-name">performance.py:436:calculate_metrics</td>
+                        <td class="metric">5</td>
+                        <td class="metric metric-high">0.001</td>
+                        <td class="metric">0.28</td>
+                        <td class="metric metric-high">48.6%</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Top 20 - Nombre d'Appels</h2>
+            <div class="tip">
+                📌 Fonctions appelées très fréquemment. Même une petite optimisation ici peut avoir un grand impact.
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fonction</th>
+                        <th>Appels</th>
+                        <th>Temps Total (s)</th>
+                        <th>Par Appel (μs)</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>1</td>
+                        <td class="function-name">warnings.py:505:__exit__</td>
+                        <td class="metric metric-low">55</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.8</td>
+                    </tr>
+
+                    <tr>
+                        <td>2</td>
+                        <td class="function-name">warnings.py:421:__init__</td>
+                        <td class="metric metric-low">5</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">1.0</td>
+                    </tr>
+
+                    <tr>
+                        <td>3</td>
+                        <td class="function-name">warnings.py:20:_showwarnmsg_impl</td>
+                        <td class="metric metric-low">5</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">1.5</td>
+                    </tr>
+
+                    <tr>
+                        <td>4</td>
+                        <td class="function-name">contextlib.py:104:__init__</td>
+                        <td class="metric metric-low">25</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">1.3</td>
+                    </tr>
+
+                    <tr>
+                        <td>5</td>
+                        <td class="function-name">warnings.py:99:_showwarnmsg</td>
+                        <td class="metric metric-low">5</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.8</td>
+                    </tr>
+
+                    <tr>
+                        <td>6</td>
+                        <td class="function-name">_dtype.py:326:_name_includes_bit_suffix</td>
+                        <td class="metric metric-low">25</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.6</td>
+                    </tr>
+
+                    <tr>
+                        <td>7</td>
+                        <td class="function-name">fromnumeric.py:89:_wrapreduction_any_all</td>
+                        <td class="metric metric-low">45</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">1.9</td>
+                    </tr>
+
+                    <tr>
+                        <td>8</td>
+                        <td class="function-name">numeric.py:1420:normalize_axis_tuple</td>
+                        <td class="metric metric-low">20</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">2.7</td>
+                    </tr>
+
+                    <tr>
+                        <td>9</td>
+                        <td class="function-name">warnings.py:168:simplefilter</td>
+                        <td class="metric metric-low">45</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.9</td>
+                    </tr>
+
+                    <tr>
+                        <td>10</td>
+                        <td class="function-name">warnings.py:120:_formatwarnmsg</td>
+                        <td class="metric metric-low">5</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">1.2</td>
+                    </tr>
+
+                    <tr>
+                        <td>11</td>
+                        <td class="function-name">warnings.py:184:_add_filter</td>
+                        <td class="metric metric-low">55</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">1.3</td>
+                    </tr>
+
+                    <tr>
+                        <td>12</td>
+                        <td class="function-name">__init__.py:280:_compile</td>
+                        <td class="metric metric-low">20</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">2.4</td>
+                    </tr>
+
+                    <tr>
+                        <td>13</td>
+                        <td class="function-name">numeric.py:2373:isclose</td>
+                        <td class="metric metric-low">20</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">20.3</td>
+                    </tr>
+
+                    <tr>
+                        <td>14</td>
+                        <td class="function-name">enum.py:202:__get__</td>
+                        <td class="metric metric-low">10</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.7</td>
+                    </tr>
+
+                    <tr>
+                        <td>15</td>
+                        <td class="function-name">contextlib.py:567:__exit__</td>
+                        <td class="metric metric-low">5</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">6.3</td>
+                    </tr>
+
+                    <tr>
+                        <td>16</td>
+                        <td class="function-name">__init__.py:226:compile</td>
+                        <td class="metric metric-low">20</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.6</td>
+                    </tr>
+
+                    <tr>
+                        <td>17</td>
+                        <td class="function-name">enum.py:1291:value</td>
+                        <td class="metric metric-low">10</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.3</td>
+                    </tr>
+
+                    <tr>
+                        <td>18</td>
+                        <td class="function-name">_dtype.py:23:_kind_name</td>
+                        <td class="metric metric-low">25</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.3</td>
+                    </tr>
+
+                    <tr>
+                        <td>19</td>
+                        <td class="function-name">numeric.py:171:ones</td>
+                        <td class="metric metric-low">10</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">4.5</td>
+                    </tr>
+
+                    <tr>
+                        <td>20</td>
+                        <td class="function-name">warnings.py:458:__init__</td>
+                        <td class="metric metric-low">55</td>
+                        <td class="metric">0.000</td>
+                        <td class="metric">0.4</td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <div class="tip">
+            <h3>💡 Guide d'Optimisation</h3>
+            <ol>
+                <li><strong>Temps Cumulé élevé</strong> → Identifier les fonctions appelées à l'intérieur (regarder la table "Temps Propre")</li>
+                <li><strong>Temps Propre élevé</strong> → Optimiser directement cette fonction (vectorisation, cache, algorithme plus efficace)</li>
+                <li><strong>Nombre d'appels élevé</strong> → Peut-on réduire les appels ? (cache, batch processing, lazy evaluation)</li>
+            </ol>
+            <h3>🎯 Priorités d'Optimisation</h3>
+            <ul>
+                <li>🔴 <strong>ROUGE</strong> (>10%) : Goulots critiques - optimisation prioritaire</li>
+                <li>🟠 <strong>ORANGE</strong> (5-10%) : Impact significatif - optimisation recommandée</li>
+                <li>🟢 <strong>VERT</strong> (<5%) : Impact faible - optimisation optionnelle</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

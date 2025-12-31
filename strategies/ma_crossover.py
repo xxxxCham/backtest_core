@@ -1,13 +1,23 @@
 """
-Backtest Core - MA Crossover Strategy
-=====================================
+Module-ID: strategies.ma_crossover
 
-Stratégie classique de croisement de moyennes mobiles simples (SMA).
-Signal d'achat quand SMA rapide croise SMA lente vers le haut.
-Signal de vente quand SMA rapide croise SMA lente vers le bas.
+Purpose: Stratégie trend-following par croisement de SMAs (moyennes mobiles simples).
 
-Indicateurs requis:
-- SMA: Simple Moving Average (calculé internement)
+Role in pipeline: core
+
+Key components: MAcrossoverStrategy, fast_period, slow_period
+
+Inputs: DataFrame OHLCV avec colonne close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur croisements SMA)
+
+Dependencies: strategies.base, indicators.sma, utils.parameters, pandas
+
+Conventions: fast < slow obligatoire; SMAs calculées internement; signaux confirmés.
+
+Read-if: Modification croisement SMA, périodes, ou logique.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List

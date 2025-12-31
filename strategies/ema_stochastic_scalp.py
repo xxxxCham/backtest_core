@@ -1,21 +1,23 @@
 """
-Backtest Core - EMA Stochastic Scalp Strategy
-==============================================
+Module-ID: strategies.ema_stochastic_scalp
 
-Stratégie de scalping crypto combinant:
-- EMA 50/100 pour la direction de tendance
-- Stochastic pour le timing d'entrée (survente/surachat)
+Purpose: Stratégie de scalping crypto combinant EMA direction + Stochastic timing.
 
-Win rate attendu: 65-80% selon documentation
-Optimale sur BTC/USDT, ETH/USDT avec timeframe 1m-5m.
+Role in pipeline: core
 
-Règles d'Entrée LONG:
-1. EMA 50 > EMA 100 (tendance haussière)
-2. Stochastic %K < oversold (survente) ou croise %D vers le haut
+Key components: EMAStochasticScalpStrategy, ema_fast, ema_slow, stoch_period, stoch_k_smooth
 
-Règles d'Entrée SHORT:
-1. EMA 50 < EMA 100 (tendance baissière)
-2. Stochastic %K > overbought (surachat) ou croise %D vers le bas
+Inputs: DataFrame OHLCV avec colonnes high, low, close, optionnel volume
+
+Outputs: StrategyResult (signaux 1/-1/0 sur EMA+Stochastic)
+
+Dependencies: strategies.base, indicators.ema, indicators.stochastic, utils.parameters
+
+Conventions: ema_fast < ema_slow; Stoch timing sur seuils oversold/overbought; win rate 65-80% cible; 1m-5m optimal.
+
+Read-if: Modification logique scalping, seuils Stochastic, ou EMA.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 
 from typing import Any, Dict, List

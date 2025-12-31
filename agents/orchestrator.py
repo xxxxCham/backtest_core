@@ -1,14 +1,23 @@
 """
-Orchestrator - Chef d'orchestre du workflow d'optimisation.
+Module-ID: agents.orchestrator
 
-Coordonne:
-- La State Machine (transitions validées)
-- Les 4 Agents (Analyst, Strategist, Critic, Validator)
-- L'exécution des backtests
-- La convergence et les critères d'arrêt
+Purpose: Orchestrer le workflow multi-agents (Analyst/Strategist/Critic/Validator) et piloter la boucle d’optimisation.
 
-Workflow complet:
-    INIT → [ANALYZE → PROPOSE → CRITIQUE → VALIDATE]* → APPROVED/REJECTED
+Role in pipeline: orchestration
+
+Key components: OrchestratorConfig, Orchestrator, StateMachine, ValidationResult, run_walk_forward_for_agent
+
+Inputs: LLMConfig/clients, callbacks (on_backtest_needed), données (path/df), paramètres initiaux et contraintes
+
+Outputs: Décision finale (APPROVED/REJECTED/FAILED), historiques d’itérations, logs/mémoire LLM, suivi paramètres
+
+Dependencies: agents.state_machine, agents.*Agent, agents.integration, agents.model_config, utils.llm_memory, utils.session_param_tracker
+
+Conventions: États INIT→ANALYZE→PROPOSE→CRITIQUE→VALIDATE→ITERATE; ABORT mappe sur FAILED; timestamps en UTC si utilisés.
+
+Read-if: Vous touchez aux transitions, critères d’arrêt, mémoire/logs, ou au wiring des agents.
+
+Skip-if: Vous ne modifiez qu’un agent isolé ou le moteur de backtest pur.
 """
 
 from __future__ import annotations
@@ -50,8 +59,10 @@ try:
 except ImportError:
     TQDM_AVAILABLE = False
     # Fallback: tqdm est une fonction identité
+
     def tqdm(iterable, **kwargs):
         return iterable
+
 
 logger = logging.getLogger(__name__)
 
@@ -501,6 +512,11 @@ class Orchestrator:
 
         return result
 
+        # Docstring update summary
+        # - Docstring de module normalisée (LLM-friendly) et orientée orchestration
+        # - Conventions d’états/terminaison explicitées pour éviter les ambiguïtés
+        # - Read-if/Skip-if ajoutés pour accélérer le tri des fichiers
+
     def _run_workflow(self) -> None:
         """Exécute la boucle principale du workflow."""
 
@@ -835,8 +851,11 @@ class Orchestrator:
                 self.context.current_metrics = best_tested["metrics"]
 
                 # Mettre à jour le best si meilleur
-                if (self.context.best_metrics is None or
-                    best_tested["metrics"].sharpe_ratio > self.context.best_metrics.sharpe_ratio):
+                if (
+                    self.context.best_metrics is None
+                    or best_tested["metrics"].sharpe_ratio
+                    > self.context.best_metrics.sharpe_ratio
+                ):
                     self.context.best_metrics = best_tested["metrics"]
                     self.context.best_params = best_tested["params"].copy()
 
@@ -1231,14 +1250,14 @@ class Orchestrator:
         if self.config.walk_forward_disabled_reason:
             lines.extend([
                 "⚠️ WALK-FORWARD VALIDATION:",
-                f"  Status: DÉSACTIVÉ AUTOMATIQUEMENT",
+                "  Status: DÉSACTIVÉ AUTOMATIQUEMENT",
                 f"  Raison: {self.config.walk_forward_disabled_reason}",
                 "",
             ])
         elif self.config.use_walk_forward:
             lines.extend([
                 "✅ WALK-FORWARD VALIDATION:",
-                f"  Status: ACTIVÉ",
+                "  Status: ACTIVÉ",
                 f"  Windows: {self.config.walk_forward_windows}",
                 f"  Train ratio: {self.config.train_ratio:.0%}",
                 "",

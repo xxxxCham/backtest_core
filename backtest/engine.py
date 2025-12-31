@@ -1,16 +1,23 @@
 """
-Backtest Core - Backtest Engine
-===============================
+Module-ID: backtest.engine
 
-Moteur de backtesting simplifié et robuste.
+Purpose: Orchestrer le pipeline complet de backtesting (données → indicateurs → signaux → trades → métriques).
 
-Pipeline:
-1. Charger les données (ou recevoir un DataFrame)
-2. Calculer les indicateurs requis par la stratégie
-3. Générer les signaux de trading
-4. Simuler les trades
-5. Calculer les métriques de performance
-6. Retourner le résultat complet
+Role in pipeline: orchestration / core
+
+Key components: BacktestEngine, RunResult, run_backtest
+
+Inputs: DataFrame OHLCV, StrategyBase, Config optionnel
+
+Outputs: RunResult (trades, metrics, equity curve, detailed report)
+
+Dependencies: strategies.base, indicators.registry, backtest.simulator, backtest.performance, data.indicator_bank, utils.config
+
+Conventions: Indicateurs calculés une fois; signaux normalisés (1/-1/0); prix en devise de base.
+
+Read-if: Vous modifiez le pipeline principal ou l'API de BacktestEngine.
+
+Skip-if: Vous ne faites que des stratégies/indicateurs.
 """
 
 from __future__ import annotations
@@ -187,11 +194,12 @@ class BacktestEngine:
         self.counters = PerfCounters()
         self.counters.start("total")
 
-        # Initialiser le counting handler pour compter warnings/errors
-        counting_handler = CountingHandler()
-        # Attacher au logger sous-jacent (ObsLoggerAdapter.logger)
-        underlying_logger = self.logger.logger if hasattr(self.logger, 'logger') else self.logger
-        underlying_logger.addHandler(counting_handler)
+        # Initialiser le counting handler pour compter warnings/errors (seulement si pas en silent_mode)
+        if not silent_mode:
+            counting_handler = CountingHandler()
+            # Attacher au logger sous-jacent (ObsLoggerAdapter.logger)
+            underlying_logger = self.logger.logger if hasattr(self.logger, 'logger') else self.logger
+            underlying_logger.addHandler(counting_handler)
 
         # Enrichir le logger avec contexte
         self.logger = self.logger.with_context(symbol=symbol, timeframe=timeframe)
@@ -207,7 +215,7 @@ class BacktestEngine:
                 f"RUN_START run_id={self.run_id} git_commit={get_git_commit()} mode=backtest "
                 f"symbol={symbol} timeframe={timeframe} strategy={strategy_name_log} "
                 f"initial_capital={self.initial_capital} fees_bps={self.config.fees_bps} "
-                f"slippage_bps={self.config.slippage_bps} leverage={params.get('leverage', 1) if params else 1} "
+                f"slippage_bps={self.config.slippage_bps} leverage={params.get('leverage', 1) if params is not None else 1} "
                 f"seed={seed} n_bars={len(df)} period_start={df.index[0]} period_end={df.index[-1]}"
             )
 
@@ -366,8 +374,9 @@ class BacktestEngine:
                     f"warnings_count={counting_handler.warnings} errors_count={counting_handler.errors}"
                 )
 
-            # Nettoyer le handler après utilisation
-            underlying_logger.removeHandler(counting_handler)
+            # Nettoyer le handler après utilisation (seulement si créé)
+            if not silent_mode:
+                underlying_logger.removeHandler(counting_handler)
 
             return result
 
@@ -386,6 +395,7 @@ class BacktestEngine:
         params: Optional[Dict[str, Any]]
     ) -> None:
         """Valide les entrées du backtest."""
+        _ = params
 
         # Validation DataFrame
         if df.empty:
@@ -407,16 +417,16 @@ class BacktestEngine:
 
     def _get_strategy_by_name(self, name: str) -> StrategyBase:
         """Récupère une stratégie par son nom depuis le registre global."""
-        from strategies.base import get_strategy, list_strategies
+        from strategies.base import get_strategy, list_strategies  # pylint: disable=import-outside-toplevel
 
         name_lower = name.lower().replace("-", "_").replace(" ", "_")
 
         try:
             strategy_class = get_strategy(name_lower)
             return strategy_class()
-        except ValueError:
+        except ValueError as exc:
             available = ", ".join(list_strategies())
-            raise ValueError(f"Stratégie inconnue: '{name}'. Disponibles: {available}")
+            raise ValueError(f"Stratégie inconnue: '{name}'. Disponibles: {available}") from exc
 
     def _calculate_indicators(
         self,
@@ -433,7 +443,7 @@ class BacktestEngine:
             self.logger.debug(f"  Calcul indicateur: {indicator_name}")
 
             # Extraire les paramètres spécifiques à l'indicateur
-            indicator_params = self._extract_indicator_params(indicator_name, params)
+            indicator_params = self._extract_indicator_params(strategy, indicator_name, params)
 
             try:
                 cached_result = None
@@ -483,7 +493,7 @@ class BacktestEngine:
         if not execution_model:
             return None
 
-        from backtest.execution import create_execution_engine
+        from backtest.execution import create_execution_engine  # pylint: disable=import-outside-toplevel
 
         exec_kwargs: Dict[str, Any] = {}
         for key in (
@@ -516,28 +526,41 @@ class BacktestEngine:
 
     def _extract_indicator_params(
         self,
+        strategy,
         indicator_name: str,
         params: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Extrait les paramètres spécifiques à un indicateur."""
 
-        # Mapping des préfixes de paramètres
+        # Option 1: Si la stratégie a une méthode get_indicator_params, l'utiliser
+        if hasattr(strategy, 'get_indicator_params'):
+            return strategy.get_indicator_params(indicator_name, params)
+
+        # Option 2 (fallback): Extraction automatique avec mapping correct
         prefix_map = {
-            "bollinger": "bb_",
-            "atr": "atr_",
-            "rsi": "rsi_",
-            "ema": "ema_"
+            "bollinger": ("bb_", {"std": "std_dev"}),  # Mapping std → std_dev
+            "atr": ("atr_", {}),
+            "rsi": ("rsi_", {}),
+            "ema": ("ema_", {})
         }
 
-        prefix = prefix_map.get(indicator_name, f"{indicator_name}_")
+        if indicator_name not in prefix_map:
+            # Fallback pour indicateurs non mappés
+            prefix = f"{indicator_name}_"
+            renames = {}
+        else:
+            prefix, renames = prefix_map[indicator_name]
+
         indicator_params = {}
 
         # Extraire les paramètres avec le préfixe
         for key, value in params.items():
             if key.startswith(prefix):
                 # Enlever le préfixe
-                param_name = key[len(prefix):]
-                indicator_params[param_name] = value
+                clean_key = key[len(prefix):]
+                # Appliquer le mapping de renommage
+                final_key = renames.get(clean_key, clean_key)
+                indicator_params[final_key] = value
 
         # Paramètres directs (sans préfixe mais reconnus)
         direct_params = {
@@ -586,3 +609,9 @@ def quick_backtest(
 
 
 __all__ = ["BacktestEngine", "RunResult", "quick_backtest"]
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur le pipeline
+# - Conventions d'unités/normalisations explicitées (signaux 1/-1/0, prix en devise)
+# - Read-if/Skip-if ajoutés pour tri rapide

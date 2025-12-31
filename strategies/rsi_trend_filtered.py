@@ -1,6 +1,23 @@
 """
-RSI Reversal avec filtre de tendance.
-N'achète en survente que si tendance haussière (EMA rapide > EMA lente).
+Module-ID: strategies.rsi_trend_filtered
+
+Purpose: Stratégie RSI filtrée par EMA (mean-reversion avec trend check).
+
+Role in pipeline: core
+
+Key components: RSITrendFilteredStrategy, rsi_period, ema_fast, ema_slow, oversold_level
+
+Inputs: DataFrame OHLCV avec colonnes high, low, close
+
+Outputs: StrategyResult (signaux 1/-1/0 sur RSI + EMA trend)
+
+Dependencies: strategies.base, indicators.rsi, indicators.ema, utils.parameters
+
+Conventions: Filtre trend: ema_fast > ema_slow requis pour LONG; RSI oversold < seuil; évite contre-trend.
+
+Read-if: Modification seuils RSI, logique filtre EMA, ou configuration.
+
+Skip-if: Vous ne changez que d'autres stratégies.
 """
 from typing import Any, Dict, List
 import pandas as pd
@@ -12,11 +29,11 @@ from utils.parameters import ParameterSpec
 @register_strategy("rsi_trend_filtered")
 class RSITrendFilteredStrategy(StrategyBase):
     """RSI avec filtre EMA pour éviter trades contre-tendance."""
-    
+
     @property
     def required_indicators(self) -> List[str]:
         return ["rsi"]
-    
+
     @property
     def default_params(self) -> Dict[str, Any]:
         return {
@@ -27,7 +44,7 @@ class RSITrendFilteredStrategy(StrategyBase):
             "ema_slow": 50,
             "leverage": 1,
         }
-    
+
     @property
     def parameter_specs(self) -> Dict[str, ParameterSpec]:
         return {
@@ -38,10 +55,10 @@ class RSITrendFilteredStrategy(StrategyBase):
             "ema_slow": ParameterSpec("ema_slow", 30, 100, 50, int, "EMA lente"),
             "leverage": ParameterSpec("leverage", 1, 5, 1, int, "Levier"),
         }
-    
+
     def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:
         signals = pd.Series(0.0, index=df.index)
-        
+
         rsi_period = int(params.get("rsi_period", 14))
         ema_fast_period = int(params.get("ema_fast", 20))
         ema_slow_period = int(params.get("ema_slow", 50))
@@ -57,7 +74,7 @@ class RSITrendFilteredStrategy(StrategyBase):
 
         rsi = pd.Series(rsi_values, index=df.index)
         close = df["close"]
-        
+
         # EMA pour filtre de tendance
         ema_fast = close.ewm(
             span=ema_fast_period, adjust=False
@@ -65,23 +82,23 @@ class RSITrendFilteredStrategy(StrategyBase):
         ema_slow = close.ewm(
             span=ema_slow_period, adjust=False
         ).mean()
-        
+
         # Filtre de tendance
         uptrend = ema_fast > ema_slow
         downtrend = ema_fast < ema_slow
-        
+
         # Signaux RSI
         rsi_prev = rsi.shift(1)
         rsi_oversold = (rsi < params["oversold_level"]) & (rsi_prev >= params["oversold_level"])
         rsi_overbought = (rsi > params["overbought_level"]) & (rsi_prev <= params["overbought_level"])
-        
+
         # LONG seulement si tendance haussière
         signals[rsi_oversold & uptrend] = 1.0
-        
+
         # SHORT seulement si tendance baissière
         signals[rsi_overbought & downtrend] = -1.0
-        
+
         return signals
-    
+
     def describe(self) -> str:
         return "RSI Reversal avec filtre de tendance EMA (évite trades contre-tendance)"

@@ -5,11 +5,10 @@ Vérifie que total_trades est toujours un entier, jamais un float.
 """
 
 import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from backtest.engine import BacktestEngine
 
 print("=" * 80)
@@ -54,9 +53,9 @@ for i, params in enumerate(param_grid, 1):
     print(f"   Type = {type(total_trades).__name__}")
 
     if not isinstance(total_trades, (int, np.integer)):
-        print(f"   ❌ PROBLÈME: total_trades n'est pas un int!")
+        print("   ❌ PROBLÈME: total_trades n'est pas un int!")
     else:
-        print(f"   ✅ Type correct")
+        print("   ✅ Type correct")
 
     # Simuler ce que fait l'UI
     result_dict = {

@@ -1,8 +1,23 @@
 """
-Backtest Core - Trade Simulator
-================================
+Module-ID: backtest.simulator
 
-Simulation de l'exécution des trades avec gestion des positions.
+Purpose: Simuler l'exécution des trades et le calcul des courbes d'équité/rendement.
+
+Role in pipeline: execution
+
+Key components: Trade, simulate_trades, calculate_equity_curve, calculate_returns
+
+Inputs: Signaux (1/-1/0), DataFrame OHLCV, paramètres d'exécution (spread, slippage, levier)
+
+Outputs: Trade list, equity curve array, returns array
+
+Dependencies: numpy, pandas, utils.log
+
+Conventions: Trade.side = 'LONG'|'SHORT'; pnl en devise de base; return_pct en fractions [0,1] ou pourcentages.
+
+Read-if: Optimisation simulation ou modification de la mécanique des trades.
+
+Skip-if: Vous ne touchez qu'aux stratégies/indicateurs.
 """
 
 from dataclasses import dataclass
@@ -19,6 +34,7 @@ try:
     TQDM_AVAILABLE = True
 except ImportError:
     TQDM_AVAILABLE = False
+
     def tqdm(iterable, **kwargs):
         return iterable
 
@@ -109,7 +125,7 @@ def simulate_trades(
     initial_capital = params.get("initial_capital", 10000.0)
     fees_bps = params.get("fees_bps", 10.0)
     slippage_bps = params.get("slippage_bps", 5.0)
-    
+
     # Mode d'exécution
     use_realistic_execution = execution_engine is not None
     if use_realistic_execution:
@@ -124,7 +140,7 @@ def simulate_trades(
     signal_values = signals.values if hasattr(signals, "values") else signals
 
     n_bars = len(closes)
-    
+
     # Tracking des coûts d'exécution
     total_spread_cost = 0.0
     total_slippage_cost = 0.0
@@ -147,7 +163,7 @@ def simulate_trades(
         if position == 0 and signal != 0:
             position = int(signal)
             requested_size = leverage * initial_capital / close_price
-            
+
             # Calcul du prix d'entrée
             if use_realistic_execution:
                 exec_result = execution_engine.execute_order(
@@ -169,7 +185,7 @@ def simulate_trades(
                 slip_factor = 1 + (slippage_bps * 0.0001 * position)
                 entry_price = close_price * slip_factor
                 position_size = leverage * initial_capital / entry_price
-            
+
             entry_time = timestamp
             exit_pending_reason = None
 
@@ -314,7 +330,7 @@ def simulate_trades(
             total_slippage_cost += exec_result.slippage_cost
         else:
             final_price = closes[-1] * (1 - slippage_bps * 0.0001 * position)
-        
+
         final_time = pd.Timestamp(timestamps[-1])
 
         if position == 1:
@@ -511,3 +527,9 @@ def calculate_returns(equity: pd.Series) -> pd.Series:
 
 
 __all__ = ["simulate_trades", "Trade", "calculate_equity_curve", "calculate_returns"]
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur l'exécution/simulation
+# - Conventions Trade.side et return_pct explicitées pour éviter ambiguïtés
+# - Read-if/Skip-if ajoutés pour guider la lecture

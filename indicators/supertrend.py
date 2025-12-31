@@ -1,8 +1,23 @@
 """
-Backtest Core - SuperTrend
-==========================
+Module-ID: indicators.supertrend
 
-Indicateur de tendance basé sur ATR. Très populaire.
+Purpose: Indicateur SuperTrend - suivi tendance basé ATR (très populaire).
+
+Role in pipeline: data
+
+Key components: supertrend, SuperTrendSettings, calculate_supertrend
+
+Inputs: DataFrame avec high, low, close; atr_period, atr_mult
+
+Outputs: Dict{supertrend, direction} ou Tuple
+
+Dependencies: pandas, numpy, atr, dataclasses
+
+Conventions: bandes = hl_avg +/- ATR*mult; direction 1/-1; support/résistance dynamique.
+
+Read-if: Modification ATR params, output format.
+
+Skip-if: Vous utilisez juste calculate_indicator('supertrend').
 """
 
 from dataclasses import dataclass

@@ -1,31 +1,23 @@
 """
-Backtest Core - Ollama Manager
-================================
+Module-ID: agents.ollama_manager
 
-Gestion automatique d'Ollama pour éviter les blocages.
+Purpose: Gérer Ollama (auto-démarrage, listage modèles, déchargement GPU, health checks).
 
-Features:
-- Auto-démarrage d'Ollama
-- Listage des modèles installés
-- Déchargement des modèles de la mémoire
-- Vérification de l'état du service
-- **GPU Memory Manager**: Déchargement/rechargement intelligent des LLM
-  pendant les phases de calcul intensif (backtests)
+Role in pipeline: orchestration / performance
 
-Usage:
-    >>> from agents.ollama_manager import ensure_ollama_running, list_ollama_models
-    >>>
-    >>> # S'assurer qu'Ollama est actif
-    >>> success, message = ensure_ollama_running()
-    >>>
-    >>> # Lister les modèles disponibles
-    >>> models = list_ollama_models()
-    >>>
-    >>> # Décharger le LLM pendant les calculs GPU
-    >>> with gpu_compute_context("deepseek-r1:32b"):
-    ...     # Le modèle est déchargé ici → GPU disponible pour numpy/cupy
-    ...     result = run_heavy_computation()
-    >>> # Le modèle est automatiquement rechargé
+Key components: LLMMemoryState, GPUMemoryManager, ensure_ollama_running, gpu_compute_context, list_ollama_models
+
+Inputs: Modèle name, timeouts, max_attempts
+
+Outputs: État Ollama, modèles disponibles, gestion mémoire GPU (unload/reload)
+
+Dependencies: subprocess, httpx, utils.log, contextlib
+
+Conventions: Ollama lancé via subprocess `ollama serve`; retries avec backoff exponentiel; gpu_compute_context décharge LLM avant calculs NumPy/CuPy; recharge auto après.
+
+Read-if: Configuration Ollama, gestion GPU memory, ou troubleshooting service.
+
+Skip-if: Vous utilisez seulement OpenAI.
 """
 
 from __future__ import annotations

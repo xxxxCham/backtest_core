@@ -1,8 +1,23 @@
 """
-Module de tracking des runs pour éviter les duplications.
+Module-ID: utils.run_tracker
 
-Permet de détecter si une configuration identique a déjà été exécutée
-pour éviter de relancer des optimisations en double.
+Purpose: Déduplique runs d'optimisation cross-sessions (detect déjà exécutés).
+
+Role in pipeline: optimization
+
+Key components: RunTracker, RunSignature, compute_hash(), DuplicateDetector
+
+Inputs: Strategy name, data path, initial params, LLM model, mode
+
+Outputs: Run hash, duplicates_found flag, cached results if available
+
+Dependencies: hashlib, json, dataclasses, pathlib, datetime
+
+Conventions: Hash stable (clés triées); détection inter-runs; stockage disque.
+
+Read-if: Modification détection duplicates ou gestion cache.
+
+Skip-if: Vous appelez tracker.get_cached_result(signature).
 """
 
 import hashlib

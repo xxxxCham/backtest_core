@@ -1,8 +1,23 @@
 """
-Backtest Core - Keltner Channel
-===============================
+Module-ID: indicators.keltner
 
-Canal basé sur EMA et ATR. Alternative aux Bollinger Bands.
+Purpose: Indicateur Keltner Channel - bandes EMA+ATR (alternative Bollinger).
+
+Role in pipeline: data
+
+Key components: keltner_channel, KeltnerSettings, calculate_keltner
+
+Inputs: DataFrame avec high, low, close; ema_period, atr_period, atr_mult
+
+Outputs: Dict{middle, upper, lower} ou Tuple
+
+Dependencies: pandas, numpy, ema, atr, dataclasses
+
+Conventions: middle = EMA; bands = +/- ATR*mult; plus lisse que Bollinger.
+
+Read-if: Modification EMA/ATR params, output format.
+
+Skip-if: Vous utilisez juste calculate_indicator('keltner').
 """
 
 from dataclasses import dataclass

@@ -1,13 +1,23 @@
 """
-Agents Integration - Pont entre les agents LLM et le moteur de backtest.
+Module-ID: agents.integration
 
-Ce module fournit:
-1. run_backtest_for_agent() - Wrapper du BacktestEngine pour les agents
-2. run_walk_forward_for_agent() - Wrapper du WalkForwardValidator
-3. create_optimizer_from_engine() - Factory complète prête à l'emploi
+Purpose: Relier les agents LLM (abstraits) au moteur de backtest concret (BacktestEngine + WalkForwardValidator).
 
-Le but est de rendre le système autonome VRAIMENT fonctionnel en connectant
-les composants abstraits aux implémentations concrètes du projet.
+Role in pipeline: orchestration
+
+Key components: run_backtest_for_agent, run_walk_forward_for_agent, create_optimizer_from_engine, create_orchestrator_with_backtest, validate_walk_forward_period
+
+Inputs: DataFrame OHLCV, Config, stratégie (key/name), LLMConfig/RoleModelConfig, paramètres et options walk-forward
+
+Outputs: Résultats de backtest/walk-forward adaptés aux agents, factories d’optimiseurs/orchestrator prêts à l’emploi
+
+Dependencies: backtest.engine, backtest.validation, strategies.base, utils.config, utils.observability, agents.backtest_executor
+
+Conventions: MIN_DAYS_FOR_WALK_FORWARD=180; timestamps détectés (index datetime ou colonne 'timestamp'); WF peut être désactivé si période insuffisante.
+
+Read-if: Vous modifiez le wiring agents↔engine (run_backtest, walk-forward, factories).
+
+Skip-if: Vous ne changez que les stratégies/indicateurs ou la UI.
 """
 
 from __future__ import annotations
@@ -437,24 +447,24 @@ def create_optimizer_from_engine(
         )
 
     # Créer la fonction de validation (optionnelle)
-    validation_fn = None
-    if use_walk_forward:
-        def validation_fn(
-            strategy: str,
-            params: Dict[str, Any],
-            df: pd.DataFrame,
-            n_windows: int = 6,  # Optimisé pour 2 ans de données
-            train_ratio: float = 0.75,  # 75/25 pour meilleur compromis
-        ) -> Dict[str, Any]:
-            return run_walk_forward_for_agent(
-                strategy_name=strategy,
-                params=params,
-                data=df,
-                n_windows=n_windows,
-                train_ratio=train_ratio,
-                initial_capital=initial_capital,
-                config=config,
-            )
+    def _validation_fn(
+        strategy: str,
+        params: Dict[str, Any],
+        df: pd.DataFrame,
+        n_windows: int = 6,  # Optimisé pour 2 ans de données
+        train_ratio: float = 0.75,  # 75/25 pour meilleur compromis
+    ) -> Dict[str, Any]:
+        return run_walk_forward_for_agent(
+            strategy_name=strategy,
+            params=params,
+            data=df,
+            n_windows=n_windows,
+            train_ratio=train_ratio,
+            initial_capital=initial_capital,
+            config=config,
+        )
+
+    validation_fn = _validation_fn if use_walk_forward else None
 
     # Créer l'exécuteur
     executor = BacktestExecutor(

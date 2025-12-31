@@ -1,17 +1,23 @@
 """
-Backtest Core - Stochastic Oscillator
-=====================================
+Module-ID: indicators.stochastic
 
-Indicateur Stochastic pour détecter les zones de survente/surachat.
-Utilisé pour le timing d'entrée dans les stratégies de scalping.
+Purpose: Indicateur Stochastic (%K + %D signal) - timing survente/surachat.
 
-Composants:
-- %K: Position du prix par rapport au range haut/bas
-- %D: Moyenne mobile de %K (ligne signal)
+Role in pipeline: data
 
-Usage:
-- %K < 20 et croise %D vers le haut → Signal d'achat (survente)
-- %K > 80 et croise %D vers le bas → Signal de vente (surachat)
+Key components: stochastic, StochasticSettings, calculate_stochastic, %K, %D
+
+Inputs: DataFrame avec high, low, close; k_period, d_period
+
+Outputs: Dict{stoch_k, stoch_d} ou Tuple
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: %K position prix dans range; %D = SMA(%K); <20 survente, >80 surachat.
+
+Read-if: Modification périodes K/D, formule %K.
+
+Skip-if: Vous utilisez juste calculate_indicator('stochastic').
 """
 
 from typing import Tuple, Union

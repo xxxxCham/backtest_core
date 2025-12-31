@@ -1,8 +1,23 @@
 """
-Backtest Core - Amplitude Hunter Score
-======================================
+Module-ID: indicators.amplitude_hunter
 
-Scores how extreme the intrabar range is vs a rolling baseline.
+Purpose: Score l'extrémité plage intrabar vs baseline roulante - détecte amp volatilé.
+
+Role in pipeline: technical indicator
+
+Key components: AmplitudeHunterSettings, amplitude_hunter()
+
+Inputs: [high, low], period, threshold
+
+Outputs: numpy array scores [0, 1]
+
+Dependencies: numpy, pandas, indicators.registry
+
+Conventions: Score normalize [0, 1]; settings dataclass
+
+Read-if: Utiliser amplitude hunter pour signaux volatilté.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

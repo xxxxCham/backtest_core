@@ -1,14 +1,23 @@
 """
-Agent Strategist - Proposition de nouvelles configurations.
+Module-ID: agents.strategist
 
-Rôle:
-- Proposer des ajustements de paramètres
-- Générer des combinaisons créatives mais réalistes
-- Prioriser les changements par impact potentiel
-- Justifier chaque proposition
+Purpose: Proposer des ajustements créatifs mais réalistes des paramètres basés sur l'analyse.
 
-Input: Context + Rapport Analyst
-Output: Liste de propositions de paramètres ordonnées
+Role in pipeline: orchestration
+
+Key components: StrategistAgent, ParameterProposal, ProposalList
+
+Inputs: AgentContext (analyst_result, param_bounds, param_specs)
+
+Outputs: Liste de ParameterProposal (params validés, justifications, priorités)
+
+Dependencies: agents.base_agent, utils.template, utils.parameters
+
+Conventions: Propositions clampées aux bornes; bornes min < max obligatoires; justifications exigées; template Jinja2.
+
+Read-if: Modification propositions, créativité/conservatisme, ou clémence des contraintes.
+
+Skip-if: Vous ne touchez qu'à analyze/critique/validate.
 """
 
 from __future__ import annotations

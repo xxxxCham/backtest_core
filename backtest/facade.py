@@ -1,21 +1,23 @@
 """
-Backtest Facade - Point d'entrée unique UI ↔ Backend
-=====================================================
+Module-ID: backtest.facade
 
-Ce module fournit une interface stable entre l'UI et le moteur de backtest.
-Il isole les détails d'implémentation et garantit des contrats prévisibles.
+Purpose: Interface stable et typée entre l'UI et le backend (BacktestEngine + agents LLM).
 
-Architecture:
-    UI  ──►  BackendFacade  ──►  BacktestEngine / Agents
-                  │
-                  ▼
-            BackendResponse (format unifié)
+Role in pipeline: orchestration / api
 
-Principes:
-1. Entrées typées via Request dataclasses
-2. Sorties uniformes via Response dataclasses  
-3. Erreurs structurées (jamais de traceback brut côté UI)
-4. Testabilité: chaque méthode peut être mockée
+Key components: BackendFacade, BacktestRequest, BackendResponse, ResponseStatus, ErrorCode
+
+Inputs: BacktestRequest (params, stratégie, données), validation_fn optionnel
+
+Outputs: BackendResponse (format unifié), erreurs structurées (jamais de traceback brut UI)
+
+Dependencies: backtest.engine, backtest.errors, utils.config, dataclasses
+
+Conventions: Erreurs via Response.status/error_code/error_message (jamais exceptions UI); contrats Request/Response immuables; warmup auto >= 200.
+
+Read-if: Modification l'API UI↔backend, erreurs struct, ou contrats de réponse.
+
+Skip-if: Vous ne touchez qu'au moteur backtest pur.
 """
 
 from __future__ import annotations
@@ -75,7 +77,7 @@ class ErrorCode(Enum):
 class BacktestRequest:
     """
     Requête pour un backtest simple.
-    
+
     Attributes:
         strategy_name: Nom de la stratégie (ex: "ema_cross")
         params: Paramètres de la stratégie
@@ -94,18 +96,18 @@ class BacktestRequest:
     initial_capital: float = 10000.0
     date_start: Optional[str] = None
     date_end: Optional[str] = None
-    
+
     def __post_init__(self):
         """Validation à la création."""
         if self.data is None and (self.symbol is None or self.timeframe is None):
             raise ValueError("Soit 'data' soit 'symbol'+'timeframe' requis")
 
 
-@dataclass 
+@dataclass
 class GridOptimizationRequest:
     """
     Requête pour une optimisation en grille.
-    
+
     Attributes:
         strategy_name: Nom de la stratégie
         param_grid: Liste de dicts de paramètres à tester
@@ -128,7 +130,7 @@ class GridOptimizationRequest:
 class LLMOptimizationRequest:
     """
     Requête pour une optimisation LLM autonome.
-    
+
     Attributes:
         strategy_name: Nom de la stratégie
         initial_params: Paramètres de départ
@@ -164,31 +166,31 @@ class LLMOptimizationRequest:
 class UIMetrics:
     """
     Métriques formatées pour l'affichage UI.
-    
+
     Format stable garanti - l'UI peut dépendre de ces champs.
     """
     # Rendement
     total_pnl: float = 0.0
     total_return_pct: float = 0.0
     annualized_return: float = 0.0
-    
+
     # Risque
     sharpe_ratio: float = 0.0
     sortino_ratio: float = 0.0
     calmar_ratio: float = 0.0
     max_drawdown: float = 0.0
     volatility_annual: float = 0.0
-    
+
     # Trading
     total_trades: int = 0
     win_rate: float = 0.0
     profit_factor: float = 0.0
     expectancy: float = 0.0
-    
+
     # Avancé (optionnel)
     sqn: Optional[float] = None
     recovery_factor: Optional[float] = None
-    
+
     @classmethod
     def from_run_result(cls, result: RunResult) -> "UIMetrics":
         """Crée UIMetrics depuis un RunResult."""
@@ -209,7 +211,7 @@ class UIMetrics:
             sqn=m.get("sqn"),
             recovery_factor=m.get("recovery_factor"),
         )
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dict pour sérialisation."""
         return {
@@ -234,7 +236,7 @@ class UIMetrics:
 class UIPayload:
     """
     Payload complet pour l'affichage UI.
-    
+
     Contient toutes les données nécessaires pour afficher un résultat de backtest.
     """
     metrics: UIMetrics
@@ -242,7 +244,7 @@ class UIPayload:
     trades_df: Optional[pd.DataFrame] = None
     params_used: Dict[str, Any] = field(default_factory=dict)
     meta: Dict[str, Any] = field(default_factory=dict)
-    
+
     @classmethod
     def from_run_result(cls, result: RunResult) -> "UIPayload":
         """Crée UIPayload depuis un RunResult."""
@@ -259,7 +261,7 @@ class UIPayload:
 class ErrorInfo:
     """
     Information d'erreur structurée.
-    
+
     L'UI utilise ces champs pour afficher un message cohérent.
     """
     code: ErrorCode
@@ -267,7 +269,7 @@ class ErrorInfo:
     hint: Optional[str] = None  # Suggestion de correction
     trace_id: Optional[str] = None  # ID pour debug/logs
     details: Optional[str] = None  # Stack trace (mode debug)
-    
+
     def __post_init__(self):
         if self.trace_id is None:
             self.trace_id = str(uuid.uuid4())[:8]
@@ -277,7 +279,7 @@ class ErrorInfo:
 class BackendResponse:
     """
     Réponse unifiée du backend vers l'UI.
-    
+
     Contrat stable:
     - status: toujours présent
     - payload: présent si SUCCESS
@@ -288,11 +290,11 @@ class BackendResponse:
     error: Optional[ErrorInfo] = None
     message: str = ""  # Message de statut court
     duration_ms: float = 0.0
-    
+
     @property
     def is_success(self) -> bool:
         return self.status == ResponseStatus.SUCCESS
-    
+
     @property
     def is_error(self) -> bool:
         return self.status == ResponseStatus.ERROR
@@ -333,27 +335,27 @@ class LLMOptimizationResponse:
 class BackendFacade:
     """
     Façade principale pour toutes les interactions UI ↔ Backend.
-    
+
     Point d'entrée unique garantissant:
     - Validation des entrées
     - Gestion d'erreurs centralisée
     - Format de sortie unifié
     - Traçabilité
-    
+
     Usage:
         facade = BackendFacade()
         response = facade.run_backtest(request)
-        
+
         if response.is_success:
             display_results(response.payload)
         else:
             show_error(response.error)
     """
-    
+
     def __init__(self, config: Optional[Config] = None, debug: bool = False):
         """
         Initialise la façade.
-        
+
         Args:
             config: Configuration globale
             debug: Inclure les stack traces dans les erreurs
@@ -361,48 +363,48 @@ class BackendFacade:
         self.config = config or Config()
         self.debug = debug
         self._logger = get_logger(__name__)
-    
+
     # =========================================================================
     # BACKTEST SIMPLE
     # =========================================================================
-    
+
     def run_backtest(self, request: BacktestRequest) -> BackendResponse:
         """
         Exécute un backtest simple.
-        
+
         Args:
             request: BacktestRequest avec stratégie, params, data
-            
+
         Returns:
             BackendResponse avec payload ou erreur
         """
         import time
         start = time.time()
         trace_id = str(uuid.uuid4())[:8]
-        
+
         self._logger.info(f"[{trace_id}] run_backtest: {request.strategy_name}")
-        
+
         try:
             # 1. Charger les données si nécessaire
             if request.data is None:
                 df = self._load_data(
-                    request.symbol, 
+                    request.symbol,
                     request.timeframe,
                     request.date_start,
                     request.date_end
                 )
             else:
                 df = request.data
-            
+
             # 2. Valider les données
             self._validate_dataframe(df)
-            
+
             # 3. Créer et exécuter le backtest
             engine = BacktestEngine(
                 initial_capital=request.initial_capital,
                 config=self.config
             )
-            
+
             result = engine.run(
                 df=df,
                 strategy=request.strategy_name,
@@ -410,18 +412,18 @@ class BackendFacade:
                 symbol=request.symbol or "UNKNOWN",
                 timeframe=request.timeframe or "1h",
             )
-            
+
             # 4. Convertir en payload UI
             payload = UIPayload.from_run_result(result)
             duration_ms = (time.time() - start) * 1000
-            
+
             return BackendResponse(
                 status=ResponseStatus.SUCCESS,
                 payload=payload,
                 message=f"Backtest terminé | Sharpe: {payload.metrics.sharpe_ratio:.2f}",
                 duration_ms=duration_ms,
             )
-            
+
         except UserInputError as e:
             return self._error_response(
                 ErrorCode.INVALID_PARAMS, str(e),
@@ -457,63 +459,63 @@ class BackendFacade:
         except Exception:
             self._logger.exception(f"[{trace_id}] Erreur inattendue")
             return self._error_response(
-                ErrorCode.BACKEND_INTERNAL, 
+                ErrorCode.BACKEND_INTERNAL,
                 "Erreur interne du moteur de backtest",
                 details=traceback.format_exc() if self.debug else None,
                 trace_id=trace_id, start_time=start
             )
-    
+
     # =========================================================================
     # OPTIMISATION GRILLE
     # =========================================================================
-    
+
     def run_grid_optimization(
-        self, 
+        self,
         request: GridOptimizationRequest,
         progress_callback: Optional[callable] = None
     ) -> GridOptimizationResponse:
         """
         Exécute une optimisation en grille.
-        
+
         Args:
             request: GridOptimizationRequest
             progress_callback: Fonction appelée à chaque itération (i, total)
-            
+
         Returns:
             GridOptimizationResponse avec tous les résultats
         """
         import time
         start = time.time()
         trace_id = str(uuid.uuid4())[:8]
-        
+
         self._logger.info(
             f"[{trace_id}] run_grid_optimization: {request.strategy_name}, "
             f"{len(request.param_grid)} combinaisons"
         )
-        
+
         try:
             # Valider les données
             self._validate_dataframe(request.data)
-            
+
             # Limiter les combinaisons
             param_grid = request.param_grid[:request.max_combinations]
-            
+
             engine = BacktestEngine(
                 initial_capital=request.initial_capital,
                 config=self.config
             )
-            
+
             results = []
             best_metric = float("-inf")
             best_result = None
             best_params = {}
             success_count = 0
             fail_count = 0
-            
+
             for i, params in enumerate(param_grid):
                 if progress_callback:
                     progress_callback(i + 1, len(param_grid))
-                
+
                 try:
                     result = engine.run(
                         df=request.data,
@@ -522,22 +524,22 @@ class BackendFacade:
                         symbol=request.symbol,
                         timeframe=request.timeframe,
                     )
-                    
+
                     metric_value = result.metrics.get(request.metric_to_optimize, 0)
-                    
+
                     results.append({
                         "params": params,
                         "metrics": UIMetrics.from_run_result(result).to_dict(),
                         "success": True,
                     })
-                    
+
                     if metric_value > best_metric:
                         best_metric = metric_value
                         best_result = UIPayload.from_run_result(result)
                         best_params = params
-                    
+
                     success_count += 1
-                    
+
                 except Exception as e:
                     results.append({
                         "params": params,
@@ -545,11 +547,11 @@ class BackendFacade:
                         "success": False,
                     })
                     fail_count += 1
-            
+
             duration_ms = (time.time() - start) * 1000
-            
+
             status = ResponseStatus.SUCCESS if fail_count == 0 else ResponseStatus.PARTIAL
-            
+
             return GridOptimizationResponse(
                 status=status,
                 results=results,
@@ -595,35 +597,35 @@ class BackendFacade:
                 ),
                 duration_ms=(time.time() - start) * 1000,
             )
-    
+
     # =========================================================================
     # OPTIMISATION LLM
     # =========================================================================
-    
+
     def run_llm_optimization(
-        self, 
+        self,
         request: LLMOptimizationRequest,
         progress_callback: Optional[callable] = None
     ) -> LLMOptimizationResponse:
         """
         Exécute une optimisation LLM autonome.
-        
+
         Args:
             request: LLMOptimizationRequest
             progress_callback: Fonction appelée à chaque itération
-            
+
         Returns:
             LLMOptimizationResponse
         """
         import time
         start = time.time()
         trace_id = str(uuid.uuid4())[:8]
-        
+
         self._logger.info(
             f"[{trace_id}] run_llm_optimization: {request.strategy_name}, "
             f"provider={request.llm_provider}"
         )
-        
+
         try:
             # Vérifier disponibilité LLM
             from agents.integration import create_optimizer_from_engine
@@ -639,25 +641,25 @@ class BackendFacade:
                 ),
                 duration_ms=(time.time() - start) * 1000,
             )
-        
+
         try:
             # Valider les données
             self._validate_dataframe(request.data)
-            
+
             # Configurer le LLM
             provider = (
-                LLMProvider.OLLAMA 
-                if request.llm_provider.lower() == "ollama" 
+                LLMProvider.OLLAMA
+                if request.llm_provider.lower() == "ollama"
                 else LLMProvider.OPENAI
             )
-            
+
             llm_config = LLMConfig(
                 provider=provider,
                 model=request.llm_model,
                 openai_api_key=request.llm_api_key,
                 ollama_host=request.llm_base_url,
             )
-            
+
             # Créer l'optimiseur
             strategist, executor = create_optimizer_from_engine(
                 llm_config=llm_config,
@@ -667,7 +669,7 @@ class BackendFacade:
                 use_walk_forward=request.use_walk_forward,
                 verbose=True,
             )
-            
+
             # Exécuter l'optimisation
             session = strategist.optimize(
                 executor=executor,
@@ -676,7 +678,7 @@ class BackendFacade:
                 max_iterations=request.max_iterations,
                 target_sharpe=request.target_sharpe,
             )
-            
+
             # Convertir l'historique
             history = []
             for exp in session.history:
@@ -685,14 +687,14 @@ class BackendFacade:
                     "sharpe_ratio": exp.sharpe_ratio,
                     "total_pnl": exp.total_pnl,
                 })
-            
+
             # Calculer l'amélioration
             improvement = 0.0
             if history and history[0]["sharpe_ratio"] != 0:
                 initial = history[0]["sharpe_ratio"]
                 final = session.best_result.sharpe_ratio
                 improvement = ((final - initial) / abs(initial)) * 100
-            
+
             # Reconstruire le meilleur résultat complet
             engine = BacktestEngine(
                 initial_capital=request.initial_capital,
@@ -704,9 +706,9 @@ class BackendFacade:
                 params=session.best_result.request.parameters,
             )
             best_payload = UIPayload.from_run_result(best_run)
-            
+
             duration_ms = (time.time() - start) * 1000
-            
+
             return LLMOptimizationResponse(
                 status=ResponseStatus.SUCCESS,
                 best_result=best_payload,
@@ -763,7 +765,7 @@ class BackendFacade:
                 ),
                 duration_ms=(time.time() - start) * 1000,
             )
-    
+
     # =========================================================================
     # HELPERS PRIVÉS
     # =========================================================================
@@ -883,7 +885,7 @@ class BackendFacade:
         )
 
         return df
-    
+
     def _validate_dataframe(
         self,
         df: pd.DataFrame,
@@ -928,7 +930,7 @@ class BackendFacade:
                     hint=f"Le warmup des indicateurs nécessite au minimum {warmup_required} barres. "
                          f"Disponibles: {actual_bars}. Utilisez une période plus longue."
                 )
-    
+
     def _error_response(
         self,
         code: ErrorCode,
@@ -964,11 +966,11 @@ _facade_instance: Optional[BackendFacade] = None
 def get_facade(config: Optional[Config] = None, debug: bool = False) -> BackendFacade:
     """
     Retourne l'instance globale de la façade.
-    
+
     Args:
         config: Configuration (utilisée seulement à la première création)
         debug: Mode debug
-        
+
     Returns:
         BackendFacade instance
     """
@@ -981,13 +983,19 @@ def get_facade(config: Optional[Config] = None, debug: bool = False) -> BackendF
 def to_ui_payload(result: RunResult) -> UIPayload:
     """
     Convertit un RunResult en UIPayload.
-    
+
     Fonction utilitaire pour la compatibilité avec le code existant.
-    
+
     Args:
         result: RunResult du moteur
-        
+
     Returns:
         UIPayload prêt pour l'affichage
     """
     return UIPayload.from_run_result(result)
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur l'interface stable UI↔backend
+# - Conventions contrats Request/Response et erreurs structurées explicitées
+# - Read-if/Skip-if ajoutés pour guider la lecture

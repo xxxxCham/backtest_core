@@ -1,8 +1,23 @@
 """
-Backtest Core - Backtest Package
-================================
+Module-ID: backtest
 
-Moteur de backtesting et calcul de performance.
+Purpose: Moteur de backtesting (pipeline complet + optimisation + validation) avec API stable pour UI/agents.
+
+Role in pipeline: core / orchestration
+
+Key components: BacktestEngine, RunResult, OptunaOptimizer, SweepEngine, WalkForwardValidator, BackendFacade
+
+Inputs: Données OHLCV, stratégies, paramètres, configurations
+
+Outputs: Résultats de backtest structurés (trades, métriques, rapports)
+
+Dependencies: Tous les modules backtest/*, strategies, indicators, data, utils, optionnel: optuna, tabulate
+
+Conventions: Pipeline données→indicateurs→signaux→trades→métriques; erreurs structurées; réponses typées.
+
+Read-if: Vous importez le moteur depuis UI/agents ou modifiez l'architecture.
+
+Skip-if: Vous travaillez sur une seule strat/indicateur.
 """
 
 from .engine import BacktestEngine, RunResult

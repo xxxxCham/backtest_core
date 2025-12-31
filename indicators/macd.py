@@ -1,30 +1,31 @@
 """
-Backtest Core - MACD Indicator
-==============================
+Module-ID: indicators.macd
 
-Moving Average Convergence Divergence (MACD).
-Indicateur de momentum qui montre la relation entre deux EMAs.
+Purpose: Indicateur MACD (momentum) - ligne signal + histogram.
 
-Composants:
-- MACD Line: EMA(fast) - EMA(slow)
-- Signal Line: EMA(MACD, signal_period)
-- Histogram: MACD - Signal
+Role in pipeline: data
 
-Usage typique:
-- Cross MACD/Signal pour signaux
-- Histogram pour momentum
-- Divergences pour renversements
+Key components: macd, calculate_macd, MACD line, Signal line, Histogram
+
+Inputs: DataFrame avec close; fast_period, slow_period, signal_period
+
+Outputs: Dict{macd, signal, histogram} ou Tuple
+
+Dependencies: pandas, numpy, ema
+
+Conventions: macd = ema_fast - ema_slow; signal = ema(macd); histogram = macd - signal.
+
+Read-if: Modification périodes, output structure.
+
+Skip-if: Vous utilisez juste calculate_indicator('macd').
 """
 
-import sys
-from pathlib import Path
 from typing import Dict, Tuple, Union
 
 import numpy as np
 import pandas as pd
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from indicators.ema import ema
+from .ema import ema
 
 
 def macd(

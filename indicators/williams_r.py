@@ -1,14 +1,23 @@
 """
-Backtest Core - Williams %R
-===========================
+Module-ID: indicators.williams_r
 
-Oscillateur de momentum mesurant les niveaux de surachat/survente.
-Développé par Larry Williams.
+Purpose: Indicateur Williams %R - oscillateur momentum surachat/survente.
 
-Interprétation:
-- Williams %R > -20 : Surachat
-- Williams %R < -80 : Survente
-- Valeurs entre -100 et 0
+Role in pipeline: data
+
+Key components: williams_r, WilliamsRSettings, calculate_williams_r
+
+Inputs: DataFrame avec high, low, close; period
+
+Outputs: np.ndarray (-100 à 0)
+
+Dependencies: pandas, numpy, dataclasses
+
+Conventions: >-20 surachat, <-80 survente; inverse de %K Stochastic.
+
+Read-if: Modification période, interprétation seuils.
+
+Skip-if: Vous utilisez juste calculate_indicator('williams_r').
 """
 
 from dataclasses import dataclass

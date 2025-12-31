@@ -1,22 +1,23 @@
 """
-Backtest Core - Performance Module
-==================================
+Module-ID: performance.__init__
 
-Module d'optimisation des performances pour le moteur de backtest.
+Purpose: Package performance - exports profiler, parallel, monitor, GPU, benchmarks.
 
-Inclut:
-- Parallélisation CPU (joblib/multiprocessing)
-- Accélération GPU (cupy/numba - optionnel)
-- Monitoring temps réel (rich)
-- Profiling intégré (cProfile)
-- Gestion mémoire (chunking)
+Role in pipeline: performance optimization & observability
 
-Usage:
-    >>> from performance import ParallelRunner, parallel_sweep
-    >>> from performance import PerformanceMonitor, ProgressBar
-    >>> from performance import Profiler, profile_function
-    >>> from performance import ChunkedProcessor, MemoryManager
-    >>> from performance import GPUIndicatorCalculator, gpu_available
+Key components: Re-exports ParallelRunner, Profiler, PerformanceMonitor, GPUIndicatorCalculator
+
+Inputs: None (module imports only)
+
+Outputs: Public API via __all__
+
+Dependencies: .profiler, .parallel, .monitor, .memory, .gpu, .device_backend, .benchmark
+
+Conventions: __all__ définit API publique; imports conditionnels pour optional deps.
+
+Read-if: Modification exports ou module structure.
+
+Skip-if: Vous importez directement depuis performance.profiler.
 """
 
 from performance.parallel import (
@@ -109,4 +110,3 @@ __all__ = [
     "to_cpu",
     "benchmark_gpu_cpu",
 ]
-

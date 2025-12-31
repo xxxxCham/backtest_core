@@ -1,8 +1,23 @@
 """
-Indicator ranges loader
-=======================
+Module-ID: utils.indicator_ranges
 
-Reads config/indicator_ranges.toml for UI parameter definitions.
+Purpose: Charge plages paramétriques d'indicateurs depuis config/indicator_ranges.toml.
+
+Role in pipeline: configuration
+
+Key components: load_indicator_ranges(), _INDICATOR_RANGES_CACHE, tomllib wrapper
+
+Inputs: TOML file config/indicator_ranges.toml
+
+Outputs: Dict nested {indicator → param → spec} (cached)
+
+Dependencies: tomllib/tomli, pathlib
+
+Conventions: Cache global; None path → répertoire par défaut.
+
+Read-if: Modification chargement config indicateurs.
+
+Skip-if: Vous appelez load_indicator_ranges() en tant qu'utilisateur.
 """
 
 from __future__ import annotations

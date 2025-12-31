@@ -1,8 +1,23 @@
 """
-Validation et Auto-remplissage des Presets
-==========================================
+Module-ID: utils.preset_validation
 
-Système de validation pour garantir la cohérence entre Presets et Stratégies.
+Purpose: Valide/remplit presets (cohérence indicateurs et params vs stratégies).
+
+Role in pipeline: configuration
+
+Key components: PresetValidationResult, validate_preset(), auto_fill_indicators_from_strategy()
+
+Inputs: Preset dict, strategy name, expected indicators
+
+Outputs: ValidationResult {is_valid, errors[], warnings[], summary()}
+
+Dependencies: dataclasses, typing, log
+
+Conventions: Auto-fill indicateurs depuis mapping; erreurs = breaks validité; warnings = info.
+
+Read-if: Modification validation ou preset auto-fill.
+
+Skip-if: Vous appelez juste validate_preset(preset_name).
 """
 
 from typing import TYPE_CHECKING, Dict, List, Optional

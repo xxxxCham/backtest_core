@@ -1,26 +1,23 @@
 """
-Backtest Core - Observability Module
-====================================
+Module-ID: utils.observability
 
-Instrumentation de debug intelligente avec:
-- Zéro overhead en mode prod (lazy formatting)
-- Traces corrélées via run_id
-- Logs structurés JSON (optionnel)
-- Sampling configurable pour sweeps massifs
-- Pack diagnostic exportable
+Purpose: Observabilité debug intelligent (lazy formatting, traces corrélées, sampling).
 
-Activation:
-    BACKTEST_LOG_LEVEL=DEBUG|INFO|WARNING|ERROR (défaut: INFO)
-    BACKTEST_LOG_SAMPLE=0.01 (1% des runs détaillés, défaut: 1.0)
-    BACKTEST_LOG_JSON=1 (format JSON lines, défaut: 0)
-    BACKTEST_LOG_FILE=/path/to/file.log (optionnel)
+Role in pipeline: core / monitoring
 
-Usage:
-    from utils.observability import get_obs_logger, trace_span, PerfCounters
+Key components: get_obs_logger, trace_span, PerfCounters, DiagnosticPack, generate_run_id
 
-    logger = get_obs_logger(__name__, run_id="abc123")
-    with trace_span(logger, "pipeline"):
-        result = engine.run(...)
+Inputs: Module name, run_id, log level (env vars)
+
+Outputs: Logs JSON structurés, traces span avec timing, pack diagnostique
+
+Dependencies: logging, json, dataclasses, functools
+
+Conventions: DEBUG mode lazy-evaluated; sampling configurable; run_id corrélé; zero overhead prod.
+
+Read-if: Modification logging structure, sampling, ou diagnostic export.
+
+Skip-if: Vous utilisez juste get_obs_logger().
 """
 
 from __future__ import annotations
@@ -114,7 +111,7 @@ class HumanFormatter(logging.Formatter):
 class ObsLoggerAdapter(logging.LoggerAdapter):
     """
     Adapter qui injecte run_id et contexte dans chaque log.
-    
+
     Le contexte est passé une seule fois à la création, puis réutilisé.
     """
 
@@ -174,10 +171,10 @@ def init_logging(
 ) -> None:
     """
     Initialise le système de logging.
-    
+
     Appelé automatiquement au premier get_obs_logger(), mais peut être
     appelé manuellement pour forcer une configuration spécifique.
-    
+
     Args:
         level: Niveau de log (DEBUG, INFO, WARNING, ERROR)
         json_format: True pour JSON lines, False pour texte
@@ -237,15 +234,15 @@ def get_obs_logger(
 ) -> ObsLoggerAdapter:
     """
     Obtient un logger avec contexte d'observabilité.
-    
+
     Args:
         name: Nom du module (utiliser __name__)
         run_id: Identifiant unique du run (généré si None)
         **context: Champs additionnels (strategy, symbol, timeframe)
-        
+
     Returns:
         ObsLoggerAdapter configuré
-        
+
     Usage:
         logger = get_obs_logger(__name__, run_id="abc123", strategy="ema_cross")
         logger.info("Pipeline started")  # [abc123] Pipeline started
@@ -330,20 +327,20 @@ def trace_span(
 ) -> Generator[Dict[str, Any], None, None]:
     """
     Context manager pour tracer la durée d'une opération.
-    
+
     ZERO OVERHEAD si le niveau n'est pas activé:
     - Pas de string formatting
     - Pas de calcul de durée
-    
+
     Args:
         logger: Logger avec contexte
         name: Nom du span (ex: "indicators", "simulation")
         log_level: Niveau de log (DEBUG par défaut)
         **fields: Champs additionnels à loguer
-        
+
     Yields:
         Dict pour stocker des métriques pendant le span
-        
+
     Usage:
         with trace_span(logger, "indicators", count=5) as span:
             # ... calculs ...
@@ -374,11 +371,11 @@ def trace_span(
 def safe_stats_df(df: pd.DataFrame, max_rows: int = 3) -> Dict[str, Any]:
     """
     Statistiques sûres d'un DataFrame (jamais le contenu complet).
-    
+
     Args:
         df: DataFrame à résumer
         max_rows: Nombre max de lignes pour head() (défaut: 3)
-        
+
     Returns:
         Dict avec shape, dtypes, nan_count, sample_values
     """
@@ -406,11 +403,11 @@ def safe_stats_df(df: pd.DataFrame, max_rows: int = 3) -> Dict[str, Any]:
 def safe_stats_array(x: np.ndarray, name: str = "array") -> Dict[str, Any]:
     """
     Statistiques sûres d'un array numpy.
-    
+
     Args:
         x: Array à résumer
         name: Nom pour identification
-        
+
     Returns:
         Dict avec shape, dtype, nan_count, min/max/mean
     """
@@ -464,13 +461,13 @@ def safe_stats_series(s: pd.Series, name: str = "series") -> Dict[str, Any]:
 class PerfCounters:
     """
     Compteurs de performance légers pour le pipeline.
-    
+
     Usage:
         counters = PerfCounters()
         counters.start("indicators")
         # ... calculs ...
         counters.stop("indicators")
-        
+
         print(counters.summary())
     """
     _starts: Dict[str, float] = field(default_factory=dict)
@@ -542,19 +539,19 @@ def build_diagnostic_summary(
 ) -> DiagnosticPack:
     """
     Construit un pack diagnostic compact.
-    
+
     Args:
         run_id: Identifiant du run
         request: Dict de la requête (strategy, params, etc.)
         result: Résultat du backtest (RunResult ou dict de metrics)
         counters: Compteurs de performance
         last_exception: Dernière exception si erreur
-        
+
     Returns:
         DiagnosticPack prêt à exporter
     """
     request = request or {}
-    
+
     # Extraire les infos du résultat
     result_summary = {}
     if result is not None:

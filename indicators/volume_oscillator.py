@@ -1,8 +1,23 @@
 """
-Backtest Core - Volume Oscillator
-=================================
+Module-ID: indicators.volume_oscillator
 
-Volume Oscillator compares short vs long moving averages of volume.
+Purpose: Oscillateur volume - compare MMA court vs long du volume.
+
+Role in pipeline: technical indicator
+
+Key components: VolumeOscillatorSettings, volume_oscillator()
+
+Inputs: [volume], period_short, period_long, type (ema/sma)
+
+Outputs: numpy array oscillateur (short_ma - long_ma)
+
+Dependencies: numpy, pandas, indicators.ema, indicators.registry
+
+Conventions: MA court < long pour divergences; EMA par défaut
+
+Read-if: Analyser momentum volume.
+
+Skip-if: Indicateur non utilisé.
 """
 
 from dataclasses import dataclass

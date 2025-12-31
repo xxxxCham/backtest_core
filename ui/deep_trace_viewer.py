@@ -1,9 +1,23 @@
 """
-UI Component : Deep Trace Viewer pour Orchestration LLM
-========================================================
+Module-ID: ui.deep_trace_viewer
 
-Visualiseur complet et détaillé des interactions LLM et de l'orchestration,
-incluant timeline, inspecteur LLM, propositions/tests, state machine, métriques.
+Purpose: Visualiseur Deep Trace détaillé pour orchestration LLM - timeline, inspecteur, propositions, state machine, métriques.
+
+Role in pipeline: visualization / debugging
+
+Key components: render_deep_trace(), timeline, metrics, state inspector
+
+Inputs: OrchestrationLogger instance
+
+Outputs: Interface Streamlit multi-onglets (timeline, inspector, metrics, etc.)
+
+Dependencies: streamlit, agents.orchestration_logger
+
+Conventions: Onglets: Timeline, Inspector, Proposals, State Machine, Metrics
+
+Read-if: Deep debugging orchestration LLM ou inspection états.
+
+Skip-if: Pas d'agents LLM ou monitoring minimal suffisant.
 """
 
 import math
@@ -151,12 +165,18 @@ def render_timeline_panel(logger: OrchestrationLogger, filters: Dict[str, Any]):
     if filters.get("level"):
         level = filters["level"]
         if level == "ERROR":
-            filtered_logs = [log for log in filtered_logs
-                           if log.action_type == OrchestrationActionType.ERROR
-                           or log.status == OrchestrationStatus.FAILED]
+            filtered_logs = [
+                log
+                for log in filtered_logs
+                if log.action_type == OrchestrationActionType.ERROR
+                or log.status == OrchestrationStatus.FAILED
+            ]
         elif level == "WARNING":
-            filtered_logs = [log for log in filtered_logs
-                           if log.action_type == OrchestrationActionType.WARNING]
+            filtered_logs = [
+                log
+                for log in filtered_logs
+                if log.action_type == OrchestrationActionType.WARNING
+            ]
 
     if not filtered_logs:
         st.info("Aucun événement ne correspond aux filtres sélectionnés")

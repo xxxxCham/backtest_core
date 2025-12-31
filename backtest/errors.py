@@ -1,18 +1,23 @@
 """
-Backtest Errors - Hiérarchie d'exceptions structurées
-=====================================================
+Module-ID: backtest.errors
 
-Module centralisant les erreurs du backend pour:
-1. Distinguer les erreurs utilisateur des erreurs système
-2. Permettre des messages UI cohérents
-3. Faciliter le debugging
+Purpose: Hiérarchie structurée d'exceptions pour distinguer erreurs utilisateur/système et messages UI cohérents.
 
-Hiérarchie:
-    BacktestError (base)
-    ├── UserInputError (paramètres invalides)
-    ├── DataError (données manquantes/corrompues)
-    ├── BackendInternalError (bug interne)
-    └── LLMUnavailableError (agents non disponibles)
+Role in pipeline: error handling
+
+Key components: BacktestError, UserInputError, DataError, BackendInternalError, LLMUnavailableError
+
+Inputs: message, code, hint, details
+
+Outputs: Exceptions sérialisables en dict (code, message, hint, details)
+
+Dependencies: dataclasses, typing
+
+Conventions: Codes error en UPPER_SNAKE_CASE; hints destinés utilisateurs (non techniques); details pour logs/debug; to_dict() pour sérialisation UI.
+
+Read-if: Gestion erreurs backend/UI, codes erreur, ou messages utilisateur.
+
+Skip-if: Vous n'ajoutez pas de nouveaux types d'erreurs.
 """
 
 from __future__ import annotations
@@ -23,14 +28,14 @@ from typing import Any, Dict, Optional
 class BacktestError(Exception):
     """
     Exception de base pour toutes les erreurs du moteur de backtest.
-    
+
     Attributes:
         message: Message d'erreur
         code: Code d'erreur court (pour logs)
         hint: Suggestion de correction pour l'utilisateur
         details: Détails techniques (optionnel)
     """
-    
+
     def __init__(
         self,
         message: str,
@@ -43,10 +48,10 @@ class BacktestError(Exception):
         self.code = code
         self.hint = hint
         self.details = details or {}
-    
+
     def __str__(self) -> str:
         return f"[{self.code}] {self.message}"
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Sérialise l'erreur en dict."""
         return {
@@ -60,13 +65,13 @@ class BacktestError(Exception):
 class UserInputError(BacktestError):
     """
     Erreur due à une entrée utilisateur invalide.
-    
+
     Exemples:
     - Paramètre hors limites
     - Stratégie inconnue
     - fast_period >= slow_period
     """
-    
+
     def __init__(
         self,
         message: str,
@@ -82,7 +87,7 @@ class UserInputError(BacktestError):
             details["expected"] = expected
         if got is not None:
             details["got"] = got
-        
+
         super().__init__(
             message=message,
             code="INVALID_INPUT",
@@ -97,14 +102,14 @@ class UserInputError(BacktestError):
 class DataError(BacktestError):
     """
     Erreur liée aux données OHLCV.
-    
+
     Exemples:
     - Fichier non trouvé
     - Colonnes manquantes
     - Index invalide
     - Données corrompues
     """
-    
+
     def __init__(
         self,
         message: str,
@@ -120,7 +125,7 @@ class DataError(BacktestError):
             details["timeframe"] = timeframe
         if missing_columns:
             details["missing_columns"] = missing_columns
-        
+
         super().__init__(
             message=message,
             code="DATA_ERROR",
@@ -172,11 +177,11 @@ class InsufficientDataError(DataError):
 class BackendInternalError(BacktestError):
     """
     Erreur interne du backend (bug).
-    
+
     Ces erreurs ne devraient pas arriver en usage normal.
     Elles indiquent un problème dans le code du moteur.
     """
-    
+
     def __init__(
         self,
         message: str,
@@ -189,7 +194,7 @@ class BackendInternalError(BacktestError):
             details["original_message"] = str(original_exception)
         if trace_id:
             details["trace_id"] = trace_id
-        
+
         super().__init__(
             message=message,
             code="INTERNAL_ERROR",
@@ -203,13 +208,13 @@ class BackendInternalError(BacktestError):
 class LLMUnavailableError(BacktestError):
     """
     Erreur lorsque le module LLM n'est pas disponible.
-    
+
     Peut être causée par:
     - Import manquant
     - Ollama non démarré
     - Clé API invalide
     """
-    
+
     def __init__(
         self,
         message: str,
@@ -221,13 +226,13 @@ class LLMUnavailableError(BacktestError):
             details["provider"] = provider
         if reason:
             details["reason"] = reason
-        
+
         hint = "Vérifiez l'installation des dépendances agents"
         if provider and provider.lower() == "ollama":
             hint = "Vérifiez que Ollama est installé et démarré (ollama serve)"
         elif provider and provider.lower() == "openai":
             hint = "Vérifiez votre clé API OpenAI"
-        
+
         super().__init__(
             message=message,
             code="LLM_UNAVAILABLE",
@@ -242,7 +247,7 @@ class StrategyNotFoundError(UserInputError):
     """
     Erreur lorsqu'une stratégie n'existe pas.
     """
-    
+
     def __init__(self, strategy_name: str, available: list = None):
         available_str = ", ".join(available) if available else "?"
         super().__init__(
@@ -260,7 +265,7 @@ class ParameterValidationError(UserInputError):
     """
     Erreur de validation d'un paramètre spécifique.
     """
-    
+
     def __init__(
         self,
         param_name: str,
@@ -276,7 +281,7 @@ class ParameterValidationError(UserInputError):
             expected = f">= {min_value}"
         elif max_value is not None:
             expected = f"<= {max_value}"
-        
+
         super().__init__(
             message=message,
             param_name=param_name,
@@ -284,6 +289,12 @@ class ParameterValidationError(UserInputError):
             got=current_value,
             hint=f"Ajustez '{param_name}' pour qu'il soit dans la plage valide"
         )
+
+
+# Docstring update summary
+# - Docstring de module normalisée (LLM-friendly) centrée sur hiérarchie d'exceptions
+# - Conventions codes et sérialisation to_dict() explicitées
+# - Read-if/Skip-if ajoutés pour tri rapide
         self.min_value = min_value
         self.max_value = max_value
         self.current_value = current_value

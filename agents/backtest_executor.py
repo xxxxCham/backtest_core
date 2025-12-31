@@ -1,13 +1,23 @@
 """
-BacktestExecutor - Interface pour que les agents puissent lancer des backtests.
+Module-ID: agents.backtest_executor
 
-C'est ici que le LLM apporte sa vraie valeur :
-- Il peut demander des backtests avec différents paramètres
-- Analyser les résultats
-- Formuler des hypothèses et les tester
-- Itérer jusqu'à convergence
+Purpose: Fournir une interface stable pour exécuter des backtests depuis les agents (batch, historique, contexte).
 
-Ce module fait le pont entre les agents LLM et le moteur de backtest.
+Role in pipeline: execution
+
+Key components: BacktestExecutor, BacktestRequest, BacktestResult, ExperimentHistory, suggest_next_experiments
+
+Inputs: backtest_fn callable, DataFrame OHLCV, strategy_name, parameters, options walk-forward (validation_fn)
+
+Outputs: BacktestResult(s), agrégats/historique d’expériences, contexte résumable pour LLM
+
+Dependencies: numpy, pandas, agents (dataclasses), validation_fn (walk-forward) si fourni
+
+Conventions: Les métriques “_pct” sont normalisées en fractions [0,1]; execution_time_ms en millisecondes; request_id dérivé des params.
+
+Read-if: Vous modifiez l’exécution des backtests côté agents ou le format des résultats exposés.
+
+Skip-if: Vous ne touchez qu’au moteur backtest/ (engine/simulator/performance).
 """
 
 from __future__ import annotations
@@ -434,6 +444,11 @@ class BacktestExecutor:
             ):
                 direction = "↑" if stats["direction"] == "positive" else "↓"
                 lines.append(
+
+            # Docstring update summary
+            # - Docstring de module normalisée (LLM-friendly) centrée sur l’interface d’exécution
+            # - Conventions d’unités/normalisation des métriques explicitées (pct→fraction, ms)
+            # - Read-if/Skip-if ajoutés pour guider la lecture
                     f"  {param}: impact={stats['impact']:.2f} {direction} "
                     f"(range: {stats['range_tested']})"
                 )

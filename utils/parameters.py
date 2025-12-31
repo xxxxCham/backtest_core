@@ -1,12 +1,26 @@
 """
-Backtest Core - Gestion des Paramètres et Granularité
-=====================================================
+Module-ID: utils.parameters
 
-Système de contrôle de la granularité des paramètres pour éviter
-l'explosion combinatoire lors des optimisations.
+Purpose: Gestion granularité paramètres, presets, contraintes (contrôle combinatoire).
 
-TABLE DES MATIÈRES
-==================
+Role in pipeline: configuration
+
+Key components: ParameterSpec, Preset, ConstraintValidator, SearchSpaceStats, versioned presets
+
+Inputs: Strategy parameter_specs, constraint rules, TOML presets
+
+Outputs: Param grids, SearchSpaceStats, validated presets, versioned snapshots
+
+Dependencies: dataclasses, pathlib, tomllib, typing
+
+Conventions: Granularité 0.0=fin→1.0=grossier; BPS unités; presets source plages optim.
+
+Read-if: Modification presets, contraintes, ou gestion versioning.
+
+Skip-if: Vous appelez juste generate_param_grid() ou list_presets().
+
+TABLE DES MATIÈRES (référence architecture)
+==============================================
 
 I.   INFRASTRUCTURE & CONFIGURATION (lignes ~35-250)
      1.1. Imports
