@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from strategies.base import StrategyBase
 
 from backtest.engine import BacktestEngine
+from metrics_types import PerformanceMetricsPct, normalize_metrics
 from performance.parallel import (
     ParallelRunner,
     generate_param_grid,
@@ -47,11 +48,17 @@ from utils.parameters import compute_search_space_stats
 logger = logging.getLogger(__name__)
 
 
+def _normalize_metrics_pct(metrics: Dict[str, Any]) -> PerformanceMetricsPct:
+    if not metrics:
+        return {}
+    return normalize_metrics(metrics, "pct")
+
+
 @dataclass
 class SweepResultItem:
     """Résultat d'une combinaison de paramètres."""
     params: Dict[str, Any]
-    metrics: Dict[str, Any]
+    metrics: PerformanceMetricsPct
     success: bool
     error: Optional[str] = None
 
@@ -61,11 +68,16 @@ class SweepResults:
     """Résultats complets d'un sweep paramétrique."""
     items: List[SweepResultItem]
     best_params: Dict[str, Any]
-    best_metrics: Dict[str, Any]
+    best_metrics: PerformanceMetricsPct
     total_time: float
     n_completed: int
     n_failed: int
     resource_stats: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self) -> None:
+        self.best_metrics = _normalize_metrics_pct(self.best_metrics)
+        for item in self.items:
+            item.metrics = _normalize_metrics_pct(item.metrics)
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convertit les résultats en DataFrame."""
@@ -88,7 +100,7 @@ class SweepResults:
         """Retourne un résumé textuel."""
         sharpe = self.best_metrics.get('sharpe_ratio', 0)
         total_pnl = self.best_metrics.get('total_pnl', 0)
-        win_rate = self.best_metrics.get('win_rate', 0)
+        win_rate = self.best_metrics.get('win_rate_pct', 0)
 
         # Gérer le cas où les valeurs sont des strings (N/A)
         sharpe_str = f"{sharpe:.2f}" if isinstance(sharpe, (int, float)) else str(sharpe)
@@ -142,7 +154,7 @@ def _run_single_backtest_wrapper(
 
         return {
             "params": params,
-            "metrics": result.metrics,
+            "metrics": _normalize_metrics_pct(result.metrics),
             "success": True,
         }
     except Exception as e:
@@ -280,7 +292,7 @@ class SweepEngine:
         results: List[SweepResultItem] = []
         best_value = float("-inf") if not minimize else float("inf")
         best_params: Dict[str, Any] = {}
-        best_metrics: Dict[str, Any] = {}
+        best_metrics: PerformanceMetricsPct = {}
 
         # Profiler optionnel
         profiler = Profiler("sweep") if self.enable_profiling else None
@@ -317,9 +329,10 @@ class SweepEngine:
             for item_data in parallel_result.results:
                 if item_data.get("success"):
                     result = item_data["result"]
+                    metrics = _normalize_metrics_pct(result.get("metrics", {}))
                     item = SweepResultItem(
                         params=result["params"],
-                        metrics=result.get("metrics", {}),
+                        metrics=metrics,
                         success=result["success"],
                         error=result.get("error"),
                     )
@@ -446,13 +459,14 @@ class SweepEngine:
         results: List[SweepResultItem] = []
         best_value = float("-inf") if not minimize else float("inf")
         best_params: Dict[str, Any] = {}
-        best_metrics: Dict[str, Any] = {}
+        best_metrics: PerformanceMetricsPct = {}
 
         for item in parallel_result.results:
             if item.get("success"):
+                metrics = _normalize_metrics_pct(item["result"].get("metrics", {}))
                 result_item = SweepResultItem(
                     params=item["result"]["params"],
-                    metrics=item["result"].get("metrics", {}),
+                    metrics=metrics,
                     success=True,
                 )
             else:

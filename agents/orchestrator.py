@@ -67,6 +67,7 @@ except ImportError:
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
+    from agents.integration import AgentBacktestMetrics
 
 
 logger = logging.getLogger(__name__)
@@ -120,7 +121,7 @@ class OrchestratorConfig:
     # Callbacks (optionnels)
     on_state_change: Optional[Callable[[AgentState, AgentState], None]] = None
     on_iteration_complete: Optional[Callable[[int, Dict[str, Any]], None]] = None
-    on_backtest_needed: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
+    on_backtest_needed: Optional[Callable[[Dict[str, Any]], "AgentBacktestMetrics"]] = None
 
 
 @dataclass

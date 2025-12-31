@@ -56,6 +56,22 @@ RECOMMENDED_FOR_STRATEGY = ["deepseek-r1:70b", "deepseek-r1:32b", "qwq:32b"]
 RECOMMENDED_FOR_CRITICISM = ["mistral:22b", "gemma3:27b", "qwen2.5:32b"]
 RECOMMENDED_FOR_FAST = ["deepseek-r1:8b", "mistral:7b-instruct", "llama3.2"]
 
+# Configuration optimale par rôle (basée sur benchmarks Dec 2025)
+OPTIMAL_CONFIG_BY_ROLE = {
+    "analyst": ["qwen2.5:14b"],
+    "strategist": ["gemma3:27b"],
+    "critic": ["llama3.3-70b-optimized"],
+    "validator": ["llama3.3-70b-optimized"],
+}
+
+# Fallback si le modèle optimal n'est pas installé
+OPTIMAL_CONFIG_FALLBACK = {
+    "analyst": ["deepseek-r1:8b", "gemma3:12b"],
+    "strategist": ["gemma3:27b", "mistral:22b"],
+    "critic": ["deepseek-r1:32b", "qwq:32b"],
+    "validator": ["deepseek-r1:32b", "qwq:32b"],
+}
+
 
 def _sort_with_preferred(
     models: Iterable[str], preferred_order: Sequence[str]
@@ -170,6 +186,47 @@ def get_model_info(model_name: str) -> dict:
     }
 
 
+def get_optimal_config_for_role(
+    role: str,
+    available_models: List[str],
+) -> List[str]:
+    """
+    Retourne la configuration optimale pour un rôle donné.
+
+    Si le modèle optimal n'est pas installé, utilise le fallback.
+
+    Args:
+        role: Rôle de l'agent (analyst, strategist, critic, validator)
+        available_models: Liste des modèles disponibles
+
+    Returns:
+        Liste des modèles optimaux pour ce rôle (filtrés par disponibilité)
+
+    Example:
+        >>> optimal = get_optimal_config_for_role("critic", installed_models)
+        >>> # Returns: ["llama3.3-70b-optimized"] if installed, else fallback
+    """
+    # Modèle optimal primaire
+    optimal_primary = OPTIMAL_CONFIG_BY_ROLE.get(role, [])
+
+    # Vérifier si le modèle optimal est disponible
+    available_set = set(available_models)
+    optimal_available = [m for m in optimal_primary if m in available_set]
+
+    if optimal_available:
+        return optimal_available
+
+    # Fallback si le modèle optimal n'est pas installé
+    fallback_options = OPTIMAL_CONFIG_FALLBACK.get(role, [])
+    fallback_available = [m for m in fallback_options if m in available_set]
+
+    if fallback_available:
+        return fallback_available[:1]  # Premier fallback disponible
+
+    # Dernier recours: premiers modèles disponibles
+    return available_models[:1] if available_models else []
+
+
 def render_model_selector(
     label: str = "Modèle LLM",
     key: str = "llm_model",
@@ -226,7 +283,10 @@ __all__ = [
     "RECOMMENDED_FOR_STRATEGY",
     "RECOMMENDED_FOR_CRITICISM",
     "RECOMMENDED_FOR_FAST",
+    "OPTIMAL_CONFIG_BY_ROLE",
+    "OPTIMAL_CONFIG_FALLBACK",
     "get_available_models_for_ui",
     "get_model_info",
+    "get_optimal_config_for_role",
     "render_model_selector",
 ]

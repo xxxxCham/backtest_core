@@ -33,6 +33,7 @@ import pandas as pd
 
 from backtest.engine import RunResult
 from backtest.sweep import SweepResults
+from metrics_types import PerformanceMetricsPct, normalize_metrics
 from utils.log import get_logger
 
 logger = get_logger(__name__)
@@ -59,7 +60,7 @@ class StoredResultMetadata:
     symbol: str
     timeframe: str
     params: Dict[str, Any]
-    metrics: Dict[str, Any]
+    metrics: PerformanceMetricsPct
     n_bars: int
     n_trades: int
     period_start: str
@@ -68,12 +69,28 @@ class StoredResultMetadata:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dict pour sérialisation."""
-        return asdict(self)
+        payload = asdict(self)
+        payload["metrics"] = normalize_metrics(self.metrics, "pct")
+        return payload
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "StoredResultMetadata":
         """Crée depuis un dict."""
-        return cls(**data)
+        metrics = normalize_metrics(data.get("metrics", {}), "pct")
+        return cls(
+            run_id=data["run_id"],
+            timestamp=data["timestamp"],
+            strategy=data["strategy"],
+            symbol=data["symbol"],
+            timeframe=data["timeframe"],
+            params=data.get("params", {}),
+            metrics=metrics,
+            n_bars=data["n_bars"],
+            n_trades=data["n_trades"],
+            period_start=data.get("period_start", ""),
+            period_end=data.get("period_end", ""),
+            duration_sec=data.get("duration_sec", 0.0),
+        )
 
 
 # =============================================================================
@@ -166,6 +183,7 @@ class ResultStorage:
 
         try:
             # 1. Sauvegarder les métadonnées
+            metrics_pct = normalize_metrics(result.metrics, "pct")
             metadata = StoredResultMetadata(
                 run_id=run_id,
                 timestamp=datetime.now().isoformat(),
@@ -173,7 +191,7 @@ class ResultStorage:
                 symbol=result.meta.get("symbol", "unknown"),
                 timeframe=result.meta.get("timeframe", "unknown"),
                 params=result.meta.get("params", {}),
-                metrics=result.metrics,
+                metrics=metrics_pct,
                 n_bars=result.meta.get("n_bars", len(result.equity)),
                 n_trades=len(result.trades),
                 period_start=result.meta.get("period_start", ""),
@@ -260,7 +278,7 @@ class ResultStorage:
                 "n_failed": sweep_results.n_failed,
                 "total_time": sweep_results.total_time,
                 "best_params": sweep_results.best_params,
-                "best_metrics": sweep_results.best_metrics,
+                "best_metrics": normalize_metrics(sweep_results.best_metrics, "pct"),
                 "resource_stats": sweep_results.resource_stats,
             }
 
@@ -378,6 +396,9 @@ class ResultStorage:
             summary_path = sweep_dir / "summary.json"
             with open(summary_path, "r", encoding="utf-8") as f:
                 summary = json.load(f)
+            summary["best_metrics"] = normalize_metrics(
+                summary.get("best_metrics", {}), "pct"
+            )
 
             # Charger les résultats
             results_path = sweep_dir / "all_results.parquet"
@@ -486,7 +507,7 @@ class ResultStorage:
         if max_drawdown is not None:
             results = [
                 r for r in results
-                if r.metrics.get("max_drawdown", 100) <= max_drawdown
+                if r.metrics.get("max_drawdown_pct", 100) <= max_drawdown
             ]
 
         if min_trades is not None:

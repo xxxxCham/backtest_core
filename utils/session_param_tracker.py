@@ -249,7 +249,28 @@ class SessionParameterTracker:
 
     def save(self, path: str) -> None:
         """Sauvegarde la session dans un fichier JSON."""
-        import json
+        SYSTEM ROLE: Senior Python architect.
+MODEL CONSTRAINT: Design only. No code yet.
+
+OBJECTIVE:
+Design a minimal, robust typing system to unify metrics and reduce Dict[str, Any].
+
+TASKS:
+1) Propose ONE metric unit convention:
+   - Either "fractions everywhere" OR "percent everywhere"
+   - Justify choice briefly.
+2) Design a central module (ex: core/types.py) containing:
+   - metric types (TypedDict and/or dataclass)
+   - explicit conversion helpers (to_pct, to_fraction, normalize_metrics)
+   - OhlcvFrame alias or Protocol
+3) Define invariants (ex: win_rate ∈ [0,1] if fraction).
+4) Provide a migration plan in 3 atomic PRs.
+
+OUTPUT FORMAT:
+- Markdown
+- Section headers only
+- No code blocks longer than 30 lines
+
         from pathlib import Path
 
         save_path = Path(path)

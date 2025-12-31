@@ -24,13 +24,14 @@ from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, TypedDict, Union
 
 import numpy as np
 import pandas as pd
 
 from backtest.engine import BacktestEngine
 from backtest.validation import ValidationFold, WalkForwardValidator
+from metrics_types import normalize_metrics, pct_to_frac
 from strategies.base import get_strategy, list_strategies
 from utils.config import Config
 from utils.observability import (
@@ -52,6 +53,10 @@ _logger = get_obs_logger(__name__)
 
 # Constantes pour validation walk-forward
 MIN_DAYS_FOR_WALK_FORWARD = 180  # 6 mois minimum
+
+
+def _normalize_engine_metrics(metrics: Mapping[str, Any]) -> Dict[str, Any]:
+    return normalize_metrics(metrics, "pct")
 
 
 class AgentBacktestMetrics(TypedDict):
@@ -239,23 +244,20 @@ def run_backtest_for_agent(
             )
 
         # Extraire les métriques pour l'agent
-        metrics = result.metrics.copy()
-
-        total_return_pct = metrics.get("total_return_pct", 0)
-        max_drawdown_pct = metrics.get("max_drawdown", 0)
-        win_rate_pct = metrics.get("win_rate", 0)
+        metrics_pct = normalize_metrics(result.metrics, "pct")
+        metrics_frac = pct_to_frac(metrics_pct)
 
         output: AgentBacktestMetrics = {
-            "sharpe_ratio": metrics.get("sharpe_ratio", 0),
-            "sortino_ratio": metrics.get("sortino_ratio", 0),
-            "total_return": total_return_pct / 100.0,
-            "max_drawdown": max_drawdown_pct / 100.0,
-            "win_rate": win_rate_pct / 100.0,
-            "profit_factor": metrics.get("profit_factor", 0),
-            "total_trades": metrics.get("total_trades", 0),
-            "sqn": metrics.get("sqn", 0),
-            "calmar_ratio": metrics.get("calmar_ratio", 0),
-            "recovery_factor": metrics.get("recovery_factor", 0),
+            "sharpe_ratio": metrics_frac.get("sharpe_ratio", 0),
+            "sortino_ratio": metrics_frac.get("sortino_ratio", 0),
+            "total_return": metrics_frac.get("total_return", 0),
+            "max_drawdown": metrics_frac.get("max_drawdown", 0),
+            "win_rate": metrics_frac.get("win_rate", 0),
+            "profit_factor": metrics_frac.get("profit_factor", 0),
+            "total_trades": metrics_frac.get("total_trades", 0),
+            "sqn": metrics_frac.get("sqn", 0),
+            "calmar_ratio": metrics_frac.get("calmar_ratio", 0),
+            "recovery_factor": metrics_frac.get("recovery_factor", 0),
             # Données brutes pour analyse approfondie
             "equity_curve": (
                 result.equity.tolist() if len(result.equity) < 10000 else None
@@ -343,8 +345,8 @@ def run_walk_forward_for_agent(
             )
 
             # Stocker dans le fold
-            fold.train_metrics = train_result.metrics
-            fold.test_metrics = test_result.metrics
+            fold.train_metrics = _normalize_engine_metrics(train_result.metrics)
+            fold.test_metrics = _normalize_engine_metrics(test_result.metrics)
 
             return fold, True
 

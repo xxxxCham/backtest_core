@@ -13,7 +13,7 @@ Outputs: BacktestResult(s), agrégats/historique d’expériences, contexte rés
 
 Dependencies: numpy, pandas, agents (dataclasses), validation_fn (walk-forward) si fourni
 
-Conventions: Les métriques “_pct” sont normalisées en fractions [0,1]; execution_time_ms en millisecondes; request_id dérivé des params.
+Conventions: *_pct keys are in percent (0-100); keys without suffix are fractions (0-1); execution_time_ms in milliseconds; request_id derived from params.
 
 Read-if: Vous modifiez l’exécution des backtests côté agents ou le format des résultats exposés.
 
@@ -30,12 +30,20 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 
+from metrics_types import normalize_metrics, pct_to_frac
+
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:  # pragma: no cover
+    from agents.integration import AgentBacktestMetrics, WalkForwardMetrics
+
+BacktestFn = Callable[[str, Dict[str, Any], pd.DataFrame], "AgentBacktestMetrics"]
+ValidationFn = Callable[[str, Dict[str, Any], pd.DataFrame, int, float], "WalkForwardMetrics"]
 
 
 @dataclass
@@ -308,11 +316,11 @@ class BacktestExecutor:
 
     def __init__(
         self,
-        backtest_fn: Callable[[str, Dict[str, Any], pd.DataFrame], Dict[str, Any]],
+        backtest_fn: BacktestFn,
         strategy_name: str,
         data: pd.DataFrame,
-        validation_fn: Optional[Callable] = None,
-    ):
+        validation_fn: Optional[ValidationFn] = None,
+    ) -> None:
         """
         Initialise l'exécuteur.
 
@@ -352,34 +360,35 @@ class BacktestExecutor:
 
         try:
             # Exécuter le backtest principal
-            metrics = self.backtest_fn(
+            metrics_raw: AgentBacktestMetrics = self.backtest_fn(
                 self.strategy_name,
                 request.parameters,
                 self.data
             )
 
-            # Créer le résultat
-            # Note: Les métriques retournent des pourcentages (total_return_pct, win_rate, max_drawdown)
-            # qui doivent être convertis en fractions (0-1) pour BacktestResult
-            total_return_pct = metrics.get("total_return_pct", 0)
-            win_rate_pct = metrics.get("win_rate", 0)
-            max_drawdown_pct = metrics.get("max_drawdown", 0)
+            if any(
+                key in metrics_raw
+                for key in ("total_return_pct", "max_drawdown_pct", "win_rate_pct")
+            ):
+                metrics_frac = pct_to_frac(metrics_raw)
+            else:
+                metrics_frac = normalize_metrics(metrics_raw, "frac")
 
             result = BacktestResult(
                 request=request,
                 success=True,
-                sharpe_ratio=metrics.get("sharpe_ratio", 0),
-                sortino_ratio=metrics.get("sortino_ratio", 0),
-                total_return=total_return_pct / 100.0,  # Convertir % en fraction
-                max_drawdown=max_drawdown_pct / 100.0,  # Convertir % en fraction
-                win_rate=win_rate_pct / 100.0,  # Convertir % en fraction
-                profit_factor=metrics.get("profit_factor", 0),
-                total_trades=metrics.get("total_trades", 0),
-                sqn=metrics.get("sqn", 0),
-                calmar_ratio=metrics.get("calmar_ratio", 0),
-                recovery_factor=metrics.get("recovery_factor", 0),
-                equity_curve=metrics.get("equity_curve"),
-                trades=metrics.get("trades"),
+                sharpe_ratio=metrics_frac.get("sharpe_ratio", 0),
+                sortino_ratio=metrics_frac.get("sortino_ratio", 0),
+                total_return=metrics_frac.get("total_return", 0),
+                max_drawdown=metrics_frac.get("max_drawdown", 0),
+                win_rate=metrics_frac.get("win_rate", 0),
+                profit_factor=metrics_frac.get("profit_factor", 0),
+                total_trades=metrics_frac.get("total_trades", 0),
+                sqn=metrics_frac.get("sqn", 0),
+                calmar_ratio=metrics_frac.get("calmar_ratio", 0),
+                recovery_factor=metrics_frac.get("recovery_factor", 0),
+                equity_curve=metrics_frac.get("equity_curve"),
+                trades=metrics_frac.get("trades"),
             )
 
             # Walk-forward si demandé et disponible

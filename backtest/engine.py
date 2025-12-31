@@ -31,6 +31,7 @@ import pandas as pd
 from strategies.base import StrategyBase
 
 from backtest.performance import PerformanceMetricsDict, calculate_metrics
+from metrics_types import normalize_metrics
 
 # Import simulateur rapide (Numba) avec fallback
 try:
@@ -103,8 +104,12 @@ class RunResult:
         n_trades = len(self.trades)
         total_pnl = self.metrics.get("total_pnl", 0)
         sharpe = self.metrics.get("sharpe_ratio", 0)
-        max_dd = self.metrics.get("max_drawdown", 0)
-        win_rate = self.metrics.get("win_rate", 0)
+        max_dd = self.metrics.get(
+            "max_drawdown_pct", self.metrics.get("max_drawdown", 0)
+        )
+        win_rate = self.metrics.get(
+            "win_rate_pct", self.metrics.get("win_rate", 0)
+        )
 
         return f"""
 Backtest Summary
@@ -311,7 +316,7 @@ class BacktestEngine:
             # 8. Calculer les métriques
             self.counters.start("metrics")
             periods_per_year = self._get_periods_per_year(timeframe)
-            metrics = calculate_metrics(
+            metrics: PerformanceMetricsDict = calculate_metrics(
                 equity=equity,
                 returns=returns,
                 trades_df=trades_df,
@@ -319,6 +324,7 @@ class BacktestEngine:
                 periods_per_year=periods_per_year,
                 run_id=self.run_id  # Propager run_id pour logs structurés
             )
+            metrics = normalize_metrics(metrics, "pct")
             self.counters.stop("metrics")
 
             # 9. Construire les métadonnées
@@ -366,9 +372,9 @@ class BacktestEngine:
                     f"sharpe={metrics.get('sharpe_ratio', 0):.2f} "
                     f"sortino={metrics.get('sortino_ratio', 0):.2f} "
                     f"calmar={metrics.get('calmar_ratio', 0):.2f} "
-                    f"max_dd_pct={metrics.get('max_drawdown', 0):.2f} "
+                    f"max_dd_pct={metrics.get('max_drawdown_pct', metrics.get('max_drawdown', 0)):.2f} "
                     f"trades_count={len(trades_df)} "
-                    f"win_rate_pct={metrics.get('win_rate', 0):.1f} "
+                    f"win_rate_pct={metrics.get('win_rate_pct', metrics.get('win_rate', 0)):.1f} "
                     f"profit_factor={metrics.get('profit_factor', 0):.2f} "
                     f"avg_trade_pnl={metrics.get('avg_trade_pnl', 0):.2f} "
                     f"fees_total={fees_total:.2f} "

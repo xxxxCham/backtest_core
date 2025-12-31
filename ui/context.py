@@ -120,6 +120,14 @@ render_live_orchestration_panel = None
 render_orchestration_logs = None
 render_orchestration_summary_table = None
 
+BUILTIN_PRESETS = None
+apply_preset_to_config = None
+delete_model_preset = None
+get_current_config_as_dict = None
+list_model_presets = None
+load_model_preset = None
+save_model_preset = None
+
 try:
     from agents.autonomous_strategist import AutonomousStrategist  # noqa: F401
     from agents.integration import (  # noqa: F401
@@ -150,9 +158,21 @@ try:
         render_mini_timeline,
     )
     from ui.components.model_selector import (  # noqa: F401
+        OPTIMAL_CONFIG_BY_ROLE,
+        OPTIMAL_CONFIG_FALLBACK,
         RECOMMENDED_FOR_STRATEGY,
         get_available_models_for_ui,
         get_model_info,
+        get_optimal_config_for_role,
+    )
+    from ui.model_presets import (  # noqa: F401
+        BUILTIN_PRESETS,
+        apply_preset_to_config,
+        delete_model_preset,
+        get_current_config_as_dict,
+        list_model_presets,
+        load_model_preset,
+        save_model_preset,
     )
     from ui.components.monitor import render_mini_monitor  # noqa: F401
     from ui.deep_trace_viewer import render_deep_trace_viewer  # noqa: F401

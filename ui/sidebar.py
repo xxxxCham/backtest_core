@@ -601,8 +601,137 @@ def render_sidebar() -> SidebarState:
                         )
 
                     st.sidebar.markdown("---")
+                    st.sidebar.caption("**Configuration des modèles**")
+
+                    # ===== GESTION DES PRESETS =====
+                    from ui.model_presets import (
+                        list_model_presets,
+                        load_model_preset,
+                        save_model_preset,
+                        delete_model_preset,
+                        get_current_config_as_dict,
+                        apply_preset_to_config,
+                    )
+
+                    # Lister tous les presets
+                    all_presets = list_model_presets()
+                    preset_names = [p["name"] for p in all_presets]
+
+                    # Selectbox pour choisir un preset
+                    col1, col2 = st.sidebar.columns([3, 1])
+                    with col1:
+                        selected_preset = st.selectbox(
+                            "Charger un preset",
+                            options=["Aucun (manuel)"] + preset_names,
+                            key="selected_model_preset",
+                            help="Charge une configuration prédéfinie de modèles LLM"
+                        )
+
+                    with col2:
+                        # Bouton pour appliquer le preset
+                        if selected_preset != "Aucun (manuel)":
+                            if st.button("⚡", key="apply_preset", help="Appliquer ce preset"):
+                                preset = load_model_preset(selected_preset)
+                                apply_preset_to_config(preset, get_global_model_config())
+                                st.rerun()
+
+                    # Expander pour sauvegarder/gérer les presets
+                    with st.sidebar.expander("💾 Gérer les presets"):
+                        user_presets = [p for p in all_presets if not p.get("builtin", False)]
+
+                        # Tab pour organiser les actions
+                        action_choice = st.radio(
+                            "Action",
+                            ["➕ Créer nouveau", "✏️ Modifier existant", "🗑️ Supprimer"],
+                            key="preset_action",
+                            horizontal=True
+                        )
+
+                        if action_choice == "➕ Créer nouveau":
+                            st.markdown("**Créer un nouveau preset**")
+                            new_preset_name = st.text_input(
+                                "Nom du preset",
+                                key="new_preset_name",
+                                placeholder="Ex: Précis, Rapide, Test..."
+                            )
+                            st.caption("💡 Ajustez les modèles ci-dessous avant de sauvegarder")
+
+                            if st.button("💾 Créer", key="create_preset"):
+                                if new_preset_name.strip():
+                                    try:
+                                        current_config = get_current_config_as_dict(get_global_model_config())
+                                        save_model_preset(new_preset_name.strip(), current_config["models"])
+                                        st.success(f"✅ Preset '{new_preset_name}' créé")
+                                        st.rerun()
+                                    except ValueError as e:
+                                        st.error(f"❌ {e}")
+                                else:
+                                    st.error("Nom de preset requis")
+
+                        elif action_choice == "✏️ Modifier existant":
+                            st.markdown("**Modifier un preset existant**")
+                            if user_presets:
+                                preset_to_modify = st.selectbox(
+                                    "Preset à modifier",
+                                    options=[p["name"] for p in user_presets],
+                                    key="preset_to_modify"
+                                )
+                                st.caption("💡 Chargez le preset ci-dessus, ajustez les modèles, puis sauvegardez")
+
+                                if st.button("💾 Sauvegarder modifications", key="update_preset"):
+                                    try:
+                                        current_config = get_current_config_as_dict(get_global_model_config())
+                                        save_model_preset(preset_to_modify, current_config["models"])
+                                        st.success(f"✅ Preset '{preset_to_modify}' mis à jour")
+                                        st.rerun()
+                                    except ValueError as e:
+                                        st.error(f"❌ {e}")
+                            else:
+                                st.info("Aucun preset utilisateur à modifier")
+
+                        elif action_choice == "🗑️ Supprimer":
+                            st.markdown("**Supprimer un preset**")
+                            if user_presets:
+                                preset_to_delete = st.selectbox(
+                                    "Preset à supprimer",
+                                    options=[p["name"] for p in user_presets],
+                                    key="preset_to_delete"
+                                )
+                                st.warning(f"⚠️ Supprimer '{preset_to_delete}' définitivement ?")
+
+                                if st.button("🗑️ Confirmer suppression", key="delete_preset"):
+                                    try:
+                                        if delete_model_preset(preset_to_delete):
+                                            st.success(f"✅ Preset '{preset_to_delete}' supprimé")
+                                            st.rerun()
+                                    except ValueError as e:
+                                        st.error(f"❌ {e}")
+                            else:
+                                st.info("Aucun preset utilisateur à supprimer")
+
+                    st.sidebar.markdown("---")
                     st.sidebar.caption("**Modeles par role d'agent**")
                     st.sidebar.caption("Rapide | Moyen | Lent")
+
+                    # Checkbox pour pré-configuration optimale
+                    use_optimal_config = st.sidebar.checkbox(
+                        "⚡ Pré-config optimale",
+                        value=False,
+                        key="use_optimal_model_config",
+                        help=(
+                            "Active la configuration recommandée basée sur les benchmarks:\n"
+                            "• Analyst → qwen2.5:14b (rapide)\n"
+                            "• Strategist → gemma3:27b (équilibré)\n"
+                            "• Critic → llama3.3-70b-optimized (puissant)\n"
+                            "• Validator → llama3.3-70b-optimized (critique)"
+                        ),
+                    )
+
+                    if use_optimal_config:
+                        st.sidebar.info(
+                            "💡 Configuration optimale activée. "
+                            "Vous pouvez ajuster manuellement les sélections ci-dessous."
+                        )
 
                     role_model_config = get_global_model_config()
 
@@ -625,16 +754,37 @@ def render_sidebar() -> SidebarState:
                     display_to_name = {v: k for k, v in name_to_display.items()}
 
                     st.sidebar.markdown("**Analyst** (analyse rapide)")
-                    analyst_defaults = [
-                        name_to_display.get(m, m)
-                        for m in role_model_config.analyst.models
-                        if m in available_model_names
-                    ]
-                    analyst_default_options = (
-                        analyst_defaults[:3] if analyst_defaults else model_options_display[:2]
-                    )
+
+                    if selected_preset and selected_preset != "Aucun (manuel)":
+                        # Charger le preset et utiliser ses modèles
+                        preset = load_model_preset(selected_preset)
+                        preset_models = preset["models"].get("analyst", [])
+                        analyst_default_options = [
+                            name_to_display.get(m, m)
+                            for m in preset_models
+                            if m in available_model_names
+                        ]
+                    elif use_optimal_config:
+                        # Utiliser la config optimale
+                        from ui.components.model_selector import get_optimal_config_for_role
+                        optimal_analyst = get_optimal_config_for_role("analyst", available_model_names)
+                        analyst_default_options = [
+                            name_to_display.get(m, m) for m in optimal_analyst
+                        ]
+                    else:
+                        # Comportement existant
+                        analyst_defaults = [
+                            name_to_display.get(m, m)
+                            for m in role_model_config.analyst.models
+                            if m in available_model_names
+                        ]
+                        analyst_default_options = (
+                            analyst_defaults[:3] if analyst_defaults else model_options_display[:2]
+                        )
+
                     if not model_options_display:
                         analyst_default_options = []
+
                     analyst_selection = st.sidebar.multiselect(
                         "Modeles Analyst",
                         model_options_display,
@@ -644,18 +794,38 @@ def render_sidebar() -> SidebarState:
                     )
 
                     st.sidebar.markdown("**Strategist** (propositions)")
-                    strategist_defaults = [
-                        name_to_display.get(m, m)
-                        for m in role_model_config.strategist.models
-                        if m in available_model_names
-                    ]
-                    strategist_default_options = (
-                        strategist_defaults[:3]
-                        if strategist_defaults
-                        else model_options_display[:2]
-                    )
+
+                    if selected_preset and selected_preset != "Aucun (manuel)":
+                        # Charger le preset et utiliser ses modèles
+                        preset = load_model_preset(selected_preset)
+                        preset_models = preset["models"].get("strategist", [])
+                        strategist_default_options = [
+                            name_to_display.get(m, m)
+                            for m in preset_models
+                            if m in available_model_names
+                        ]
+                    elif use_optimal_config:
+                        # Utiliser la config optimale
+                        optimal_strategist = get_optimal_config_for_role("strategist", available_model_names)
+                        strategist_default_options = [
+                            name_to_display.get(m, m) for m in optimal_strategist
+                        ]
+                    else:
+                        # Comportement existant
+                        strategist_defaults = [
+                            name_to_display.get(m, m)
+                            for m in role_model_config.strategist.models
+                            if m in available_model_names
+                        ]
+                        strategist_default_options = (
+                            strategist_defaults[:3]
+                            if strategist_defaults
+                            else model_options_display[:2]
+                        )
+
                     if not model_options_display:
                         strategist_default_options = []
+
                     strategist_selection = st.sidebar.multiselect(
                         "Modeles Strategist",
                         model_options_display,
@@ -665,16 +835,36 @@ def render_sidebar() -> SidebarState:
                     )
 
                     st.sidebar.markdown("**Critic** (evaluation critique)")
-                    critic_defaults = [
-                        name_to_display.get(m, m)
-                        for m in role_model_config.critic.models
-                        if m in available_model_names
-                    ]
-                    critic_default_options = (
-                        critic_defaults[:3] if critic_defaults else model_options_display[:2]
-                    )
+
+                    if selected_preset and selected_preset != "Aucun (manuel)":
+                        # Charger le preset et utiliser ses modèles
+                        preset = load_model_preset(selected_preset)
+                        preset_models = preset["models"].get("critic", [])
+                        critic_default_options = [
+                            name_to_display.get(m, m)
+                            for m in preset_models
+                            if m in available_model_names
+                        ]
+                    elif use_optimal_config:
+                        # Utiliser la config optimale
+                        optimal_critic = get_optimal_config_for_role("critic", available_model_names)
+                        critic_default_options = [
+                            name_to_display.get(m, m) for m in optimal_critic
+                        ]
+                    else:
+                        # Comportement existant
+                        critic_defaults = [
+                            name_to_display.get(m, m)
+                            for m in role_model_config.critic.models
+                            if m in available_model_names
+                        ]
+                        critic_default_options = (
+                            critic_defaults[:3] if critic_defaults else model_options_display[:2]
+                        )
+
                     if not model_options_display:
                         critic_default_options = []
+
                     critic_selection = st.sidebar.multiselect(
                         "Modeles Critic",
                         model_options_display,
@@ -684,18 +874,38 @@ def render_sidebar() -> SidebarState:
                     )
 
                     st.sidebar.markdown("**Validator** (decision finale)")
-                    validator_defaults = [
-                        name_to_display.get(m, m)
-                        for m in role_model_config.validator.models
-                        if m in available_model_names
-                    ]
-                    validator_default_options = (
-                        validator_defaults[:3]
-                        if validator_defaults
-                        else model_options_display[:2]
-                    )
+
+                    if selected_preset and selected_preset != "Aucun (manuel)":
+                        # Charger le preset et utiliser ses modèles
+                        preset = load_model_preset(selected_preset)
+                        preset_models = preset["models"].get("validator", [])
+                        validator_default_options = [
+                            name_to_display.get(m, m)
+                            for m in preset_models
+                            if m in available_model_names
+                        ]
+                    elif use_optimal_config:
+                        # Utiliser la config optimale
+                        optimal_validator = get_optimal_config_for_role("validator", available_model_names)
+                        validator_default_options = [
+                            name_to_display.get(m, m) for m in optimal_validator
+                        ]
+                    else:
+                        # Comportement existant
+                        validator_defaults = [
+                            name_to_display.get(m, m)
+                            for m in role_model_config.validator.models
+                            if m in available_model_names
+                        ]
+                        validator_default_options = (
+                            validator_defaults[:3]
+                            if validator_defaults
+                            else model_options_display[:2]
+                        )
+
                     if not model_options_display:
                         validator_default_options = []
+
                     validator_selection = st.sidebar.multiselect(
                         "Modeles Validator",
                         model_options_display,

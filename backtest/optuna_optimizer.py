@@ -42,6 +42,7 @@ except ImportError:
     optuna = None
 
 from backtest.engine import BacktestEngine
+from metrics_types import PerformanceMetricsPct, normalize_metrics
 from utils.observability import (
     get_obs_logger,
     generate_run_id,
@@ -95,7 +96,7 @@ class OptimizationResult:
     """Résultat d'une optimisation Optuna."""
     best_params: Dict[str, Any]
     best_value: float
-    best_metrics: Dict[str, Any]
+    best_metrics: PerformanceMetricsPct
     n_trials: int
     n_completed: int
     n_pruned: int
@@ -134,7 +135,7 @@ Best Parameters:
 Best Metrics:
   Sharpe: {self.best_metrics.get('sharpe_ratio', 'N/A')}
   Total Return: {self.best_metrics.get('total_return_pct', 'N/A')}
-  Max Drawdown: {self.best_metrics.get('max_drawdown', 'N/A')}
+  Max Drawdown: {self.best_metrics.get('max_drawdown_pct', 'N/A')}
 """
 
 
@@ -243,7 +244,7 @@ class OptunaOptimizer:
 
         # Cache pour éviter les recalculs
         self._engine: Optional[BacktestEngine] = None
-        self._best_metrics: Dict[str, Any] = {}
+        self._best_metrics: PerformanceMetricsPct = {}
 
         self.logger.info(
             "optuna_optimizer_init params=%s constraints=%s early_stop=%s",
@@ -423,7 +424,7 @@ class OptunaOptimizer:
                 )) or (direction == "minimize" and value < self._best_metrics.get(
                     metric, float("inf")
                 )):
-                    self._best_metrics = result.metrics.copy()
+                    self._best_metrics = normalize_metrics(result.metrics, "pct")
 
                 # Log pour debug
                 self.logger.debug(
@@ -610,11 +611,11 @@ class OptunaOptimizer:
         Example:
             >>> result = optimizer.optimize_multi_objective(
             ...     n_trials=100,
-            ...     metrics=["sharpe_ratio", "max_drawdown"],
+            ...     metrics=["sharpe_ratio", "max_drawdown_pct"],
             ...     directions=["maximize", "minimize"],
             ... )
         """
-        metrics = metrics or ["sharpe_ratio", "max_drawdown"]
+        metrics = metrics or ["sharpe_ratio", "max_drawdown_pct"]
         directions = directions or ["maximize", "minimize"]
 
         self.logger.info(

@@ -18,6 +18,13 @@ Agents MUST log all work in this file (no extra logs/notes/changelogs elsewhere)
 - Always split work into micro-tasks that can be verified quickly (compile/import/test).
 - For each micro-task: PLAN → EDIT → VERIFY → LOG → SELF-CRITIQUE.
 
+## Protocole d'intervention
+
+- Debut d'intervention: indiquer les informations principales deja disponibles dans l'espace de travail (contexte/contraintes).
+- Mettre a jour l'information de suivi uniquement dans le fichier prevu (AGENTS.md, Work Log); ne pas creer d'autres fichiers.
+- Toujours respecter les regles de base de ce document.
+- Fin d'intervention: auto-verification; si la demande n'est pas satisfaite, corriger avant de repondre.
+
 ## Comment tags (for navigation)
 
 Use these lightweight tags in code when helpful:
@@ -122,6 +129,14 @@ Keep these comments short (1–2 lines). Remove them if they become stale.
 - Next/TODO: Tester dans un backtest réel avec allow_heavy=True pour mesurer impact sur optimisation; optionnel — benchmark comparatif avec autres modèles heavy (qwq:32b, deepseek-r1:70b).
 
 - Timestamp: 01/01/2026
+- Goal: Ajouter pré-configuration optimale des modèles LLM dans l'UI Streamlit.
+- Files changed: ui/components/model_selector.py, ui/sidebar.py, ui/context.py.
+- Key changes: Ajout checkbox "⚡ Pré-config optimale" dans sidebar avec configuration recommandée (Analyst → qwen2.5:14b, Strategist → gemma3:27b, Critic/Validator → llama3.3-70b-optimized); création constantes OPTIMAL_CONFIG_BY_ROLE et OPTIMAL_CONFIG_FALLBACK dans model_selector.py; fonction get_optimal_config_for_role() avec gestion fallback si modèle optimal non installé; modification logique defaults des 4 multiselect (Analyst, Strategist, Critic, Validator) pour utiliser config optimale quand checkbox activée; utilisateur peut ajuster manuellement après activation; info box affichée quand pré-config active.
+- Commands/tests run: python -c imports (model_selector.py, context.py, sidebar.py syntaxe OK).
+- Result: Fonctionnalité UX améliorée; utilisateurs peuvent activer config optimale en un clic; fallback automatique vers alternatives si modèles manquants (deepseek-r1:32b pour Critic/Validator si llama3.3 absent, deepseek-r1:8b pour Analyst, mistral:22b pour Strategist); flexibilité conservée pour ajustements manuels; help text explicite pour chaque rôle.
+- Next/TODO: Tester manuellement l'interface (streamlit run ui/main.py); optionnel — ajouter bouton "Réinitialiser à optimal" pour restaurer config après modifications manuelles.
+
+- Timestamp: 01/01/2026
 - Goal: Corriger l'extraction des metriques de base pour les agents.
 - Files changed: agents/base_agent.py.
 - Key changes: normalisation total_return/max_drawdown/win_rate vers fractions; fallback avg_trade_duration depuis avg_trade_duration_hours pour aligner les metriques moteur/UI.
@@ -130,9 +145,60 @@ Keep these comments short (1–2 lines). Remove them if they become stale.
 - Next/TODO: verifier les usages si une source retourne des fractions > 1 (retours > 100%).
 
 - Timestamp: 01/01/2026
+- Goal: Ajouter système de presets personnalisables pour configurations de modèles LLM.
+- Files changed: ui/model_presets.py (nouveau), ui/sidebar.py, ui/context.py.
+- Key changes: Création module model_presets.py avec 4 presets builtin (Optimal, Rapide, Équilibré, Puissant); fonctions save/load/delete/list presets; sauvegarde JSON dans data/model_presets/; ajout UI dans sidebar (selectbox preset + bouton ⚡ + expander gestion avec radio "Créer/Modifier/Supprimer") AVANT checkbox pré-config optimale; logique multiselect modifiée pour charger presets (priorité: selected_preset > use_optimal_config > config actuelle); utilisateur peut créer presets personnalisés avec nom libre, modifier presets existants (charger + ajuster + sauvegarder), supprimer presets (sauf builtin); persistence complète des presets utilisateur; 4 presets builtin: Optimal (qwen2.5:14b/gemma3:27b/llama3.3-70b-optimized), Rapide (gemma3:12b/mistral:22b/deepseek-r1:32b), Équilibré (qwen2.5:14b/gemma3:27b/deepseek-r1:32b/qwq:32b), Puissant (qwen2.5:32b/deepseek-r1:32b/llama3.3-70b-optimized); workflow UX clair avec 3 actions séparées via radio buttons; protections builtin (modification/suppression bloquées).
+- Commands/tests run: python -c imports (model_presets.py, context.py, sidebar.py syntaxe OK); python test_presets_workflow.py (10/10 tests réussis: créer/lister/modifier/supprimer + protections builtin validées).
+- Result: Système complet de gestion de presets; 4 presets prédéfinis utilisables immédiatement; CRUD complet (Create/Read/Update/Delete) pour presets personnalisés; persistence JSON sur disque (data/model_presets/); UI intuitive avec selectbox + expander + radio 3 actions; presets builtin protégés contre modification/suppression; workflow modification explicite (sélectionner preset → charger via ⚡ → ajuster modèles → sauvegarder modifications); cas d'usage: preset "Précis" avec heavy models pour fine-tuning, preset "Rapide" avec light models pour exploration, presets personnalisés pour tests spécifiques; tests automatisés confirment fonctionnement complet.
+- Next/TODO: Optionnel — ajouter export/import de presets pour partage entre utilisateurs; ajouter validation des modèles (vérifier si installés) avant application du preset.
+
+- Timestamp: 01/01/2026
 - Goal: Preciser les type hints dans les fichiers recemment touches (agents/backtest).
 - Files changed: agents/base_agent.py, agents/integration.py, agents/orchestrator.py, backtest/engine.py.
 - Key changes: Mapping pour MetricsSnapshot.from_dict; type optionnel pour data dans AgentResult.success_result; TypedDicts pour metriques agents/walk-forward; annotations de retour et de champs (indicator bank, execution engine, data, callbacks) pour clarifier les API.
 - Commands/tests run: none.
 - Result: signatures plus explicites sans changement de logique.
 - Next/TODO: etendre les TypedDicts aux autres callbacks si besoin.
+
+- Timestamp: 01/01/2026
+- Goal: Renforcer les type hints end-to-end pour les metriques et callbacks agents/backtest.
+- Files changed: backtest/performance.py, backtest/engine.py, agents/integration.py, agents/backtest_executor.py, agents/orchestrator.py.
+- Key changes: ajout PerformanceMetricsDict (TypedDict) et propagation dans calculate_metrics/PerformanceCalculator/RunResult; typed dicts agents utilises dans callbacks et executors; signatures clarifiees via TYPE_CHECKING.
+- Commands/tests run: none.
+- Result: contrats de type plus precis entre moteur, integration agents et executors.
+- Next/TODO: propager PerformanceMetricsDict aux autres consommateurs (facade/UI) si besoin.
+
+- Timestamp: 31/12/2025
+- Goal: Ajouter un protocole d'intervention (recap debut, mise a jour du fichier prevu, rappel regles, auto-verification).
+- Files changed: AGENTS.md.
+- Key changes: Ajout section "Protocole d'intervention" avec recap initial, mise a jour du suivi dans AGENTS.md uniquement, rappel des regles et auto-verification en fin d'intervention.
+- Commands/tests run: none (manual review of AGENTS.md).
+- Result: Consignes clarifiees pour debut/fin d'intervention et mise a jour du fichier prevu.
+- Next/TODO: none.
+
+- Timestamp: 31/12/2025
+- Goal: Stabiliser le pipeline metriques (integration -> backtest_executor) avant Prompt 5.
+- Files changed: agents/integration.py, agents/backtest_executor.py, AGENTS.md.
+- Key changes: integration utilise pct_to_frac directement sur result.metrics (normalisation redondante retiree); backtest_executor supprime la detection de cles *_pct et normalise strictement en fractions; conventions doc clarifiees.
+- Commands/tests run: python -m pytest -q tests/test_metrics_pipeline.py (python non dispo); python3 -m pytest -q tests/test_metrics_pipeline.py (pytest manquant); python3 -c "import agents.integration, agents.backtest_executor" (pydantic manquant); python3 - <<'PY' (ast.parse) (syntax-ok).
+- Result: conversion pct->frac unique cote integration; backtest_executor impose des metriques fraction; verification pytest indisponible dans l'environnement.
+- Self-critique: verification limitee aux checks de syntaxe faute de pytest/pydantic.
+- Next/TODO: relancer tests quand pytest/pydantic disponibles.
+
+- Timestamp: 31/12/2025
+- Goal: Corriger la conversion metrics pct/frac dans integration et backtest_executor.
+- Files changed: agents/integration.py, agents/backtest_executor.py, AGENTS.md.
+- Key changes: integration normalise en pct puis convertit via pct_to_frac; backtest_executor reintroduit la detection explicite *_pct pour pct_to_frac sinon normalize_metrics("frac"); conventions doc corrigees.
+- Commands/tests run: python3 - <<'PY' (ast.parse) (syntax-ok).
+- Result: conversion pct->frac explicite sans ecrasement; executor accepte pct ou frac selon cles.
+- Self-critique: verification limitee a la syntaxe (pas de pytest disponible).
+- Next/TODO: relancer tests pipeline si environnement test disponible.
+
+- Timestamp: 31/12/2025
+- Goal: Durcir les limites metrics (facade/storage/sweep/optuna) avec payloads typés et normalisation explicite.
+- Files changed: backtest/facade.py, backtest/storage.py, backtest/sweep.py, backtest/optuna_optimizer.py, metrics_types.py, tests/test_metrics_pipeline.py, AGENTS.md.
+- Key changes: UIMetrics aligne les clés percent (_pct) et normalise via normalize_metrics; storage normalise metrics en lecture/écriture et filtre max_drawdown_pct; sweep/optuna typent best_metrics et normalisent les payloads; UIMetricsPct enrichi (sqn/recovery_factor); tests ajoutés pour round-trip metadata, UIMetrics canonical, et best_metrics sweep.
+- Commands/tests run: python3 -m pytest -q tests/test_metrics_pipeline.py (pytest manquant); python3 - <<'PY' (ast.parse) (syntax-ok).
+- Result: métriques aux frontières typées et normalisées; sorties canonisées; compat legacy via alias normalization explicite.
+- Self-critique: tests unitaires non exécutés faute de pytest; pas de validation end-to-end.
+- Next/TODO: relancer pytest quand l'environnement de test est disponible.

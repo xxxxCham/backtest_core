@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 from utils.log import get_logger
+from metrics_types import normalize_metrics
 
 # Import des métriques Tier S
 from backtest.metrics_tier_s import (
@@ -46,10 +47,12 @@ class PerformanceMetricsDict(TypedDict, total=False):
     sharpe_ratio: float
     sortino_ratio: float
     max_drawdown: float
+    max_drawdown_pct: float
     max_drawdown_duration_days: float
     volatility_annual: float
     total_trades: int
     win_rate: float
+    win_rate_pct: float
     profit_factor: float
     avg_win: float
     avg_loss: float
@@ -724,7 +727,7 @@ def calculate_metrics(
     else:
         metrics["tier_s"] = None
 
-    return metrics
+    return normalize_metrics(metrics, "pct")
 
 
 class PerformanceCalculator:

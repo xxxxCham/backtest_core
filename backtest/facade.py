@@ -36,6 +36,7 @@ from backtest.errors import (
     InsufficientDataError,
     UserInputError,
 )
+from metrics_types import UIMetricsPct, normalize_metrics
 from utils.config import Config
 from utils.log import get_logger
 
@@ -178,12 +179,12 @@ class UIMetrics:
     sharpe_ratio: float = 0.0
     sortino_ratio: float = 0.0
     calmar_ratio: float = 0.0
-    max_drawdown: float = 0.0
+    max_drawdown_pct: float = 0.0
     volatility_annual: float = 0.0
 
     # Trading
     total_trades: int = 0
-    win_rate: float = 0.0
+    win_rate_pct: float = 0.0
     profit_factor: float = 0.0
     expectancy: float = 0.0
 
@@ -194,7 +195,7 @@ class UIMetrics:
     @classmethod
     def from_run_result(cls, result: RunResult) -> "UIMetrics":
         """Crée UIMetrics depuis un RunResult."""
-        m = result.metrics
+        m = normalize_metrics(result.metrics, "pct")
         return cls(
             total_pnl=m.get("total_pnl", 0.0),
             total_return_pct=m.get("total_return_pct", 0.0),
@@ -202,17 +203,17 @@ class UIMetrics:
             sharpe_ratio=m.get("sharpe_ratio", 0.0),
             sortino_ratio=m.get("sortino_ratio", 0.0),
             calmar_ratio=m.get("calmar_ratio", 0.0),
-            max_drawdown=m.get("max_drawdown", 0.0),
+            max_drawdown_pct=m.get("max_drawdown_pct", 0.0),
             volatility_annual=m.get("volatility_annual", 0.0),
             total_trades=m.get("total_trades", 0),
-            win_rate=m.get("win_rate", 0.0),
+            win_rate_pct=m.get("win_rate_pct", 0.0),
             profit_factor=m.get("profit_factor", 0.0),
             expectancy=m.get("expectancy", 0.0),
             sqn=m.get("sqn"),
             recovery_factor=m.get("recovery_factor"),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> UIMetricsPct:
         """Convertit en dict pour sérialisation."""
         return {
             "total_pnl": self.total_pnl,
@@ -221,10 +222,10 @@ class UIMetrics:
             "sharpe_ratio": self.sharpe_ratio,
             "sortino_ratio": self.sortino_ratio,
             "calmar_ratio": self.calmar_ratio,
-            "max_drawdown": self.max_drawdown,
+            "max_drawdown_pct": self.max_drawdown_pct,
             "volatility_annual": self.volatility_annual,
             "total_trades": self.total_trades,
-            "win_rate": self.win_rate,
+            "win_rate_pct": self.win_rate_pct,
             "profit_factor": self.profit_factor,
             "expectancy": self.expectancy,
             "sqn": self.sqn,
