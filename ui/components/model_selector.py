@@ -30,6 +30,12 @@ except ImportError:
     def list_ollama_models() -> List[str]:
         return []
 from utils.log import get_logger
+from utils.model_loader import (
+    get_all_ollama_models,
+    get_model_by_id,
+    get_model_info_for_ui,
+    get_ollama_model_names,
+)
 
 logger = get_logger(__name__)
 
@@ -141,13 +147,27 @@ def get_model_info(model_name: str) -> dict:
     """
     Retourne des informations sur un modèle.
 
+    Priorité: models.json > hardcoded fallback
+
     Args:
         model_name: Nom du modèle
 
     Returns:
         dict: Informations du modèle (size, description, etc.)
     """
-    # Mapping des tailles approximatives (GB)
+    # 1. Chercher dans models.json d'abord
+    try:
+        info = get_model_info_for_ui(model_name)
+        if info and info.get("size_gb") != "?":
+            return {
+                "name": info.get("name", model_name),
+                "size_gb": info["size_gb"],
+                "description": info.get("description", ""),
+            }
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Erreur lecture models.json pour %s: %s", model_name, exc)
+
+    # 2. Fallback hardcodé pour compatibilité
     model_sizes = {
         "deepseek-r1:70b": 34,
         "deepseek-r1:32b": 19,
@@ -163,7 +183,6 @@ def get_model_info(model_name: str) -> dict:
         "phi3": 2,
     }
 
-    # Descriptions
     model_descriptions = {
         "deepseek-r1:70b": "Le plus puissant - Excellent pour stratégies complexes",
         "deepseek-r1:32b": "Optimal - Meilleur rapport qualité/prix",

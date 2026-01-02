@@ -80,6 +80,7 @@ Types d'actions d'orchestration."""
     INDICATOR_ADD = "indicator_add"
     INDICATOR_REMOVE = "indicator_remove"
     INDICATOR_VALIDATION = "indicator_validation"
+    INDICATOR_CONTEXT = "indicator_context"
 
     # Tests
     BACKTEST_START = "backtest_start"

@@ -24,12 +24,15 @@ import argparse
 from typing import Optional
 
 from .commands import (
+    cmd_analyze,
     cmd_backtest,
     cmd_check_gpu,
     cmd_export,
+    cmd_grid_backtest,
     cmd_info,
     cmd_indicators,
     cmd_list,
+    cmd_llm_optimize,
     cmd_optuna,
     cmd_sweep,
     cmd_validate,
@@ -547,6 +550,212 @@ Exemples:
         help="Exécuter un benchmark CPU vs GPU (EMA 10k points)"
     )
 
+    # === LLM-OPTIMIZE ===
+    llm_optimize_parser = subparsers.add_parser(
+        "llm-optimize",
+        parents=[common_parser],
+        help="Optimisation LLM multi-agents",
+        description="Lance l'orchestrateur multi-agents (Analyst/Strategist/Critic/Validator) pour optimisation intelligente",
+        aliases=["orchestrate"]
+    )
+    llm_optimize_parser.add_argument(
+        "-s", "--strategy",
+        required=True,
+        help="Nom de la stratégie"
+    )
+    llm_optimize_parser.add_argument(
+        "--symbol",
+        required=True,
+        help="Symbole (ex: BTCUSDC)"
+    )
+    llm_optimize_parser.add_argument(
+        "--timeframe",
+        required=True,
+        help="Timeframe (ex: 1h, 30m, 1d)"
+    )
+    llm_optimize_parser.add_argument(
+        "--start",
+        type=str,
+        help="Date de début (format ISO)"
+    )
+    llm_optimize_parser.add_argument(
+        "--end",
+        type=str,
+        help="Date de fin (format ISO)"
+    )
+    llm_optimize_parser.add_argument(
+        "--capital",
+        type=float,
+        default=10000.0,
+        help="Capital initial (défaut: 10000)"
+    )
+    llm_optimize_parser.add_argument(
+        "--max-iterations",
+        type=int,
+        default=10,
+        help="Nombre max d'itérations LLM (défaut: 10)"
+    )
+    llm_optimize_parser.add_argument(
+        "--model",
+        default="deepseek-r1-distill:14b",
+        help="Modèle LLM à utiliser (défaut: deepseek-r1-distill:14b)"
+    )
+    llm_optimize_parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.7,
+        help="Température LLM (défaut: 0.7)"
+    )
+    llm_optimize_parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=4096,
+        help="Max tokens LLM (défaut: 4096)"
+    )
+    llm_optimize_parser.add_argument(
+        "--timeout",
+        type=int,
+        default=900,
+        help="Timeout LLM en secondes (défaut: 900 = 15min)"
+    )
+    llm_optimize_parser.add_argument(
+        "--min-sharpe",
+        type=float,
+        default=1.0,
+        help="Sharpe ratio minimum requis (défaut: 1.0)"
+    )
+    llm_optimize_parser.add_argument(
+        "--max-drawdown",
+        type=float,
+        default=0.20,
+        help="Max drawdown limite (fraction, défaut: 0.20 = 20%%)"
+    )
+    llm_optimize_parser.add_argument(
+        "-o", "--output",
+        type=str,
+        help="Fichier de sortie pour les résultats"
+    )
+
+    # === GRID-BACKTEST ===
+    grid_backtest_parser = subparsers.add_parser(
+        "grid-backtest",
+        parents=[common_parser],
+        help="Backtest en mode grille",
+        description="Exécute un backtest sur une grille de paramètres (différent de sweep)",
+        aliases=["grid"]
+    )
+    grid_backtest_parser.add_argument(
+        "-s", "--strategy",
+        required=True,
+        help="Nom de la stratégie"
+    )
+    grid_backtest_parser.add_argument(
+        "--symbol",
+        required=True,
+        help="Symbole (ex: BTCUSDC)"
+    )
+    grid_backtest_parser.add_argument(
+        "--timeframe",
+        required=True,
+        help="Timeframe (ex: 1h, 30m, 1d)"
+    )
+    grid_backtest_parser.add_argument(
+        "--start",
+        type=str,
+        help="Date de début (format ISO)"
+    )
+    grid_backtest_parser.add_argument(
+        "--end",
+        type=str,
+        help="Date de fin (format ISO)"
+    )
+    grid_backtest_parser.add_argument(
+        "--capital",
+        type=float,
+        default=10000.0,
+        help="Capital initial (défaut: 10000)"
+    )
+    grid_backtest_parser.add_argument(
+        "--fees-bps",
+        type=int,
+        default=10,
+        help="Frais en basis points (défaut: 10)"
+    )
+    grid_backtest_parser.add_argument(
+        "--slippage-bps",
+        type=float,
+        help="Slippage en basis points (défaut: config)"
+    )
+    grid_backtest_parser.add_argument(
+        "--param-grid",
+        type=str,
+        help="Grille de paramètres en JSON (ex: '{\"atr_period\": [10, 14, 20]}'). Si omis, grille auto depuis param_ranges"
+    )
+    grid_backtest_parser.add_argument(
+        "--max-combinations",
+        type=int,
+        default=1000,
+        help="Limite de combinaisons (défaut: 1000)"
+    )
+    grid_backtest_parser.add_argument(
+        "-m", "--metric",
+        choices=["sharpe_ratio", "sortino_ratio", "total_return_pct", "max_drawdown", "win_rate", "profit_factor"],
+        default="sharpe_ratio",
+        help="Métrique pour trier les résultats (défaut: sharpe_ratio)"
+    )
+    grid_backtest_parser.add_argument(
+        "--top",
+        type=int,
+        default=10,
+        help="Nombre de meilleurs résultats à afficher (défaut: 10)"
+    )
+    grid_backtest_parser.add_argument(
+        "-o", "--output",
+        type=str,
+        help="Fichier de sortie pour les résultats"
+    )
+
+    # === ANALYZE ===
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        parents=[common_parser],
+        help="Analyser les résultats de backtests",
+        description="Analyse les résultats de backtests stockés dans backtest_results/"
+    )
+    analyze_parser.add_argument(
+        "--results-dir",
+        type=str,
+        default="backtest_results",
+        help="Répertoire des résultats (défaut: backtest_results)"
+    )
+    analyze_parser.add_argument(
+        "--profitable-only",
+        action="store_true",
+        help="Afficher uniquement les runs profitables"
+    )
+    analyze_parser.add_argument(
+        "--sort-by",
+        type=str,
+        default="total_pnl",
+        help="Métrique de tri (défaut: total_pnl)"
+    )
+    analyze_parser.add_argument(
+        "--top",
+        type=int,
+        default=10,
+        help="Nombre de runs à afficher (défaut: 10)"
+    )
+    analyze_parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Afficher les statistiques globales"
+    )
+    analyze_parser.add_argument(
+        "-o", "--output",
+        type=str,
+        help="Fichier de sortie pour l'analyse"
+    )
+
     return parser
 
 
@@ -577,6 +786,11 @@ def main(args: Optional[list] = None) -> int:
         "export": cmd_export,
         "visualize": cmd_visualize,
         "check-gpu": cmd_check_gpu,
+        "llm-optimize": cmd_llm_optimize,
+        "orchestrate": cmd_llm_optimize,
+        "grid-backtest": cmd_grid_backtest,
+        "grid": cmd_grid_backtest,
+        "analyze": cmd_analyze,
     }
 
     try:

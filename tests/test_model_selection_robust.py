@@ -54,7 +54,8 @@ class TestModelSelectionRobustness:
             config = RoleModelConfig()
             installed = config.get_installed_models()
 
-            assert len(installed) == 2
+            # Normalisation ajoute nom avec ET sans tag
+            assert len(installed) >= 2
             assert "deepseek-r1:8b" in installed
             assert "deepseek-r1:32b" in installed
             assert mock_get.call_count == 3  # 3 tentatives

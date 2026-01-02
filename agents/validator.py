@@ -280,6 +280,7 @@ Respond ONLY in valid JSON format with this exact structure:
 
         template_context = {
             "strategy_name": context.strategy_name,
+            "strategy_description": context.strategy_description,
             "iteration": context.iteration,
             "objective_check": objective_check,
             "current_metrics": current_metrics_dict,
@@ -302,6 +303,9 @@ Respond ONLY in valid JSON format with this exact structure:
             "best_metrics": best_metrics_dict,
             "current_params": context.current_params,
             "memory_summary": context.memory_summary,
+            "strategy_indicators_context": context.strategy_indicators_context,
+            "readonly_indicators_context": context.readonly_indicators_context,
+            "indicator_context_warnings": context.indicator_context_warnings,
         }
 
         return render_prompt("validator.jinja2", template_context)

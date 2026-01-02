@@ -42,6 +42,7 @@ class Config:
 
     # Chemins
     data_dir: Path = field(default_factory=lambda: Path(r"D:\ThreadX_big\data\crypto\processed\parquet"))
+    # Modèles LLM: configurés via D:\models\models.json (voir utils.model_loader)
 
     # Capital & Trading
     initial_capital: float = 10_000.0

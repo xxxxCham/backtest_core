@@ -217,6 +217,13 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         recommended_for=["critic", "validator"],
         avg_response_time_s=300.0,
     ),
+    "llama3.3-70b-2gpu": ModelInfo(
+        name="llama3.3-70b-2gpu",
+        category=ModelCategory.HEAVY,
+        description="Llama 3.3 70B Multi-GPU (2 GPUs) - Optimisé pour RTX 5080 + RTX 2060",
+        recommended_for=["critic", "validator"],
+        avg_response_time_s=180.0,  # Plus rapide avec 2 GPUs
+    ),
 }
 
 

@@ -528,7 +528,41 @@ class Preset:
         return total
 
 
-# --- 2.4. ParameterConstraint ---
+# --- 2.4. RangeProposal ---
+
+@dataclass
+class RangeProposal:
+    """
+    Proposition de plages de paramètres pour grid search par le LLM.
+
+    Permet au LLM de demander une exploration de paramètres au lieu de
+    configurations individuelles (ex: "bb_period entre 20-25 avec step 1").
+
+    Attributes:
+        ranges: Dict {param_name: {"min": x, "max": y, "step": z}}
+        rationale: Raison de cette exploration (pour logs/debug)
+        optimize_for: Métrique cible (sharpe_ratio, sortino_ratio, etc.)
+        max_combinations: Limite du nombre de combinaisons à tester
+        early_stop_threshold: Arrêt anticipé si métrique atteinte
+
+    Example:
+        >>> proposal = RangeProposal(
+        ...     ranges={
+        ...         "bb_period": {"min": 20, "max": 25, "step": 1},
+        ...         "bb_std": {"min": 2.0, "max": 2.5, "step": 0.1}
+        ...     },
+        ...     rationale="Explorer corrélation bb_period vs bb_std",
+        ...     max_combinations=50
+        ... )
+    """
+    ranges: Dict[str, Dict[str, float]]
+    rationale: str
+    optimize_for: str = "sharpe_ratio"
+    max_combinations: int = 100
+    early_stop_threshold: Optional[float] = None
+
+
+# --- 2.5. ParameterConstraint ---
 
 @dataclass
 class ParameterConstraint:
@@ -914,6 +948,129 @@ def compute_search_space_stats(
         has_overflow=has_overflow,
         is_continuous=is_continuous,
     )
+
+
+# --- 3.5. normalize_param_ranges ---
+
+def normalize_param_ranges(
+    param_specs: List[ParameterSpec],
+    ranges: Dict[str, Dict[str, float]]
+) -> Dict[str, List[float]]:
+    """
+    Normalise et valide les ranges demandées par le LLM pour grid search.
+
+    - Clamp aux bornes des ParameterSpec
+    - Vérifie min <= max, step > 0
+    - Rejette clés inconnues
+    - Retourne param_grid compatible avec SweepEngine
+
+    Args:
+        param_specs: Liste des spécifications de paramètres (bornes autorisées)
+        ranges: Ranges demandées par le LLM {param: {"min": x, "max": y, "step": z}}
+
+    Returns:
+        Dict[str, List[float]]: Grille de paramètres prête pour SweepEngine
+
+    Raises:
+        ValueError: Si ranges invalides (param inconnu, min > max, etc.)
+
+    Example:
+        >>> specs = [
+        ...     ParameterSpec("bb_period", min_val=10, max_val=50, default=20, step=1),
+        ...     ParameterSpec("bb_std", min_val=1.0, max_val=3.0, default=2.0, step=0.1)
+        ... ]
+        >>> ranges = {
+        ...     "bb_period": {"min": 20, "max": 25, "step": 1},
+        ...     "bb_std": {"min": 2.0, "max": 2.5, "step": 0.1}
+        ... }
+        >>> grid = normalize_param_ranges(specs, ranges)
+        >>> grid["bb_period"]
+        [20, 21, 22, 23, 24, 25]
+        >>> grid["bb_std"]
+        [2.0, 2.1, 2.2, 2.3, 2.4, 2.5]
+    """
+    param_grid: Dict[str, List[float]] = {}
+    specs_dict = {spec.name: spec for spec in param_specs}
+
+    for param_name, range_def in ranges.items():
+        # Vérifier que le paramètre existe
+        if param_name not in specs_dict:
+            raise ValueError(
+                f"Paramètre inconnu '{param_name}'. "
+                f"Paramètres disponibles: {list(specs_dict.keys())}"
+            )
+
+        spec = specs_dict[param_name]
+
+        # Extraire min/max/step
+        min_val = range_def.get("min")
+        max_val = range_def.get("max")
+        step = range_def.get("step")
+
+        if min_val is None or max_val is None:
+            raise ValueError(
+                f"Paramètre '{param_name}': 'min' et 'max' sont obligatoires"
+            )
+
+        # Clamp aux bornes du ParameterSpec
+        clamped_min = max(min_val, spec.min_val)
+        clamped_max = min(max_val, spec.max_val)
+
+        # Log si clamping appliqué
+        if clamped_min != min_val or clamped_max != max_val:
+            logger.warning(
+                f"Ranges clamped pour '{param_name}': "
+                f"[{min_val}, {max_val}] → [{clamped_min}, {clamped_max}] "
+                f"(limites: [{spec.min_val}, {spec.max_val}])"
+            )
+
+        # Vérifier cohérence min/max
+        if clamped_min > clamped_max:
+            raise ValueError(
+                f"Paramètre '{param_name}': min ({clamped_min}) > max ({clamped_max}) "
+                f"après clamping aux limites [{spec.min_val}, {spec.max_val}]"
+            )
+
+        # Utiliser step fourni ou step du spec
+        if step is None:
+            step = spec.step if spec.step is not None else (clamped_max - clamped_min) / 10
+
+        if step <= 0:
+            raise ValueError(
+                f"Paramètre '{param_name}': step doit être > 0 (reçu: {step})"
+            )
+
+        # Générer valeurs (méthode robuste pour éviter erreurs de précision float)
+        n_steps = int(round((clamped_max - clamped_min) / step)) + 1
+        values: List[float] = []
+
+        for i in range(n_steps):
+            current = clamped_min + (i * step)
+
+            # S'assurer de ne pas dépasser max (avec tolérance pour précision float)
+            if current > clamped_max + 1e-9:
+                break
+
+            # Arrondir pour éviter problèmes de précision float
+            if spec.param_type == "int":
+                values.append(int(round(current)))
+            else:
+                values.append(round(current, 10))
+
+        if not values:
+            raise ValueError(
+                f"Paramètre '{param_name}': aucune valeur générée "
+                f"(min={clamped_min}, max={clamped_max}, step={step})"
+            )
+
+        param_grid[param_name] = values
+
+    logger.info(
+        f"Grid normalisé: {len(param_grid)} paramètres, "
+        f"{sum(len(vals) for vals in param_grid.values())} valeurs totales"
+    )
+
+    return param_grid
 
 
 # =============================================================================
@@ -1717,10 +1874,12 @@ __all__ = [
     "ConstraintValidator",
     "Preset",
     "SearchSpaceStats",
+    "RangeProposal",
     # Search space generation
     "parameter_values",
     "calculate_combinations",
     "compute_search_space_stats",
+    "normalize_param_ranges",
     "generate_param_grid",
     "generate_constrained_param_grid",
     # Presets simple

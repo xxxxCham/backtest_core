@@ -7,6 +7,49 @@ Critically evaluate the following optimization proposals.
 Strategy: {{ strategy_name }}
 Iteration: {{ iteration }}
 
+{% if strategy_description -%}
+## STRATEGY OVERVIEW
+{{ strategy_description[:1200] }}{% if strategy_description|length > 1200 %}...{% endif %}
+
+{% endif %}
+
+{% if current_metrics -%}
+## LAST RESULT SNAPSHOT
+- Sharpe: {{ current_metrics.sharpe_ratio|format_float(3) }}
+- Return: {{ current_metrics.total_return|format_percent }}
+- Drawdown: {{ current_metrics.max_drawdown|format_percent }}
+- Trades: {{ current_metrics.total_trades }}
+
+{% endif %}
+
+{% if strategy_indicators_context -%}
+## STRATEGY INDICATORS (modifiable)
+{{ strategy_indicators_context }}
+
+{% endif %}
+
+{% if readonly_indicators_context -%}
+## CONTEXT INDICATORS (read-only)
+{{ readonly_indicators_context }}
+
+{% endif %}
+
+## INDICATOR USAGE NOTES
+- Strategy indicators are tied to tunable parameters.
+- Context indicators are read-only and for regime interpretation only.
+- Indicator values are computed once per run (baseline snapshot).
+{% if indicator_context_warnings and indicator_context_warnings|length > 0 -%}
+- Warnings below indicate unavailable indicators; ignore them in critique.
+{% endif %}
+
+{% if indicator_context_warnings and indicator_context_warnings|length > 0 -%}
+## INDICATOR CONTEXT WARNINGS
+{% for w in indicator_context_warnings %}
+- {{ w }}
+{% endfor %}
+
+{% endif %}
+
 {% if memory_summary -%}
 ## HISTORICAL NOTES
 {{ memory_summary }}
@@ -92,6 +135,38 @@ Iteration: {{ iteration }}
 **Stated Risks:** {{ proposal.get('risks')|join(', ') }}
 {% endif %}
 {% endfor %}
+
+{% if sweep_summary -%}
+## GRID SEARCH CONTEXT
+This proposal comes from a **grid search (sweep)** that tested {{ sweep_results.get('n_combinations', 'N/A') if sweep_results else 'N/A' }} parameter combinations.
+
+**Sweep Summary:**
+{{ sweep_summary[:600] }}{% if sweep_summary|length > 600 %}...{% endif %}
+
+**CRITICAL CONSIDERATIONS FOR SWEEP-BASED PROPOSALS:**
+1. **Selection Bias Risk**: The "best" config from a grid is inherently optimized to the test data
+   - Even with walk-forward, sweeping creates multiple looks at the data
+   - Larger grids (>50 combos) amplify this risk exponentially
+
+2. **Overfitting to Grid**: The selected config may exploit random patterns specific to the tested range
+   - Check if best config is at grid boundaries (red flag)
+   - Verify parameter values make intuitive sense (not arbitrary optima)
+
+3. **Generalization Concern**: Grid search finds local maxima, which may not generalize
+   - Prefer configs with smooth performance across neighboring combinations
+   - Reject configs that dramatically outperform their neighbors (likely noise)
+
+4. **Validation Requirement**: Sweep configs MUST show:
+   - Walk-forward overfitting ratio ≤ 1.3 (stricter than normal 1.5)
+   - Consistent performance across multiple folds (not just peak)
+   - Logical parameter relationships (e.g., period ratios)
+
+**APPROVAL CRITERIA FOR SWEEP CONFIGS (stricter):**
+- ✅ APPROVE: Walk-forward ratio ≤ 1.3 AND parameters not at boundaries AND intuitive logic
+- 🟡 MODIFY: Ratio 1.3-1.5 OR boundary params → suggest testing neighbors
+- ❌ REJECT: Ratio > 1.5 OR arbitrary parameters OR suspicious edge case
+
+{% endif %}
 
 ## PARAMETER CONSTRAINTS
 {% for spec in param_specs %}

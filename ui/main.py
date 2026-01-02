@@ -1,25 +1,3 @@
-"""
-Module-ID: ui.main
-
-Purpose: Point d'entrée principal de l'application Streamlit pour le backtesting.
-
-Role in pipeline: orchestration / ui
-
-Key components: main(), gestion des modes
-
-Inputs: Paramètres utilisateur via sidebar
-
-Outputs: Interface complète Streamlit
-
-Dependencies: ui.sidebar, ui.results, ui.state
-
-Conventions: Session state Streamlit
-
-Read-if: Application principale UI
-
-Skip-if: Scripts backend ou CLI
-"""
-
 from __future__ import annotations
 
 # pylint: disable=import-outside-toplevel,too-many-lines

@@ -7,6 +7,49 @@ Generate parameter optimization proposals for the strategy.
 Strategy: {{ strategy_name }}
 Iteration: {{ iteration }}
 
+{% if strategy_description -%}
+## STRATEGY OVERVIEW
+{{ strategy_description[:1200] }}{% if strategy_description|length > 1200 %}...{% endif %}
+
+{% endif %}
+
+{% if current_metrics -%}
+## LAST RESULT SNAPSHOT
+- Sharpe: {{ current_metrics.sharpe_ratio|format_float(3) }}
+- Return: {{ current_metrics.total_return|format_percent }}
+- Drawdown: {{ current_metrics.max_drawdown|format_percent }}
+- Trades: {{ current_metrics.total_trades }}
+
+{% endif %}
+
+{% if strategy_indicators_context -%}
+## STRATEGY INDICATORS (modifiable)
+{{ strategy_indicators_context }}
+
+{% endif %}
+
+{% if readonly_indicators_context -%}
+## CONTEXT INDICATORS (read-only)
+{{ readonly_indicators_context }}
+
+{% endif %}
+
+## INDICATOR USAGE NOTES
+- You may only change parameters linked to Strategy Indicators.
+- Context Indicators are read-only and for regime interpretation only.
+- Indicator values are computed once per run (baseline snapshot).
+{% if indicator_context_warnings and indicator_context_warnings|length > 0 -%}
+- Warnings below indicate unavailable indicators; ignore them for changes.
+{% endif %}
+
+{% if indicator_context_warnings and indicator_context_warnings|length > 0 -%}
+## INDICATOR CONTEXT WARNINGS
+{% for w in indicator_context_warnings %}
+- {{ w }}
+{% endfor %}
+
+{% endif %}
+
 {% if memory_summary -%}
 ## HISTORICAL NOTES
 {{ memory_summary }}
@@ -100,6 +143,15 @@ If you receive this list, it means some combinations have already been explored 
 5. **Do NOT modify**: capital, fees, seed, or non-strategy parameters
 6. **Consider parameter interactions**: e.g., fast_period < slow_period
 
+## GRID SEARCH OPTION ("sweep")
+**When to use grid search instead of sequential proposals:**
+- Testing **parameter correlations** (e.g., fast/slow ratio, bb_period/bb_std interactions)
+- After finding promising region, need **exhaustive exploration** of narrow ranges
+- When parameter interactions make sequential testing inefficient
+- **NOT for initial exploration** - use regular proposals first to narrow down ranges
+
+**If you choose grid search**, return the sweep JSON format (documented below) instead of the proposals format.
+
 ## REQUIRED OUTPUT FORMAT
 Return ONLY valid JSON with this exact structure (no markdown, no extra text):
 ```json
@@ -127,3 +179,30 @@ Return ONLY valid JSON with this exact structure (no markdown, no extra text):
     "fallback_recommendation": "What to do if proposals fail"
 }
 ```
+
+**ALTERNATIVE: Grid Search (Sweep) Format**
+If you determine that grid search is more appropriate (see "GRID SEARCH OPTION" above), return this format instead:
+```json
+{
+    "analysis_summary": "Brief summary of key findings from analyst",
+    "optimization_strategy": "Why grid search is chosen for this iteration",
+    "sweep": {
+        "ranges": {
+            "param_name": {"min": X, "max": Y, "step": Z}
+        },
+        "rationale": "REQUIRED: Explain why grid search is needed (e.g., 'Testing bb_period/bb_std correlation')",
+        "optimize_for": "sharpe_ratio",
+        "max_combinations": 100
+    },
+    "constraints_respected": true,
+    "fallback_recommendation": "What to do if sweep fails"
+}
+```
+
+**Requirements for sweep format:**
+- `ranges`: Dict with `{"param": {"min": X, "max": Y, "step": Z}}` - each range MUST have min, max, step
+- `rationale`: REQUIRED - explain why grid search is needed
+- `optimize_for`: Metric to optimize (default: "sharpe_ratio")
+- `max_combinations`: Max configs to test (default: 100, hard limit: 200)
+- Ranges will be clamped to parameter bounds automatically
+- Grid search runs in parallel, returns top 10 configs + summary

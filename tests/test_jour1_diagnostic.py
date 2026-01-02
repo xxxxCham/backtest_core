@@ -115,10 +115,10 @@ metrics = calculate_metrics(
 )
 
 print("Métriques calculées:")
-print(f"  - Total Return: {metrics['total_return_pct']:.2f}%")
-print(f"  - Sharpe Ratio: {metrics['sharpe_ratio']:.4f}")
-print(f"  - Max Drawdown: {metrics['max_drawdown']:.2f}%")
-print(f"  - Win Rate: {metrics['win_rate']:.2f}%")
+print(f"  - Total Return: {metrics.get('total_return_pct', 0):.2f}%")
+print(f"  - Sharpe Ratio: {metrics.get('sharpe_ratio', 0):.4f}")
+print(f"  - Max Drawdown: {metrics.get('max_drawdown', 0):.2f}%")
+print(f"  - Win Rate: {metrics.get('win_rate', 0):.2f}%")
 print("✅ calculate_metrics() fonctionne avec run_id propagé")
 
 # Test 5 : Vérifier les logs WARNING pour Sharpe=0

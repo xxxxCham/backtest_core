@@ -23,7 +23,15 @@ Skip-if: Logique métier pure
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from datetime import date
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agents.llm_client import LLMConfig
+    from agents.model_config import RoleModelConfig
+    from strategies.base import StrategyBase
+    from strategies.indicators_mapping import StrategyIndicators
+    from utils.parameters import ParameterSpec
 
 
 @dataclass
@@ -32,25 +40,25 @@ class SidebarState:
     symbol: str
     timeframe: str
     use_date_filter: bool
-    start_date: Optional[object]
-    end_date: Optional[object]
+    start_date: Optional[date]
+    end_date: Optional[date]
     available_tokens: List[str]
     available_timeframes: List[str]
     strategy_key: str
     strategy_name: str
-    strategy_info: Any
-    strategy_instance: Any
-    params: Dict[str, Any]
-    param_ranges: Dict[str, Any]
-    param_specs: Dict[str, Any]
+    strategy_info: Optional["StrategyIndicators"]
+    strategy_instance: Optional["StrategyBase"]
+    params: Dict[str, float]
+    param_ranges: Dict[str, Dict[str, float]]
+    param_specs: Dict[str, "ParameterSpec"]
     active_indicators: List[str]
     optimization_mode: str
     max_combos: int
     n_workers: int
-    llm_config: Any
+    llm_config: Optional["LLMConfig"]
     llm_model: Optional[str]
     llm_use_multi_agent: bool
-    role_model_config: Any
+    role_model_config: Optional["RoleModelConfig"]
     llm_max_iterations: int
     llm_use_walk_forward: bool
     llm_unload_during_backtest: bool
@@ -65,4 +73,13 @@ class SidebarState:
     llm_compare_use_preset: bool
     llm_compare_generate_report: bool
     initial_capital: float
-    leverage: Any
+    leverage: float
+
+    def __post_init__(self) -> None:
+        if self.use_date_filter:
+            assert self.start_date is not None
+            assert self.end_date is not None
+        assert self.max_combos >= 1
+        assert self.n_workers >= 1
+        assert self.llm_max_iterations >= 0
+        assert self.initial_capital >= 0

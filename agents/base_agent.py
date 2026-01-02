@@ -215,6 +215,15 @@ class AgentContext:
     critic_concerns: List[str] = field(default_factory=list)
     memory_summary: str = ""
 
+    # Contexte indicateurs (stratégie vs lecture seule)
+    strategy_indicators_context: str = ""
+    readonly_indicators_context: str = ""
+    indicator_context_warnings: List[str] = field(default_factory=list)
+
+    # Résultats de sweep (LLM grid search)
+    sweep_results: Optional[Dict[str, Any]] = None
+    sweep_summary: str = ""
+
     def to_summary_str(self) -> str:
         """Résumé textuel pour le LLM."""
         summary = f"""=== Optimization Context ===

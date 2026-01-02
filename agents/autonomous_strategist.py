@@ -24,6 +24,7 @@ from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
 
+import itertools
 import logging
 
 # Import search space statistics
@@ -41,7 +42,9 @@ from .backtest_executor import (
 from .base_agent import AgentContext, AgentResult, AgentRole, BaseAgent
 from .llm_client import LLMClient, LLMConfig
 from .ollama_manager import GPUMemoryManager
-from utils.parameters import compute_search_space_stats
+from .indicator_context import build_indicator_context
+from utils.parameters import compute_search_space_stats, ParameterSpec, RangeProposal
+from strategies.base import get_strategy_overview
 
 logger = logging.getLogger(__name__)
 # Force WARNING level pour ce module pour voir les décisions critiques
@@ -52,7 +55,7 @@ logger.setLevel(logging.WARNING)
 class IterationDecision:
     """Décision du LLM après analyse d'un résultat."""
 
-    action: str  # "continue", "accept", "stop", "change_direction"
+    action: str  # "continue", "accept", "stop", "change_direction", "sweep"
     confidence: float  # 0-1
 
     # Prochaine action si "continue"
@@ -64,6 +67,12 @@ class IterationDecision:
 
     # Insights accumulés
     insights: List[str] = field(default_factory=list)
+
+    # Champs spécifiques au sweep
+    ranges: Optional[Dict[str, Dict[str, float]]] = None
+    rationale: str = ""  # Explication du sweep (différent de reasoning)
+    optimize_for: str = "sharpe_ratio"
+    max_combinations: int = 100
 
 
 @dataclass
@@ -92,6 +101,55 @@ class OptimizationSession:
     # Status final
     final_status: str = ""  # "success", "max_iterations", "timeout", "no_improvement"
     final_reasoning: str = ""
+
+    # Contexte indicateurs (calculé une fois par run)
+    strategy_indicators_context: str = ""
+    readonly_indicators_context: str = ""
+    indicator_context_warnings: List[str] = field(default_factory=list)
+    indicator_context_cached: bool = False
+
+
+def _param_bounds_to_specs(
+    param_bounds: Dict[str, tuple],
+    defaults: Dict[str, Any]
+) -> List[ParameterSpec]:
+    """
+    Convertit param_bounds en List[ParameterSpec] pour run_llm_sweep().
+
+    Args:
+        param_bounds: {param: (min, max) ou (min, max, step)}
+        defaults: {param: default_value}
+
+    Returns:
+        List de ParameterSpec
+    """
+    specs = []
+    for param_name, bound_spec in param_bounds.items():
+        if isinstance(bound_spec, (tuple, list)) and len(bound_spec) >= 2:
+            min_val = float(bound_spec[0])
+            max_val = float(bound_spec[1])
+            step = float(bound_spec[2]) if len(bound_spec) >= 3 else 1.0
+        else:
+            min_val = max_val = float(bound_spec)
+            step = 1.0
+
+        # Default: moyenne ou depuis defaults dict
+        default = defaults.get(param_name, (min_val + max_val) / 2)
+
+        # Détecter type: int si tous les bounds sont int
+        is_int = all(isinstance(bound_spec[i], int) for i in range(min(2, len(bound_spec))))
+        param_type = "int" if is_int else "float"
+
+        specs.append(ParameterSpec(
+            name=param_name,
+            min_val=min_val,
+            max_val=max_val,
+            default=default,
+            step=step,
+            param_type=param_type
+        ))
+
+    return specs
 
 
 class AutonomousStrategist(BaseAgent):
@@ -133,7 +191,7 @@ class AutonomousStrategist(BaseAgent):
 Your process:
 1. ANALYZE current results and history
 2. FORMULATE a hypothesis about what might improve performance
-3. PROPOSE specific parameters to test
+3. PROPOSE specific parameters to test OR request a grid search over ranges
 4. After seeing results, DECIDE whether to continue, accept, or change direction
 
 Key principles:
@@ -142,12 +200,14 @@ Key principles:
 - Balance exploration (trying new things) vs exploitation (refining what works)
 - Watch for overfitting - prefer robust solutions over peak performance
 - Consider parameter interactions (e.g., fast/slow periods should maintain ratio)
+- Use grid search ("sweep") when you need to explore parameter correlations systematically
+- Use "Strategy Indicators (modifiable)" for parameter changes; "Context Indicators (read-only)" are informational only
 
 You will receive experiment history and must respond with a decision.
 
 Response format (JSON):
 {
-    "action": "continue|accept|stop|change_direction",
+    "action": "continue|accept|stop|change_direction|sweep",
     "confidence": 0.0 to 1.0,
     "reasoning": "Why this decision",
     "next_hypothesis": "What you want to test next (if continuing)",
@@ -188,11 +248,45 @@ Response format (JSON):
     "next_parameters": {"fast": 10}  # ← INCOMPLETE, must include ALL params
 }
 
+🔍 GRID SEARCH ("sweep") - Use when exploring parameter interactions:
+
+✅ VALID EXAMPLE (sweep):
+{
+    "action": "sweep",
+    "confidence": 0.85,
+    "ranges": {
+        "bb_period": {"min": 20, "max": 25, "step": 1},
+        "bb_std": {"min": 2.0, "max": 2.5, "step": 0.1}
+    },
+    "rationale": "Explore bb_period/bb_std correlation systematically",
+    "optimize_for": "sharpe_ratio",
+    "max_combinations": 50,
+    "reasoning": "Grid search more efficient than sequential testing for parameter interactions",
+    "insights": ["bb_period and bb_std appear correlated", "Need exhaustive search in narrow range"]
+}
+
+🚨 CRITICAL REQUIREMENTS FOR "sweep":
+- You MUST provide "ranges" dict with format: {"param": {"min": x, "max": y, "step": z}}
+- Each range must have min, max, and step
+- "rationale" field is REQUIRED (explains why grid search is needed)
+- "optimize_for" is optional (default: "sharpe_ratio")
+- "max_combinations" is optional (default: 100, max: 200)
+- Ranges will be clamped to parameter bounds automatically
+- Grid search runs in parallel and returns top 10 configs + summary
+- Use sweep when testing 2-3 parameter interactions, not for single params
+
+When to use "sweep":
+- Testing parameter correlations (e.g., fast/slow ratio, bb_period/bb_std)
+- Exploring narrow ranges exhaustively after finding promising region
+- When sequential testing is too slow for parameter interactions
+- NOT for initial exploration - use "continue" first to narrow down ranges
+
 Actions:
 - "continue": Run another backtest with next_parameters (MUST provide all params)
 - "accept": Accept current best as final solution
 - "stop": Stop due to diminishing returns or constraints
-- "change_direction": Abandon current approach, try something different (MUST provide all params)"""
+- "change_direction": Abandon current approach, try something different (MUST provide all params)
+- "sweep": Request grid search over parameter ranges (MUST provide ranges dict with min/max/step)"""
 
     def __init__(
         self,
@@ -326,9 +420,16 @@ Actions:
             max_iterations=max_iterations,
         )
 
+        # Tracker de ranges pour éviter boucles infinies
+        from utils.session_ranges_tracker import SessionRangesTracker
+        ranges_tracker = SessionRangesTracker(
+            session_id=f"{session.strategy_name}_{session.start_time.strftime('%Y%m%d_%H%M%S')}"
+        )
+
+        max_iter_label = "∞" if max_iterations <= 0 else str(max_iterations)
         logger.info(
             f"Démarrage optimisation: {session.strategy_name} | "
-            f"max_iter={max_iterations}"
+            f"max_iter={max_iter_label}"
         )
 
         # Logger d'orchestration: début de l'optimisation
@@ -382,9 +483,74 @@ Actions:
             f"Return={baseline_result.total_return:.2%}"
         )
 
-        # 2. Boucle d'itération
-        for iteration in range(1, max_iterations + 1):
+        # Contexte indicateurs (une seule fois par run)
+        try:
+            indicator_ctx = build_indicator_context(
+                df=executor.data,
+                strategy_name=session.strategy_name,
+                params=initial_params,
+            )
+            session.strategy_indicators_context = indicator_ctx.get("strategy", "")
+            session.readonly_indicators_context = indicator_ctx.get("read_only", "")
+            session.indicator_context_warnings = indicator_ctx.get("warnings", [])
+            session.indicator_context_cached = True
+        except Exception as exc:
+            logger.warning(f"Contexte indicateurs indisponible: {exc}")
+            session.strategy_indicators_context = ""
+            session.readonly_indicators_context = ""
+            session.indicator_context_warnings = []
+            session.indicator_context_cached = True
+
+        if self.orchestration_logger and (
+            session.strategy_indicators_context
+            or session.readonly_indicators_context
+            or session.indicator_context_warnings
+        ):
+            payload = {
+                "event_type": "indicator_context",
+                "timestamp": datetime.now().isoformat(),
+                "agent": "AutonomousStrategist",
+                "session_id": f"{session.strategy_name}_{session.start_time.strftime('%Y%m%d_%H%M%S')}",
+                "iteration": session.current_iteration,
+                "strategy_indicators_context": session.strategy_indicators_context,
+                "readonly_indicators_context": session.readonly_indicators_context,
+                "warnings": session.indicator_context_warnings,
+            }
+            try:
+                if hasattr(self.orchestration_logger, "log"):
+                    self.orchestration_logger.log("indicator_context", payload)
+                elif hasattr(self.orchestration_logger, "add_event"):
+                    self.orchestration_logger.add_event("indicator_context", payload)
+                elif hasattr(self.orchestration_logger, "append"):
+                    self.orchestration_logger.append(payload)
+            except Exception:
+                pass
+
+        # 2. Boucle d'itération avec budget de combinaisons
+        total_combinations_tested = 1  # Baseline = 1 combo
+        sweeps_performed = 0
+        max_sweeps_per_session = 3  # Limite de sweeps pour éviter l'abus
+
+        if max_iterations <= 0:
+            iteration_iter = itertools.count(1)
+        else:
+            iteration_iter = range(1, max_iterations + 1)
+
+        for iteration in iteration_iter:
             session.current_iteration = iteration
+
+            # Vérifier le budget de combinaisons testées
+            if max_iterations > 0 and total_combinations_tested >= max_iterations:
+                session.final_status = "max_iterations"
+                session.final_reasoning = (
+                    f"Budget épuisé: {total_combinations_tested} combinaisons testées "
+                    f"(limite: {max_iterations})"
+                )
+                logger.warning(
+                    f"⚠️ Budget épuisé: {total_combinations_tested} combos testées "
+                    f"dont {sweeps_performed} sweeps"
+                )
+                break
 
             # Vérifier pause/stop si callback fourni
             if check_pause_callback:
@@ -455,12 +621,12 @@ Actions:
             # Logging détaillé de la décision (toujours actif pour actions critiques)
             if decision.action in ("stop", "accept"):
                 logger.warning(
-                    f"🤖 Iteration {iteration}/{max_iterations}: ACTION CRITIQUE = '{decision.action.upper()}' | "
+                    f"🤖 Iteration {iteration}/{max_iter_label}: ACTION CRITIQUE = '{decision.action.upper()}' | "
                     f"Confidence={decision.confidence:.2f} | Reasoning: {decision.reasoning}"
                 )
             elif self.verbose:
                 logger.info(
-                    f"🤖 Iteration {iteration}/{max_iterations}: action='{decision.action}' | "
+                    f"🤖 Iteration {iteration}/{max_iter_label}: action='{decision.action}' | "
                     f"confidence={decision.confidence:.2f} | reasoning={decision.reasoning[:80]}..."
                 )
             else:
@@ -479,6 +645,166 @@ Actions:
                 session.final_reasoning = decision.reasoning
                 logger.info(f"Arrêt: {decision.reasoning}")
                 break
+
+            elif decision.action == "sweep":
+                # Vérifier la limite de sweeps
+                if sweeps_performed >= max_sweeps_per_session:
+                    logger.warning(
+                        f"⚠️ Limite de sweeps atteinte ({max_sweeps_per_session}). "
+                        f"Sweep request ignoré, continue avec proposals normales."
+                    )
+                    # Forcer l'action à "stop" pour éviter boucle infinie
+                    decision.action = "stop"
+                    decision.reasoning = (
+                        f"Sweep limit reached ({sweeps_performed}/{max_sweeps_per_session}). "
+                        f"Original rationale: {decision.rationale}"
+                    )
+                    session.final_status = "sweep_limit_reached"
+                    session.final_reasoning = decision.reasoning
+                    break
+
+                # Grid search demandé par le LLM
+                logger.warning(
+                    f"🔍 Iteration {iteration}/{max_iter_label}: SWEEP REQUEST #{sweeps_performed + 1} | "
+                    f"Ranges={list(decision.ranges.keys()) if decision.ranges else []} | "
+                    f"Rationale: {decision.rationale[:80]}"
+                )
+
+                # Logger: lancement du sweep
+                if self.orchestration_logger:
+                    self.orchestration_logger.log_decision(
+                        agent="AutonomousStrategist",
+                        decision_type="sweep",
+                        reason=decision.rationale,
+                        details={
+                            "ranges": decision.ranges,
+                            "optimize_for": decision.optimize_for,
+                            "max_combinations": decision.max_combinations,
+                        },
+                    )
+
+                # Vérifier si ces ranges ont déjà été testées
+                if ranges_tracker.was_tested(decision.ranges):
+                    logger.warning(
+                        f"⚠️ Ranges déjà testées dans cette session! | "
+                        f"Params={list(decision.ranges.keys())} | "
+                        f"Forcing diversification..."
+                    )
+                    # Forcer à stop pour éviter boucle infinie
+                    decision.action = "stop"
+                    decision.reasoning = (
+                        f"Ranges already tested. Need different ranges. "
+                        f"Original rationale: {decision.rationale}"
+                    )
+                    session.final_status = "ranges_already_tested"
+                    session.final_reasoning = decision.reasoning
+                    break
+
+                try:
+                    # Créer RangeProposal
+                    range_proposal = RangeProposal(
+                        ranges=decision.ranges,
+                        rationale=decision.rationale,
+                        optimize_for=decision.optimize_for,
+                        max_combinations=decision.max_combinations,
+                    )
+
+                    # Convertir param_bounds en param_specs
+                    param_specs = _param_bounds_to_specs(param_bounds, initial_params)
+
+                    # Exécuter le sweep via run_llm_sweep()
+                    from agents.integration import run_llm_sweep
+
+                    sweep_results = run_llm_sweep(
+                        range_proposal=range_proposal,
+                        param_specs=param_specs,
+                        data=executor.data,
+                        strategy_name=executor.strategy_name,
+                        initial_capital=10000.0,  # Default
+                        n_workers=None,  # Auto-detect
+                    )
+
+                    # Incrémenter les compteurs de budget
+                    n_combinations = sweep_results['n_combinations']
+                    sweeps_performed += 1
+                    total_combinations_tested += n_combinations
+
+                    # Enregistrer les ranges testées dans le tracker
+                    best_sharpe = sweep_results['best_metrics'].get('sharpe_ratio', 0)
+                    ranges_tracker.register(
+                        ranges=decision.ranges,
+                        n_combinations=n_combinations,
+                        best_sharpe=best_sharpe,
+                        rationale=decision.rationale
+                    )
+
+                    logger.info(
+                        f"✅ Sweep #{sweeps_performed} terminé: {n_combinations} combinaisons testées | "
+                        f"Best {decision.optimize_for}={sweep_results['best_metrics'].get(decision.optimize_for, 0):.3f} | "
+                        f"Budget: {total_combinations_tested}/{max_iter_label} combos"
+                    )
+
+                    # Logger: résultat du sweep
+                    if self.orchestration_logger:
+                        self.orchestration_logger.log_backtest_complete(
+                            agent="AutonomousStrategist",
+                            params=sweep_results['best_params'],
+                            results={
+                                "pnl": sweep_results['best_metrics'].get('total_return', 0),
+                                "sharpe": sweep_results['best_metrics'].get('sharpe_ratio', 0),
+                                "return": sweep_results['best_metrics'].get('total_return', 0),
+                                "n_combinations": sweep_results['n_combinations'],
+                            },
+                            combination_id=iteration,
+                        )
+
+                    # Valider le meilleur config avec un backtest complet (déjà fait par sweep)
+                    # On crée un BacktestResult artificiel depuis les métriques
+                    best_params = sweep_results['best_params']
+                    best_metrics = sweep_results['best_metrics']
+
+                    # Créer BacktestRequest pour traçabilité
+                    request = BacktestRequest(
+                        requested_by=self.role.value,
+                        hypothesis=f"Sweep best config: {decision.rationale}",
+                        parameters=best_params,
+                    )
+
+                    # Créer BacktestResult artificiel (sweep a déjà exécuté le backtest)
+                    result = BacktestResult(
+                        request=request,
+                        success=True,
+                        sharpe_ratio=best_metrics.get('sharpe_ratio', 0),
+                        total_return=best_metrics.get('total_return', 0),
+                        max_drawdown=best_metrics.get('max_drawdown', 1),
+                        win_rate=best_metrics.get('win_rate', 0),
+                        total_trades=best_metrics.get('total_trades', 0),
+                        overfitting_ratio=best_metrics.get('overfitting_ratio', 1.0),
+                        execution_time_ms=0,
+                    )
+
+                    session.all_results.append(result)
+
+                    # Mettre à jour le meilleur si applicable
+                    if self._is_better(result, session.best_result, target_metric):
+                        session.best_result = result
+                        logger.info(
+                            f"Nouveau meilleur trouvé par sweep! Sharpe={result.sharpe_ratio:.3f}"
+                        )
+
+                    if self.on_progress:
+                        self.on_progress(iteration, result)
+
+                except Exception as e:
+                    logger.error(f"Erreur durant le sweep: {e}")
+                    # Continuer l'optimisation malgré l'erreur
+                    if self.orchestration_logger:
+                        self.orchestration_logger.log_decision(
+                            agent="AutonomousStrategist",
+                            decision_type="sweep_failed",
+                            reason=f"Sweep failed: {str(e)}",
+                            details={},
+                        )
 
             elif decision.action in ("continue", "change_direction"):
                 # Valider et corriger les paramètres
@@ -539,6 +865,9 @@ Actions:
                         f"Nouveau meilleur! Sharpe={result.sharpe_ratio:.3f}"
                     )
 
+                # Incrémenter le compteur de budget (1 combo testée)
+                total_combinations_tested += 1
+
                 if self.on_progress:
                     self.on_progress(iteration, result)
 
@@ -581,13 +910,62 @@ Actions:
     ) -> str:
         """Construit le contexte pour le LLM."""
 
+        max_iter_label = "∞" if session.max_iterations <= 0 else str(session.max_iterations)
+
         lines = [
             f"=== Optimization Session: {session.strategy_name} ===",
-            f"Iteration: {session.current_iteration}/{session.max_iterations}",
+            f"Iteration: {session.current_iteration}/{max_iter_label}",
             f"Target: {session.target_metric}",
             "",
-            "Parameter Bounds:",
         ]
+
+        context_block = executor.get_context_for_agent()
+        if context_block:
+            lines.extend([context_block, ""])
+
+        if not session.indicator_context_cached:
+            try:
+                indicator_ctx = build_indicator_context(
+                    df=executor.data,
+                    strategy_name=session.strategy_name,
+                    params=session.best_result.request.parameters,
+                )
+                session.strategy_indicators_context = indicator_ctx.get("strategy", "")
+                session.readonly_indicators_context = indicator_ctx.get("read_only", "")
+                session.indicator_context_warnings = indicator_ctx.get("warnings", [])
+            except Exception:
+                session.strategy_indicators_context = ""
+                session.readonly_indicators_context = ""
+                session.indicator_context_warnings = []
+            session.indicator_context_cached = True
+
+        if session.strategy_indicators_context:
+            lines.extend([
+                "Strategy Indicators (modifiable):",
+                session.strategy_indicators_context,
+                "",
+            ])
+        if session.readonly_indicators_context:
+            lines.extend([
+                "Context Indicators (read-only):",
+                session.readonly_indicators_context,
+                "",
+            ])
+        if session.indicator_context_warnings:
+            lines.append("Indicator Context Warnings:")
+            for w in session.indicator_context_warnings:
+                lines.append(f"  - {w}")
+            lines.append("")
+
+        lines.extend([
+            "Indicator Usage Notes:",
+            "  - Strategy indicators are tied to tunable parameters.",
+            "  - Context indicators are read-only and for regime interpretation only.",
+            "  - Indicator values are computed once per run (baseline snapshot).",
+            "",
+        ])
+
+        lines.append("Parameter Bounds:")
 
         # Calculer les statistiques d'espace de recherche
         try:
@@ -623,9 +1001,6 @@ Actions:
             "Constraints:",
             f"  Min Sharpe: {min_sharpe}",
             f"  Max Drawdown: {max_drawdown:.0%}",
-            "",
-            "--- Experiment History ---",
-            executor.get_context_for_agent(),
         ])
 
         # Dernières décisions
@@ -654,7 +1029,11 @@ Actions:
         # Récupérer config depuis le client LLM
         model_name = self.llm.config.model if hasattr(self.llm, 'config') else 'unknown'
         max_tokens = self.llm.config.max_tokens if hasattr(self.llm, 'config') else 0
-        timeout = self.llm.config.timeout if hasattr(self.llm, 'config') else 0
+        timeout = (
+            getattr(self.llm.config, "timeout_seconds", 0)
+            if hasattr(self.llm, "config")
+            else 0
+        )
 
         logger.info(
             f"LLM_CALL_START optim_id={optim_id} iteration={session.current_iteration} "
@@ -717,21 +1096,48 @@ Actions:
         if insights is None:
             insights = []
 
+        # Extraction champs spécifiques au sweep
+        ranges = data.get("ranges", None)
+        rationale = data.get("rationale", "") or ""
+        optimize_for = data.get("optimize_for", "sharpe_ratio")
+        max_combinations = data.get("max_combinations", 100)
+
         # LLM_DECISION_PARSED
         reasoning_hash = hashlib.sha256(str(data.get("reasoning", "")).encode()).hexdigest()[:8]
-        logger.info(
-            f"LLM_DECISION_PARSED optim_id={optim_id} iteration={session.current_iteration} "
-            f"action={action} confidence={data.get('confidence', 0.5):.2f} "
-            f"next_params_count={len(next_params) if next_params else 0} "
-            f"next_params_keys={list(next_params.keys()) if next_params else []} "
-            f"reasoning_hash={reasoning_hash}"
-        )
+        if action == "sweep":
+            ranges_count = len(ranges) if ranges else 0
+            logger.info(
+                f"LLM_DECISION_PARSED optim_id={optim_id} iteration={session.current_iteration} "
+                f"action={action} confidence={data.get('confidence', 0.5):.2f} "
+                f"ranges_count={ranges_count} optimize_for={optimize_for} "
+                f"max_combinations={max_combinations} reasoning_hash={reasoning_hash}"
+            )
+        else:
+            logger.info(
+                f"LLM_DECISION_PARSED optim_id={optim_id} iteration={session.current_iteration} "
+                f"action={action} confidence={data.get('confidence', 0.5):.2f} "
+                f"next_params_count={len(next_params) if next_params else 0} "
+                f"next_params_keys={list(next_params.keys()) if next_params else []} "
+                f"reasoning_hash={reasoning_hash}"
+            )
 
         # LLM_FALLBACK_USED - Warning si next_parameters vide pour continue/change_direction
         if action in ("continue", "change_direction") and not next_params:
             logger.warning(
                 f"LLM_FALLBACK_USED optim_id={optim_id} iteration={session.current_iteration} "
                 f"action={action} fallback=will_use_defaults cause=next_params_empty"
+            )
+
+        # Validation sweep: ranges obligatoire si action == "sweep"
+        if action == "sweep" and not ranges:
+            logger.warning(
+                f"LLM_INVALID_DECISION optim_id={optim_id} iteration={session.current_iteration} "
+                f"action_original=sweep action_forced=stop reason=ranges_empty_or_missing"
+            )
+            return IterationDecision(
+                action="stop",
+                confidence=0.0,
+                reasoning="LLM chose 'sweep' but provided no ranges. Stopping.",
             )
 
         return IterationDecision(
@@ -741,6 +1147,10 @@ Actions:
             next_hypothesis=data.get("next_hypothesis", "") or "",
             next_parameters=next_params,
             insights=insights,
+            ranges=ranges,
+            rationale=rationale,
+            optimize_for=optimize_for,
+            max_combinations=max_combinations,
         )
 
     def _validate_parameters(
@@ -907,11 +1317,13 @@ def create_autonomous_optimizer(
 
     llm_client = create_llm_client(llm_config)
 
+    strategy_overview = get_strategy_overview(strategy_name)
     executor = BacktestExecutor(
         backtest_fn=backtest_fn,
         strategy_name=strategy_name,
         data=data,
         validation_fn=validation_fn,
+        strategy_description=strategy_overview,
     )
 
     strategist = AutonomousStrategist(llm_client, verbose=True)

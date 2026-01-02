@@ -11,7 +11,8 @@ from strategies.base import StrategyBase, register_strategy
 
 
 @register_strategy("test_strategy_metrics")
-class TestStrategy(StrategyBase):
+class _MetricsTestStrategy(StrategyBase):
+    """Stratégie de test pour pipeline metrics (prefixe _ pour eviter collection pytest)."""
     @property
     def required_indicators(self):
         return []

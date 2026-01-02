@@ -327,6 +327,11 @@ class SweepEngine:
 
             # Traiter les résultats du ParallelRunner
             for item_data in parallel_result.results:
+                # Vérifier si un arrêt d'urgence a été demandé
+                if self._stop_requested:
+                    logger.warning("🛑 Arrêt d'urgence détecté - Interruption du sweep")
+                    break
+
                 if item_data.get("success"):
                     result = item_data["result"]
                     metrics = _normalize_metrics_pct(result.get("metrics", {}))
@@ -522,6 +527,10 @@ class SweepEngine:
         self._stop_requested = True
         self._runner.request_stop()
         logger.info("Arrêt du sweep demandé")
+
+    def is_stopped(self) -> bool:
+        """Vérifie si un arrêt a été demandé."""
+        return self._stop_requested
 
     def _get_strategy_by_name(self, name: str) -> "StrategyBase":
         """Récupère une stratégie par son nom."""

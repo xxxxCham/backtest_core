@@ -69,12 +69,12 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 st.metric("Sharpe Ratio", f"{sharpe:.2f}")
 
             with col3:
-                max_dd = result.metrics["max_drawdown"]
+                max_dd = result.metrics["max_drawdown_pct"]
                 st.metric("Max Drawdown", f"{max_dd:.1f}%")
 
             with col4:
                 trades = result.metrics["total_trades"]
-                win_rate = result.metrics["win_rate"]
+                win_rate = result.metrics["win_rate_pct"]
                 st.metric("Trades", f"{trades}", delta=f"{win_rate:.0f}% wins")
 
             with col5:
@@ -229,12 +229,12 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 st.text(f"Sharpe: {result.metrics['sharpe_ratio']:.2f}")
                 st.text(f"Sortino: {result.metrics['sortino_ratio']:.2f}")
                 st.text(f"Calmar: {result.metrics['calmar_ratio']:.2f}")
-                st.text(f"Max DD: {result.metrics['max_drawdown']:.2f}%")
+                st.text(f"Max DD: {result.metrics['max_drawdown_pct']:.2f}%")
 
             with col3:
                 st.markdown("**🎯 Trading**")
                 st.text(f"Trades: {result.metrics['total_trades']}")
-                st.text(f"Win Rate: {result.metrics['win_rate']:.1f}%")
+                st.text(f"Win Rate: {result.metrics['win_rate_pct']:.1f}%")
                 st.text(f"Profit Factor: {result.metrics['profit_factor']:.2f}")
                 st.text(f"Expectancy: ${result.metrics['expectancy']:.2f}")
 

@@ -156,6 +156,7 @@ class StateMachine:
         """
         self._current_state = initial_state
         self._max_iterations = max_iterations
+        self._has_iteration_limit = max_iterations > 0
         self._current_iteration = 0
         self._history: List[StateHistoryEntry] = []
         self._context: Dict[str, Any] = {}
@@ -165,7 +166,8 @@ class StateMachine:
         # Enregistrer l'état initial
         self._record_transition(None, initial_state, ValidationResult.success("Initial state"))
 
-        logger.info(f"StateMachine initialisée: état={initial_state.name}, max_iter={max_iterations}")
+        max_iter_label = "∞" if not self._has_iteration_limit else str(max_iterations)
+        logger.info(f"StateMachine initialisée: état={initial_state.name}, max_iter={max_iter_label}")
 
     @property
     def current_state(self) -> AgentState:
@@ -220,7 +222,7 @@ class StateMachine:
 
         # Vérifier le max iterations pour ITERATE → ANALYZE
         if self._current_state == AgentState.ITERATE and target_state == AgentState.ANALYZE:
-            if self._current_iteration >= self._max_iterations:
+            if self._has_iteration_limit and self._current_iteration >= self._max_iterations:
                 return False
 
         return True

@@ -32,7 +32,7 @@ import pandas as pd
 from backtest.engine import BacktestEngine
 from backtest.validation import ValidationFold, WalkForwardValidator
 from metrics_types import normalize_metrics, pct_to_frac
-from strategies.base import get_strategy, list_strategies
+from strategies.base import get_strategy, get_strategy_overview, list_strategies
 from utils.config import Config
 from utils.observability import (
     generate_run_id,
@@ -534,12 +534,16 @@ def create_optimizer_from_engine(
 
     validation_fn = _validation_fn if use_walk_forward else None
 
+    # Préparer un aperçu de stratégie pour le contexte LLM
+    strategy_overview = get_strategy_overview(strategy_name)
+
     # Créer l'exécuteur
     executor = BacktestExecutor(
         backtest_fn=backtest_fn,
         strategy_name=strategy_name,
         data=data,
         validation_fn=validation_fn,
+        strategy_description=strategy_overview,
     )
 
     # Créer le strategist autonome
@@ -823,9 +827,13 @@ def create_orchestrator_with_backtest(
     except (ValueError, Exception):
         data_date_range = ""
 
+    # Préparer un aperçu de stratégie pour le contexte LLM
+    strategy_overview = get_strategy_overview(strategy_name)
+
     # Créer la config
     orchestrator_config = OrchestratorConfig(
         strategy_name=strategy_name,
+        strategy_description=strategy_overview,
         initial_params=initial_params,
         param_specs=param_specs,
         max_iterations=max_iterations,
@@ -856,3 +864,178 @@ def create_orchestrator_with_backtest(
         )
 
     return Orchestrator(orchestrator_config)
+
+
+# =============================================================================
+# LLM Grid Search Integration
+# =============================================================================
+
+def generate_sweep_summary(
+    sweep_results: Any,  # SweepResults from backtest.sweep
+    top_k: List[Dict[str, Any]],
+    range_proposal: Any  # RangeProposal from utils.parameters
+) -> str:
+    """
+    Génère un résumé textuel des résultats de sweep pour feedback LLM.
+
+    Args:
+        sweep_results: Résultats complets du sweep (SweepResults)
+        top_k: Top K configurations (list of dicts)
+        range_proposal: Proposition de ranges initiale
+
+    Returns:
+        Résumé formaté pour inclusion dans prompt LLM
+
+    Example output:
+        Grid Search Results (48 combinations tested):
+
+        Top 10 Configurations:
+        1. Sharpe=2.45, Return=8.3% | bb_period=23, bb_std=2.2
+        2. Sharpe=2.12, Return=7.1% | bb_period=22, bb_std=2.3
+        ...
+
+        Key Patterns:
+        - bb_period optimal range: 22-24
+        - bb_std shows weak correlation with Sharpe
+    """
+    n_combos = sweep_results.n_completed
+
+    summary = f"Grid Search Results ({n_combos} combinations tested):\n\n"
+    summary += "Top 10 Configurations:\n"
+
+    for i, config in enumerate(top_k[:10], 1):
+        sharpe = config.get("sharpe_ratio", 0)
+        ret = config.get("total_return_pct", 0)
+
+        # Extraire params (ignorer success, error, etc.)
+        param_keys = [
+            k for k in config.keys()
+            if k not in ["sharpe_ratio", "total_return_pct", "max_drawdown_pct",
+                        "total_trades", "success", "error", "win_rate_pct",
+                        "profit_factor", "sortino_ratio", "sqn", "calmar_ratio"]
+        ]
+        params_str = ", ".join(f"{k}={config[k]}" for k in param_keys)
+
+        summary += f"{i}. Sharpe={sharpe:.2f}, Return={ret:.1f}% | {params_str}\n"
+
+    summary += "\nKey Patterns:\n"
+    # TODO: Analyse automatique des corrélations (pour itération future)
+    # Pour l'instant, juste mentionner les ranges testées
+    for param_name, range_def in range_proposal.ranges.items():
+        summary += f"- {param_name}: tested range [{range_def['min']}, {range_def['max']}]\n"
+
+    return summary
+
+
+def run_llm_sweep(
+    range_proposal: Any,  # RangeProposal from utils.parameters
+    param_specs: List[Any],  # List[ParameterSpec]
+    data: pd.DataFrame,
+    strategy_name: str,
+    initial_capital: float = 10000.0,
+    n_workers: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Exécute un sweep de ranges demandé par le LLM.
+    Fonction partagée entre mono-agent et multi-agents.
+
+    Args:
+        range_proposal: Proposition de ranges (RangeProposal)
+        param_specs: Liste des spécifications de paramètres
+        data: DataFrame OHLCV
+        strategy_name: Nom de la stratégie
+        initial_capital: Capital initial
+        n_workers: Nombre de workers parallèles (None = auto)
+
+    Returns:
+        Dict contenant:
+            - best_params: Meilleurs paramètres trouvés
+            - best_metrics: Métriques du meilleur résultat
+            - top_k: Top 10 configurations (list of dicts)
+            - summary: Résumé textuel pour LLM
+            - n_combinations: Nombre de combinaisons testées
+
+    Raises:
+        ValueError: Si ranges invalides ou trop de combinaisons
+
+    Example:
+        >>> from utils.parameters import RangeProposal
+        >>> proposal = RangeProposal(
+        ...     ranges={"bb_period": {"min": 20, "max": 25, "step": 1}},
+        ...     rationale="Test bb_period sensitivity",
+        ...     max_combinations=50
+        ... )
+        >>> result = run_llm_sweep(proposal, param_specs, df, "bollinger_atr")
+        >>> print(result["summary"])
+    """
+    from backtest.sweep import SweepEngine
+    from utils.parameters import normalize_param_ranges, compute_search_space_stats
+
+    _logger.info(
+        f"llm_sweep_start strategy={strategy_name} "
+        f"ranges={range_proposal.ranges} max_combos={range_proposal.max_combinations}"
+    )
+
+    # Normaliser ranges (clamp + validate)
+    try:
+        param_grid = normalize_param_ranges(param_specs, range_proposal.ranges)
+    except ValueError as e:
+        _logger.error(f"llm_sweep_validation_failed error='{e}'")
+        raise
+
+    # Log search space stats
+    stats = compute_search_space_stats(param_grid)
+    _logger.info(
+        f"llm_sweep_space total_combos={stats.total_combinations} "
+        f"estimated_memory_mb={getattr(stats, 'estimated_memory_mb', 'N/A')}"
+    )
+
+    if stats.warnings:
+        for warning in stats.warnings:
+            _logger.warning(f"llm_sweep_warning: {warning}")
+
+    # Vérifier limite
+    if stats.total_combinations > range_proposal.max_combinations:
+        raise ValueError(
+            f"Trop de combinaisons ({stats.total_combinations} > "
+            f"{range_proposal.max_combinations}). Réduire les ranges ou augmenter max_combinations."
+        )
+
+    # Créer SweepEngine
+    engine = SweepEngine(
+        max_workers=n_workers,
+        initial_capital=initial_capital,
+        auto_save=False  # On gère la sauvegarde nous-mêmes
+    )
+
+    # Exécuter sweep
+    _logger.info(f"llm_sweep_executing n_combos={stats.total_combinations}")
+
+    sweep_results = engine.run_sweep(
+        df=data,
+        strategy=strategy_name,
+        param_grid=param_grid,
+        optimize_for=range_proposal.optimize_for,
+        show_progress=True,
+        early_stop_threshold=range_proposal.early_stop_threshold
+    )
+
+    # Extraire top K
+    df_results = sweep_results.to_dataframe()
+    top_k = df_results.nlargest(10, range_proposal.optimize_for).to_dict('records')
+
+    # Générer summary pour LLM
+    summary = generate_sweep_summary(sweep_results, top_k, range_proposal)
+
+    _logger.info(
+        f"llm_sweep_complete n_completed={sweep_results.n_completed} "
+        f"best_{range_proposal.optimize_for}={sweep_results.best_metrics.get(range_proposal.optimize_for, 0):.3f}"
+    )
+
+    return {
+        "best_params": sweep_results.best_params,
+        "best_metrics": sweep_results.best_metrics,
+        "top_k": top_k,
+        "summary": summary,
+        "n_combinations": sweep_results.n_completed
+    }

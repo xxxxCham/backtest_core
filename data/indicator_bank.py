@@ -133,6 +133,65 @@ class IndicatorBank:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._index_path = self.cache_dir / "index.json"
 
+    def _rebuild_index_from_files(self) -> None:
+        """Reconstruit l'index en scannant les fichiers .pkl du cache."""
+        logger.info("Reconstruction de l'index du cache à partir des fichiers existants...")
+        self._index = {}
+
+        try:
+            pkl_files = list(self.cache_dir.glob("*.pkl"))
+            logger.info(f"Trouvé {len(pkl_files)} fichiers .pkl à indexer")
+
+            for pkl_file in pkl_files:
+                try:
+                    # Extraire les métadonnées du nom de fichier
+                    # Format: {indicator_name}_{params_hash}_{data_hash}.pkl
+                    stem = pkl_file.stem
+                    parts = stem.rsplit("_", 2)
+
+                    if len(parts) != 3:
+                        logger.debug(f"Fichier ignoré (format invalide): {pkl_file.name}")
+                        continue
+
+                    indicator_name, params_hash, data_hash = parts
+                    key = stem
+
+                    # Obtenir la taille du fichier
+                    size_bytes = pkl_file.stat().st_size
+                    created_at = pkl_file.stat().st_mtime
+                    expires_at = created_at + self.ttl
+
+                    entry = CacheEntry(
+                        key=key,
+                        indicator_name=indicator_name,
+                        params_hash=params_hash,
+                        data_hash=data_hash,
+                        created_at=created_at,
+                        expires_at=expires_at,
+                        size_bytes=size_bytes,
+                        filepath=pkl_file
+                    )
+
+                    # Ne garder que les entrées non expirées
+                    if not entry.is_expired():
+                        self._index[key] = entry
+                    else:
+                        logger.debug(f"Fichier expiré supprimé: {pkl_file.name}")
+                        pkl_file.unlink(missing_ok=True)
+
+                except Exception as e:
+                    logger.debug(f"Erreur indexation fichier {pkl_file.name}: {e}")
+                    continue
+
+            logger.info(f"Index reconstruit: {len(self._index)} entrées valides")
+
+            # Sauvegarder le nouvel index
+            self._save_index()
+
+        except Exception as e:
+            logger.error(f"Erreur lors de la reconstruction de l'index: {e}")
+            self._index = {}
+
     def _load_index(self) -> None:
         """Charge l'index du cache depuis le disque."""
         if self._index_path.exists():
@@ -163,7 +222,12 @@ class IndicatorBank:
 
             except Exception as e:
                 logger.warning(f"Erreur chargement index: {e}")
-                self._index = {}
+                logger.info("Tentative de reconstruction automatique de l'index...")
+                self._rebuild_index_from_files()
+        else:
+            # Index n'existe pas, le reconstruire à partir des fichiers
+            logger.info("Index absent, reconstruction à partir des fichiers existants...")
+            self._rebuild_index_from_files()
 
     def _save_index(self) -> None:
         """Sauvegarde l'index sur disque."""

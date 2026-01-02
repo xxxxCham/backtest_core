@@ -320,6 +320,7 @@ class BacktestExecutor:
         strategy_name: str,
         data: pd.DataFrame,
         validation_fn: Optional[ValidationFn] = None,
+        strategy_description: str = "",
     ) -> None:
         """
         Initialise l'exécuteur.
@@ -334,6 +335,7 @@ class BacktestExecutor:
         self.strategy_name = strategy_name
         self.data = data
         self.validation_fn = validation_fn
+        self.strategy_description = strategy_description
 
         self.history = ExperimentHistory()
 
@@ -437,10 +439,19 @@ class BacktestExecutor:
         - Analyse de sensibilité
         - Suggestions basées sur les patterns
         """
-        lines = [
+        lines: List[str] = []
+
+        if self.strategy_description:
+            lines.extend([
+                "=== Strategy Overview ===",
+                self.strategy_description.strip(),
+                "",
+            ])
+
+        lines.extend([
             self.history.get_summary_for_llm(),
             "",
-        ]
+        ])
 
         # Analyse de sensibilité
         sensitivity = self.history.analyze_parameter_sensitivity()

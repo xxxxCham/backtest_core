@@ -7,6 +7,49 @@ Make the final validation decision for this optimization session.
 Strategy: {{ strategy_name }}
 Iteration: {{ iteration }}
 
+{% if strategy_description -%}
+## STRATEGY OVERVIEW
+{{ strategy_description[:1200] }}{% if strategy_description|length > 1200 %}...{% endif %}
+
+{% endif %}
+
+{% if current_metrics -%}
+## LAST RESULT SNAPSHOT
+- Sharpe: {{ current_metrics.sharpe_ratio|format_float(3) }}
+- Return: {{ current_metrics.total_return|format_percent }}
+- Drawdown: {{ current_metrics.max_drawdown|format_percent }}
+- Trades: {{ current_metrics.total_trades }}
+
+{% endif %}
+
+{% if strategy_indicators_context -%}
+## STRATEGY INDICATORS (modifiable)
+{{ strategy_indicators_context }}
+
+{% endif %}
+
+{% if readonly_indicators_context -%}
+## CONTEXT INDICATORS (read-only)
+{{ readonly_indicators_context }}
+
+{% endif %}
+
+## INDICATOR USAGE NOTES
+- Strategy indicators are tied to tunable parameters.
+- Context indicators are read-only and for regime interpretation only.
+- Indicator values are computed once per run (baseline snapshot).
+{% if indicator_context_warnings and indicator_context_warnings|length > 0 -%}
+- Warnings below indicate unavailable indicators; ignore them in validation.
+{% endif %}
+
+{% if indicator_context_warnings and indicator_context_warnings|length > 0 -%}
+## INDICATOR CONTEXT WARNINGS
+{% for w in indicator_context_warnings %}
+- {{ w }}
+{% endfor %}
+
+{% endif %}
+
 {% if memory_summary -%}
 ## HISTORICAL NOTES
 {{ memory_summary }}
@@ -96,6 +139,42 @@ Iteration: {{ iteration }}
 - Iter {{ hist.get('iteration', loop.index) }}: Sharpe={{ hist.get('sharpe_ratio', 0)|format_float(2) }}, Return={{ hist.get('total_return', 0)|format_percent }}{% if hist.get('decision') %} → {{ hist.get('decision') }}{% endif %}
 
 {% endfor %}
+{% endif %}
+
+{% if sweep_summary -%}
+## GRID SEARCH VALIDATION (STRICTER CRITERIA)
+This optimization session used **grid search (sweep)** to find parameter configurations.
+
+**Sweep Details:**
+- Combinations tested: {{ sweep_results.get('n_combinations', 'N/A') if sweep_results else 'N/A' }}
+- Grid search can introduce selection bias even with walk-forward validation
+
+**CRITICAL: Grid Search Approval Criteria (stricter than normal):**
+
+✅ **APPROVE sweep config ONLY IF ALL of:**
+1. Walk-forward overfitting ratio ≤ **1.3** (not 1.5) — stricter for grid-selected configs
+2. Degradation % ≤ **20%** (not 25%) — must generalize better
+3. Parameters NOT at exact grid boundaries (red flag for overfitting to range)
+4. Sharpe improvement ≥ 15% over baseline (grid search cost must be justified)
+5. Critic explicitly approved with robustness score ≥ 70/100
+6. Parameters make intuitive sense (not arbitrary local optima)
+
+🟡 **ITERATE if:**
+- Ratio 1.3-1.5 OR degradation 20-30% → suggest refining ranges or testing neighbors
+- Parameters at boundaries → expand grid or test adjacent values
+- Marginal improvement (<15%) → may not justify grid search complexity
+
+❌ **REJECT sweep config if ANY of:**
+- Ratio > 1.5 (unacceptable overfitting for grid-selected params)
+- Degradation > 30% (unstable, likely found noise in grid)
+- Parameters arbitrary or at exact boundaries
+- Critic flagged critical concerns about generalization
+
+**RATIONALE FOR STRICTER CRITERIA:**
+Grid search performs multiple comparisons on the same dataset, increasing false discovery risk.
+Even with walk-forward, the "best" config from 50+ combinations is inherently optimized to test data.
+Higher standards ensure grid-selected configs truly generalize, not just exploit random patterns.
+
 {% endif %}
 
 ## DECISION GUIDELINES

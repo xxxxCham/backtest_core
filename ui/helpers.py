@@ -547,9 +547,12 @@ def render_saved_runs_panel(
     if status_msg:
         st.sidebar.info(status_msg)
 
+    if "auto_save_final_run" not in st.session_state:
+        st.session_state["auto_save_final_run"] = True
+
     st.sidebar.checkbox(
         "Auto-save final run",
-        value=False,
+        value=st.session_state["auto_save_final_run"],
         key="auto_save_final_run",
     )
 

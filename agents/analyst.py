@@ -273,6 +273,9 @@ Respond ONLY in valid JSON format with this exact structure:
             "max_drawdown_limit": context.max_drawdown_limit,
             "min_trades": context.min_trades,
             "memory_summary": context.memory_summary,
+            "strategy_indicators_context": context.strategy_indicators_context,
+            "readonly_indicators_context": context.readonly_indicators_context,
+            "indicator_context_warnings": context.indicator_context_warnings,
         }
 
         # Rendre le template

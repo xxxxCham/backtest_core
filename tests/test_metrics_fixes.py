@@ -144,7 +144,7 @@ def test_metrics_with_ruined_account():
     # Vérifications
     assert metrics["account_ruined"] is True
     assert metrics["min_equity"] == -100
-    assert metrics["max_drawdown"] == -100.0  # Clampé
+    assert metrics["max_drawdown_pct"] == -100.0  # Clampé
     assert metrics["total_pnl"] == -10100  # 10000 → -100
     assert metrics["total_return_pct"] == -101.0  # -101%
 

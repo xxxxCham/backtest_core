@@ -1015,6 +1015,12 @@ __all__ = [
     "cmd_validate",
     "cmd_export",
     "cmd_optuna",
+    "cmd_visualize",
+    "cmd_check_gpu",
+    "cmd_llm_optimize",
+    "cmd_grid_backtest",
+    "cmd_analyze",
+    "cmd_indicators",
 ]
 
 
@@ -1722,4 +1728,494 @@ def cmd_check_gpu(args) -> int:
 
     print()
     print_success("Diagnostic GPU terminé")
+    return 0
+
+
+# =============================================================================
+# COMMANDE: LLM-OPTIMIZE
+# =============================================================================
+
+def cmd_llm_optimize(args) -> int:
+    """Lance une optimisation LLM avec orchestrateur multi-agents."""
+    if args.no_color:
+        Colors.disable()
+
+    import os
+    from pathlib import Path
+
+    from agents.integration import create_orchestrator_with_backtest
+    from agents.llm_client import LLMConfig, LLMProvider
+    from data.loader import load_ohlcv
+    from strategies import get_strategy
+
+    if not args.quiet:
+        print_header("Optimisation LLM Multi-Agents")
+        print(f"  Stratégie: {args.strategy}")
+        print(f"  Symbole: {args.symbol}")
+        print(f"  Timeframe: {args.timeframe}")
+        print(f"  Période: {args.start} → {args.end}")
+        print(f"  Capital: {args.capital:,.0f}")
+        print(f"  Modèle LLM: {args.model}")
+        print(f"  Max itérations: {args.max_iterations}")
+        print()
+
+    # Charger les données
+    if not args.quiet:
+        print_info("Chargement des données...")
+
+    try:
+        df = load_ohlcv(
+            symbol=args.symbol,
+            timeframe=args.timeframe,
+            start=args.start,
+            end=args.end
+        )
+    except Exception as e:
+        print_error(f"Erreur chargement données: {e}")
+        return 1
+
+    if not args.quiet:
+        print_success(f"Données chargées: {len(df)} barres")
+        print(f"   Période réelle: {df.index[0]} → {df.index[-1]}")
+        print()
+
+    # Configuration LLM
+    llm_config = LLMConfig(
+        provider=LLMProvider.OLLAMA,
+        model=args.model,
+        temperature=args.temperature,
+        max_tokens=args.max_tokens,
+        timeout_seconds=args.timeout,
+    )
+
+    # Récupérer les paramètres par défaut de la stratégie
+    if not args.quiet:
+        print_info("Récupération des paramètres par défaut...")
+
+    strategy_class = get_strategy(args.strategy)
+    if not strategy_class:
+        print_error(f"Stratégie '{args.strategy}' non trouvée")
+        return 1
+
+    strategy_instance = strategy_class()
+    initial_params = strategy_instance.default_params
+
+    if not args.quiet:
+        print_success(f"Paramètres initiaux: {list(initial_params.keys())}")
+        print()
+
+    # Créer l'orchestrateur
+    if not args.quiet:
+        print_info("Création de l'orchestrateur multi-agents...")
+
+    try:
+        orchestrator = create_orchestrator_with_backtest(
+            strategy_name=args.strategy,
+            data=df,
+            data_symbol=args.symbol,
+            data_timeframe=args.timeframe,
+            initial_params=initial_params,
+            llm_config=llm_config,
+            initial_capital=args.capital,
+            max_iterations=args.max_iterations,
+            min_sharpe=args.min_sharpe,
+            max_drawdown_limit=args.max_drawdown,
+        )
+    except Exception as e:
+        print_error(f"Erreur création orchestrateur: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+    if not args.quiet:
+        print_success("Orchestrateur créé")
+        print()
+        print_header("Lancement de l'optimisation", "-")
+
+    # Lancer l'optimisation
+    try:
+        result = orchestrator.run()
+    except Exception as e:
+        print_error(f"Erreur durant l'optimisation: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+    # Afficher les résultats
+    if not args.quiet:
+        print()
+        print_header("Résultats Finaux")
+
+        if result.decision == "APPROVED":
+            print_success(f"Décision: {result.decision}")
+        elif result.decision == "REJECTED":
+            print_warning(f"Décision: {result.decision}")
+        else:
+            print_error(f"Décision: {result.decision}")
+
+        if result.final_params:
+            print(f"\n{Colors.BOLD}Paramètres finaux:{Colors.RESET}")
+            for k, v in result.final_params.items():
+                print(f"    {k}: {v}")
+
+        if result.final_metrics:
+            print(f"\n{Colors.BOLD}Métriques finales:{Colors.RESET}")
+            _print_metrics(result.final_metrics)
+
+        print(f"\n  Itérations: {result.iterations}")
+
+        if result.reason:
+            print(f"\n  Raison: {result.reason}")
+
+    # Export si demandé
+    if args.output:
+        output_path = Path(args.output)
+
+        import json as json_module
+
+        export_data = {
+            "strategy": args.strategy,
+            "symbol": args.symbol,
+            "timeframe": args.timeframe,
+            "period": {"start": args.start, "end": args.end},
+            "model": args.model,
+            "max_iterations": args.max_iterations,
+            "decision": result.decision,
+            "iterations": result.iterations,
+            "final_params": result.final_params,
+            "final_metrics": result.final_metrics,
+            "reason": result.reason,
+            "history": result.history if hasattr(result, 'history') else None,
+        }
+
+        with open(output_path, "w") as f:
+            json_module.dump(export_data, f, indent=2, default=str)
+
+        if not args.quiet:
+            print()
+            print_success(f"Résultats exportés: {output_path}")
+
+    return 0
+
+
+# =============================================================================
+# COMMANDE: GRID-BACKTEST
+# =============================================================================
+
+def cmd_grid_backtest(args) -> int:
+    """Exécute un backtest en mode grille de paramètres."""
+    if args.no_color:
+        Colors.disable()
+
+    import os
+    from pathlib import Path
+    from itertools import product
+    import json as json_module
+
+    from backtest.engine import BacktestEngine
+    from data.loader import load_ohlcv
+    from strategies import get_strategy
+    from utils.config import Config
+
+    if not args.quiet:
+        print_header("Backtest Mode Grille")
+        print(f"  Stratégie: {args.strategy}")
+        print(f"  Symbole: {args.symbol}")
+        print(f"  Timeframe: {args.timeframe}")
+        print(f"  Période: {args.start} → {args.end}")
+        print(f"  Capital: {args.capital:,.0f}")
+        print()
+
+    # Charger les données
+    if not args.quiet:
+        print_info("Chargement des données...")
+
+    try:
+        df = load_ohlcv(
+            symbol=args.symbol,
+            timeframe=args.timeframe,
+            start=args.start,
+            end=args.end
+        )
+    except Exception as e:
+        print_error(f"Erreur chargement données: {e}")
+        return 1
+
+    if not args.quiet:
+        print_success(f"Données chargées: {len(df)} barres")
+        print(f"   Période réelle: {df.index[0]} → {df.index[-1]}")
+        print()
+
+    # Parser la grille de paramètres depuis JSON
+    if args.param_grid:
+        try:
+            param_grid = json_module.loads(args.param_grid)
+        except json_module.JSONDecodeError as e:
+            print_error(f"Erreur parsing param_grid JSON: {e}")
+            return 1
+    else:
+        # Utiliser une grille par défaut basée sur la stratégie
+        strategy_class = get_strategy(args.strategy)
+        if not strategy_class:
+            print_error(f"Stratégie '{args.strategy}' non trouvée")
+            return 1
+
+        strategy_instance = strategy_class()
+        param_grid = {}
+
+        # Générer une grille simple depuis param_ranges
+        for param_name, (min_val, max_val) in strategy_instance.param_ranges.items():
+            default = strategy_instance.default_params.get(param_name, (min_val + max_val) / 2)
+
+            if isinstance(default, int):
+                # Grille de 3 valeurs pour les entiers
+                step = max(1, (max_val - min_val) // 2)
+                param_grid[param_name] = [min_val, min_val + step, max_val]
+            else:
+                # Grille de 3 valeurs pour les floats
+                param_grid[param_name] = [
+                    min_val,
+                    (min_val + max_val) / 2,
+                    max_val
+                ]
+
+    # Générer toutes les combinaisons
+    param_names = list(param_grid.keys())
+    param_values = list(param_grid.values())
+    all_combinations = list(product(*param_values))
+
+    # Limiter le nombre de combinaisons
+    if len(all_combinations) > args.max_combinations:
+        print_warning(f"Nombre de combinaisons ({len(all_combinations)}) > max ({args.max_combinations})")
+        print_info(f"Limitation à {args.max_combinations} combinaisons")
+        import random
+        random.seed(42)
+        all_combinations = random.sample(all_combinations, args.max_combinations)
+
+    if not args.quiet:
+        print_header("Grille de paramètres", "-")
+        for param_name, values in param_grid.items():
+            print(f"  {param_name}: {values}")
+        print(f"\n  Total combinaisons: {len(all_combinations)}")
+        print()
+
+    # Créer la configuration avec les frais
+    config_kwargs = {"fees_bps": args.fees_bps}
+    if args.slippage_bps is not None:
+        config_kwargs["slippage_bps"] = args.slippage_bps
+    config = Config(**config_kwargs)
+
+    # Exécuter les backtests
+    if not args.quiet:
+        print_info("Lancement des backtests...")
+        print()
+
+    results = []
+
+    for i, param_combination in enumerate(all_combinations):
+        params = dict(zip(param_names, param_combination))
+
+        engine = BacktestEngine(
+            initial_capital=args.capital,
+            config=config,
+        )
+
+        try:
+            result = engine.run(
+                df=df,
+                strategy=args.strategy,
+                params=params,
+                symbol=args.symbol,
+                timeframe=args.timeframe
+            )
+
+            # Gérer les métriques
+            if hasattr(result.metrics, 'to_dict'):
+                metrics = result.metrics.to_dict()
+            else:
+                metrics = dict(result.metrics)
+
+            results.append({
+                "params": params,
+                "metrics": metrics,
+            })
+        except Exception as e:
+            if args.verbose:
+                print_warning(f"Erreur avec {params}: {e}")
+
+        # Progress
+        if not args.quiet and (i + 1) % 10 == 0:
+            print(f"\r  Progress: {i+1}/{len(all_combinations)} ({100*(i+1)/len(all_combinations):.1f}%)", end="", flush=True)
+
+    if not args.quiet:
+        print("\r" + " " * 50 + "\r", end="")
+        print_success(f"Backtests terminés: {len(results)} résultats")
+        print()
+
+    # Trier par métrique
+    metric_key = args.metric
+    reverse = args.metric != "max_drawdown"  # Plus bas = mieux pour drawdown
+
+    results.sort(key=lambda x: x["metrics"].get(metric_key, 0), reverse=reverse)
+
+    # Afficher les meilleurs
+    if not args.quiet:
+        print_header(f"Top {args.top} Résultats (tri par {args.metric})")
+
+        for i, r in enumerate(results[:args.top]):
+            print(f"\n  {Colors.BOLD}#{i+1}{Colors.RESET}")
+            print(f"    Paramètres: {r['params']}")
+            print(f"    Sharpe: {r['metrics'].get('sharpe_ratio', 0):.3f}")
+            print(f"    Return: {r['metrics'].get('total_return_pct', 0):+.2f}%")
+            print(f"    Drawdown: {r['metrics'].get('max_drawdown', 0):.2f}%")
+            print(f"    {args.metric}: {r['metrics'].get(metric_key, 0):.4f}")
+
+    # Export
+    if args.output:
+        output_path = Path(args.output)
+
+        export_data = {
+            "strategy": args.strategy,
+            "symbol": args.symbol,
+            "timeframe": args.timeframe,
+            "period": {"start": args.start, "end": args.end},
+            "param_grid": param_grid,
+            "n_combinations": len(all_combinations),
+            "metric": args.metric,
+            "results": results,
+        }
+
+        with open(output_path, "w") as f:
+            json_module.dump(export_data, f, indent=2, default=str)
+
+        if not args.quiet:
+            print()
+            print_success(f"Résultats exportés: {output_path}")
+
+    return 0
+
+
+# =============================================================================
+# COMMANDE: ANALYZE
+# =============================================================================
+
+def cmd_analyze(args) -> int:
+    """Analyse les résultats de backtests stockés."""
+    if args.no_color:
+        Colors.disable()
+
+    import json as json_module
+    from pathlib import Path
+
+    results_dir = Path(args.results_dir)
+
+    if not results_dir.exists():
+        print_error(f"Répertoire non trouvé: {results_dir}")
+        return 1
+
+    print_header("Analyse des Résultats de Backtests")
+    print(f"  Répertoire: {results_dir}")
+    print()
+
+    # Charger l'index
+    index_path = results_dir / "index.json"
+
+    if not index_path.exists():
+        print_error(f"Fichier index.json non trouvé dans {results_dir}")
+        return 1
+
+    with open(index_path) as f:
+        index = json_module.load(f)
+
+    print_info(f"Nombre total de runs: {len(index)}")
+    print()
+
+    # Filtrer les runs profitables
+    if args.profitable_only:
+        filtered = {
+            run_id: data for run_id, data in index.items()
+            if data['metrics'].get('total_pnl', 0) > 0
+        }
+    else:
+        filtered = index
+
+    print_header(f"Résultats {'profitables' if args.profitable_only else 'tous'} ({len(filtered)})", "-")
+
+    # Trier par métrique
+    metric_key = args.sort_by
+    reverse = args.sort_by != "max_drawdown_pct"  # Plus bas = mieux pour drawdown
+
+    sorted_runs = sorted(
+        filtered.items(),
+        key=lambda x: x[1]['metrics'].get(metric_key, float('-inf') if reverse else float('inf')),
+        reverse=reverse
+    )
+
+    # Afficher top N
+    for i, (run_id, data) in enumerate(sorted_runs[:args.top], 1):
+        print(f"\n{Colors.BOLD}Run #{i} - {run_id}{Colors.RESET}")
+        print(f"  Stratégie: {data['strategy']}")
+        print(f"  Période: {data.get('period_start', 'N/A')} → {data.get('period_end', 'N/A')}")
+        print(f"  Symbole: {data.get('symbol', 'N/A')} | Timeframe: {data.get('timeframe', 'N/A')}")
+
+        print(f"\n  {Colors.BOLD}Paramètres:{Colors.RESET}")
+        for param, value in data['params'].items():
+            print(f"    {param}: {value}")
+
+        m = data['metrics']
+        print(f"\n  {Colors.BOLD}Métriques:{Colors.RESET}")
+        print(f"    PnL: ${m.get('total_pnl', 0):.2f} | Return: {m.get('total_return_pct', 0):.2f}%")
+        print(f"    Sharpe: {m.get('sharpe_ratio', 0):.2f} | Sortino: {m.get('sortino_ratio', 0):.2f}")
+        print(f"    Win Rate: {m.get('win_rate_pct', 0):.2f}% | Profit Factor: {m.get('profit_factor', 0):.2f}")
+        print(f"    Max DD: {m.get('max_drawdown_pct', 0):.2f}% | Trades: {m.get('total_trades', 0)}")
+
+    # Statistiques globales
+    if args.stats and len(filtered) > 0:
+        print()
+        print_header("Statistiques Globales", "-")
+
+        import numpy as np
+
+        sharpe_values = [d['metrics'].get('sharpe_ratio', 0) for d in filtered.values()]
+        return_values = [d['metrics'].get('total_return_pct', 0) for d in filtered.values()]
+        dd_values = [d['metrics'].get('max_drawdown_pct', 0) for d in filtered.values()]
+
+        print(f"  {Colors.BOLD}Sharpe Ratio:{Colors.RESET}")
+        print(f"    Moyenne: {np.mean(sharpe_values):.2f}")
+        print(f"    Médiane: {np.median(sharpe_values):.2f}")
+        print(f"    Min: {np.min(sharpe_values):.2f} | Max: {np.max(sharpe_values):.2f}")
+
+        print(f"\n  {Colors.BOLD}Return %:{Colors.RESET}")
+        print(f"    Moyenne: {np.mean(return_values):.2f}%")
+        print(f"    Médiane: {np.median(return_values):.2f}%")
+        print(f"    Min: {np.min(return_values):.2f}% | Max: {np.max(return_values):.2f}%")
+
+        print(f"\n  {Colors.BOLD}Max Drawdown %:{Colors.RESET}")
+        print(f"    Moyenne: {np.mean(dd_values):.2f}%")
+        print(f"    Médiane: {np.median(dd_values):.2f}%")
+        print(f"    Min: {np.min(dd_values):.2f}% | Max: {np.max(dd_values):.2f}%")
+
+    # Export si demandé
+    if args.output:
+        output_path = Path(args.output)
+
+        export_data = {
+            "total_runs": len(index),
+            "filtered_runs": len(filtered),
+            "filter": "profitable_only" if args.profitable_only else "all",
+            "sort_by": args.sort_by,
+            "top_runs": [
+                {"run_id": run_id, **data}
+                for run_id, data in sorted_runs[:args.top]
+            ],
+        }
+
+        with open(output_path, "w") as f:
+            json_module.dump(export_data, f, indent=2, default=str)
+
+        print()
+        print_success(f"Analyse exportée: {output_path}")
+
     return 0

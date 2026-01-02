@@ -192,6 +192,7 @@ Respond ONLY in valid JSON format with this exact structure:
 
         template_context = {
             "strategy_name": context.strategy_name,
+            "strategy_description": context.strategy_description,
             "iteration": context.iteration,
             "param_specs": context.param_specs,
             "current_params": context.current_params,
@@ -209,6 +210,9 @@ Respond ONLY in valid JSON format with this exact structure:
             # Résumé des paramètres déjà testés dans cette session
             "session_params_summary": getattr(context, 'session_params_summary', None),
             "memory_summary": context.memory_summary,
+            "strategy_indicators_context": context.strategy_indicators_context,
+            "readonly_indicators_context": context.readonly_indicators_context,
+            "indicator_context_warnings": context.indicator_context_warnings,
         }
 
         return render_prompt("strategist.jinja2", template_context)

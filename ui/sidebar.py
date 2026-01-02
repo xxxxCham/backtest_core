@@ -753,6 +753,41 @@ def render_sidebar() -> SidebarState:
                     }
                     display_to_name = {v: k for k, v in name_to_display.items()}
 
+                    use_single_model_for_roles = st.sidebar.checkbox(
+                        "🔁 Même modèle pour tous les rôles",
+                        value=False,
+                        key="llm_single_model_for_roles",
+                        help="Applique un seul modèle à Analyst/Strategist/Critic/Validator.",
+                    )
+
+                    single_model_selection = None
+                    if use_single_model_for_roles:
+                        if model_options_display:
+                            default_model = (
+                                role_model_config.analyst.models[0]
+                                if role_model_config.analyst.models
+                                else (available_model_names[0] if available_model_names else None)
+                            )
+                            default_display = name_to_display.get(
+                                default_model, model_options_display[0]
+                            )
+                            default_index = (
+                                model_options_display.index(default_display)
+                                if default_display in model_options_display
+                                else 0
+                            )
+                            single_model_selection = st.sidebar.selectbox(
+                                "Modèle unique (tous rôles)",
+                                model_options_display,
+                                index=default_index,
+                                key="llm_single_model_for_roles_name",
+                                help="Ce modèle sera utilisé pour tous les rôles.",
+                            )
+                        else:
+                            st.sidebar.warning(
+                                "Aucun modèle disponible pour unifier les rôles."
+                            )
+
                     st.sidebar.markdown("**Analyst** (analyse rapide)")
 
                     if selected_preset and selected_preset != "Aucun (manuel)":
@@ -914,6 +949,12 @@ def render_sidebar() -> SidebarState:
                         help="Modeles puissants pour decisions finales",
                     )
 
+                    if use_single_model_for_roles and single_model_selection:
+                        analyst_selection = [single_model_selection]
+                        strategist_selection = [single_model_selection]
+                        critic_selection = [single_model_selection]
+                        validator_selection = [single_model_selection]
+
                     st.sidebar.markdown("---")
                     st.sidebar.caption("Modeles lourds")
                     heavy_after_iter = st.sidebar.number_input(
@@ -1010,13 +1051,24 @@ def render_sidebar() -> SidebarState:
             st.sidebar.markdown("---")
             st.sidebar.caption("**Options d'optimisation**")
 
-            llm_max_iterations = st.sidebar.slider(
-                "Max itérations",
-                min_value=3,
-                max_value=50,
-                value=10,
-                help="Nombre max de cycles d'amélioration",
+            llm_unlimited_iterations = st.sidebar.checkbox(
+                "Itérations illimitées",
+                value=True,
+                key="llm_unlimited_iterations",
+                help="Lance l'optimisation sans limite d'itérations (arrêt manuel requis)",
             )
+
+            if llm_unlimited_iterations:
+                llm_max_iterations = 0
+                st.sidebar.caption("∞ itérations (arrêt manuel)")
+            else:
+                llm_max_iterations = st.sidebar.slider(
+                    "Max itérations",
+                    min_value=3,
+                    max_value=50,
+                    value=10,
+                    help="Nombre max de cycles d'amélioration",
+                )
 
             walk_forward_enabled = True
             walk_forward_reason = ""
@@ -1162,13 +1214,15 @@ def render_sidebar() -> SidebarState:
                         st.session_state["llm_compare_run_now"] = False
 
             if llm_use_multi_agent:
+                max_iter_label = "∞" if llm_max_iterations <= 0 else str(llm_max_iterations)
                 st.sidebar.caption(
                     "Agents: Analyst/Strategist/Critic/Validator | "
-                    f"Max iterations: {llm_max_iterations}"
+                    f"Max iterations: {max_iter_label}"
                 )
             else:
+                max_iter_label = "∞" if llm_max_iterations <= 0 else str(llm_max_iterations)
                 st.sidebar.caption(
-                    f"Agent autonome | Max iterations: {llm_max_iterations}"
+                    f"Agent autonome | Max iterations: {max_iter_label}"
                 )
 
     st.sidebar.subheader("🔧 Paramètres")

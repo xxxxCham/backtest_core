@@ -5,7 +5,6 @@ Backtest Core - Strategies Package
 Stratégies de trading modulaires.
 """
 
-from .atr_channel import ATRChannelStrategy
 from .base import StrategyBase, StrategyResult, get_strategy, list_strategies
 from .bollinger_atr import BollingerATRStrategy
 from .bollinger_atr_v2 import BollingerATRStrategyV2
@@ -31,7 +30,6 @@ __all__ = [
     "EMACrossStrategy",
     "MACDCrossStrategy",
     "RSIReversalStrategy",
-    "ATRChannelStrategy",
     "get_required_indicators",
     "get_all_indicators",
     "get_strategy_info",

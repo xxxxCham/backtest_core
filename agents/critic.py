@@ -225,6 +225,7 @@ Respond ONLY in valid JSON format with this exact structure:
 
         template_context = {
             "strategy_name": context.strategy_name,
+            "strategy_description": context.strategy_description,
             "iteration": context.iteration,
             "current_metrics": current_metrics_dict,
             "overfitting_ratio": context.overfitting_ratio,
@@ -245,6 +246,9 @@ Respond ONLY in valid JSON format with this exact structure:
             "max_overfitting_ratio": context.max_overfitting_ratio,
             "iteration_history": context.iteration_history,
             "memory_summary": context.memory_summary,
+            "strategy_indicators_context": context.strategy_indicators_context,
+            "readonly_indicators_context": context.readonly_indicators_context,
+            "indicator_context_warnings": context.indicator_context_warnings,
         }
 
         return render_prompt("critic.jinja2", template_context)

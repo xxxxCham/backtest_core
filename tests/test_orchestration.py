@@ -56,6 +56,8 @@ def test_indicators_for_each_strategy():
     print("=" * 80)
 
     strategies = list_strategies()
+    # Filtrer les stratégies de test (préfixées par test_)
+    strategies = [s for s in strategies if not s.startswith("test_")]
 
     for strat_name in sorted(strategies):
         info = get_strategy_info(strat_name)

@@ -420,6 +420,57 @@ def create_strategy(name: str, **kwargs) -> StrategyBase:
     strategy_cls = get_strategy(name)
     return strategy_cls(**kwargs)
 
+def get_strategy_overview(name: str, max_chars: int = 1800) -> str:
+    """
+    Construit un résumé compact de la stratégie pour contexte LLM.
+
+    Utilise describe() si disponible, puis docstring de classe et
+    informations de base (indicateurs requis, paramètres par défaut).
+    """
+    strategy_cls = get_strategy(name)
+
+    parts: List[str] = []
+    strategy = None
+    try:
+        strategy = strategy_cls()
+    except Exception:
+        strategy = None
+
+    if strategy is not None:
+        try:
+            desc = strategy.describe()
+            if desc:
+                parts.append(str(desc).strip())
+        except Exception:
+            pass
+
+        try:
+            required = getattr(strategy, "required_indicators", [])
+            if required:
+                parts.append(f"Required Indicators: {', '.join(required)}")
+        except Exception:
+            pass
+
+        try:
+            defaults = getattr(strategy, "default_params", None)
+            if defaults:
+                parts.append(f"Default Params: {defaults}")
+        except Exception:
+            pass
+
+    class_doc = (strategy_cls.__doc__ or "").strip()
+    if class_doc and class_doc not in "\n".join(parts):
+        parts.append(class_doc)
+
+    overview = "\n\n".join([p for p in parts if p]).strip()
+    if not overview:
+        overview = f"Strategy: {strategy_cls.__name__}"
+
+    if max_chars > 0 and len(overview) > max_chars:
+        overview = overview[:max_chars].rstrip() + "\n...[truncated]"
+
+    return overview
+
 
 __all__ = [
     "StrategyBase",
@@ -428,4 +479,5 @@ __all__ = [
     "get_strategy",
     "list_strategies",
     "create_strategy",
+    "get_strategy_overview",
 ]
