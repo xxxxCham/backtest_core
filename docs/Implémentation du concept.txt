@@ -1,0 +1,1279 @@
+Implémentation du concept
+
+Objectif
+Construire une strategie algorithmique exploitable et backtestable autour des concepts:
+- Liquidite (swing highs/lows et niveaux non travailles)
+- Fair Value (FVG/FVA)
+- PID arret (premium/discount)
+- Smart Leg (intention directionnelle)
+- Candle Story (rejet vs continuation)
+
+Le document ci-dessous definit les regles operationnelles, un plan d'implementation et
+un protocole de validation robuste.
+
+====================================================================
+1) Hypotheses de marche a respecter
+1.1 Le marche alterne entre:
+    - Recherche de liquidite (sweeps des swing highs/lows)
+    - Offre d'un prix equitable (fair value)
+1.2 La direction dominante est visible via les smart legs et leur sequence.
+1.3 Toute prise de position doit viser un prochain PID arret (target ou entree).
+
+====================================================================
+2) Definitions operables (conditions mesurables)
+
+2.1 Swing High / Swing Low (fractal classique)
+Swing High en i si:
+    High[i] > High[i-1] et High[i] > High[i+1]
+Swing Low en i si:
+    Low[i] < Low[i-1] et Low[i] < Low[i+1]
+Parametre optionnel: utiliser 2 ou 3 bougies de part et d'autre
+(swing "plus robuste" mais plus tardif).
+
+2.2 Fair Value Gap (FVG)
+FVG haussier sur 3 bougies i-2, i-1, i:
+    High[i-2] < Low[i]
+    Zone FVG = [High[i-2], Low[i]]
+FVG baissier sur 3 bougies i-2, i-1, i:
+    Low[i-2] > High[i]
+    Zone FVG = [High[i], Low[i-2]]
+Option: exiger que la bougie i-1 ne chevauche pas la zone (filtre).
+Etat de la zone: "active" tant que non comblee (retour du prix dans la zone).
+
+2.3 Fair Value Area (FVA)
+Zone d'equilibre entre un swing high et un swing low adjacents, validee par
+deux bougies de sens oppose dont les corps se chevauchent, puis cassure du pivot.
+Regle simple (corps croises):
+    - Bougie j haussiere et bougie j+1 baissiere
+      avec chevauchement des corps
+    - Puis bougie j+2 casse le pivot precedent
+La FVA est la zone de recouvrement (ou le range O/C) des deux bougies croisees.
+Etat de la zone: "active" tant que la zone n'a pas ete travaillee/rejete.
+
+2.4 PID arret (premium / discount)
+Un PID arret est une zone magnetique ou le prix a de fortes probabilites d'aller.
+Types de PID majeurs:
+    - FVG (zone d'imbalance)
+    - FVA (zone de prix equitable)
+    - Swing points (swing high/low)
+    - Optionnel: PCH/PCL (previous candle high/low)
+Premium: au-dessus du prix, Discount: en dessous du prix.
+
+2.5 Smart Leg
+Segment directionnel entre un swing point de depart et un swing point d'arrivee,
+contenant a minima:
+    - un FVG
+    - une FVA
+    - un swing point intermediaire
+Regle cle:
+    Sans FVG, il n'y a pas de smart leg valide.
+Un smart leg haussier s'etend d'un swing low vers un swing high.
+Un smart leg baissier s'etend d'un swing high vers un swing low.
+
+2.6 Break of Structure (BoS)
+BoS haussier: close casse le dernier swing high valide.
+BoS baissier: close casse le dernier swing low valide.
+Le BoS sert a confirmer l'intention et a valider la suite des smart legs.
+
+2.7 Candle Story (rejet vs continuation)
+Deux cas a surveiller sur un PID:
+    - Rejet: meche longue, cloture opposee au sens du "break"
+    - Continuation: bougie pleine qui casse et cloture dans la zone
+Pattern "2 bougies de rejet":
+    Rejet haussier:
+        - Bougie i passe sous le low de i-1
+        - Bougie i cloture haussiere
+        - Meche basse longue (ex: >= 2x corps)
+    Rejet baissier:
+        - Bougie i passe au-dessus du high de i-1
+        - Bougie i cloture baissiere
+        - Meche haute longue (ex: >= 2x corps)
+Ce pattern sert de filtre d'entree sur un PID actif.
+
+====================================================================
+3) Pipeline de detection (data -> structures)
+
+3.1 Donnees
+- OHLCV multi-unites (ex: W, D, H4, H1, M15)
+- Harmoniser l'index temps (UTC)
+
+3.2 Pre-calculs
+- ATR pour normaliser tailles de jambes et filtrer bruit
+- Swing highs/lows sur chaque timeframe
+- FVG zones (bull/bear) + statut (active/filled)
+- FVA zones + statut
+
+3.3 Smart Legs
+- Construire les segments entre swings successifs
+- Pour chaque segment, verifier presence FVG + FVA + swing intermediaire
+- Marquer le "point protege" (swing de depart)
+- Suivre la sequence: tant que le point protege n'est pas casse,
+  l'intention reste dans le sens du smart leg.
+
+3.4 PID map
+- Lister tous les PID actifs (FVG, FVA, swing points, PCH/PCL)
+- Classer par distance au prix courant (premium/discount)
+- Identifier le "prochain PID" dominant par timeframe
+
+====================================================================
+4) Modele de decision (multi-timeframe)
+
+4.1 Score directionnel par timeframe
+Attribuer des points bull/bear selon:
+    - Rejet 2 bougies sur PID (+1)
+    - BoS (+1)
+    - Prix dans une FVG active (+1)
+    - Proximite swing point (+1)
+Exemple: bull_points / (bull_points + bear_points) = probabilite directionnelle.
+
+4.2 Regle de consensus
+- Definir une UT "pilotage" (ex: D ou H4) pour le biais principal.
+- LTF (ex: H1/M15) sert a l'entree precise.
+- Ne trader que si HTF et LTF sont aligns (biais + structure).
+
+====================================================================
+5) Regles de trading (base)
+
+5.1 Setup long
+- HTF biais haussier (smart legs haussieres, BoS haussier)
+- Prix en discount (PID sous le prix) ou sweep d'un swing low
+- Rejet ou 2-bougies de rejet sur FVG/FVA
+- Entree au retest de la zone ou cloture de rejet
+- Stop: sous le swing low de la smart leg ou sous la FVG
+- TP1: prochain PID (swing high ou FVG au-dessus)
+- TP2: PID suivant / trailing apres BoS
+
+5.2 Setup short
+Symetrique du setup long:
+- HTF biais baissier
+- Prix en premium ou sweep d'un swing high
+- Rejet sur FVG/FVA
+- Stop au-dessus du swing high / FVG
+- TP sur prochain PID en dessous
+
+5.3 Sorties d'urgence
+- Invalidations: break du point protege oppose
+- Temps max en position (si stagnation)
+- R/R minimal (ex: 1.5)
+
+====================================================================
+6) Parametres a calibrer
+- Swing lookback (1/1, 2/2, 3/3)
+- Wick ratio pour rejet (2x, 3x)
+- Taille minimale d'une jambe (multiple d'ATR)
+- Tolerance de "fill" FVG (partiel vs total)
+- Fenetre max pour valider une FVA (ex: 3-5 bougies)
+- Filtre de volatilite (eviter ranges plats)
+
+====================================================================
+7) Validation et robustesse
+
+7.1 Tests unitaires de detection
+- Verifier que swing/FVG/FVA sont detects sur exemples manuels
+- Tester les cas limites (gaps minuscules, ranges)
+
+7.2 Backtests
+- Multi-instruments (BTC, ETH, indices)
+- Multi-UT (H1/H4/D)
+- Mesures: sharpe, drawdown, win rate, profit factor, expectancy
+
+7.3 Robustesse
+- Walk-forward et tests hors echantillon
+- Sensibilite aux parametres (grid simple)
+- Stresstest sur periodes de forte volatilite
+
+====================================================================
+8) Plan d'implementation (codebase)
+
+8.1 Indicateurs (indicators/)
+- swing_points.py: detection swing high/low
+- fvg.py: detection zones FVG (bull/bear, active/filled)
+- fva.py: detection zones FVA
+- smart_leg.py: construction des smart legs + point protege
+- candle_story.py: rejet/continuation + 2-bougies
+
+8.2 Strategie (strategies/)
+- fairval_oseille.py (nouvelle strategie)
+- Parametres exposes pour grid search
+- Utiliser StrategyBase pour signaux/positions
+
+8.3 Integration UI
+- Visualisation des zones (FVG/FVA) sur charts
+- Affichage du prochain PID et du biais HTF/LTF
+
+====================================================================
+9) Roadmap de delivery
+
+Phase 1: detection pure (swings/FVG/FVA) + visual debug
+Phase 2: smart legs + PID mapping
+Phase 3: regles d'entree/sortie + backtest simple
+Phase 4: score multi-timeframe + robustesse
+Phase 5: optimization et documentation utilisateur
+
+====================================================================
+====================================================================
+ANNEXE: IMPLEMENTATION DETAILLEE - CODE CONCRET (VERSION CORRIGEE)
+====================================================================
+
+Cette annexe detaille l'implementation SIMPLIFIEE et CORRECTE de chaque
+composant en s'appuyant sur l'architecture existante de backtest_core.
+
+CORRECTIONS MAJEURES vs version precedente:
+1. Swing detection: Comparaison ADJACENT uniquement (i-1, i, i+1)
+2. Architecture: Boolean arrays (pas d'objets complexes)
+3. FVA: Detection simple (bar dans range precedent)
+4. Pattern: Integration registre standard
+
+====================================================================
+A. INDICATEURS TECHNIQUES (indicators/)
+====================================================================
+
+====================================================================
+A.1) indicators/swing.py - Swing High/Low (VERSION CORRIGEE)
+====================================================================
+
+CORRECTION FONDAMENTALE: Comparaison ADJACENT uniquement (i-1, i, i+1)
+PAS de lookback variable - definition stricte du fractal classique.
+
+```python
+"""
+Module-ID: indicators.swing
+
+Purpose: Detection swing highs/lows (fractals) - COMPARAISON ADJACENTE UNIQUEMENT.
+
+Role in pipeline: data / pattern detection
+
+Key components: calculate_swing_high, calculate_swing_low, swing (wrapper)
+
+Inputs: DataFrame avec high/low; pas de parametre lookback
+
+Outputs: np.ndarray boolean (True = swing detected)
+
+Dependencies: pandas, numpy
+
+Conventions: SwingHigh[i] = (high[i] > high[i-1] AND high[i] > high[i+1])
+             SwingLow[i] = (low[i] < low[i-1] AND low[i] < low[i+1])
+
+CRITICAL: NE PAS utiliser de lookback variable - c'est une erreur conceptuelle.
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, Any
+
+
+def calculate_swing_high(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les swing highs (fractals haussiers).
+
+    Definition STRICTE:
+        swing_high[i] = True si high[i] > high[i-1] ET high[i] > high[i+1]
+
+    Args:
+        df: DataFrame avec colonne 'high'
+        **params: Ignore (compatibilite registry)
+
+    Returns:
+        Boolean array (True aux positions de swing high)
+    """
+    highs = df['high'].values
+    n = len(highs)
+    swing = np.zeros(n, dtype=bool)
+
+    # CORRECTIF: Comparaison ADJACENTE uniquement
+    for i in range(1, n - 1):
+        if highs[i] > highs[i-1] and highs[i] > highs[i+1]:
+            swing[i] = True
+
+    return swing
+
+
+def calculate_swing_low(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les swing lows (fractals baissiers).
+
+    Definition STRICTE:
+        swing_low[i] = True si low[i] < low[i-1] ET low[i] < low[i+1]
+
+    Args:
+        df: DataFrame avec colonne 'low'
+        **params: Ignore (compatibilite registry)
+
+    Returns:
+        Boolean array (True aux positions de swing low)
+    """
+    lows = df['low'].values
+    n = len(lows)
+    swing = np.zeros(n, dtype=bool)
+
+    # CORRECTIF: Comparaison ADJACENTE uniquement
+    for i in range(1, n - 1):
+        if lows[i] < lows[i-1] and lows[i] < lows[i+1]:
+            swing[i] = True
+
+    return swing
+
+
+def swing(df: pd.DataFrame, **params) -> Dict[str, np.ndarray]:
+    """
+    Wrapper retournant les deux types de swings.
+
+    Returns:
+        Dict avec 'swing_high' et 'swing_low' (boolean arrays)
+    """
+    return {
+        'swing_high': calculate_swing_high(df, **params),
+        'swing_low': calculate_swing_low(df, **params)
+    }
+
+
+__all__ = ['calculate_swing_high', 'calculate_swing_low', 'swing']
+```
+
+Notes d'integration:
+- Enregistrer dans indicators/registry.py:
+  register_indicator('swing_high', calculate_swing_high)
+  register_indicator('swing_low', calculate_swing_low)
+
+
+====================================================================
+A.2) indicators/fvg.py - Fair Value Gap Detection (VERSION CORRIGEE)
+====================================================================
+
+SIMPLIFICATION: Detection directe bullish/bearish sans objets complexes.
+Pattern: Boolean arrays synchronises avec le DataFrame.
+
+```python
+"""
+Module-ID: indicators.fvg
+
+Purpose: Detection Fair Value Gaps (FVG) - zones d'imbalance.
+
+Role in pipeline: pattern detection / entry zones
+
+Key components: calculate_fvg_bullish, calculate_fvg_bearish, fvg (wrapper)
+
+Inputs: DataFrame avec high/low
+
+Outputs: np.ndarray boolean (True = FVG detecte a cette position)
+
+Dependencies: pandas, numpy
+
+Conventions: FVG bullish si low[i] > high[i-2] (gap haussier)
+             FVG bearish si high[i] < low[i-2] (gap baissier)
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, Any
+
+
+def calculate_fvg_bullish(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les Fair Value Gaps haussiers (bullish FVG).
+
+    Definition:
+        FVG bullish[i] = True si low[i] > high[i-2]
+        (il y a un gap/imbalance entre bougie i-2 et bougie i)
+
+    Args:
+        df: DataFrame avec colonnes 'high', 'low'
+        **params: Ignore (compatibilite registry)
+
+    Returns:
+        Boolean array (True aux positions de FVG bullish)
+    """
+    highs = df['high'].values
+    lows = df['low'].values
+    n = len(df)
+
+    fvg_bull = np.zeros(n, dtype=bool)
+
+    for i in range(2, n):
+        # FVG bullish: gap entre i-2 high et i low
+        if lows[i] > highs[i-2]:
+            fvg_bull[i] = True
+
+    return fvg_bull
+
+
+def calculate_fvg_bearish(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les Fair Value Gaps baissiers (bearish FVG).
+
+    Definition:
+        FVG bearish[i] = True si high[i] < low[i-2]
+        (il y a un gap/imbalance entre bougie i-2 et bougie i)
+
+    Args:
+        df: DataFrame avec colonnes 'high', 'low'
+        **params: Ignore (compatibilite registry)
+
+    Returns:
+        Boolean array (True aux positions de FVG bearish)
+    """
+    highs = df['high'].values
+    lows = df['low'].values
+    n = len(df)
+
+    fvg_bear = np.zeros(n, dtype=bool)
+
+    for i in range(2, n):
+        # FVG bearish: gap entre i-2 low et i high
+        if highs[i] < lows[i-2]:
+            fvg_bear[i] = True
+
+    return fvg_bear
+
+
+def fvg(df: pd.DataFrame, **params) -> Dict[str, np.ndarray]:
+    """
+    Wrapper retournant les deux types de FVG.
+
+    Returns:
+        Dict avec 'fvg_bullish' et 'fvg_bearish' (boolean arrays)
+    """
+    return {
+        'fvg_bullish': calculate_fvg_bullish(df, **params),
+        'fvg_bearish': calculate_fvg_bearish(df, **params)
+    }
+
+
+__all__ = ['calculate_fvg_bullish', 'calculate_fvg_bearish', 'fvg']
+```
+
+Notes d'integration:
+- Enregistrer dans indicators/registry.py:
+  register_indicator('fvg_bullish', calculate_fvg_bullish)
+  register_indicator('fvg_bearish', calculate_fvg_bearish)
+
+
+====================================================================
+A.3) indicators/fva.py - Fair Value Area Detection (VERSION CORRIGEE)
+====================================================================
+
+SIMPLIFICATION: Detection simple sans corps croises ni pivot.
+Pattern: Bar actuelle completement dans le range de la bar precedente.
+
+```python
+"""
+Module-ID: indicators.fva
+
+Purpose: Detection Fair Value Areas (FVA) - zones d'equilibre/consolidation.
+
+Role in pipeline: pattern detection / consolidation zones
+
+Key components: calculate_fva
+
+Inputs: DataFrame avec high/low
+
+Outputs: np.ndarray boolean (True = FVA detecte)
+
+Dependencies: pandas, numpy
+
+Conventions: FVA[i] = True si high[i] < high[i-1] ET low[i] > low[i-1]
+             (bar actuelle completement dans le range de la bar precedente)
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, Any
+
+
+def calculate_fva(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les Fair Value Areas (zones de consolidation).
+
+    Definition SIMPLIFIEE:
+        FVA[i] = True si la bougie i est completement dans le range de i-1
+        high[i] < high[i-1] ET low[i] > low[i-1]
+
+    Args:
+        df: DataFrame avec colonnes 'high', 'low'
+        **params: Ignore (compatibilite registry)
+
+    Returns:
+        Boolean array (True aux positions de FVA)
+    """
+    highs = df['high'].values
+    lows = df['low'].values
+    n = len(df)
+
+    fva = np.zeros(n, dtype=bool)
+
+    for i in range(1, n):
+        # Bar actuelle completement dans le range de la bar precedente
+        if highs[i] < highs[i-1] and lows[i] > lows[i-1]:
+            fva[i] = True
+
+    return fva
+
+
+__all__ = ['calculate_fva']
+```
+
+Notes d'integration:
+- Enregistrer dans indicators/registry.py:
+  register_indicator('fva', calculate_fva)
+
+
+====================================================================
+A.4) indicators/smart_legs.py - Smart Leg Construction
+====================================================================
+
+Detection de segments directionnels valides par presence de FVG.
+Pattern: Identifier les legs entre swings contenant au moins un FVG.
+
+```python
+"""
+Module-ID: indicators.smart_legs
+
+Purpose: Construction smart legs (segments directionnels valides).
+
+Role in pipeline: structure detection / trend validation
+
+Key components: calculate_smart_legs_bullish, calculate_smart_legs_bearish
+
+Inputs: DataFrame avec swing_high, swing_low, fvg_bullish, fvg_bearish
+
+Outputs: np.ndarray boolean (True = position fait partie d'un smart leg)
+
+Dependencies: pandas, numpy
+
+Conventions: Smart leg valide = segment entre 2 swings contenant >= 1 FVG
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, Any
+
+
+def calculate_smart_legs_bullish(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les smart legs haussiers.
+
+    Definition:
+        Segment entre swing_low[i] et swing_high[j] (j > i)
+        contenant au moins 1 FVG bullish
+
+    Args:
+        df: DataFrame avec 'swing_low', 'swing_high', 'fvg_bullish'
+        **params: Ignore
+
+    Returns:
+        Boolean array (True = position dans un smart leg bullish)
+    """
+    n = len(df)
+    smart_leg_bull = np.zeros(n, dtype=bool)
+
+    # Verifier que les colonnes existent
+    required_cols = ['swing_low', 'swing_high', 'fvg_bullish']
+    if not all(col in df.columns for col in required_cols):
+        return smart_leg_bull
+
+    swing_lows = df['swing_low'].values
+    swing_highs = df['swing_high'].values
+    fvg_bull = df['fvg_bullish'].values
+
+    # Parcourir les swing lows
+    swing_low_indices = np.where(swing_lows)[0]
+
+    for start_idx in swing_low_indices:
+        # Chercher le prochain swing high
+        future_highs = np.where(swing_highs[start_idx+1:])[0]
+
+        if len(future_highs) == 0:
+            continue
+
+        end_idx = start_idx + 1 + future_highs[0]
+
+        # Verifier presence FVG dans le segment
+        segment_has_fvg = np.any(fvg_bull[start_idx:end_idx+1])
+
+        if segment_has_fvg:
+            # Marquer toutes les positions du segment
+            smart_leg_bull[start_idx:end_idx+1] = True
+
+    return smart_leg_bull
+
+
+def calculate_smart_legs_bearish(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Detecte les smart legs baissiers.
+
+    Definition:
+        Segment entre swing_high[i] et swing_low[j] (j > i)
+        contenant au moins 1 FVG bearish
+
+    Args:
+        df: DataFrame avec 'swing_high', 'swing_low', 'fvg_bearish'
+        **params: Ignore
+
+    Returns:
+        Boolean array (True = position dans un smart leg bearish)
+    """
+    n = len(df)
+    smart_leg_bear = np.zeros(n, dtype=bool)
+
+    # Verifier que les colonnes existent
+    required_cols = ['swing_low', 'swing_high', 'fvg_bearish']
+    if not all(col in df.columns for col in required_cols):
+        return smart_leg_bear
+
+    swing_lows = df['swing_low'].values
+    swing_highs = df['swing_high'].values
+    fvg_bear = df['fvg_bearish'].values
+
+    # Parcourir les swing highs
+    swing_high_indices = np.where(swing_highs)[0]
+
+    for start_idx in swing_high_indices:
+        # Chercher le prochain swing low
+        future_lows = np.where(swing_lows[start_idx+1:])[0]
+
+        if len(future_lows) == 0:
+            continue
+
+        end_idx = start_idx + 1 + future_lows[0]
+
+        # Verifier presence FVG dans le segment
+        segment_has_fvg = np.any(fvg_bear[start_idx:end_idx+1])
+
+        if segment_has_fvg:
+            # Marquer toutes les positions du segment
+            smart_leg_bear[start_idx:end_idx+1] = True
+
+    return smart_leg_bear
+
+
+def smart_legs(df: pd.DataFrame, **params) -> Dict[str, np.ndarray]:
+    """
+    Wrapper retournant les deux types de smart legs.
+
+    Returns:
+        Dict avec 'smart_leg_bullish' et 'smart_leg_bearish'
+    """
+    return {
+        'smart_leg_bullish': calculate_smart_legs_bullish(df, **params),
+        'smart_leg_bearish': calculate_smart_legs_bearish(df, **params)
+    }
+
+
+__all__ = ['calculate_smart_legs_bullish', 'calculate_smart_legs_bearish', 'smart_legs']
+```
+
+
+====================================================================
+A.5) indicators/scoring.py - Directional Bias Scoring
+====================================================================
+
+Calcul du score directionnel base sur patterns detectes.
+
+```python
+"""
+Module-ID: indicators.scoring
+
+Purpose: Calcul score directionnel bull/bear base sur patterns.
+
+Role in pipeline: decision / bias calculation
+
+Key components: calculate_bull_score, calculate_bear_score
+
+Inputs: DataFrame avec swing, fvg, fva, smart_legs
+
+Outputs: np.ndarray float (score 0.0-1.0)
+
+Dependencies: pandas, numpy
+
+Conventions: Score = somme ponderee patterns detectes, normalise 0-1
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, Any
+
+
+def calculate_bull_score(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Calcule le score haussier base sur patterns detectes.
+
+    Composantes:
+        +1 si swing_low detecte (support potentiel)
+        +1 si fvg_bullish actif
+        +1 si smart_leg_bullish actif
+        +1 si fva presente (consolidation avant reprise)
+
+    Args:
+        df: DataFrame avec colonnes pattern
+        **params: Ignore
+
+    Returns:
+        Float array (score 0.0-1.0, normalise par max possible)
+    """
+    n = len(df)
+    score = np.zeros(n, dtype=float)
+
+    # Composantes optionnelles
+    if 'swing_low' in df.columns:
+        score += df['swing_low'].values.astype(float)
+
+    if 'fvg_bullish' in df.columns:
+        score += df['fvg_bullish'].values.astype(float)
+
+    if 'smart_leg_bullish' in df.columns:
+        score += df['smart_leg_bullish'].values.astype(float)
+
+    if 'fva' in df.columns:
+        score += df['fva'].values.astype(float) * 0.5  # Poids reduit
+
+    # Normaliser par max possible (3.5)
+    max_score = 3.5
+    score_normalized = np.clip(score / max_score, 0.0, 1.0)
+
+    return score_normalized
+
+
+def calculate_bear_score(df: pd.DataFrame, **params) -> np.ndarray:
+    """
+    Calcule le score baissier base sur patterns detectes.
+
+    Composantes:
+        +1 si swing_high detecte (resistance potentielle)
+        +1 si fvg_bearish actif
+        +1 si smart_leg_bearish actif
+        +1 si fva presente (consolidation avant chute)
+
+    Args:
+        df: DataFrame avec colonnes pattern
+        **params: Ignore
+
+    Returns:
+        Float array (score 0.0-1.0, normalise par max possible)
+    """
+    n = len(df)
+    score = np.zeros(n, dtype=float)
+
+    # Composantes optionnelles
+    if 'swing_high' in df.columns:
+        score += df['swing_high'].values.astype(float)
+
+    if 'fvg_bearish' in df.columns:
+        score += df['fvg_bearish'].values.astype(float)
+
+    if 'smart_leg_bearish' in df.columns:
+        score += df['smart_leg_bearish'].values.astype(float)
+
+    if 'fva' in df.columns:
+        score += df['fva'].values.astype(float) * 0.5  # Poids reduit
+
+    # Normaliser par max possible (3.5)
+    max_score = 3.5
+    score_normalized = np.clip(score / max_score, 0.0, 1.0)
+
+    return score_normalized
+
+
+def directional_bias(df: pd.DataFrame, **params) -> Dict[str, np.ndarray]:
+    """
+    Calcule le biais directionnel net.
+
+    Returns:
+        Dict avec:
+            'bull_score': score haussier 0-1
+            'bear_score': score baissier 0-1
+            'net_bias': bull_score - bear_score (-1 a +1)
+    """
+    bull = calculate_bull_score(df, **params)
+    bear = calculate_bear_score(df, **params)
+
+    return {
+        'bull_score': bull,
+        'bear_score': bear,
+        'net_bias': bull - bear
+    }
+
+
+__all__ = ['calculate_bull_score', 'calculate_bear_score', 'directional_bias']
+```
+
+
+====================================================================
+B. STRATEGIE FAIRVAL_OSEILLE (strategies/)
+====================================================================
+
+Integration des indicateurs dans une strategie complete.
+Herite de StrategyBase, suit le pattern V3.
+
+```python
+"""
+Module-ID: strategies.fvg_strategy
+
+Purpose: Strategie FairValOseille - Trading base sur FVG, FVA, swings et smart legs.
+
+Role in pipeline: trading strategy
+
+Key components: FVGStrategy, register_strategy("fvg_strategy")
+
+Inputs: DataFrame OHLCV, parametres (leverage, scoring)
+
+Outputs: StrategyResult (signaux LONG/SHORT, prix, stop-loss, metadata)
+
+Dependencies: pandas, numpy, utils.parameters, strategies.base
+
+Conventions: Signaux bases sur consensus patterns; stop-loss dynamiques; scoring multi-indicateurs.
+"""
+
+from typing import Any, Dict, List, Optional
+import numpy as np
+import pandas as pd
+
+from utils.parameters import ParameterSpec, Preset
+from .base import StrategyBase, register_strategy
+
+
+@register_strategy("fvg_strategy")
+class FVGStrategy(StrategyBase):
+    """
+    Strategie FairValOseille - Version simplifiee et corrigee.
+
+    Logique de trading:
+        LONG: Score bull > seuil ET (swing_low OU fvg_bullish)
+        SHORT: Score bear > seuil ET (swing_high OU fvg_bearish)
+
+    Indicateurs requis:
+        - swing_high, swing_low (detection fractals)
+        - fvg_bullish, fvg_bearish (fair value gaps)
+        - fva (fair value areas)
+        - smart_leg_bullish, smart_leg_bearish (validation directionnelle)
+        - bull_score, bear_score (scoring)
+        - atr (volatilite pour stops)
+    """
+
+    def __init__(self):
+        super().__init__(name="FVG_Strategy")
+
+    @property
+    def required_indicators(self) -> List[str]:
+        """Indicateurs requis par la strategie."""
+        return [
+            "swing_high",
+            "swing_low",
+            "fvg_bullish",
+            "fvg_bearish",
+            "fva",
+            "smart_leg_bullish",
+            "smart_leg_bearish",
+            "bull_score",
+            "bear_score",
+            "atr"
+        ]
+
+    @property
+    def default_params(self) -> Dict[str, Any]:
+        """Parametres par defaut de la strategie."""
+        return {
+            # Scoring
+            "min_bull_score": 0.6,   # Score minimum pour entree LONG
+            "min_bear_score": 0.6,   # Score minimum pour entree SHORT
+            # Stop-loss / Take-profit
+            "stop_atr_mult": 1.5,    # Multiplicateur ATR pour stop-loss
+            "tp_atr_mult": 3.0,      # Multiplicateur ATR pour take-profit
+            # Trading
+            "leverage": 3,
+            "risk_pct": 0.02,        # 2% du capital par trade
+            # Frais
+            "fees_bps": 10,
+            "slippage_bps": 5
+        }
+
+    @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        """Specifications des parametres pour UI/optimisation."""
+        return {
+            "min_bull_score": ParameterSpec(
+                name="min_bull_score",
+                min_val=0.3, max_val=0.9, step=0.05, default=0.6,
+                param_type="float",
+                description="Score minimum pour signal LONG"
+            ),
+            "min_bear_score": ParameterSpec(
+                name="min_bear_score",
+                min_val=0.3, max_val=0.9, step=0.05, default=0.6,
+                param_type="float",
+                description="Score minimum pour signal SHORT"
+            ),
+            "stop_atr_mult": ParameterSpec(
+                name="stop_atr_mult",
+                min_val=1.0, max_val=3.0, step=0.25, default=1.5,
+                param_type="float",
+                description="Multiplicateur ATR pour stop-loss"
+            ),
+            "tp_atr_mult": ParameterSpec(
+                name="tp_atr_mult",
+                min_val=2.0, max_val=5.0, step=0.5, default=3.0,
+                param_type="float",
+                description="Multiplicateur ATR pour take-profit"
+            ),
+            "leverage": ParameterSpec(
+                name="leverage",
+                min_val=1, max_val=10, default=3,
+                param_type="int",
+                description="Levier de trading"
+            ),
+        }
+
+    def generate_signals(
+        self,
+        df: pd.DataFrame,
+        indicators: Dict[str, Any],
+        params: Dict[str, Any]
+    ) -> pd.Series:
+        """
+        Genere les signaux de trading bases sur les patterns detectes.
+
+        Args:
+            df: DataFrame OHLCV
+            indicators: Dict contenant tous les indicateurs requis
+            params: Parametres de strategie
+
+        Returns:
+            pd.Series de signaux (+1 LONG, -1 SHORT, 0 HOLD)
+        """
+        # Initialiser signaux
+        signals = pd.Series(0.0, index=df.index, dtype=np.float64, name="signals")
+
+        # Verifier presence des indicateurs
+        required = self.required_indicators
+        if not all(ind in indicators for ind in required):
+            return signals
+
+        # Extraire les indicateurs
+        swing_high = indicators["swing_high"]
+        swing_low = indicators["swing_low"]
+        fvg_bull = indicators["fvg_bullish"]
+        fvg_bear = indicators["fvg_bearish"]
+        bull_score = indicators["bull_score"]
+        bear_score = indicators["bear_score"]
+
+        # Convertir en Series si necessaire
+        if not isinstance(swing_high, pd.Series):
+            swing_high = pd.Series(swing_high, index=df.index)
+        if not isinstance(swing_low, pd.Series):
+            swing_low = pd.Series(swing_low, index=df.index)
+        if not isinstance(fvg_bull, pd.Series):
+            fvg_bull = pd.Series(fvg_bull, index=df.index)
+        if not isinstance(fvg_bear, pd.Series):
+            fvg_bear = pd.Series(fvg_bear, index=df.index)
+        if not isinstance(bull_score, pd.Series):
+            bull_score = pd.Series(bull_score, index=df.index)
+        if not isinstance(bear_score, pd.Series):
+            bear_score = pd.Series(bear_score, index=df.index)
+
+        # Seuils de scoring
+        min_bull_score = params.get("min_bull_score", 0.6)
+        min_bear_score = params.get("min_bear_score", 0.6)
+
+        # === CONDITIONS LONG ===
+        # Score bull suffisant ET presence d'un pattern (swing_low OU fvg_bullish)
+        long_condition = (
+            (bull_score >= min_bull_score) &
+            (swing_low | fvg_bull)
+        )
+
+        # === CONDITIONS SHORT ===
+        # Score bear suffisant ET presence d'un pattern (swing_high OU fvg_bearish)
+        short_condition = (
+            (bear_score >= min_bear_score) &
+            (swing_high | fvg_bear)
+        )
+
+        # Assigner signaux
+        signals[long_condition] = 1.0
+        signals[short_condition] = -1.0
+
+        # Eviter signaux consecutifs identiques
+        signals_diff = signals.diff()
+        signals_clean = signals.copy()
+        signals_clean[1:] = np.where(signals_diff[1:] != 0, signals[1:], 0)
+
+        return signals_clean
+
+    def get_stop_loss(
+        self,
+        entry_price: float,
+        atr_value: float,
+        side: str,
+        params: Dict[str, Any],
+        **kwargs
+    ) -> float:
+        """
+        Calcule le stop-loss base sur ATR.
+
+        Args:
+            entry_price: Prix d'entree
+            atr_value: Valeur ATR actuelle
+            side: "long" ou "short"
+            params: Parametres (contient stop_atr_mult)
+
+        Returns:
+            Prix du stop-loss
+        """
+        stop_mult = params.get("stop_atr_mult", 1.5)
+        distance = atr_value * stop_mult
+
+        if side == "long":
+            return entry_price - distance
+        else:  # SHORT
+            return entry_price + distance
+
+    def get_take_profit(
+        self,
+        entry_price: float,
+        atr_value: float,
+        side: str,
+        params: Dict[str, Any],
+        **kwargs
+    ) -> float:
+        """
+        Calcule le take-profit base sur ATR.
+
+        Args:
+            entry_price: Prix d'entree
+            atr_value: Valeur ATR actuelle
+            side: "long" ou "short"
+            params: Parametres (contient tp_atr_mult)
+
+        Returns:
+            Prix du take-profit
+        """
+        tp_mult = params.get("tp_atr_mult", 3.0)
+        distance = atr_value * tp_mult
+
+        if side == "long":
+            return entry_price + distance
+        else:  # SHORT
+            return entry_price - distance
+
+
+__all__ = ["FVGStrategy"]
+```
+
+
+====================================================================
+C. INTEGRATION AU REGISTRE
+====================================================================
+
+Modifications a apporter a indicators/registry.py pour enregistrer
+les nouveaux indicateurs.
+
+Ajouter dans indicators/__init__.py:
+
+```python
+# Nouveaux indicateurs FairValOseille
+from .swing import calculate_swing_high, calculate_swing_low, swing
+from .fvg import calculate_fvg_bullish, calculate_fvg_bearish, fvg
+from .fva import calculate_fva
+from .smart_legs import calculate_smart_legs_bullish, calculate_smart_legs_bearish, smart_legs
+from .scoring import calculate_bull_score, calculate_bear_score, directional_bias
+
+__all__ = [
+    # ... indicateurs existants ...
+    # FairValOseille
+    "swing", "calculate_swing_high", "calculate_swing_low",
+    "fvg", "calculate_fvg_bullish", "calculate_fvg_bearish",
+    "calculate_fva",
+    "smart_legs", "calculate_smart_legs_bullish", "calculate_smart_legs_bearish",
+    "directional_bias", "calculate_bull_score", "calculate_bear_score",
+]
+```
+
+Ajouter dans indicators/registry.py (section d'enregistrement):
+
+```python
+# Enregistrement FairValOseille patterns
+register_indicator('swing_high', calculate_swing_high)
+register_indicator('swing_low', calculate_swing_low)
+register_indicator('fvg_bullish', calculate_fvg_bullish)
+register_indicator('fvg_bearish', calculate_fvg_bearish)
+register_indicator('fva', calculate_fva)
+register_indicator('smart_leg_bullish', calculate_smart_legs_bullish)
+register_indicator('smart_leg_bearish', calculate_smart_legs_bearish)
+register_indicator('bull_score', calculate_bull_score)
+register_indicator('bear_score', calculate_bear_score)
+```
+
+
+====================================================================
+D. TESTS UNITAIRES
+====================================================================
+
+Exemple de tests pour valider la detection des patterns.
+
+D.1) tests/test_swing.py
+
+```python
+"""Tests unitaires pour indicators.swing"""
+
+import numpy as np
+import pandas as pd
+import pytest
+from indicators.swing import calculate_swing_high, calculate_swing_low
+
+
+def test_swing_high_basic():
+    """Test detection swing high basique."""
+    # Pattern: prix monte puis descend
+    highs = [100, 105, 110, 108, 105]
+    df = pd.DataFrame({'high': highs})
+
+    result = calculate_swing_high(df)
+
+    # Swing high detecte a l'index 2 (110 > 105 et 110 > 108)
+    assert result[2] == True
+    assert result[0] == False  # Bord
+    assert result[4] == False  # Bord
+
+
+def test_swing_low_basic():
+    """Test detection swing low basique."""
+    # Pattern: prix baisse puis remonte
+    lows = [100, 95, 90, 93, 96]
+    df = pd.DataFrame({'low': lows})
+
+    result = calculate_swing_low(df)
+
+    # Swing low detecte a l'index 2 (90 < 95 et 90 < 93)
+    assert result[2] == True
+    assert result[0] == False  # Bord
+    assert result[4] == False  # Bord
+
+
+def test_swing_no_detection():
+    """Test cas sans swing (tendance monotone)."""
+    # Tendance haussiere monotone
+    highs = [100, 105, 110, 115, 120]
+    df = pd.DataFrame({'high': highs})
+
+    result = calculate_swing_high(df)
+
+    # Aucun swing detecte
+    assert not result.any()
+```
+
+
+D.2) tests/test_fvg.py
+
+```python
+"""Tests unitaires pour indicators.fvg"""
+
+import numpy as np
+import pandas as pd
+import pytest
+from indicators.fvg import calculate_fvg_bullish, calculate_fvg_bearish
+
+
+def test_fvg_bullish_basic():
+    """Test detection FVG bullish basique."""
+    # FVG bullish: low[2] > high[0]
+    highs = [100, 105, 112, 115, 118]
+    lows = [98, 103, 110, 113, 116]
+    df = pd.DataFrame({'high': highs, 'low': lows})
+
+    result = calculate_fvg_bullish(df)
+
+    # FVG bullish a l'index 2: low[2]=110 > high[0]=100
+    assert result[2] == True
+    assert result[0] == False  # Pas de i-2
+    assert result[1] == False  # Pas de i-2
+
+
+def test_fvg_bearish_basic():
+    """Test detection FVG bearish basique."""
+    # FVG bearish: high[2] < low[0]
+    highs = [100, 95, 88, 85, 82]
+    lows = [98, 93, 86, 83, 80]
+    df = pd.DataFrame({'high': highs, 'low': lows})
+
+    result = calculate_fvg_bearish(df)
+
+    # FVG bearish a l'index 2: high[2]=88 < low[0]=98
+    assert result[2] == True
+```
+
+
+====================================================================
+E. ROADMAP D'IMPLEMENTATION
+====================================================================
+
+PHASE 1: Indicateurs de base (3 jours)
+- Jour 1: Creer indicators/swing.py + tests unitaires
+- Jour 2: Creer indicators/fvg.py + tests unitaires
+- Jour 3: Creer indicators/fva.py + tests unitaires
+
+PHASE 2: Smart Legs et Scoring (2 jours)
+- Jour 4: Creer indicators/smart_legs.py + tests
+- Jour 5: Creer indicators/scoring.py + tests
+
+PHASE 3: Strategie FVG (3 jours)
+- Jour 6: Creer strategies/fvg_strategy.py structure de base
+- Jour 7: Implementer logique generate_signals
+- Jour 8: Ajouter stop-loss/take-profit dynamiques
+
+PHASE 4: Integration et enregistrement (1 jour)
+- Jour 9: Enregistrer indicateurs dans registry.py
+         Mettre a jour __init__.py
+         Tester pipeline complet
+
+PHASE 5: Backtest et validation (2 jours)
+- Jour 10: Backtest sur BTC H1 (1000 bars)
+          Analyser resultats (sharpe, drawdown, win rate)
+- Jour 11: Ajuster parametres si necessaire
+          Valider sur ETH H1
+
+PHASE 6: Documentation et tests (2 jours)
+- Jour 12: Completer tests unitaires (couverture >80%)
+- Jour 13: Documentation utilisateur
+          Exemples d'utilisation
+
+TOTAL: ~13 jours calendaires
+
+
+====================================================================
+F. NOTES FINALES
+====================================================================
+
+CORRECTIONS APPLIQUEES vs version precedente:
+
+1. SWING DETECTION:
+   - AVANT: Lookback variable avec np.max(high[i-lookback:i])
+   - APRES: Comparaison ADJACENTE stricte high[i] > high[i-1] && high[i] > high[i+1]
+   - RAISON: Definition classique du fractal, plus simple et correcte
+
+2. ARCHITECTURE:
+   - AVANT: Objets complexes (SwingPoint dataclass, FVGZone, etc.)
+   - APRES: Boolean arrays simples synchronises avec DataFrame
+   - RAISON: Pattern standard du codebase, plus efficace, compatible registre
+
+3. FVA DETECTION:
+   - AVANT: Corps croises + validation pivot (complexe)
+   - APRES: Bar dans range precedent (simple)
+   - RAISON: Definition operationnelle claire, facile a tester
+
+4. INTEGRATION REGISTRE:
+   - AVANT: Fonctions custom avec retours non-standard
+   - APRES: Signature standard (df, **params) -> np.ndarray
+   - RAISON: Compatibilite avec calculate_indicator() existant
+
+AVANTAGES DE LA NOUVELLE VERSION:
+
+- Code 3x plus court et lisible
+- Pas d'objets complexes a gerer
+- Compatible avec pipeline existant
+- Tests unitaires simples
+- Performance optimale (arrays NumPy)
+- Facile a debugger et visualiser
+
+
+====================================================================
+FIN ANNEXE - IMPLEMENTATION DETAILLEE (VERSION CORRIGEE)
+====================================================================

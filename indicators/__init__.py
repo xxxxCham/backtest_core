@@ -75,6 +75,13 @@ from .amplitude_hunter import (
     AmplitudeHunterSettings,
 )
 
+# FairValOseille indicators (03/01/2026)
+from .swing import calculate_swing_high, calculate_swing_low, swing
+from .fvg import calculate_fvg_bullish, calculate_fvg_bearish, fvg
+from .fva import calculate_fva
+from .smart_legs import calculate_smart_legs_bullish, calculate_smart_legs_bearish, smart_legs
+from .scoring import calculate_bull_score, calculate_bear_score, directional_bias
+
 __all__ = [
     # Indicateurs de base
     "bollinger_bands",
@@ -153,6 +160,20 @@ __all__ = [
     "amplitude_hunter",
     "calculate_amplitude_hunter",
     "AmplitudeHunterSettings",
+    # FairValOseille (03/01/2026)
+    "swing",
+    "calculate_swing_high",
+    "calculate_swing_low",
+    "fvg",
+    "calculate_fvg_bullish",
+    "calculate_fvg_bearish",
+    "calculate_fva",
+    "smart_legs",
+    "calculate_smart_legs_bullish",
+    "calculate_smart_legs_bearish",
+    "directional_bias",
+    "calculate_bull_score",
+    "calculate_bear_score",
     # Registre
     "calculate_indicator",
     "list_indicators",
