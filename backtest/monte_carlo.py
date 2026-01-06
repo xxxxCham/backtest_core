@@ -20,10 +20,11 @@ Read-if: Optimisation via Monte Carlo au lieu de sweep exhaustif, ou échantillo
 Skip-if: Vous utilisez sweep/optuna/pareto au lieu d'échantillonnage aléatoire.
 """
 
-import numpy as np
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import numpy as np
 
 from utils.log import get_logger
 

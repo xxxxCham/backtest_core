@@ -38,6 +38,19 @@ DEFAULT_MODELS_JSON_PATH = Path("D:\\models\\models.json")
 _models_cache: Optional[Dict] = None
 
 
+def _windows_to_wsl_path(path: Path) -> Optional[Path]:
+    path_str = str(path)
+    if len(path_str) < 3 or path_str[1] != ":":
+        return None
+
+    drive = path_str[0].lower()
+    rest = path_str[2:].lstrip("\\/")
+    if not rest:
+        return None
+
+    return Path(f"/mnt/{drive}/{rest.replace('\\', '/')}")
+
+
 def get_models_json_path() -> Path:
     """
     Retourne le chemin vers models.json.
@@ -50,6 +63,14 @@ def get_models_json_path() -> Path:
     env_path = os.environ.get("MODELS_JSON_PATH")
     if env_path:
         return Path(env_path)
+
+    if DEFAULT_MODELS_JSON_PATH.exists():
+        return DEFAULT_MODELS_JSON_PATH
+
+    wsl_path = _windows_to_wsl_path(DEFAULT_MODELS_JSON_PATH)
+    if wsl_path and wsl_path.exists():
+        return wsl_path
+
     return DEFAULT_MODELS_JSON_PATH
 
 
@@ -317,15 +338,31 @@ def get_ollama_model_names() -> List[str]:
     Retourne la liste des noms de modèles Ollama (pour compatibilité avec Ollama).
 
     Returns:
-        List[str]: Liste des IDs de modèles Ollama
+        List[str]: Liste des noms Ollama (model_name:tag, latest -> model_name)
 
     Example:
         >>> names = get_ollama_model_names()
         >>> print(names)
-        ['llama3.1-8b', 'llama3.3-70b', 'mistral-7b', ...]
+        ['llama3.1:8b', 'llama3.3-70b-optimized', 'mistral:7b-instruct', ...]
     """
     models = get_all_ollama_models()
-    return [m["id"] for m in models if "id" in m]
+    names = []
+    for model in models:
+        model_name = model.get("model_name")
+        tag = model.get("tag")
+        if model_name and tag:
+            if tag == "latest":
+                names.append(model_name)
+            else:
+                names.append(f"{model_name}:{tag}")
+            continue
+        if model_name:
+            names.append(model_name)
+            continue
+        model_id = model.get("id")
+        if model_id:
+            names.append(model_id)
+    return names
 
 
 def get_model_info_for_ui(model_id: str) -> Dict:

@@ -20,11 +20,12 @@ Read-if: Vérifier bugs fixés ne réapparus.
 Skip-if: Bugs déjà résolu et testés.
 """
 
-import time
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from backtest.engine import BacktestEngine
 from strategies.bollinger_atr import BollingerATRStrategy
+
 
 def test_param_mapping():
     """Test 1: Vérifier que bb_std est correctement mappé vers std_dev."""
@@ -73,7 +74,6 @@ def test_grid_param_passing():
         "atr_period": 14,
         "entry_pct_long": -0.35,
         "entry_pct_short": 0.95,
-        "leverage": 3
     }
 
     # Simuler param_ranges (seulement bb_period varie)
@@ -110,8 +110,7 @@ def test_grid_param_passing():
         assert p["bb_std"] == 2.5, f"❌ ÉCHEC: bb_std={p['bb_std']} dans combo {i}, attendu 2.5"
         assert "atr_period" in p, f"❌ ÉCHEC: atr_period manquant dans combo {i}"
         assert p["atr_period"] == 14, f"❌ ÉCHEC: atr_period={p['atr_period']} dans combo {i}, attendu 14"
-        assert "leverage" in p, f"❌ ÉCHEC: leverage manquant dans combo {i}"
-        assert p["leverage"] == 3, f"❌ ÉCHEC: leverage={p['leverage']} dans combo {i}, attendu 3"
+        assert "leverage" not in p, f"❌ ÉCHEC: leverage ne doit pas être optimisé par défaut (combo {i})"
 
     print("✅ SUCCÈS: Tous les paramètres UI sont bien transmis à la grille")
     print()
@@ -181,7 +180,7 @@ def test_backtest_results_vary():
         print("   → Le bug de paramètres n'est pas corrigé!")
     else:
         print(f"✅ SUCCÈS: Les résultats varient ({len(unique_pnls)} valeurs uniques)")
-        print(f"   Valeurs PNL: {sorted(unique_pnls)}")
+    print(f"   Valeurs PNL: {sorted(unique_pnls)}")
     print()
 
 
@@ -212,10 +211,11 @@ def test_performance_comparison():
 
         # Vérifier que notre wrapper est aussi au niveau module
         from ui.main import _run_backtest_multiprocess
+        assert _run_backtest_multiprocess
         print("✅ _run_backtest_multiprocess est importable (donc picklable)")
 
-    except ImportError as e:
-        print(f"⚠️  Note: ui.main._run_backtest_multiprocess non disponible (normal si UI non chargée)")
+    except ImportError:
+        print("⚠️  Note: ui.main._run_backtest_multiprocess non disponible (normal si UI non chargée)")
     except Exception as e:
         print(f"❌ ÉCHEC: Erreur avec ProcessPoolExecutor: {e}")
         raise

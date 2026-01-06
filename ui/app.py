@@ -39,7 +39,6 @@ from ui.results import render_results  # noqa: E402
 from ui.sidebar import render_sidebar  # noqa: E402
 from utils.observability import init_logging  # noqa: E402
 
-
 init_logging()
 
 
@@ -69,8 +68,12 @@ div[style*="border-left: 4px solid #666"] code {
 def render_footer() -> None:
     st.sidebar.markdown("---")
     st.sidebar.markdown("**Backtest Core v2.1**")
-    llm_status = "✅ LLM" if LLM_AVAILABLE else "❌ LLM"
-    st.sidebar.caption(f"Architecture découplée UI/Moteur | {llm_status}")
+    optimization_mode = st.session_state.get("optimization_mode", "Backtest Simple")
+    if optimization_mode == "🤖 Optimisation LLM":
+        llm_status = "✅ LLM" if LLM_AVAILABLE else "❌ LLM"
+        st.sidebar.caption(f"Architecture découplée UI/Moteur | {llm_status}")
+    else:
+        st.sidebar.caption("Architecture découplée UI/Moteur")
 
 
 def main() -> None:

@@ -19,7 +19,6 @@ Conventions: FVA[i] = True si high[i] < high[i-1] ET low[i] > low[i-1]
 
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 
 def calculate_fva(df: pd.DataFrame, **params) -> np.ndarray:

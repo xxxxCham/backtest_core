@@ -23,7 +23,6 @@ Skip-if: Vous checked juste BACKEND_AVAILABLE flag.
 from __future__ import annotations
 
 # pylint: disable=invalid-name
-
 import sys
 from pathlib import Path
 
@@ -40,6 +39,7 @@ get_storage = None
 # Data/strategy/indicators
 load_ohlcv = None
 discover_available_data = None
+get_data_date_range = None
 calculate_indicator = None
 get_strategy = None
 list_strategies = None
@@ -56,7 +56,7 @@ save_versioned_preset = None
 try:
     from backtest.engine import BacktestEngine, RunResult  # noqa: F401
     from backtest.storage import get_storage  # noqa: F401
-    from data.loader import discover_available_data, load_ohlcv  # noqa: F401
+    from data.loader import discover_available_data, load_ohlcv, get_data_date_range  # noqa: F401
     from indicators.registry import calculate_indicator  # noqa: F401
     from strategies.base import get_strategy, list_strategies  # noqa: F401
     from strategies.indicators_mapping import get_strategy_info  # noqa: F401
@@ -165,6 +165,8 @@ try:
         get_model_info,
         get_optimal_config_for_role,
     )
+    from ui.components.monitor import render_mini_monitor  # noqa: F401
+    from ui.deep_trace_viewer import render_deep_trace_viewer  # noqa: F401
     from ui.model_presets import (  # noqa: F401
         BUILTIN_PRESETS,
         apply_preset_to_config,
@@ -174,8 +176,6 @@ try:
         load_model_preset,
         save_model_preset,
     )
-    from ui.components.monitor import render_mini_monitor  # noqa: F401
-    from ui.deep_trace_viewer import render_deep_trace_viewer  # noqa: F401
     from ui.orchestration_viewer import (  # noqa: F401
         LiveOrchestrationViewer,
         render_full_orchestration_viewer,

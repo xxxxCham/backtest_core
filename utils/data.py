@@ -20,8 +20,9 @@ Read-if: Modification validation données ou détection gaps.
 Skip-if: Vous utilisez juste detect_gaps().
 """
 
-import pandas as pd
 from typing import Optional
+
+import pandas as pd
 
 
 def detect_gaps(df: pd.DataFrame, expected_freq: Optional[str] = None) -> dict:

@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 import os
 import time
-from typing import Any, Optional, Tuple, Union, List
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -135,12 +135,15 @@ class GPUDeviceManager:
             logger.error(f"GPUDeviceManager: Erreur énumération GPUs - {e}")
 
     def _select_best_device(self) -> None:
-        """Sélectionne le meilleur GPU (plus de mémoire = plus puissant généralement)."""
+        """
+        Sélectionne le meilleur GPU (5080 > 4090 > Memory).
+        Stabilité renforcée pour éviter les changements d'ID intempestifs.
+        """
         if not self._available_devices:
             logger.warning("GPUDeviceManager: Aucun GPU disponible")
             return
 
-        # Vérifier si un GPU est forcé via variable d'environnement
+        # 1. Vérifier si un GPU est forcé via variable d'environnement
         forced_gpu = os.environ.get("BACKTEST_GPU_ID")
         if forced_gpu is not None:
             try:
@@ -151,12 +154,46 @@ class GPUDeviceManager:
                     logger.info(f"GPUDeviceManager: GPU {forced_id} forcé via BACKTEST_GPU_ID")
                     return
                 else:
-                    logger.warning(f"GPUDeviceManager: GPU {forced_id} non trouvé, sélection auto")
+                    logger.warning(f"GPUDeviceManager: GPU {forced_id} non trouvé, fallback auto selection")
             except ValueError:
                 logger.warning(f"GPUDeviceManager: BACKTEST_GPU_ID invalide: {forced_gpu}")
 
-        # Sélectionner le GPU avec le plus de mémoire totale
-        best_device = max(self._available_devices, key=lambda d: d["total_memory_gb"])
+        # 2. Score heuristic pour priorité (5080 > 4090 > 3090 > Autres)
+        def get_device_score(device: dict) -> tuple:
+            name = device["name"].upper()
+            total_mem = device["total_memory_gb"]
+            device_id = device["id"]
+
+            # Priorité par modèle (Tier S)
+            if "5080" in name:
+                tier = 100
+            elif "4090" in name:
+                tier = 90
+            elif "3090" in name or "TITAN" in name:
+                tier = 80
+            elif "5070" in name or "4080" in name:
+                tier = 70
+            elif "2080" in name or "1080" in name:
+                tier = 60
+            else:
+                tier = 0
+
+            # Tuple de tri: (Tier, Memory, -ID)
+            # -ID pour préférer 0 si égalité
+            return (tier, total_mem, -device_id)
+
+        # 3. Trier et sélectionner
+        # On utilise une sort key plutôt que max() direct pour debug potentiel
+        sorted_devices = sorted(self._available_devices, key=get_device_score, reverse=True)
+        best_device = sorted_devices[0]
+
+        logger.info(f"GPUDeviceManager: Sélection automatique -> {best_device['name']} (ID={best_device['id']}, {best_device['total_memory_gb']:.1f}GB)")
+
+        # Log des autres choix possibles
+        if len(sorted_devices) > 1:
+            alternatives = [f"{d['name']} (ID={d['id']})" for d in sorted_devices[1:]]
+            logger.info(f"GPUDeviceManager: Alternatives ignorées -> {', '.join(alternatives)}")
+
         self._set_device(best_device)
 
         if len(self._available_devices) > 1:

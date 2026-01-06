@@ -286,7 +286,7 @@ def benchmark_simulator_performance(
     signals = pd.Series(np.random.choice([0, 1, -1], size=n_bars, p=[0.95, 0.025, 0.025]), index=df.index)
 
     params = {
-        "leverage": 3,
+        "leverage": 1,
         "k_sl": 1.5,
         "initial_capital": 10000,
         "fees_bps": 10,
@@ -306,7 +306,7 @@ def benchmark_simulator_performance(
 
     # 2. Simulateur Numba (si disponible)
     try:
-        from backtest.simulator_fast import simulate_trades_fast, HAS_NUMBA
+        from backtest.simulator_fast import HAS_NUMBA, simulate_trades_fast
 
         if HAS_NUMBA:
             results.append(benchmark_function(

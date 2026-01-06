@@ -38,8 +38,8 @@ from utils.log import get_logger
 
 # Import optionnel de seaborn pour distributions statistiques
 try:
-    import seaborn as sns
     import matplotlib.pyplot as plt
+    import seaborn as sns
     SEABORN_AVAILABLE = True
 except ImportError:
     SEABORN_AVAILABLE = False

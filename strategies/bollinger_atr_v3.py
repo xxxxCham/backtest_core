@@ -113,7 +113,7 @@ class BollingerATRStrategyV3(StrategyBase):
             "stop_factor": 0.5,      # 50% de la distance totale
             "tp_factor": 0.7,        # 70% de la distance totale
             # Trading
-            "leverage": 3,
+            "leverage": 1,  # Fixé à 1 - ne pas optimiser
             # Frais (pour référence)
             "fees_bps": 10,
             "slippage_bps": 5
@@ -173,9 +173,10 @@ class BollingerATRStrategyV3(StrategyBase):
             ),
             "leverage": ParameterSpec(
                 name="leverage",
-                min_val=1, max_val=10, default=3,
+                min_val=1, max_val=10, default=1,
                 param_type="int",
-                description="Levier de trading"
+                description="Levier de trading (non optimisé)",
+                optimize=False,
             ),
         }
 

@@ -20,8 +20,8 @@ Read-if: Modification seuils d'erreur/succès, timeouts.
 Skip-if: Vous utilisez juste CircuitBreaker.call().
 """
 
-import time
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

@@ -22,15 +22,16 @@ Skip-if: Archive - utiliser composants actifs ui/components/
 
 from __future__ import annotations
 
+from dataclasses import MISSING, dataclass, field, fields, is_dataclass
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
-from dataclasses import MISSING, dataclass, field, fields, is_dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from enum import Enum
 
 try:
-    import streamlit as st
     import plotly.graph_objects as go
+    import streamlit as st
     from plotly.subplots import make_subplots
     STREAMLIT_AVAILABLE = True
 except ImportError:

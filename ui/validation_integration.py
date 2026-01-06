@@ -23,7 +23,6 @@ Skip-if: Pas de validation walk-forward
 from __future__ import annotations
 
 # pylint: disable=import-outside-toplevel
-
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -196,6 +195,7 @@ def run_validation_and_display(
     """
     try:
         import streamlit as st
+
         from agents.integration import run_walk_forward_for_agent
         from ui.components.validation_viewer import render_validation_report
 

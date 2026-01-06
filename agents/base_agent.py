@@ -23,7 +23,6 @@ Skip-if: Vous ne changez qu'un agent spécifique.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

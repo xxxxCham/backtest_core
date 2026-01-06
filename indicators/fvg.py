@@ -17,9 +17,10 @@ Conventions: FVG bullish si low[i] > high[i-2] (gap haussier)
              FVG bearish si high[i] < low[i-2] (gap baissier)
 """
 
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 
 def calculate_fvg_bullish(df: pd.DataFrame, **params) -> np.ndarray:

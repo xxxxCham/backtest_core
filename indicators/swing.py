@@ -19,9 +19,10 @@ Conventions: SwingHigh[i] = (high[i] > high[i-1] AND high[i] > high[i+1])
 CRITICAL: NE PAS utiliser de lookback variable - c'est une erreur conceptuelle.
 """
 
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 
 def calculate_swing_high(df: pd.DataFrame, **params) -> np.ndarray:

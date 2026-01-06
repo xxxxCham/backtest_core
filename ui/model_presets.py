@@ -85,6 +85,7 @@ BUILTIN_PRESETS: Dict[str, Dict[str, Any]] = {
 
 # ===== FONCTIONS PRINCIPALES =====
 
+
 def get_presets_dir() -> Path:
     """Retourne le répertoire de sauvegarde des presets."""
     MODEL_PRESETS_DIR.mkdir(parents=True, exist_ok=True)

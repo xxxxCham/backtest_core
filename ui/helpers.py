@@ -23,7 +23,6 @@ Skip-if: Vous appelez generate_strategies_table().
 from __future__ import annotations
 
 # pylint: disable=too-many-lines
-
 import math
 import statistics
 import time
@@ -552,7 +551,6 @@ def render_saved_runs_panel(
 
     st.sidebar.checkbox(
         "Auto-save final run",
-        value=st.session_state["auto_save_final_run"],
         key="auto_save_final_run",
     )
 
@@ -645,7 +643,11 @@ def safe_run_backtest(
     run_id: Optional[str] = None,
     silent_mode: bool = False,
 ) -> Tuple[Optional[Any], str]:
-    run_id = run_id or generate_run_id()
+    run_id = run_id or generate_run_id(
+        strategy=strategy,
+        symbol=symbol,
+        timeframe=timeframe,
+    )
     logger = get_obs_logger("ui.app", run_id=run_id, strategy=strategy, symbol=symbol)
 
     logger.info("ui_backtest_start params=%s", params)

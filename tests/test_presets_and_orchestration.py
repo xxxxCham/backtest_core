@@ -20,16 +20,16 @@ Read-if: Vérifier Presets ou orchestration ne sont pas cassés.
 Skip-if: Tests déjà passés ou modification minimale.
 """
 
+from agents.orchestration_logger import (
+    OrchestrationActionType,
+    OrchestrationLogger,
+    OrchestrationStatus,
+)
 from utils.parameters import PRESETS
 from utils.preset_validation import (
-    validate_all_presets,
-    format_validation_report,
     create_preset_from_strategy,
-)
-from agents.orchestration_logger import (
-    OrchestrationLogger,
-    OrchestrationActionType,
-    OrchestrationStatus,
+    format_validation_report,
+    validate_all_presets,
 )
 
 
@@ -163,8 +163,8 @@ def test_full_workflow():
 
     # 1. Valider un Preset
     print("\n1. Validation Preset 'bollinger_atr'")
-    from utils.preset_validation import validate_preset_against_strategy
     from utils.parameters import get_preset
+    from utils.preset_validation import validate_preset_against_strategy
 
     preset = get_preset("bollinger_atr")
     result = validate_preset_against_strategy(preset, "bollinger_atr")

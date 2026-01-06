@@ -23,7 +23,6 @@ Skip-if: Vous ne touchez qu'aux agents isolés.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime

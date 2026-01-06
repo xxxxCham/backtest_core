@@ -30,12 +30,7 @@ except ImportError:
     def list_ollama_models() -> List[str]:
         return []
 from utils.log import get_logger
-from utils.model_loader import (
-    get_all_ollama_models,
-    get_model_by_id,
-    get_model_info_for_ui,
-    get_ollama_model_names,
-)
+from utils.model_loader import get_model_info_for_ui, get_ollama_model_names
 
 logger = get_logger(__name__)
 
@@ -103,6 +98,20 @@ def _sort_with_preferred(
     return unique
 
 
+def _get_library_models() -> List[str]:
+    try:
+        return get_ollama_model_names()
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Erreur lecture models.json pour la liste UI: %s", exc)
+        return []
+
+
+def _normalize_model_name(name: str) -> str:
+    if name.endswith(":latest"):
+        return name.rsplit(":", 1)[0]
+    return name
+
+
 def get_available_models_for_ui(
     preferred_order: Sequence[str] | None = None,
     fallback: Sequence[str] | None = None,
@@ -110,15 +119,16 @@ def get_available_models_for_ui(
     """
     Retourne la liste des modèles LLM à proposer dans l'UI.
 
-    - Si Ollama répond, on retourne exactement les modèles installés.
-    - Si Ollama est inaccessible ou ne retourne rien, on utilise une liste fallback.
+    - Si Ollama répond, on fusionne les modèles installés avec models.json.
+    - Si Ollama est inaccessible, on utilise models.json si dispo.
+    - Sinon, fallback sur une liste minimale.
 
     Args:
         preferred_order: Ordre conseillé pour le tri (facultatif).
         fallback: Fallback explicite (sinon FALLBACK_LLM_MODELS).
 
     Returns:
-        list[str]: Noms de modèles Ollama.
+        list[str]: Noms de modèles Ollama (installés + bibliothèque).
 
     Example:
         >>> models = get_available_models_for_ui(
@@ -126,13 +136,15 @@ def get_available_models_for_ui(
         ... )
         >>> st.selectbox("Modèle", models)
     """
-    installed = list_ollama_models()
+    installed = [_normalize_model_name(n) for n in list_ollama_models() if n]
+    library_models = _get_library_models()
+    available = sorted(set(installed) | set(library_models))
 
-    if installed:
+    if available:
         if preferred_order:
-            return _sort_with_preferred(installed, preferred_order)
-        # Par défaut: tri alphabétique des modèles installés
-        return sorted(set(installed))
+            return _sort_with_preferred(available, preferred_order)
+        # Par défaut: tri alphabétique des modèles installés + bibliothèque
+        return available
 
     # Ollama inaccessible ou aucun modèle retourné: fallback
     models = list(fallback or FALLBACK_LLM_MODELS)

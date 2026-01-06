@@ -23,7 +23,6 @@ Skip-if: Vous ne changez que analyze/propose/critique.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import logging
 import time
 from enum import Enum

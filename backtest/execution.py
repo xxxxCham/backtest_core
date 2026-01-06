@@ -34,9 +34,9 @@ logger = get_logger(__name__)
 # Import fonctions optimisées (Numba si disponible)
 try:
     from backtest.execution_fast import (
-        roll_spread,
-        high_low_spread,
         HAS_NUMBA,
+        high_low_spread,
+        roll_spread,
     )
     USE_FAST_EXECUTION = True
     logger.debug(f"Execution optimizations: Numba={'available' if HAS_NUMBA else 'unavailable'}")

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:
     from agents.llm_client import LLMConfig
@@ -55,6 +55,14 @@ class SidebarState:
     optimization_mode: str
     max_combos: int
     n_workers: int
+    # Optuna config
+    use_optuna: bool
+    optuna_n_trials: int
+    optuna_sampler: str
+    optuna_pruning: bool
+    optuna_metric: str
+    optuna_early_stop: int
+    # LLM config
     llm_config: Optional["LLMConfig"]
     llm_model: Optional[str]
     llm_use_multi_agent: bool
@@ -74,6 +82,8 @@ class SidebarState:
     llm_compare_generate_report: bool
     initial_capital: float
     leverage: float
+    leverage_enabled: bool  # Si False, leverage=1 forcé
+    disabled_params: List[str]  # Paramètres désactivés (utilisent valeur par défaut)
 
     def __post_init__(self) -> None:
         if self.use_date_filter:

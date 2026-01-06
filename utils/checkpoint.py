@@ -20,14 +20,14 @@ Read-if: Gestion checkpoints pour sweeps, recovery après crash, ou state persis
 Skip-if: Opérations courtes sans besoin de resume/recovery.
 """
 
-import json
 import hashlib
+import json
 import time
-from dataclasses import dataclass, field, asdict
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TypeVar
-from contextlib import contextmanager
 
 from utils.log import get_logger
 

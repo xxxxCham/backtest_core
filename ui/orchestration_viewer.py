@@ -20,16 +20,17 @@ Read-if: Besoin d'afficher les logs d'orchestration LLM
 Skip-if: Pas d'utilisation d'agents LLM ou pas besoin de visualisation des logs
 """
 
-from typing import List, Optional
-from html import escape
-import streamlit as st
-import pandas as pd
 from datetime import datetime
+from html import escape
+from typing import List, Optional
+
+import pandas as pd
+import streamlit as st
 
 from agents.orchestration_logger import (
-    OrchestrationLogger,
-    OrchestrationLogEntry,
     OrchestrationActionType,
+    OrchestrationLogEntry,
+    OrchestrationLogger,
     OrchestrationStatus,
 )
 

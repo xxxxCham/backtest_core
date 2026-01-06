@@ -26,27 +26,27 @@ from typing import Any, Callable, Dict, Optional, Tuple
 import pandas as pd
 
 from .adx import adx, calculate_adx
+from .aroon import AroonSettings, aroon
 from .atr import ATRSettings, atr
 
 # Imports relatifs des indicateurs
 from .bollinger import BollingerSettings, bollinger_bands
+from .cci import CCISettings, cci
+from .donchian import DonchianSettings, donchian_channel
 from .ema import EMASettings, ema, sma
+from .keltner import KeltnerSettings, keltner_channel
 from .macd import calculate_macd, macd
+from .mfi import MFISettings, mfi
+from .momentum import MomentumSettings, momentum
+from .obv import OBVSettings, obv
+from .roc import ROCSettings, roc
 from .rsi import RSISettings, rsi
 from .stochastic import stochastic
+from .supertrend import SuperTrendSettings, supertrend
 
 # Nouveaux indicateurs
-from .vwap import vwap, VWAPSettings
-from .donchian import donchian_channel, DonchianSettings
-from .cci import cci, CCISettings
-from .keltner import keltner_channel, KeltnerSettings
-from .mfi import mfi, MFISettings
-from .williams_r import williams_r, WilliamsRSettings
-from .momentum import momentum, MomentumSettings
-from .obv import obv, OBVSettings
-from .roc import roc, ROCSettings
-from .aroon import aroon, AroonSettings
-from .supertrend import supertrend, SuperTrendSettings
+from .vwap import VWAPSettings, vwap
+from .williams_r import WilliamsRSettings, williams_r
 
 
 @dataclass
@@ -420,17 +420,19 @@ register_indicator(
 )
 
 # Late imports for indicators that self-register to avoid circular imports.
-from . import amplitude_hunter  # noqa: F401,E402
-from . import fear_greed  # noqa: F401,E402
-from . import fibonacci  # noqa: F401,E402
-from . import ichimoku  # noqa: F401,E402
-from . import onchain_smoothing  # noqa: F401,E402
-from . import pi_cycle  # noqa: F401,E402
-from . import pivot_points  # noqa: F401,E402
-from . import psar  # noqa: F401,E402
-from . import standard_deviation  # noqa: F401,E402
-from . import volume_oscillator  # noqa: F401,E402
-from . import vortex  # noqa: F401,E402
+from . import (
+    amplitude_hunter,  # noqa: F401,E402
+    fear_greed,  # noqa: F401,E402
+    fibonacci,  # noqa: F401,E402
+    ichimoku,  # noqa: F401,E402
+    onchain_smoothing,  # noqa: F401,E402
+    pi_cycle,  # noqa: F401,E402
+    pivot_points,  # noqa: F401,E402
+    psar,  # noqa: F401,E402
+    standard_deviation,  # noqa: F401,E402
+    volume_oscillator,  # noqa: F401,E402
+    vortex,  # noqa: F401,E402
+)
 
 
 class IndicatorRegistry:

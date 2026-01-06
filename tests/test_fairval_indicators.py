@@ -4,13 +4,12 @@ Tests unitaires pour les indicateurs FairValOseille.
 Teste swing_high, swing_low, FVG bullish/bearish, FVA.
 """
 
-import numpy as np
 import pandas as pd
 import pytest
 
-from indicators.swing import calculate_swing_high, calculate_swing_low
-from indicators.fvg import calculate_fvg_bullish, calculate_fvg_bearish
 from indicators.fva import calculate_fva
+from indicators.fvg import calculate_fvg_bearish, calculate_fvg_bullish
+from indicators.swing import calculate_swing_high, calculate_swing_low
 
 
 class TestSwingDetection:
@@ -25,9 +24,9 @@ class TestSwingDetection:
         result = calculate_swing_high(df)
 
         # Swing high detecte a l'index 2 (110 > 105 et 110 > 108)
-        assert result[2] == True
-        assert result[0] == False  # Bord
-        assert result[4] == False  # Bord
+        assert result[2]
+        assert not result[0]  # Bord
+        assert not result[4]  # Bord
 
     def test_swing_low_basic(self):
         """Test detection swing low basique."""
@@ -38,9 +37,9 @@ class TestSwingDetection:
         result = calculate_swing_low(df)
 
         # Swing low detecte a l'index 2 (90 < 95 et 90 < 93)
-        assert result[2] == True
-        assert result[0] == False  # Bord
-        assert result[4] == False  # Bord
+        assert result[2]
+        assert not result[0]  # Bord
+        assert not result[4]  # Bord
 
     def test_swing_no_detection(self):
         """Test cas sans swing (tendance monotone)."""
@@ -61,9 +60,9 @@ class TestSwingDetection:
         result = calculate_swing_high(df)
 
         # Swings detectes aux indices 1, 3, 5
-        assert result[1] == True  # 105 > 100 et 105 > 103
-        assert result[3] == True  # 108 > 103 et 108 > 106
-        assert result[5] == True  # 110 > 106 et 110 > 108
+        assert result[1]  # 105 > 100 et 105 > 103
+        assert result[3]  # 108 > 103 et 108 > 106
+        assert result[5]  # 110 > 106 et 110 > 108
 
 
 class TestFVGDetection:
@@ -79,9 +78,9 @@ class TestFVGDetection:
         result = calculate_fvg_bullish(df)
 
         # FVG bullish a l'index 2: low[2]=110 > high[0]=100
-        assert result[2] == True
-        assert result[0] == False  # Pas de i-2
-        assert result[1] == False  # Pas de i-2
+        assert result[2]
+        assert not result[0]  # Pas de i-2
+        assert not result[1]  # Pas de i-2
 
     def test_fvg_bearish_basic(self):
         """Test detection FVG bearish basique."""
@@ -93,20 +92,21 @@ class TestFVGDetection:
         result = calculate_fvg_bearish(df)
 
         # FVG bearish a l'index 2: high[2]=88 < low[0]=98
-        assert result[2] == True
+        assert result[2]
 
     def test_fvg_no_gap(self):
-        """Test cas sans gap (prix continu)."""
+        """Test cas sans gap (prix chevauche)."""
+        # Prix qui se chevauchent (low[i] <= high[i-2])
         highs = [100, 101, 102, 103, 104]
-        lows = [99, 100, 101, 102, 103]
+        lows = [95, 96, 97, 98, 99]  # lows[2]=97 < highs[0]=100, pas de gap
         df = pd.DataFrame({'high': highs, 'low': lows})
 
         result_bull = calculate_fvg_bullish(df)
         result_bear = calculate_fvg_bearish(df)
 
-        # Aucun gap detecte
-        assert not result_bull.any()
-        assert not result_bear.any()
+        # Aucun gap detecte (prix se chevauchent)
+        assert not result_bull.any(), f"FVG bullish inattendu: {result_bull}"
+        assert not result_bear.any(), f"FVG bearish inattendu: {result_bear}"
 
 
 class TestFVADetection:
@@ -121,7 +121,7 @@ class TestFVADetection:
         result = calculate_fva(df)
 
         # FVA a l'index 2: high[2]=108 < high[1]=110 ET low[2]=97 > low[1]=95
-        assert result[2] == True
+        assert result[2]
 
     def test_fva_no_consolidation(self):
         """Test cas sans consolidation (expansion)."""
@@ -143,7 +143,7 @@ class TestFVADetection:
         result = calculate_fva(df)
 
         # Pas de FVA si egalite (besoin strict </>)
-        assert result[2] == False
+        assert not result[2]
 
 
 if __name__ == "__main__":

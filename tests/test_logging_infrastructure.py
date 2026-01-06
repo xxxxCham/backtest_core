@@ -32,10 +32,10 @@ print("TEST 1 : Imports des nouveaux modules")
 print("=" * 80)
 
 try:
-    from utils.observability import generate_run_id
     from utils.data import detect_gaps
-    from utils.version import get_git_commit, get_git_branch, is_git_dirty
     from utils.log import CountingHandler
+    from utils.observability import generate_run_id
+    from utils.version import get_git_branch, get_git_commit, is_git_dirty
     print("✅ Tous les imports réussis")
 except ImportError as e:
     print(f"❌ Erreur d'import: {e}")

@@ -8,8 +8,9 @@ Tests:
 """
 
 import pytest
-from utils.parameters import RangeProposal, normalize_param_ranges, ParameterSpec
+
 from agents.base_agent import AgentContext
+from utils.parameters import ParameterSpec, RangeProposal, normalize_param_ranges
 
 
 class TestRangeProposal:

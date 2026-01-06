@@ -23,14 +23,13 @@ Skip-if: Vous ne touchez qu’au moteur backtest/ (engine/simulator/performance)
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import hashlib
 import json
 import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -466,11 +465,6 @@ class BacktestExecutor:
             ):
                 direction = "↑" if stats["direction"] == "positive" else "↓"
                 lines.append(
-
-            # Docstring update summary
-            # - Docstring de module normalisée (LLM-friendly) centrée sur l’interface d’exécution
-            # - Conventions d’unités/normalisation des métriques explicitées (pct→fraction, ms)
-            # - Read-if/Skip-if ajoutés pour guider la lecture
                     f"  {param}: impact={stats['impact']:.2f} {direction} "
                     f"(range: {stats['range_tested']})"
                 )

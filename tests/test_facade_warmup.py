@@ -25,8 +25,8 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from backtest.facade import BackendFacade, BacktestRequest, WARMUP_MIN_DEFAULT
-from backtest.errors import InsufficientDataError, DataError
+from backtest.errors import DataError, InsufficientDataError
+from backtest.facade import WARMUP_MIN_DEFAULT, BackendFacade, BacktestRequest
 
 
 @pytest.fixture

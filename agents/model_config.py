@@ -23,7 +23,6 @@ Skip-if: Vous utilisez la config par défaut.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import logging
 import os
 import random
@@ -34,7 +33,12 @@ from typing import Any, Dict, List, Optional, Set
 
 import httpx
 
+from utils.model_loader import get_all_ollama_models
+
 logger = logging.getLogger(__name__)
+
+# Seuil en milliards de paramètres au-delà duquel un modèle nécessite approbation manuelle
+MAX_AUTO_SELECT_PARAMS_B: float = 50.0
 
 
 def _ollama_base_url() -> str:
@@ -70,6 +74,55 @@ def _fetch_ollama_tags_with_retries(
     return None
 
 
+def _infer_category_from_size(size_gb: float) -> ModelCategory:
+    if size_gb < 6:
+        return ModelCategory.LIGHT
+    if size_gb < 15:
+        return ModelCategory.MEDIUM
+    return ModelCategory.HEAVY
+
+
+def _ollama_name_from_library_entry(entry: Dict[str, Any]) -> Optional[str]:
+    model_name = entry.get("model_name")
+    tag = entry.get("tag")
+    if model_name and tag:
+        if tag == "latest":
+            return model_name
+        return f"{model_name}:{tag}"
+    if model_name:
+        return model_name
+    return entry.get("id")
+
+
+def _model_info_from_library_entry(entry: Dict[str, Any]) -> Optional[ModelInfo]:
+    name = _ollama_name_from_library_entry(entry)
+    if not name:
+        return None
+
+    if name in KNOWN_MODELS:
+        return KNOWN_MODELS[name]
+
+    size_gb = float(entry.get("size_gb") or 0)
+    category = _infer_category_from_size(size_gb)
+    description = entry.get("description") or f"Modele {name} ({size_gb:.1f} GB)"
+
+    return ModelInfo(
+        name=name,
+        category=category,
+        description=description,
+        recommended_for=["analyst", "strategist"],
+    )
+
+
+def _normalize_model_name(name: str) -> str:
+    """Normalise un nom de modèle (supprime le tag latest et garde le complet)."""
+    if not name:
+        return ""
+    if name.endswith(":latest"):
+        return name.rsplit(":", 1)[0]
+    return name
+
+
 class ModelCategory(Enum):
     """Catégories de modèles par taille/vitesse."""
 
@@ -87,6 +140,12 @@ class ModelInfo:
     description: str = ""          # Description courte
     recommended_for: List[str] = field(default_factory=list)  # Rôles recommandés
     avg_response_time_s: float = 30.0  # Temps de réponse moyen estimé
+    params_billions: float = 0.0   # Nombre de paramètres en milliards (0 = inconnu)
+
+    @property
+    def requires_manual_approval(self) -> bool:
+        """True si le modèle dépasse le seuil d'auto-sélection (> 50B params)."""
+        return self.params_billions > MAX_AUTO_SELECT_PARAMS_B
 
     def __hash__(self):
         return hash(self.name)
@@ -106,6 +165,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="DeepSeek R1 8B - Rapide, bon pour analyses simples",
         recommended_for=["analyst", "strategist"],
         avg_response_time_s=15.0,
+        params_billions=8.0,
     ),
     "mistral:7b-instruct": ModelInfo(
         name="mistral:7b-instruct",
@@ -113,6 +173,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Mistral 7B Instruct - Très rapide, polyvalent",
         recommended_for=["analyst", "strategist"],
         avg_response_time_s=10.0,
+        params_billions=7.0,
     ),
     "llama3.1:8b-local": ModelInfo(
         name="llama3.1:8b-local",
@@ -120,6 +181,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Llama 3.1 8B - Rapide, bonne qualité",
         recommended_for=["analyst", "strategist"],
         avg_response_time_s=20.0,
+        params_billions=8.0,
     ),
     "martain7r/finance-llama-8b:q4_k_m": ModelInfo(
         name="martain7r/finance-llama-8b:q4_k_m",
@@ -127,6 +189,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Finance Llama 8B - Spécialisé finance/trading",
         recommended_for=["analyst", "critic"],
         avg_response_time_s=15.0,
+        params_billions=8.0,
     ),
 
     # Medium models (10-30B) - Équilibrés
@@ -136,6 +199,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Gemma 3 12B - Bon équilibre qualité/vitesse",
         recommended_for=["strategist", "critic"],
         avg_response_time_s=45.0,
+        params_billions=12.0,
     ),
     "deepseek-r1-distill:14b": ModelInfo(
         name="deepseek-r1-distill:14b",
@@ -143,6 +207,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="DeepSeek R1 Distill 14B - Raisonnement efficace",
         recommended_for=["strategist", "critic", "validator"],
         avg_response_time_s=60.0,
+        params_billions=14.0,
     ),
     "mistral:22b": ModelInfo(
         name="mistral:22b",
@@ -150,6 +215,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Mistral 22B - Puissant et raisonnablement rapide",
         recommended_for=["critic", "validator"],
         avg_response_time_s=90.0,
+        params_billions=22.0,
     ),
     "gemma3:27b": ModelInfo(
         name="gemma3:27b",
@@ -157,6 +223,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Gemma 3 27B - Très bonne qualité",
         recommended_for=["critic", "validator"],
         avg_response_time_s=120.0,
+        params_billions=27.0,
     ),
 
     # Heavy models (> 30B) - Puissants mais lents
@@ -166,6 +233,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="DeepSeek R1 32B - Excellent raisonnement",
         recommended_for=["critic", "validator"],
         avg_response_time_s=180.0,
+        params_billions=32.0,
     ),
     "qwq:32b": ModelInfo(
         name="qwq:32b",
@@ -173,6 +241,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="QwQ 32B - Raisonnement profond",
         recommended_for=["critic", "validator"],
         avg_response_time_s=200.0,
+        params_billions=32.0,
     ),
     "qwen2.5:32b": ModelInfo(
         name="qwen2.5:32b",
@@ -180,6 +249,7 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Qwen 2.5 32B - Polyvalent haute qualité",
         recommended_for=["strategist", "critic", "validator"],
         avg_response_time_s=150.0,
+        params_billions=32.0,
     ),
     "qwen3-vl:30b": ModelInfo(
         name="qwen3-vl:30b",
@@ -187,13 +257,15 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="Qwen 3 VL 30B - Vision + Langage",
         recommended_for=["analyst"],  # Pour analyse de charts
         avg_response_time_s=180.0,
+        params_billions=30.0,
     ),
     "deepseek-r1:70b": ModelInfo(
         name="deepseek-r1:70b",
         category=ModelCategory.HEAVY,
-        description="DeepSeek R1 70B - Maximum puissance, TRÈS LENT",
+        description="DeepSeek R1 70B - Maximum puissance, TRÈS LENT (>50B: approbation manuelle requise)",
         recommended_for=["validator"],  # Réservé aux décisions critiques
         avg_response_time_s=600.0,  # ~10 minutes
+        params_billions=70.0,
     ),
     "gpt-oss:20b": ModelInfo(
         name="gpt-oss:20b",
@@ -201,28 +273,32 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         description="GPT OSS 20B",
         recommended_for=["strategist", "critic"],
         avg_response_time_s=100.0,
+        params_billions=20.0,
     ),
     # Llama 3.3 70B - Multi-GPU optimisé
     "llama3.3:70b-instruct-q4_K_M": ModelInfo(
         name="llama3.3:70b-instruct-q4_K_M",
         category=ModelCategory.HEAVY,
-        description="Llama 3.3 70B Instruct Q4 - Multi-GPU, raisonnement avancé",
+        description="Llama 3.3 70B Instruct Q4 - Multi-GPU (>50B: approbation manuelle requise)",
         recommended_for=["critic", "validator"],
         avg_response_time_s=300.0,
+        params_billions=70.0,
     ),
     "llama3.3-70b-optimized": ModelInfo(
         name="llama3.3-70b-optimized",
         category=ModelCategory.HEAVY,
-        description="Llama 3.3 70B Optimisé - Config multi-GPU personnalisée",
+        description="Llama 3.3 70B Optimisé - Multi-GPU (>50B: approbation manuelle requise)",
         recommended_for=["critic", "validator"],
         avg_response_time_s=300.0,
+        params_billions=70.0,
     ),
     "llama3.3-70b-2gpu": ModelInfo(
         name="llama3.3-70b-2gpu",
         category=ModelCategory.HEAVY,
-        description="Llama 3.3 70B Multi-GPU (2 GPUs) - Optimisé pour RTX 5080 + RTX 2060",
+        description="Llama 3.3 70B Multi-GPU (2 GPUs) - RTX 5080+2060 (>50B: approbation manuelle requise)",
         recommended_for=["critic", "validator"],
         avg_response_time_s=180.0,  # Plus rapide avec 2 GPUs
+        params_billions=70.0,
     ),
 }
 
@@ -241,14 +317,16 @@ class RoleModelAssignment:
         iteration: int = 1,
         allow_heavy: bool = False,
         installed_models: Optional[Set[str]] = None,
+        allow_very_large: bool = False,
     ) -> List[str]:
         """
         Retourne les modèles disponibles pour cette itération.
 
         Args:
             iteration: Numéro d'itération actuel
-            allow_heavy: Forcer l'autorisation des modèles lourds
+            allow_heavy: Forcer l'autorisation des modèles lourds (catégorie HEAVY)
             installed_models: Set des modèles installés (pour filtrage)
+            allow_very_large: Autoriser les modèles > 50B params (nécessite approbation manuelle)
 
         Returns:
             Liste des modèles utilisables
@@ -260,12 +338,20 @@ class RoleModelAssignment:
             if installed_models and model_name not in installed_models:
                 continue
 
-            # Vérifier la catégorie
+            # Vérifier la catégorie et taille
             model_info = KNOWN_MODELS.get(model_name)
-            if model_info and model_info.category == ModelCategory.HEAVY:
-                # Modèles lourds : vérifier les conditions
-                if not allow_heavy and iteration < self.allow_heavy_after_iteration:
+            if model_info:
+                # Modèles > 50B : exclus sauf autorisation explicite
+                if model_info.requires_manual_approval and not allow_very_large:
+                    logger.debug(
+                        f"Modèle {model_name} exclu (>{MAX_AUTO_SELECT_PARAMS_B}B params, approbation requise)"
+                    )
                     continue
+
+                # Modèles lourds (catégorie) : vérifier les conditions d'itération
+                if model_info.category == ModelCategory.HEAVY:
+                    if not allow_heavy and iteration < self.allow_heavy_after_iteration:
+                        continue
 
             available.append(model_name)
 
@@ -296,13 +382,13 @@ class RoleModelConfig:
 
     critic: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="critic",
-        models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b", "llama3.3-70b-optimized"],
+        models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
         allow_heavy_after_iteration=2,
     ))
 
     validator: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="validator",
-        models=["deepseek-r1-distill:14b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b", "llama3.3-70b-optimized"],
+        models=["deepseek-r1-distill:14b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
         allow_heavy_after_iteration=3,
     ))
 
@@ -315,24 +401,29 @@ class RoleModelConfig:
 
     def _refresh_installed_models(self) -> Set[str]:
         """Rafraîchit la liste des modèles Ollama installés."""
+        names: Set[str] = set()
+
+        # 1) Source principale: API /api/tags (Ollama en cours d'exécution)
         data = _fetch_ollama_tags_with_retries()
-        if not data:
-            self._installed_models = set()
-            return self._installed_models
+        if data:
+            for m in data.get("models", []):
+                raw = m.get("name", "")
+                norm = _normalize_model_name(raw)
+                if norm:
+                    names.add(raw)
+                    names.add(norm)
 
-        models = data.get("models", [])
-        # Normaliser les noms (enlever tags :latest, :70b, etc.) pour compatibilité avec KNOWN_MODELS
-        normalized_names = set()
-        for m in models:
-            name = m.get("name", "")
-            if name:
-                # Ajouter nom complet ET nom sans tag pour compatibilité
-                normalized_names.add(name)
-                if ":" in name:
-                    normalized_names.add(name.split(":")[0])
+        # 2) Fallback: models.json (permet d'afficher quelque chose si l'API est indisponible)
+        if not names:
+            for entry in get_all_ollama_models():
+                name = _ollama_name_from_library_entry(entry)
+                norm = _normalize_model_name(name)
+                if norm:
+                    names.add(name)
+                    names.add(norm)
 
-        self._installed_models = normalized_names
-        logger.debug("Modeles installes: %s", len(self._installed_models))
+        self._installed_models = names
+        logger.debug("Modeles consideres comme installes: %s", len(self._installed_models))
 
         return self._installed_models
 
@@ -364,6 +455,7 @@ class RoleModelConfig:
         iteration: int = 1,
         allow_heavy: bool = False,
         random_selection: bool = True,
+        allow_very_large: bool = False,
     ) -> Optional[str]:
         """
         Obtient un modèle pour un rôle donné.
@@ -371,8 +463,9 @@ class RoleModelConfig:
         Args:
             role: Nom du rôle (analyst, strategist, critic, validator)
             iteration: Numéro d'itération actuel
-            allow_heavy: Forcer l'autorisation des modèles lourds
+            allow_heavy: Forcer l'autorisation des modèles lourds (catégorie HEAVY)
             random_selection: Si True, sélection aléatoire parmi les modèles disponibles
+            allow_very_large: Autoriser les modèles > 50B params (approbation manuelle)
 
         Returns:
             Nom du modèle ou None si aucun disponible
@@ -385,6 +478,7 @@ class RoleModelConfig:
             iteration=iteration,
             allow_heavy=allow_heavy,
             installed_models=installed,
+            allow_very_large=allow_very_large,
         )
         if available:
             return random.choice(available) if (random_selection and len(available) > 1) else available[0]
@@ -394,6 +488,7 @@ class RoleModelConfig:
             iteration=iteration,
             allow_heavy=allow_heavy,
             installed_models=None,
+            allow_very_large=allow_very_large,
         )
         if fallback_cfg:
             return (
@@ -459,41 +554,43 @@ class RoleModelConfig:
 
 
 def list_available_models() -> List[ModelInfo]:
-    """Liste tous les modèles installés avec leurs infos."""
+    """Liste tous les modèles installés ou présents dans models.json."""
+    result_by_name: Dict[str, ModelInfo] = {}
+
+    for entry in get_all_ollama_models():
+        info = _model_info_from_library_entry(entry)
+        if info:
+            result_by_name[info.name] = info
+
     data = _fetch_ollama_tags_with_retries()
-    if not data:
-        # Fallback: retourner les modèles connus (utile pour l'UI quand Ollama est lent)
-        return list(KNOWN_MODELS.values())
+    if data:
+        models = data.get("models", [])
+        for m in models:
+            name = m.get("name", "")
+            if not name:
+                continue
+            if name.endswith(":latest"):
+                name = name.rsplit(":", 1)[0]
+            if name in KNOWN_MODELS:
+                result_by_name[name] = KNOWN_MODELS[name]
+                continue
+            if name in result_by_name:
+                continue
 
-    models = data.get("models", [])
-
-    result: List[ModelInfo] = []
-    for m in models:
-        name = m.get("name", "")
-        if not name:
-            continue
-        if name in KNOWN_MODELS:
-            result.append(KNOWN_MODELS[name])
-            continue
-
-        size_gb = m.get("size", 0) / (1024**3)
-        if size_gb < 6:
-            category = ModelCategory.LIGHT
-        elif size_gb < 15:
-            category = ModelCategory.MEDIUM
-        else:
-            category = ModelCategory.HEAVY
-
-        result.append(
-            ModelInfo(
+            size_gb = m.get("size", 0) / (1024**3)
+            category = _infer_category_from_size(size_gb)
+            result_by_name[name] = ModelInfo(
                 name=name,
                 category=category,
                 description=f"Modele {name} ({size_gb:.1f} GB)",
                 recommended_for=["analyst", "strategist"],
             )
-        )
 
-    return result
+    if not result_by_name:
+        # Fallback: retourner les modèles connus (utile pour l'UI quand Ollama est lent)
+        return list(KNOWN_MODELS.values())
+
+    return sorted(result_by_name.values(), key=lambda info: info.name)
 
 
 def get_models_by_category(category: ModelCategory) -> List[ModelInfo]:
@@ -526,6 +623,7 @@ __all__ = [
     "RoleModelAssignment",
     "RoleModelConfig",
     "KNOWN_MODELS",
+    "MAX_AUTO_SELECT_PARAMS_B",
     "list_available_models",
     "get_models_by_category",
     "get_global_model_config",

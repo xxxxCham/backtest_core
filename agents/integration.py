@@ -23,7 +23,6 @@ Skip-if: Vous ne changez que les stratégies/indicateurs ou la UI.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, TypedDict, Union
 
 import numpy as np
@@ -578,6 +577,8 @@ def get_strategy_param_bounds(
     Utilise les parameter_specs de la stratégie si disponibles,
     sinon retourne des bornes par défaut.
 
+    Note: Exclut les paramètres avec optimize=False (ex: leverage).
+
     Args:
         strategy_name: Nom de la stratégie
 
@@ -595,6 +596,9 @@ def get_strategy_param_bounds(
         # parameter_specs est un dict {name: ParameterSpec}
         if isinstance(specs, dict):
             for name, spec in specs.items():
+                # Exclure les paramètres avec optimize=False
+                if hasattr(spec, 'optimize') and spec.optimize is False:
+                    continue
                 # ParameterSpec utilise min_val et max_val
                 if hasattr(spec, 'min_val') and hasattr(spec, 'max_val'):
                     bounds[name] = (spec.min_val, spec.max_val)
@@ -603,6 +607,9 @@ def get_strategy_param_bounds(
     if not bounds and hasattr(strategy, 'default_params'):
         for name, value in strategy.default_params.items():
             if isinstance(value, (int, float)) and value > 0:
+                # Exclure leverage du fallback aussi
+                if name == 'leverage':
+                    continue
                 bounds[name] = (value * 0.5, value * 2.0)
 
     return bounds
@@ -618,6 +625,8 @@ def get_strategy_param_space(
     Extension de get_strategy_param_bounds() pour permettre:
     - Le calcul unifié des stats d'espace de recherche
     - L'affichage d'estimation dans le mode LLM
+
+    Note: Exclut les paramètres avec optimize=False (ex: leverage).
 
     Args:
         strategy_name: Nom de la stratégie
@@ -636,6 +645,9 @@ def get_strategy_param_space(
         specs = strategy.parameter_specs
         if isinstance(specs, dict):
             for name, spec in specs.items():
+                # Exclure les paramètres avec optimize=False
+                if hasattr(spec, 'optimize') and spec.optimize is False:
+                    continue
                 if hasattr(spec, 'min_val') and hasattr(spec, 'max_val'):
                     min_v = spec.min_val
                     max_v = spec.max_val
@@ -648,12 +660,16 @@ def get_strategy_param_space(
     # Fallback: param_ranges (si présent dans la stratégie)
     if not space and hasattr(strategy, 'param_ranges'):
         for name, (min_v, max_v) in strategy.param_ranges.items():
+            # param_ranges exclut déjà leverage (via property)
             space[name] = (min_v, max_v)
 
     # Dernier fallback: default_params avec ±50%
     if not space and hasattr(strategy, 'default_params'):
         for name, value in strategy.default_params.items():
             if isinstance(value, (int, float)) and value > 0:
+                # Exclure leverage du fallback
+                if name == 'leverage':
+                    continue
                 space[name] = (value * 0.5, value * 2.0)
 
     return space
@@ -909,10 +925,22 @@ def generate_sweep_summary(
 
         # Extraire params (ignorer success, error, etc.)
         param_keys = [
-            k for k in config.keys()
-            if k not in ["sharpe_ratio", "total_return_pct", "max_drawdown_pct",
-                        "total_trades", "success", "error", "win_rate_pct",
-                        "profit_factor", "sortino_ratio", "sqn", "calmar_ratio"]
+            k
+            for k in config.keys()
+            if k
+            not in [
+                "sharpe_ratio",
+                "total_return_pct",
+                "max_drawdown_pct",
+                "total_trades",
+                "success",
+                "error",
+                "win_rate_pct",
+                "profit_factor",
+                "sortino_ratio",
+                "sqn",
+                "calmar_ratio",
+            ]
         ]
         params_str = ", ".join(f"{k}={config[k]}" for k in param_keys)
 
@@ -969,7 +997,7 @@ def run_llm_sweep(
         >>> print(result["summary"])
     """
     from backtest.sweep import SweepEngine
-    from utils.parameters import normalize_param_ranges, compute_search_space_stats
+    from utils.parameters import compute_search_space_stats, normalize_param_ranges
 
     _logger.info(
         f"llm_sweep_start strategy={strategy_name} "

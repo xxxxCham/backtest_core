@@ -22,6 +22,7 @@ Skip-if: Vous utilisez sweep/pareto au lieu d'optuna.
 
 from __future__ import annotations
 
+import gc
 import logging
 import time
 from dataclasses import dataclass, field
@@ -34,8 +35,8 @@ if TYPE_CHECKING:
 
 try:
     import optuna
-    from optuna.pruners import MedianPruner, HyperbandPruner
-    from optuna.samplers import TPESampler, CmaEsSampler
+    from optuna.pruners import HyperbandPruner, MedianPruner
+    from optuna.samplers import CmaEsSampler, TPESampler
     OPTUNA_AVAILABLE = True
 except ImportError:
     OPTUNA_AVAILABLE = False
@@ -44,9 +45,9 @@ except ImportError:
 from backtest.engine import BacktestEngine
 from metrics_types import PerformanceMetricsPct, normalize_metrics
 from utils.observability import (
-    get_obs_logger,
-    generate_run_id,
     PerfCounters,
+    generate_run_id,
+    get_obs_logger,
 )
 
 logger = logging.getLogger(__name__)
@@ -246,6 +247,12 @@ class OptunaOptimizer:
         self._engine: Optional[BacktestEngine] = None
         self._best_metrics: PerformanceMetricsPct = {}
 
+        # Tracking en temps réel pour l'UI (accessible depuis callbacks)
+        self.best_pnl: float = float("-inf")
+        self.best_return_pct: float = float("-inf")
+        self.last_pnl: float = 0.0
+        self.last_return_pct: float = 0.0
+
         self.logger.info(
             "optuna_optimizer_init params=%s constraints=%s early_stop=%s",
             len(self.param_specs), len(self.constraints), early_stop_patience or "disabled"
@@ -406,17 +413,59 @@ class OptunaOptimizer:
                 return float("-inf") if direction == "maximize" else float("inf")
 
             try:
-                # Exécuter le backtest
+                # Exécuter le backtest avec mode rapide pour optimisation
                 result = self._engine.run(
                     df=self.data,
                     strategy=self.strategy_name,
                     params=params,
                     symbol=self.symbol,
                     timeframe=self.timeframe,
+                    silent_mode=True,     # Pas de logs pour performance
+                    fast_metrics=True,    # Mode NumPy pur pour Sharpe (10x plus rapide)
                 )
 
-                # Extraire la métrique
-                value = result.metrics.get(metric, 0)
+                # Log des métriques disponibles au premier trial
+                if trial.number == 0:
+                    available_metrics = sorted(result.metrics.keys())
+                    self.logger.info(
+                        "trial_0_metrics_available count=%s metrics=[%s]",
+                        len(available_metrics),
+                        ", ".join(available_metrics)
+                    )
+
+                # Extraire la métrique (STRICT: crash si absente)
+                if metric not in result.metrics:
+                    available = ", ".join(sorted(result.metrics.keys()))
+                    msg = (
+                        f"Optuna metric '{metric}' not found in result.metrics. "
+                        f"Available metrics: [{available}]. "
+                        f"trial={trial.number} params={params}"
+                    )
+                    self.logger.error(msg)
+                    raise KeyError(msg)
+
+                value = float(result.metrics[metric])
+
+                # Extraire P&L et Return pour tracking temps réel UI
+                current_pnl = float(result.metrics.get("total_pnl", 0.0))
+                current_return = float(result.metrics.get("total_return_pct", 0.0))
+                self.last_pnl = current_pnl
+                self.last_return_pct = current_return
+
+                # Mettre à jour les meilleurs scores (basé sur P&L, pas sur la métrique optimisée)
+                if current_pnl > self.best_pnl:
+                    self.best_pnl = current_pnl
+                    self.best_return_pct = current_return
+
+                # Stocker dans trial.user_attrs pour accès depuis callbacks
+                # OPTIMISATION: Ne stocker que les infos essentielles pour réduire la mémoire
+                trial.set_user_attr("pnl", current_pnl)
+                trial.set_user_attr("return_pct", current_return)
+                # Supprimé: best_pnl_so_far et best_return_so_far (redondant, accessible via optimizer)
+
+                # OPTIMISATION: Garbage collection périodique pour les gros runs
+                if trial.number > 0 and trial.number % 500 == 0:
+                    gc.collect()
 
                 # Stocker les meilleures métriques
                 if (direction == "maximize" and value > self._best_metrics.get(
@@ -434,6 +483,8 @@ class OptunaOptimizer:
 
                 return value
 
+            except KeyError:
+                raise
             except Exception as e:
                 self.logger.warning(
                     "trial_%s_failed error=%s", trial.number, str(e)
@@ -484,10 +535,18 @@ class OptunaOptimizer:
         start_time = time.time()
 
         # Créer le sampler
+        # OPTIMISATION: Pour les gros runs (>1000 trials), limiter l'historique TPE
+        # pour éviter le ralentissement O(n²)
         if sampler == "tpe":
+            # n_ei_candidates: nombre de candidats évalués (défaut 24, on garde)
+            # consider_prior: utiliser la distribution prior
+            # consider_magic_clip: éviter les valeurs extrêmes
             optuna_sampler = TPESampler(
                 seed=self.seed,
                 n_startup_trials=n_startup_trials,
+                # Limiter l'historique pour les gros runs (garde les 500 meilleurs trials récents)
+                consider_prior=True,
+                consider_magic_clip=True,
             )
         elif sampler == "cmaes":
             optuna_sampler = CmaEsSampler(seed=self.seed)
@@ -657,9 +716,40 @@ class OptunaOptimizer:
                     timeframe=self.timeframe,
                 )
 
-                values = [result.metrics.get(m, 0) for m in metrics]
+                # Log des métriques disponibles au premier trial
+                if trial.number == 0:
+                    available_metrics = sorted(result.metrics.keys())
+                    self.logger.info(
+                        "multi_obj_trial_0_metrics count=%s metrics=[%s]",
+                        len(available_metrics),
+                        ", ".join(available_metrics)
+                    )
+
+                # Extraire les métriques (STRICT: crash si absente)
+                values = []
+                for m in metrics:
+                    if m not in result.metrics:
+                        available = ", ".join(sorted(result.metrics.keys()))
+                        msg = (
+                            f"Multi-objective metric '{m}' not found in result.metrics. "
+                            f"Available metrics: [{available}]. "
+                            f"trial={trial.number} params={params}"
+                        )
+                        self.logger.error(msg)
+                        raise KeyError(msg)
+                    values.append(float(result.metrics[m]))
+
+                # Log des valeurs extraites
+                self.logger.debug(
+                    "trial_%s metrics_extracted %s",
+                    trial.number,
+                    dict(zip(metrics, values))
+                )
+
                 return values
 
+            except KeyError:
+                raise
             except Exception as e:
                 self.logger.warning(
                     "trial_%s_failed error=%s", trial.number, str(e)

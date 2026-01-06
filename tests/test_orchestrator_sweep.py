@@ -8,9 +8,8 @@ Tests:
 - AgentContext conserve sweep_results
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+from unittest.mock import patch
 
 
 class TestTemplatesSweepDocumentation:
@@ -53,10 +52,11 @@ class TestOrchestratorSweepDetection:
     @patch('agents.integration.run_llm_sweep')
     def test_handle_propose_detects_sweep_request(self, mock_run_llm_sweep):
         """Test que _handle_propose() détecte un sweep request."""
-        from agents.orchestrator import Orchestrator, OrchestratorConfig
-        from agents.base_agent import AgentResult, AgentRole
-        from utils.parameters import ParameterSpec
         import pandas as pd
+
+        from agents.base_agent import AgentResult, AgentRole
+        from agents.orchestrator import Orchestrator, OrchestratorConfig
+        from utils.parameters import ParameterSpec
 
         # Setup config minimal
         config = OrchestratorConfig(
@@ -130,9 +130,10 @@ class TestOrchestratorSweepDetection:
 
     def test_handle_propose_with_normal_proposals(self):
         """Test que _handle_propose() gère normalement les proposals (non-sweep)."""
-        from agents.orchestrator import Orchestrator, OrchestratorConfig
-        from agents.base_agent import AgentResult, AgentRole
         import pandas as pd
+
+        from agents.base_agent import AgentResult, AgentRole
+        from agents.orchestrator import Orchestrator, OrchestratorConfig
 
         config = OrchestratorConfig(
             strategy_name="test_strategy",
@@ -179,9 +180,10 @@ class TestHandleSweepProposal:
     @patch('agents.integration.run_llm_sweep')
     def test_handle_sweep_proposal_executes_sweep(self, mock_run_llm_sweep):
         """Test que _handle_sweep_proposal() exécute le sweep correctement."""
+        import pandas as pd
+
         from agents.orchestrator import Orchestrator, OrchestratorConfig
         from utils.parameters import ParameterSpec
-        import pandas as pd
 
         # Mock run_llm_sweep
         mock_run_llm_sweep.return_value = {
@@ -245,9 +247,10 @@ class TestHandleSweepProposal:
     @patch('agents.integration.run_llm_sweep')
     def test_handle_sweep_proposal_handles_errors(self, mock_run_llm_sweep):
         """Test que _handle_sweep_proposal() gère les erreurs proprement."""
+        import pandas as pd
+
         from agents.orchestrator import Orchestrator, OrchestratorConfig
         from utils.parameters import ParameterSpec
-        import pandas as pd
 
         # Mock run_llm_sweep pour lever une erreur
         mock_run_llm_sweep.side_effect = ValueError("Invalid ranges")

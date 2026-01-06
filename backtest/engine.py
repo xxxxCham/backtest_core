@@ -23,23 +23,22 @@ Skip-if: Vous ne faites que des stratégies/indicateurs.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from strategies.base import StrategyBase
-
 from backtest.performance import PerformanceMetricsDict, calculate_metrics
 from metrics_types import normalize_metrics
+from strategies.base import StrategyBase
 
 # Import simulateur rapide (Numba) avec fallback
 try:
     from backtest.simulator_fast import (
-        simulate_trades_fast,
+        HAS_NUMBA,
         calculate_equity_fast,
         calculate_returns_fast,
-        HAS_NUMBA,
+        simulate_trades_fast,
     )
     USE_FAST_SIMULATOR = True
 except ImportError:
@@ -58,10 +57,10 @@ from utils.config import Config
 from utils.data import detect_gaps
 from utils.log import CountingHandler
 from utils.observability import (
-    get_obs_logger,
-    generate_run_id,
-    trace_span,
     PerfCounters,
+    generate_run_id,
+    get_obs_logger,
+    trace_span,
 )
 from utils.version import get_git_commit
 
@@ -134,7 +133,7 @@ class BacktestEngine:
         result = engine.run(
             df=ohlcv_data,
             strategy=BollingerATRStrategy(),
-            params={"entry_z": 2.0, "k_sl": 1.5, "leverage": 3}
+            params={"entry_z": 2.0, "k_sl": 1.5, "leverage": 1}
         )
         print(result.summary())
 
@@ -166,7 +165,8 @@ class BacktestEngine:
         self.counters: Optional[PerfCounters] = None
         self.indicator_bank: Optional[IndicatorBank] = None
 
-        self.logger.info("BacktestEngine init capital=%s", initial_capital)
+        # Ne loguer qu'une fois au premier appel, pas à chaque création d'engine
+        # self.logger.info("BacktestEngine init capital=%s", initial_capital)
 
     def run(
         self,
@@ -177,7 +177,8 @@ class BacktestEngine:
         symbol: str = "UNKNOWN",
         timeframe: str = "1m",
         seed: int = 42,
-        silent_mode: bool = False
+        silent_mode: bool = False,
+        fast_metrics: bool = False
     ) -> RunResult:
         """
         Exécute un backtest complet.
@@ -191,6 +192,8 @@ class BacktestEngine:
             seed: Seed pour reproductibilité
             silent_mode: Si True, désactive les logs structurés (RUN_START, DATA_LOADED, etc.)
                         pour améliorer les performances en grid search
+            fast_metrics: Si True, utilise le mode NumPy pur pour Sharpe/Sortino (10x plus rapide)
+                         Recommandé pour optimisation Optuna/sweep.
 
         Returns:
             RunResult avec equity, returns, trades, metrics et meta
@@ -316,13 +319,16 @@ class BacktestEngine:
             # 8. Calculer les métriques
             self.counters.start("metrics")
             periods_per_year = self._get_periods_per_year(timeframe)
+            # Mode "fast" pour optimisation (10x plus rapide)
+            sharpe_method = "fast" if fast_metrics else "daily_resample"
             metrics: PerformanceMetricsDict = calculate_metrics(
                 equity=equity,
                 returns=returns,
                 trades_df=trades_df,
                 initial_capital=self.initial_capital,
                 periods_per_year=periods_per_year,
-                run_id=self.run_id  # Propager run_id pour logs structurés
+                sharpe_method=sharpe_method,
+                run_id=self.run_id if not silent_mode else None  # Pas de run_id en mode silencieux
             )
             metrics = normalize_metrics(metrics, "pct")
             self.counters.stop("metrics")

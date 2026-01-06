@@ -23,24 +23,14 @@ Skip-if: Vous ne modifiez qu’un agent isolé ou le moteur de backtest pur.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import logging
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional
 
-from .analyst import AnalystAgent
-from .base_agent import AgentContext, BaseAgent, MetricsSnapshot, ParameterConfig
-from .critic import CriticAgent
-from .integration import run_walk_forward_for_agent
-from .llm_client import LLMConfig, create_llm_client
-from .model_config import RoleModelConfig
-from .state_machine import AgentState, StateMachine, ValidationResult
-from .strategist import StrategistAgent
-from .validator import ValidationDecision, ValidatorAgent
 from utils.llm_memory import (
     MAX_INSIGHTS,
     append_history_entry,
@@ -53,6 +43,16 @@ from utils.llm_memory import (
     start_session,
 )
 from utils.session_param_tracker import SessionParameterTracker
+
+from .analyst import AnalystAgent
+from .base_agent import AgentContext, AgentResult, BaseAgent, MetricsSnapshot, ParameterConfig
+from .critic import CriticAgent
+from .integration import run_walk_forward_for_agent
+from .llm_client import LLMConfig, create_llm_client
+from .model_config import RoleModelConfig
+from .state_machine import AgentState, StateMachine, ValidationResult
+from .strategist import StrategistAgent
+from .validator import ValidationDecision, ValidatorAgent
 
 # Import optionnel de tqdm pour barres de progression
 try:
@@ -67,6 +67,7 @@ except ImportError:
 
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
+
     from agents.integration import AgentBacktestMetrics
 
 
@@ -111,6 +112,7 @@ class OrchestratorConfig:
     # LLM
     llm_config: Optional[LLMConfig] = None
     role_model_config: Optional[RoleModelConfig] = None
+    max_consecutive_llm_failures: int = 3
 
     # Walk-forward
     use_walk_forward: bool = True
@@ -221,6 +223,7 @@ class Orchestrator:
         self._errors: List[str] = []
         self._warnings: List[str] = []
         self._indicator_context_cached = False
+        self._consecutive_llm_failures = 0
 
         # Tracker de ranges pour éviter boucles infinies
         from utils.session_ranges_tracker import SessionRangesTracker
@@ -302,6 +305,45 @@ class Orchestrator:
         except Exception as e:
             # Ne jamais bloquer le flux pour la traçabilité
             logger.debug("Orchestration log failed: %s", e)
+
+    def _handle_llm_failure(self, result: AgentResult, role: str) -> bool:
+        if result.success:
+            self._consecutive_llm_failures = 0
+            return False
+
+        raw = result.raw_llm_response
+        llm_error = False
+        parse_error = ""
+
+        if raw and not raw.content and raw.parse_error:
+            llm_error = True
+            parse_error = raw.parse_error
+
+        if any("LLM n'a pas retourné de réponse" in err for err in result.errors):
+            llm_error = True
+
+        if not llm_error:
+            return False
+
+        self._consecutive_llm_failures += 1
+        self._log_event(
+            "llm_failure",
+            role=role,
+            count=self._consecutive_llm_failures,
+            message=parse_error or "; ".join(result.errors),
+        )
+
+        if self._consecutive_llm_failures >= self.config.max_consecutive_llm_failures:
+            reason = (
+                "LLM indisponible ou en erreur répétée "
+                f"({self._consecutive_llm_failures} échecs)"
+            )
+            self._errors.append(reason)
+            self._log_event("llm_abort", role=role, reason=reason)
+            self.state_machine.fail(reason)
+            return True
+
+        return False
 
     def _apply_role_model(self, role: str) -> Optional[str]:
         """Select and apply a model for the given role if configured."""
@@ -706,6 +748,9 @@ class Orchestrator:
         dt = int((time.time() - t0) * 1000)
         self._log_event("agent_execute_end", role="analyst", success=result.success, latency_ms=dt)
 
+        if self._handle_llm_failure(result, "analyst"):
+            return
+
         if not result.success:
             logger.error(f"Analyst échoué: {result.errors}")
             self._log_event("error", scope="analyst", message=str(result.errors))
@@ -753,6 +798,9 @@ class Orchestrator:
         result = self.strategist.execute(self.context)
         dt = int((time.time() - t0) * 1000)
         self._log_event("agent_execute_end", role="strategist", success=result.success, latency_ms=dt)
+
+        if self._handle_llm_failure(result, "strategist"):
+            return
 
         if not result.success:
             logger.error(f"Strategist échoué: {result.errors}")
@@ -855,8 +903,9 @@ class Orchestrator:
 
         try:
             # Importer run_llm_sweep
-            from .integration import run_llm_sweep
             from utils.parameters import RangeProposal
+
+            from .integration import run_llm_sweep
 
             # Créer RangeProposal depuis sweep_request
             range_proposal = RangeProposal(
@@ -984,6 +1033,9 @@ class Orchestrator:
         dt = int((time.time() - t0) * 1000)
         self._log_event("agent_execute_end", role="critic", success=result.success, latency_ms=dt)
 
+        if self._handle_llm_failure(result, "critic"):
+            return
+
         if not result.success:
             logger.error(f"Critic échoué: {result.errors}")
             self._log_event("error", scope="critic", message=str(result.errors))
@@ -1026,6 +1078,9 @@ class Orchestrator:
         result = self.validator.execute(self.context)
         dt = int((time.time() - t0) * 1000)
         self._log_event("agent_execute_end", role="validator", success=result.success, latency_ms=dt)
+
+        if self._handle_llm_failure(result, "validator"):
+            return
 
         if not result.success:
             logger.error(f"Validator échoué: {result.errors}")
@@ -1626,7 +1681,7 @@ class Orchestrator:
                     "🏅 Meilleur Sharpe Ratio testé:",
                     f"    Valeur: {best_sharpe.sharpe_ratio:.3f}",
                     f"    Return: {best_sharpe.total_return:.2%}" if hasattr(best_sharpe, 'total_return') and best_sharpe.total_return else "",
-                    f"    Paramètres:",
+                    "    Paramètres:",
                 ])
                 for k, v in best_sharpe.params.items():
                     if isinstance(v, float):

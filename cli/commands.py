@@ -21,12 +21,12 @@ Skip-if: Vous appelez cmd_backtest(args) depuis main.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import List
 
 import numpy as np
 import pandas as pd
-
 
 # =============================================================================
 # UTILITAIRES
@@ -177,7 +177,7 @@ def cmd_indicators(args) -> int:
 
 def _list_strategies(args) -> int:
     """Liste les stratégies."""
-    from strategies import list_strategies, get_strategy
+    from strategies import get_strategy, list_strategies
 
     strategies = list_strategies()
 
@@ -214,7 +214,7 @@ def _list_strategies(args) -> int:
 
 def _list_indicators(args) -> int:
     """Liste les indicateurs."""
-    from indicators.registry import list_indicators, get_indicator
+    from indicators.registry import get_indicator, list_indicators
 
     indicators = list_indicators()
 
@@ -248,6 +248,7 @@ def _list_indicators(args) -> int:
 def _list_data(args) -> int:
     """Liste les fichiers de données."""
     import os
+
     from data.loader import discover_available_data
 
     # Récupérer tokens et timeframes
@@ -309,7 +310,7 @@ def _list_data(args) -> int:
 
 def _list_presets(args) -> int:
     """Liste les presets."""
-    from utils.parameters import SAFE_RANGES_PRESET, MINIMAL_PRESET, EMA_CROSS_PRESET
+    from utils.parameters import EMA_CROSS_PRESET, MINIMAL_PRESET, SAFE_RANGES_PRESET
 
     presets = [SAFE_RANGES_PRESET, MINIMAL_PRESET, EMA_CROSS_PRESET]
 
@@ -360,6 +361,24 @@ def _info_strategy(args) -> int:
         return 1
 
     strat = strat_class()
+
+    if getattr(args, "include_optional_params", False):
+        strat._include_optional_params = True
+
+    optional_skipped: List[str] = []
+    if hasattr(strat, "parameter_specs") and strat.parameter_specs:
+        optional_skipped = [
+            name
+            for name, spec in strat.parameter_specs.items()
+            if not getattr(spec, "optimize", True)
+        ]
+
+    if optional_skipped and not getattr(strat, "_include_optional_params", False):
+        if not args.quiet:
+            skipped = ", ".join(optional_skipped)
+            print_info(
+                f"Paramètres optionnels ignorés: {skipped} (ajoutez --include-optional-params ou BACKTEST_INCLUDE_OPTIONAL_PARAMS=1)"
+            )
 
     if args.json:
         data = {
@@ -434,8 +453,8 @@ def cmd_backtest(args) -> int:
     if args.no_color:
         Colors.disable()
 
-    import os
     import json as json_module
+    import os
     from pathlib import Path
 
     from backtest.engine import BacktestEngine
@@ -487,7 +506,7 @@ def cmd_backtest(args) -> int:
         print_info("Chargement des données...")
 
     # Utiliser les fonctions internes pour charger directement depuis le fichier
-    from data.loader import _read_file, _normalize_ohlcv
+    from data.loader import _normalize_ohlcv, _read_file
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
     try:
@@ -617,13 +636,12 @@ def cmd_sweep(args) -> int:
     if args.no_color:
         Colors.disable()
 
-    import os
-    from pathlib import Path
     import json as json_module
+    from pathlib import Path
 
     from backtest.engine import BacktestEngine
     from strategies import get_strategy
-    from utils.parameters import generate_param_grid, ParameterSpec, compute_search_space_stats
+    from utils.parameters import ParameterSpec, compute_search_space_stats, generate_param_grid
 
     # Validation stratégie
     strategy_name = args.strategy.lower()
@@ -691,7 +709,7 @@ def cmd_sweep(args) -> int:
             print(f"    {pname}: {pcount} valeurs")
 
     # Charger données avec les fonctions internes
-    from data.loader import _read_file, _normalize_ohlcv
+    from data.loader import _normalize_ohlcv, _read_file
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
     try:
@@ -815,7 +833,7 @@ def cmd_validate(args) -> int:
 
     # Valider stratégies
     if args.all or args.strategy:
-        from strategies import list_strategies, get_strategy
+        from strategies import get_strategy, list_strategies
 
         strategies = [args.strategy] if args.strategy else list_strategies()
 
@@ -839,7 +857,7 @@ def cmd_validate(args) -> int:
 
     # Valider indicateurs
     if args.all:
-        from indicators.registry import list_indicators, get_indicator
+        from indicators.registry import get_indicator, list_indicators
 
         print(f"\n{Colors.BOLD}Indicateurs:{Colors.RESET}")
         for name in list_indicators():
@@ -852,8 +870,9 @@ def cmd_validate(args) -> int:
 
     # Valider données
     if args.all or args.data:
-        from data.loader import _read_file, _normalize_ohlcv
         from pathlib import Path
+
+        from data.loader import _normalize_ohlcv, _read_file
 
         print(f"\n{Colors.BOLD}Données:{Colors.RESET}")
 
@@ -1033,16 +1052,15 @@ def cmd_optuna(args) -> int:
     if args.no_color:
         Colors.disable()
 
-    import os
-    from pathlib import Path
     import json as json_module
+    from pathlib import Path
 
     # Vérifier que Optuna est disponible
     try:
         from backtest.optuna_optimizer import (
+            OPTUNA_AVAILABLE,
             OptunaOptimizer,
             suggest_param_space,
-            OPTUNA_AVAILABLE,
         )
     except ImportError:
         print_error("Module optuna_optimizer non trouvé")
@@ -1090,7 +1108,7 @@ def cmd_optuna(args) -> int:
         print()
 
     # Charger données
-    from data.loader import _read_file, _normalize_ohlcv
+    from data.loader import _normalize_ohlcv, _read_file
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
     try:
@@ -1301,8 +1319,8 @@ def cmd_visualize(args) -> int:
 
     try:
         from utils.visualization import (
-            visualize_backtest,
             PLOTLY_AVAILABLE,
+            visualize_backtest,
         )
     except ImportError as e:
         print_error(f"Module visualization non disponible: {e}")
@@ -1399,7 +1417,7 @@ def cmd_visualize(args) -> int:
                         print_info("Exécution du backtest avec les meilleurs paramètres...")
 
                     from backtest import BacktestEngine
-                    from data.loader import _read_file, _normalize_ohlcv
+                    from data.loader import _normalize_ohlcv, _read_file
                     from utils.config import Config
 
                     df = _read_file(data_path)
@@ -1740,7 +1758,6 @@ def cmd_llm_optimize(args) -> int:
     if args.no_color:
         Colors.disable()
 
-    import os
     from pathlib import Path
 
     from agents.integration import create_orchestrator_with_backtest
@@ -1909,10 +1926,9 @@ def cmd_grid_backtest(args) -> int:
     if args.no_color:
         Colors.disable()
 
-    import os
-    from pathlib import Path
-    from itertools import product
     import json as json_module
+    from itertools import product
+    from pathlib import Path
 
     from backtest.engine import BacktestEngine
     from data.loader import load_ohlcv
@@ -1963,6 +1979,24 @@ def cmd_grid_backtest(args) -> int:
             return 1
 
         strategy_instance = strategy_class()
+
+        if getattr(args, "include_optional_params", False):
+            strategy_instance._include_optional_params = True
+
+        optional_skipped: List[str] = []
+        if hasattr(strategy_instance, "parameter_specs") and strategy_instance.parameter_specs:
+            optional_skipped = [
+                name
+                for name, spec in strategy_instance.parameter_specs.items()
+                if not getattr(spec, "optimize", True)
+            ]
+
+        if optional_skipped and not getattr(strategy_instance, "_include_optional_params", False):
+            if not args.quiet:
+                skipped = ", ".join(optional_skipped)
+                print_info(
+                    f"Paramètres optionnels ignorés: {skipped} (ajoutez --include-optional-params ou BACKTEST_INCLUDE_OPTIONAL_PARAMS=1)"
+                )
         param_grid = {}
 
         # Générer une grille simple depuis param_ranges

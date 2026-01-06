@@ -20,8 +20,10 @@ Read-if: Mesurer baseline perf engine ou impact modifications.
 Skip-if: Perf déjà mesurée.
 """
 import time
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
 from backtest.engine import BacktestEngine
 from backtest.indicators import compute_indicators
 from backtest.signal_generator import generate_signals

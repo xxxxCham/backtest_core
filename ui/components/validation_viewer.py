@@ -24,12 +24,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 try:
-    import streamlit as st
     import plotly.graph_objects as go
+    import streamlit as st
     from plotly.subplots import make_subplots
     STREAMLIT_AVAILABLE = True
 except ImportError:
@@ -606,8 +606,8 @@ def render_validation_summary_card(
 
 def create_sample_report() -> ValidationReport:
     """Crée un rapport exemple pour les tests."""
-    from datetime import timedelta
     import random
+    from datetime import timedelta
 
     windows = []
     base_date = datetime(2024, 1, 1)

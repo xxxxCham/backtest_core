@@ -140,8 +140,9 @@ class EmergencyStopHandler:
     def _cleanup_llm_models(self, stats: Dict[str, Any]) -> None:
         """Décharge tous les modèles LLM de la VRAM avec vérification complète."""
         try:
-            from agents.ollama_manager import unload_model
             import httpx
+
+            from agents.ollama_manager import unload_model
 
             # Récupérer la liste de TOUS les modèles chargés
             try:

@@ -20,53 +20,49 @@ Read-if: Modification exports ou module structure.
 Skip-if: Vous importez directement depuis performance.profiler.
 """
 
-from performance.parallel import (
-    ParallelRunner,
-    ParallelConfig,
-    SweepResult,
-    parallel_sweep,
-    generate_param_grid,
-    benchmark_parallel_configs,
+from performance.gpu import (
+    GPUIndicatorCalculator,
+    benchmark_gpu_cpu,
+    get_gpu_info,
+    gpu_available,
+    to_cpu,
+    to_gpu,
 )
-
+from performance.memory import (
+    ChunkedProcessor,
+    DataFrameCache,
+    MemoryManager,
+    MemoryStats,
+    estimate_memory_needed,
+    get_available_ram_gb,
+    get_memory_info,
+    memory_efficient_mode,
+    optimize_dataframe,
+)
 from performance.monitor import (
     PerformanceMonitor,
-    ResourceTracker,
-    ResourceStats,
     ProgressBar,
-    print_system_info,
+    ResourceStats,
+    ResourceTracker,
     get_system_resources,
+    print_system_info,
 )
-
+from performance.parallel import (
+    ParallelConfig,
+    ParallelRunner,
+    SweepResult,
+    benchmark_parallel_configs,
+    generate_param_grid,
+    parallel_sweep,
+)
 from performance.profiler import (
     Profiler,
     ProfileResult,
+    TimingContext,
+    benchmark_function,
     profile_function,
     profile_memory,
-    TimingContext,
     run_with_profiling,
-    benchmark_function,
-)
-
-from performance.memory import (
-    ChunkedProcessor,
-    MemoryManager,
-    DataFrameCache,
-    MemoryStats,
-    get_memory_info,
-    get_available_ram_gb,
-    optimize_dataframe,
-    estimate_memory_needed,
-    memory_efficient_mode,
-)
-
-from performance.gpu import (
-    GPUIndicatorCalculator,
-    gpu_available,
-    get_gpu_info,
-    to_gpu,
-    to_cpu,
-    benchmark_gpu_cpu,
 )
 
 __all__ = [

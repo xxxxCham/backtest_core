@@ -31,7 +31,7 @@ print("=" * 80)
 
 # Test 1 : Imports
 try:
-    from backtest.performance import sharpe_ratio, calculate_metrics
+    from backtest.performance import calculate_metrics, sharpe_ratio
     from backtest.simulator import calculate_equity_curve
     from utils.observability import generate_run_id
     print("✅ Imports réussis")

@@ -20,9 +20,11 @@ Read-if: Identifier bottlenecks via compteurs natifs engine.
 Skip-if: Profiling pas besoin (ou utilisez profiler_detailed).
 """
 import time
-import pandas as pd
-import numpy as np
 from collections import defaultdict
+
+import numpy as np
+import pandas as pd
+
 from backtest.engine import BacktestEngine
 from utils.config import Config
 

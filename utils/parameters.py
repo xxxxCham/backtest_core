@@ -129,8 +129,8 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime
 from dataclasses import dataclass, field
+from datetime import datetime
 from itertools import product
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -390,6 +390,7 @@ class ParameterSpec:
         step: Pas d'incrémentation (optionnel)
         param_type: Type ('int', 'float', 'bool')
         description: Description pour l'UI
+        optimize: Inclus par défaut dans l'exploration des grilles
     """
     name: str
     min_val: float
@@ -398,6 +399,7 @@ class ParameterSpec:
     step: Optional[float] = None
     param_type: str = "float"
     description: str = ""
+    optimize: bool = True
 
     def __post_init__(self):
         if self.step is None:
@@ -416,7 +418,8 @@ class ParameterSpec:
             "default": self.default,
             "step": self.step,
             "type": self.param_type,
-            "description": self.description
+            "description": self.description,
+            "optimize": self.optimize,
         }
 
 
@@ -500,7 +503,8 @@ class Preset:
                 default=spec["default"],
                 step=spec.get("step"),
                 param_type=spec.get("type", "float"),
-                description=spec.get("description", "")
+                description=spec.get("description", ""),
+                optimize=spec.get("optimize", True)
             )
 
         return cls(
@@ -1362,14 +1366,15 @@ SAFE_RANGES_PRESET = Preset(
             param_type="float",
             description="Multiplicateur ATR pour stop-loss"
         ),
-        # Leverage
+        # Leverage (non optimisé, fixé à 1)
         "leverage": ParameterSpec(
             name="leverage",
             min_val=1,
-            max_val=5,
-            default=3,
+            max_val=1,
+            default=1,
             param_type="int",
-            description="Levier de trading"
+            description="Levier de trading (fixé à 1)",
+            optimize=False,
         ),
     },
     indicators=["bollinger", "atr"],
@@ -1388,7 +1393,7 @@ MINIMAL_PRESET = Preset(
             "atr_period", 14, 14, 14, param_type="int"
         ),
         "k_sl": ParameterSpec("k_sl", 1.5, 1.5, 1.5),
-        "leverage": ParameterSpec("leverage", 3, 3, 3, param_type="int"),
+        "leverage": ParameterSpec("leverage", 1, 1, 1, param_type="int", optimize=False),
     },
     indicators=["bollinger", "atr"],
     default_granularity=1.0
@@ -1426,10 +1431,11 @@ EMA_CROSS_PRESET = Preset(
         "leverage": ParameterSpec(
             name="leverage",
             min_val=1,
-            max_val=5,
-            default=2,
+            max_val=1,
+            default=1,
             param_type="int",
-            description="Levier de trading"
+            description="Levier de trading (fixé à 1)",
+            optimize=False,
         ),
     },
     indicators=[],  # EMA calculée internement par la stratégie
@@ -1469,10 +1475,11 @@ MACD_CROSS_PRESET = Preset(
         "leverage": ParameterSpec(
             name="leverage",
             min_val=1,
-            max_val=5,
+            max_val=1,
             default=1,
             param_type="int",
-            description="Levier de trading"
+            description="Levier de trading (fixé à 1)",
+            optimize=False,
         ),
     },
     indicators=["macd"],
@@ -1512,10 +1519,11 @@ RSI_REVERSAL_PRESET = Preset(
         "leverage": ParameterSpec(
             name="leverage",
             min_val=1,
-            max_val=5,
+            max_val=1,
             default=1,
             param_type="int",
-            description="Levier de trading"
+            description="Levier de trading (fixé à 1)",
+            optimize=False,
         ),
     },
     indicators=["rsi"],
@@ -1547,10 +1555,11 @@ ATR_CHANNEL_PRESET = Preset(
         "leverage": ParameterSpec(
             name="leverage",
             min_val=1,
-            max_val=5,
+            max_val=1,
             default=1,
             param_type="int",
-            description="Levier de trading"
+            description="Levier de trading (fixé à 1)",
+            optimize=False,
         ),
     },
     indicators=["atr", "ema"],
@@ -1613,10 +1622,11 @@ BOLLINGER_ATR_PRESET = Preset(
         "leverage": ParameterSpec(
             name="leverage",
             min_val=1,
-            max_val=5,
-            default=2,
+            max_val=1,
+            default=1,
             param_type="int",
-            description="Levier de trading",
+            description="Levier de trading (fixé à 1)",
+            optimize=False,
         ),
     },
     indicators=["bollinger", "atr"],

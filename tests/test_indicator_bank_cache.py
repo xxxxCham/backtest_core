@@ -20,9 +20,9 @@ Read-if: Modification cache key generation ou backend distinction.
 Skip-if: Tests cache non critiques.
 """
 
-import pandas as pd
 import numpy as np
-import pytest
+import pandas as pd
+
 from data.indicator_bank import IndicatorBank
 
 

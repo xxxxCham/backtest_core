@@ -34,13 +34,13 @@ if TYPE_CHECKING:
 
 from backtest.engine import BacktestEngine
 from metrics_types import PerformanceMetricsPct, normalize_metrics
-from performance.parallel import (
-    ParallelRunner,
-    generate_param_grid,
-)
 from performance.monitor import (
     ProgressBar,
     ResourceTracker,
+)
+from performance.parallel import (
+    ParallelRunner,
+    generate_param_grid,
 )
 from performance.profiler import Profiler
 from utils.parameters import compute_search_space_stats
@@ -534,7 +534,7 @@ class SweepEngine:
 
     def _get_strategy_by_name(self, name: str) -> "StrategyBase":
         """Récupère une stratégie par son nom."""
-        from strategies import list_strategies, get_strategy
+        from strategies import get_strategy, list_strategies
 
         available = list_strategies()
         name_lower = name.lower().replace("-", "_").replace(" ", "_")

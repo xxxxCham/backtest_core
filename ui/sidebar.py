@@ -37,22 +37,23 @@ from ui.constants import (
     get_strategy_ui_indicators,
 )
 from ui.context import (
+    KNOWN_MODELS,
     LLM_AVAILABLE,
     LLM_IMPORT_ERROR,
+    RECOMMENDED_FOR_STRATEGY,
     LLMConfig,
     LLMProvider,
     ModelCategory,
-    KNOWN_MODELS,
     compute_search_space_stats,
     discover_available_data,
     ensure_ollama_running,
-    RECOMMENDED_FOR_STRATEGY,
     get_available_models_for_ui,
+    get_data_date_range,
     get_global_model_config,
     get_model_info,
+    get_storage,
     get_strategy,
     get_strategy_info,
-    get_storage,
     is_ollama_available,
     list_available_models,
     list_strategies,
@@ -128,12 +129,12 @@ def render_sidebar() -> SidebarState:
             st.session_state["symbol_select"] = pending_meta.symbol
         if pending_meta.timeframe:
             st.session_state["timeframe_select"] = pending_meta.timeframe
-        st.session_state["use_date_filter"] = True
+        # Activer le filtre de dates seulement si des dates spécifiques sont définies
         start_ts = _parse_run_timestamp(pending_meta.period_start)
         end_ts = _parse_run_timestamp(pending_meta.period_end)
-        if start_ts is not None:
+        if start_ts is not None and end_ts is not None:
+            st.session_state["use_date_filter"] = True
             st.session_state["start_date"] = start_ts.date()
-        if end_ts is not None:
             st.session_state["end_date"] = end_ts.date()
 
     btc_idx = available_tokens.index("BTCUSDC") if "BTCUSDC" in available_tokens else 0
@@ -154,24 +155,68 @@ def render_sidebar() -> SidebarState:
 
     use_date_filter = st.sidebar.checkbox(
         "Filtrer par dates",
-        value=True,
-        help="Désactivé = utilise toutes les données disponibles",
+        value=False,
+        help="Désactivé = utilise toutes les données disponibles (recommandé)",
         key="use_date_filter",
     )
     if use_date_filter:
+        # Afficher la plage de données disponible
+        date_range = get_data_date_range(symbol, timeframe)
+        if date_range:
+            data_start, data_end = date_range
+            st.sidebar.caption(
+                f"📅 Données disponibles: **{data_start.strftime('%Y-%m-%d')}** → "
+                f"**{data_end.strftime('%Y-%m-%d')}**"
+            )
+
         col1, col2 = st.sidebar.columns(2)
         with col1:
             start_date = st.date_input(
                 "Début",
-                value=pd.Timestamp("2025-01-01"),
+                value=pd.Timestamp("2023-01-01"),
                 key="start_date",
             )
         with col2:
             end_date = st.date_input(
                 "Fin",
-                value=pd.Timestamp("2025-01-31"),
+                value=pd.Timestamp.now(),
                 key="end_date",
             )
+
+        # Avertissement si dates hors plage
+        if date_range and start_date and end_date:
+            data_start, data_end = date_range
+            start_ts = pd.Timestamp(start_date, tz="UTC")
+            end_ts = pd.Timestamp(end_date, tz="UTC")
+            data_start_naive = data_start.tz_localize(None) if data_start.tzinfo else data_start
+            data_end_naive = data_end.tz_localize(None) if data_end.tzinfo else data_end
+            start_naive = start_ts.tz_localize(None)
+            end_naive = end_ts.tz_localize(None)
+
+            if end_naive < data_start_naive:
+                # Période entièrement AVANT les données
+                st.sidebar.error(
+                    f"⚠️ Période demandée ({start_date} → {end_date}) est AVANT "
+                    f"les données disponibles ({data_start.strftime('%Y-%m-%d')})"
+                )
+            elif start_naive > data_end_naive:
+                # Période entièrement APRÈS les données
+                st.sidebar.error(
+                    f"⚠️ Période demandée ({start_date} → {end_date}) est APRÈS "
+                    f"les données disponibles ({data_end.strftime('%Y-%m-%d')})"
+                )
+            elif start_naive < data_start_naive:
+                # Début demandé AVANT les données (mais fin OK)
+                st.sidebar.warning(
+                    f"⚠️ Début demandé ({start_date}) est AVANT les données. "
+                    f"Données réelles à partir de **{data_start.strftime('%Y-%m-%d')}**"
+                )
+            elif end_naive > data_end_naive:
+                # Fin demandée APRÈS les données (mais début OK)
+                st.sidebar.warning(
+                    f"⚠️ Fin demandée ({end_date}) est APRÈS les données. "
+                    f"Données réelles jusqu'à **{data_end.strftime('%Y-%m-%d')}**"
+                )
     else:
         start_date = None
         end_date = None
@@ -180,11 +225,15 @@ def render_sidebar() -> SidebarState:
     if st.session_state.get("ohlcv_cache_key") != current_data_key:
         st.session_state["ohlcv_cache_key"] = current_data_key
         st.session_state["ohlcv_df"] = None
-        st.session_state["last_run_result"] = None
-        st.session_state["last_winner_params"] = None
-        st.session_state["last_winner_metrics"] = None
-        st.session_state["last_winner_origin"] = None
-        st.session_state["last_winner_meta"] = None
+        # FIX 04/01/2026: NE PAS effacer les résultats quand les données changent
+        # Les résultats d'un backtest/grid peuvent être visualisés indépendamment
+        # des données OHLCV actuellement chargées. Effacer les résultats causait
+        # la perte de tous les résultats après un grid search lors du prochain rerun.
+        # st.session_state["last_run_result"] = None
+        # st.session_state["last_winner_params"] = None
+        # st.session_state["last_winner_metrics"] = None
+        # st.session_state["last_winner_origin"] = None
+        # st.session_state["last_winner_meta"] = None
 
     pending_run_id = st.session_state.get("pending_run_load_id")
     if pending_run_id:
@@ -262,6 +311,7 @@ def render_sidebar() -> SidebarState:
         st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
 
     st.sidebar.subheader("Indicateurs")
+    st.sidebar.caption("_Affichage graphique uniquement (le backtest utilise toujours tous les indicateurs requis)_")
     available_indicators = get_strategy_ui_indicators(strategy_key)
     active_indicators: List[str] = []
 
@@ -269,11 +319,17 @@ def render_sidebar() -> SidebarState:
         for indicator_name in available_indicators:
             checkbox_key = f"{strategy_key}_indicator_{indicator_name}"
             if st.sidebar.checkbox(
-                indicator_name,
+                f"📊 {indicator_name}",
                 value=True,
                 key=checkbox_key,
+                help=f"Afficher {indicator_name} sur le graphique",
             ):
                 active_indicators.append(indicator_name)
+
+        # Feedback visuel si des indicateurs sont masqués
+        hidden_count = len(available_indicators) - len(active_indicators)
+        if hidden_count > 0:
+            st.sidebar.info(f"ℹ️ {hidden_count} indicateur(s) masqué(s) sur le graphique")
     else:
         st.sidebar.caption("Aucun indicateur disponible.")
 
@@ -412,26 +468,96 @@ def render_sidebar() -> SidebarState:
 
     st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
 
-    max_combos = 2000000
+    max_combos = 100000000
     n_workers = 30
 
+    # Configuration Optuna (intégrée dans Grille de Paramètres)
+    use_optuna = False
+    optuna_n_trials = 100
+    optuna_sampler = "tpe"
+    optuna_pruning = True
+    optuna_metric = "sharpe_ratio"
+    optuna_early_stop = 0  # 0 = désactivé par défaut
+
     if optimization_mode == "Grille de Paramètres":
-        max_combos = st.sidebar.number_input(
-            "Max combinaisons",
-            min_value=10,
-            max_value=2000000,
-            value=2000000,
-            step=10000,
-            help="Limite pour éviter les temps d'exécution trop longs (10 - 2,000,000)",
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("⚙️ Méthode d'exploration")
+
+        use_optuna = st.sidebar.checkbox(
+            "⚡ Utiliser Optuna (Bayésien)",
+            value=False,
+            help="Optuna explore intelligemment l'espace des paramètres (10-100x plus rapide que la grille exhaustive)",
         )
 
-        n_workers = st.sidebar.slider(
-            "Workers parallèles",
-            min_value=1,
-            max_value=32,
-            value=30,
-            help="Nombre de processus parallèles pour l'optimisation (30 recommandé)",
-        )
+        if use_optuna:
+            st.sidebar.caption("🎯 **Mode Bayésien** - Exploration intelligente")
+
+            optuna_n_trials = st.sidebar.number_input(
+                "Nombre de trials",
+                min_value=10,
+                max_value=10000,
+                value=200,
+                step=10,
+                help="Nombre d'essais bayésiens (100-500 recommandé)",
+            )
+
+            optuna_sampler = st.sidebar.selectbox(
+                "Algorithme",
+                ["tpe", "cmaes", "random"],
+                index=0,
+                help="TPE: Rapide et efficace | CMA-ES: Pour espaces continus | Random: Baseline",
+            )
+
+            optuna_metric = st.sidebar.selectbox(
+                "Métrique à optimiser",
+                ["sharpe_ratio", "sortino_ratio", "total_return_pct", "profit_factor", "calmar_ratio"],
+                index=0,
+                help="Métrique principale pour l'optimisation",
+            )
+
+            optuna_pruning = st.sidebar.checkbox(
+                "Pruning (arrêt précoce)",
+                value=True,
+                help="Abandonne les trials peu prometteurs pour accélérer",
+            )
+
+            # Early stop: 0 = désactivé, sinon patience en nombre de trials
+            optuna_early_stop = st.sidebar.slider(
+                "Early stop patience (0=désactivé)",
+                min_value=0,
+                max_value=max(200, optuna_n_trials),
+                value=0,  # Désactivé par défaut pour ne pas interrompre prématurément
+                help="Arrêt après N trials sans amélioration. 0 = désactivé (recommandé pour explorer complètement)",
+            )
+
+            n_workers = st.sidebar.slider(
+                "Workers parallèles",
+                min_value=1,
+                max_value=32,
+                value=8,
+                help="Nombre de trials évalués en parallèle",
+            )
+
+            st.sidebar.caption(f"⚡ {optuna_n_trials} trials × {n_workers} workers")
+        else:
+            st.sidebar.caption("🔢 **Mode Grille** - Exploration exhaustive")
+
+            max_combos = st.sidebar.number_input(
+                "Max combinaisons",
+                min_value=10,
+                max_value=100000000,
+                value=100000000,
+                step=100000,
+                help="Limite de combinaisons (10 - 100,000,000). Attention aux temps d'exécution pour valeurs élevées.",
+            )
+
+            n_workers = st.sidebar.slider(
+                "Workers parallèles",
+                min_value=1,
+                max_value=32,
+                value=30,
+                help="Nombre de processus parallèles pour l'optimisation (30 recommandé)",
+            )
 
     llm_config = None
     llm_max_iterations = 10
@@ -463,10 +589,10 @@ def render_sidebar() -> SidebarState:
         max_combos = st.sidebar.number_input(
             "Max combinaisons",
             min_value=10,
-            max_value=2000000,
-            value=2000000,
-            step=10000,
-            help="Nombre maximum de backtests que le LLM peut lancer (10 - 2,000,000)",
+            max_value=100000000,
+            value=100000000,
+            step=100000,
+            help="Nombre maximum de backtests que le LLM peut lancer (10 - 100,000,000)",
             key="llm_max_combos",
         )
 
@@ -605,12 +731,12 @@ def render_sidebar() -> SidebarState:
 
                     # ===== GESTION DES PRESETS =====
                     from ui.model_presets import (
+                        apply_preset_to_config,
+                        delete_model_preset,
+                        get_current_config_as_dict,
                         list_model_presets,
                         load_model_preset,
                         save_model_preset,
-                        delete_model_preset,
-                        get_current_config_as_dict,
-                        apply_preset_to_config,
                     )
 
                     # Lister tous les presets
@@ -1244,7 +1370,7 @@ def render_sidebar() -> SidebarState:
             validation_errors = []
 
             for param_name, spec in param_specs.items():
-                if param_name == "leverage":
+                if not getattr(spec, "optimize", True):
                     continue
 
                 if param_mode == "single":
@@ -1267,10 +1393,16 @@ def render_sidebar() -> SidebarState:
                             params[param_name] = spec.default
                         else:
                             params[param_name] = PARAM_CONSTRAINTS[param_name]["default"]
+                        # DEBUG: Afficher les ranges générés
+                        print(f"[DEBUG] param_ranges[{param_name}] = {range_data}")
 
             if validation_errors:
                 for err in validation_errors:
                     st.sidebar.error(err)
+
+            # DEBUG: Afficher le résumé des param_ranges
+            print(f"[DEBUG] param_ranges final = {list(param_ranges.keys())}")
+            print(f"[DEBUG] Total paramètres optimisables: {sum(1 for s in param_specs.values() if getattr(s, 'optimize', True))}")
 
             if param_mode == "range" and param_ranges:
                 st.sidebar.markdown("---")
@@ -1301,8 +1433,21 @@ def render_sidebar() -> SidebarState:
 
     st.sidebar.subheader("💰 Trading")
 
-    leverage = create_param_range_selector("leverage", "trading", mode="single")
-    params["leverage"] = leverage
+    # Checkbox pour activer/désactiver le leverage
+    leverage_enabled = st.sidebar.checkbox(
+        "🔓 Activer le leverage",
+        value=False,  # Désactivé par défaut = leverage forcé à 1
+        key="leverage_enabled",
+        help="Si décoché, leverage=1 (sans effet de levier). Recommandé pour tests sûrs.",
+    )
+
+    if leverage_enabled:
+        leverage = create_param_range_selector("leverage", "trading", mode="single")
+        params["leverage"] = leverage
+    else:
+        leverage = 1.0
+        params["leverage"] = 1.0
+        st.sidebar.caption("_Leverage désactivé → forcé à 1×_")
 
     initial_capital = st.sidebar.number_input(
         "Capital Initial ($)",
@@ -1312,6 +1457,17 @@ def render_sidebar() -> SidebarState:
         step=1000,
         help="Capital de départ (1,000 - 1,000,000)",
     )
+
+    # Liste des paramètres désactivés (pour transmission au backtest)
+    disabled_params: List[str] = []
+    if not leverage_enabled:
+        disabled_params.append("leverage")
+
+    # Ajouter les indicateurs non cochés à disabled_params (info seulement)
+    if available_indicators:
+        unchecked_indicators = [ind for ind in available_indicators if ind not in active_indicators]
+        if unchecked_indicators:
+            st.sidebar.caption(f"_Indicateurs masqués: {', '.join(unchecked_indicators)}_")
 
     render_saved_runs_panel(
         st.session_state.get("last_run_result"),
@@ -1340,6 +1496,12 @@ def render_sidebar() -> SidebarState:
         optimization_mode=optimization_mode,
         max_combos=max_combos,
         n_workers=n_workers,
+        use_optuna=use_optuna,
+        optuna_n_trials=optuna_n_trials,
+        optuna_sampler=optuna_sampler,
+        optuna_pruning=optuna_pruning,
+        optuna_metric=optuna_metric,
+        optuna_early_stop=optuna_early_stop,
         llm_config=llm_config,
         llm_model=llm_model,
         llm_use_multi_agent=llm_use_multi_agent,
@@ -1359,4 +1521,6 @@ def render_sidebar() -> SidebarState:
         llm_compare_generate_report=llm_compare_generate_report,
         initial_capital=initial_capital,
         leverage=leverage,
+        leverage_enabled=leverage_enabled,
+        disabled_params=disabled_params,
     )

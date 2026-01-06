@@ -21,33 +21,33 @@ Skip-if: Vous travaillez sur une seule strat/indicateur.
 """
 
 from .engine import BacktestEngine, RunResult
-from .performance import PerformanceCalculator, calculate_metrics
-from .simulator import Trade, simulate_trades
 from .errors import (
-    BacktestError,
-    UserInputError,
-    DataError,
     BackendInternalError,
+    BacktestError,
+    DataError,
     LLMUnavailableError,
-    StrategyNotFoundError,
     ParameterValidationError,
+    StrategyNotFoundError,
+    UserInputError,
 )
 from .facade import (
     BackendFacade,
-    BacktestRequest,
-    GridOptimizationRequest,
-    LLMOptimizationRequest,
     BackendResponse,
+    BacktestRequest,
+    ErrorCode,
+    ErrorInfo,
+    GridOptimizationRequest,
     GridOptimizationResponse,
+    LLMOptimizationRequest,
     LLMOptimizationResponse,
     ResponseStatus,
-    ErrorCode,
     UIMetrics,
     UIPayload,
-    ErrorInfo,
     get_facade,
     to_ui_payload,
 )
+from .performance import PerformanceCalculator, calculate_metrics
+from .simulator import Trade, simulate_trades
 from .storage import (
     ResultStorage,
     StoredResultMetadata,
@@ -57,13 +57,13 @@ from .storage import (
 # Import conditionnel Optuna (peut ne pas être installé)
 try:
     from .optuna_optimizer import (
+        OPTUNA_AVAILABLE,
+        MultiObjectiveResult,
+        OptimizationResult,
         OptunaOptimizer,
         ParamSpec,
-        OptimizationResult,
-        MultiObjectiveResult,
         quick_optimize,
         suggest_param_space,
-        OPTUNA_AVAILABLE,
     )
 except ImportError:
     OPTUNA_AVAILABLE = False

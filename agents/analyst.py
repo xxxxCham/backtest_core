@@ -23,7 +23,6 @@ Skip-if: Vous ne changez que propose/critique/validate.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import json
 import logging
 import time

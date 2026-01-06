@@ -16,11 +16,13 @@ Dependencies: pandas, numpy, utils.parameters, strategies.base
 Conventions: Signaux bases sur consensus patterns; stop-loss dynamiques; scoring multi-indicateurs.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
+
 import numpy as np
 import pandas as pd
 
-from utils.parameters import ParameterSpec, Preset
+from utils.parameters import ParameterSpec
+
 from .base import StrategyBase, register_strategy
 
 
@@ -72,7 +74,7 @@ class FVGStrategy(StrategyBase):
             "stop_atr_mult": 1.5,    # Multiplicateur ATR pour stop-loss
             "tp_atr_mult": 3.0,      # Multiplicateur ATR pour take-profit
             # Trading
-            "leverage": 3,
+            "leverage": 1,  # Fixé à 1 - ne pas optimiser
             "risk_pct": 0.02,        # 2% du capital par trade
             # Frais
             "fees_bps": 10,
@@ -109,9 +111,10 @@ class FVGStrategy(StrategyBase):
             ),
             "leverage": ParameterSpec(
                 name="leverage",
-                min_val=1, max_val=10, default=3,
+                min_val=1, max_val=10, default=1,
                 param_type="int",
-                description="Levier de trading"
+                description="Levier de trading (non optimisé)",
+                optimize=False,
             ),
         }
 

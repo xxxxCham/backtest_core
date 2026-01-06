@@ -97,7 +97,8 @@ class RSIReversalStrategy(StrategyBase):
                 max_val=10,
                 default=1,
                 param_type="int",
-                description="Levier de trading"
+                description="Levier de trading",
+                optimize=False,
             ),
         }
 
@@ -145,7 +146,8 @@ class RSIReversalStrategy(StrategyBase):
 
         # Signaux
         # LONG quand RSI passe sous le niveau de survente
-        rsi_prev = rsi_values.shift(1)
+        # Utiliser fill_value=50 (neutre) pour éviter les NaN au début
+        rsi_prev = rsi_values.shift(1, fill_value=50.0)
         long_signal = (rsi_values < oversold) & (rsi_prev >= oversold)
 
         # SHORT quand RSI passe au-dessus du niveau de surachat

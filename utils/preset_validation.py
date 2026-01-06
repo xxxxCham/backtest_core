@@ -20,8 +20,8 @@ Read-if: Modification validation ou preset auto-fill.
 Skip-if: Vous appelez juste validate_preset(preset_name).
 """
 
-from typing import TYPE_CHECKING, Dict, List, Optional
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from utils.log import get_logger
 

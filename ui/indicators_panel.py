@@ -21,8 +21,10 @@ Skip-if: Interface indicateurs déjà définie.
 """
 
 from typing import Dict, List
+
 import streamlit as st
-from indicators.registry import list_indicators, get_indicator
+
+from indicators.registry import get_indicator, list_indicators
 
 
 def group_indicators_by_category() -> Dict[str, List[str]]:

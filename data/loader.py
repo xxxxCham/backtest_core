@@ -318,4 +318,32 @@ def get_available_timeframes(symbol: str) -> List[str]:
     return sorted(timeframes)
 
 
-__all__ = ["load_ohlcv", "discover_available_data", "get_available_timeframes"]
+def get_data_date_range(
+    symbol: str,
+    timeframe: str
+) -> Optional[Tuple[pd.Timestamp, pd.Timestamp]]:
+    """
+    Retourne la plage de dates disponible pour un symbole/timeframe.
+
+    Args:
+        symbol: Symbole de l'actif (ex: "BTCUSDC")
+        timeframe: Intervalle de temps (ex: "1h")
+
+    Returns:
+        Tuple (date_debut, date_fin) ou None si fichier non trouvé
+    """
+    file_path = _find_data_file(symbol, timeframe)
+    if file_path is None:
+        return None
+
+    try:
+        df = _read_file(file_path)
+        df = _normalize_ohlcv(df)
+        if df.empty:
+            return None
+        return (df.index[0], df.index[-1])
+    except Exception:
+        return None
+
+
+__all__ = ["load_ohlcv", "discover_available_data", "get_available_timeframes", "get_data_date_range"]

@@ -2,50 +2,31 @@
 REM ============================================================
 REM Backtest Core - Script d'Installation Automatique (Windows)
 REM ============================================================
+REM NOTE: Utilise le script PowerShell fix_venv_windows.ps1 pour une installation robuste
 
 echo.
 echo ========================================
 echo  Backtest Core - Installation
 echo ========================================
 echo.
-
-REM Vérifier Python
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERREUR] Python n'est pas installe ou pas dans le PATH
-    echo Telechargez Python depuis: https://www.python.org/downloads/
-    pause
-    exit /b 1
-)
-
-echo [OK] Python detecte:
-python --version
-
-REM Créer l'environnement virtuel
+echo Lancement du script PowerShell automatise...
 echo.
-echo [ETAPE 1/3] Creation de l'environnement virtuel...
-if exist .venv (
-    echo [INFO] Environnement virtuel deja existant, suppression...
-    rmdir /s /q .venv
-)
-python -m venv .venv
-if %errorlevel% neq 0 (
-    echo [ERREUR] Impossible de creer l'environnement virtuel
-    pause
-    exit /b 1
-)
-echo [OK] Environnement virtuel cree
 
-REM Activer l'environnement virtuel
-echo.
-echo [ETAPE 2/3] Activation de l'environnement virtuel...
-call .venv\Scripts\activate.bat
+REM Lancer le script PowerShell de réparation
+powershell -ExecutionPolicy Bypass -File "%~dp0fix_venv_windows.ps1"
+
 if %errorlevel% neq 0 (
-    echo [ERREUR] Impossible d'activer l'environnement virtuel
+    echo.
+    echo [ERREUR] L'installation a echoue
+    echo Consultez les messages ci-dessus pour plus de details
     pause
     exit /b 1
 )
-echo [OK] Environnement virtuel active
+
+echo.
+echo ========================================
+echo  Installation terminee avec succes !
+echo ========================================
 
 REM Installer les dépendances
 echo.

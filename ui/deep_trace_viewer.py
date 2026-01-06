@@ -30,15 +30,15 @@ import streamlit as st
 
 from agents.orchestration_logger import (
     OrchestrationActionType,
-    OrchestrationLogger,
     OrchestrationLogEntry,
+    OrchestrationLogger,
     OrchestrationStatus,
 )
-
 
 # ============================================================================
 # UTILITAIRES
 # ============================================================================
+
 
 def _format_float(value: Any, precision: int) -> Optional[str]:
     """Formate un float de facon sure (retourne None si invalide)."""

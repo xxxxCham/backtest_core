@@ -21,10 +21,12 @@ Skip-if: Performance parée connue.
 """
 
 import time
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+
 from backtest.sweep import SweepEngine
-from strategies.rsi_trend_filtered import RSITrendFilteredStrategy
+from strategies.rsi_reversal import RSIReversalStrategy  # Remplace RSITrendFilteredStrategy (inexistant)
 
 
 def generate_test_data(n_bars: int = 1000) -> pd.DataFrame:
@@ -58,15 +60,15 @@ def test_parallel_speedup():
     # Générer données de test
     print("\nGénération des données de test (20000 bars)...")
     df = generate_test_data(n_bars=20000)
-    strategy = RSITrendFilteredStrategy()
+    strategy = RSIReversalStrategy()  # Remplace RSITrendFilteredStrategy
 
-    # Grille de 100 combinaisons (10 x 10)
+    # Grille de 100 combinaisons (10 x 10) - adaptée pour RSIReversalStrategy
     param_grid = {
         'rsi_period': [10, 12, 14, 16, 18, 20, 22, 24, 26, 28],
-        'rsi_oversold': [25, 27, 29, 31, 33, 35, 37, 39, 41, 43],
+        'oversold': [25, 27, 29, 31, 33, 35, 37, 39, 41, 43],  # Renommé de rsi_oversold
     }
 
-    print(f"Grille de paramètres: {len(param_grid['rsi_period'])} x {len(param_grid['rsi_oversold'])} = 100 combinaisons")
+    print(f"Grille de paramètres: {len(param_grid['rsi_period'])} x {len(param_grid['oversold'])} = 100 combinaisons")
 
     # Test 1: Version séquentielle (1 worker)
     print("\n" + "=" * 70)
@@ -82,7 +84,7 @@ def test_parallel_speedup():
     )
     time_seq = time.time() - start
 
-    print(f"\n✅ Séquentiel terminé:")
+    print("\n✅ Séquentiel terminé:")
     print(f"   - Temps: {time_seq:.2f}s")
     print(f"   - Complétés: {results_seq.n_completed}/100")
     print(f"   - Échoués: {results_seq.n_failed}")
@@ -102,7 +104,7 @@ def test_parallel_speedup():
     )
     time_par = time.time() - start
 
-    print(f"\n✅ Parallèle terminé:")
+    print("\n✅ Parallèle terminé:")
     print(f"   - Temps: {time_par:.2f}s")
     print(f"   - Complétés: {results_par.n_completed}/100")
     print(f"   - Échoués: {results_par.n_failed}")
@@ -174,7 +176,7 @@ def test_parallel_speedup():
         if sharpe_diff < 0.01:
             print(f"✅ Sharpe ratio identique: {sharpe_seq:.4f}")
         else:
-            print(f"⚠️  Sharpe ratio légèrement différent:")
+            print("⚠️  Sharpe ratio légèrement différent:")
             print(f"   Séquentiel: {sharpe_seq:.4f}")
             print(f"   Parallèle:  {sharpe_par:.4f}")
             print(f"   Diff: {sharpe_diff:.4f}")

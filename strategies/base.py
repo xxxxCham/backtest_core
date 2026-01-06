@@ -20,6 +20,7 @@ Read-if: Création nouvelle stratégie, modification interface ou patterns stand
 Skip-if: Vous ne changez qu'une stratégie spécifique.
 """
 
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Type
@@ -121,11 +122,37 @@ class StrategyBase(ABC):
         Génère automatiquement depuis parameter_specs si disponible.
         Peut être surchargé par les classes filles.
         """
-        # Auto-générer depuis parameter_specs si disponible
+        return self.get_param_ranges()
+
+    def _should_include_optional_params(
+        self,
+        override: Optional[bool] = None,
+    ) -> bool:
+        """Détermine si les paramètres optionnels (ex: leverage) sont inclus."""
+        if override is not None:
+            return bool(override)
+
+        if getattr(self, "_include_optional_params", False):
+            return True
+
+        env_flag = os.getenv("BACKTEST_INCLUDE_OPTIONAL_PARAMS", "").strip().lower()
+        return env_flag in {"1", "true", "yes", "on"}
+
+    def get_param_ranges(self, include_optional: Optional[bool] = None) -> Dict[str, tuple]:
+        """Retourne les plages en excluant les paramètres non optimisables par défaut."""
+        include = self._should_include_optional_params(override=include_optional)
+
         if hasattr(self, 'parameter_specs') and self.parameter_specs:
+            items = self.parameter_specs.items()
+            if not include:
+                items = (
+                    (name, spec)
+                    for name, spec in items
+                    if getattr(spec, "optimize", True)
+                )
             return {
                 name: (spec.min_val, spec.max_val)
-                for name, spec in self.parameter_specs.items()
+                for name, spec in items
             }
         return {}
 
@@ -264,8 +291,8 @@ class StrategyBase(ABC):
         # Validation de base (à surcharger)
         if params.get("leverage", 1) <= 0:
             errors.append("leverage doit être > 0")
-        if params.get("leverage", 1) > 20:
-            errors.append("leverage doit être <= 20")
+        if params.get("leverage", 1) > 10:
+            errors.append("leverage doit être <= 10")
 
         return len(errors) == 0, errors
 
@@ -419,6 +446,7 @@ def create_strategy(name: str, **kwargs) -> StrategyBase:
     """Crée une instance de stratégie par son nom."""
     strategy_cls = get_strategy(name)
     return strategy_cls(**kwargs)
+
 
 def get_strategy_overview(name: str, max_chars: int = 1800) -> str:
     """

@@ -21,9 +21,10 @@ Read-if: Vue d'ensemble couverture globale todos tokens.
 Skip-if: Analyse par token suffisante.
 """
 
-import pandas as pd
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
+
+import pandas as pd
 
 
 def summarize_all_tokens(data_folder: str):

@@ -23,7 +23,6 @@ Skip-if: Vous utilisez seulement OpenAI.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import platform
 import subprocess
 import time

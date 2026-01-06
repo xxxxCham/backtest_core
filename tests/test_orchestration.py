@@ -20,18 +20,18 @@ Read-if: Modification stratégies/indicateurs/granularité.
 Skip-if: Orchéstration déjà testée.
 """
 
-from strategies.base import list_strategies, get_strategy
+from indicators.registry import get_indicator, list_indicators
+from strategies.base import get_strategy, list_strategies
 from strategies.indicators_mapping import get_strategy_info
-from indicators.registry import list_indicators, get_indicator
+from ui.indicators_panel import (
+    format_indicator_name,
+    get_category_for_indicator,
+    group_indicators_by_category,
+)
 from utils.parameters import (
     PRESETS,
     generate_param_grid,
     parameter_values,
-)
-from ui.indicators_panel import (
-    group_indicators_by_category,
-    get_category_for_indicator,
-    format_indicator_name,
 )
 
 

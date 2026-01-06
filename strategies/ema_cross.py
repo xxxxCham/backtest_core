@@ -63,7 +63,7 @@ class EMACrossStrategy(StrategyBase):
         return {
             "fast_period": 12,
             "slow_period": 26,
-            "leverage": 2,
+            "leverage": 1,  # Fixé à 1 - ne pas optimiser
             "k_sl": 2.0,  # Stop loss en % du prix
             "fees_bps": 10,
             "slippage_bps": 5
@@ -93,9 +93,10 @@ class EMACrossStrategy(StrategyBase):
             ),
             "leverage": ParameterSpec(
                 name="leverage",
-                min_val=1, max_val=5, default=2,
+                min_val=1, max_val=10, default=1,
                 param_type="int",
-                description="Levier de trading"
+                description="Levier de trading (non optimisé)",
+                optimize=False,
             ),
         }
 
@@ -130,7 +131,8 @@ class EMACrossStrategy(StrategyBase):
         # Détecter les croisements
         # Fast au-dessus de slow
         fast_above = ema_fast > ema_slow
-        fast_above_prev = fast_above.shift(1).fillna(False)
+        # Utiliser shift avec fill_value pour éviter FutureWarning
+        fast_above_prev = fast_above.shift(1, fill_value=False)
 
         # Golden Cross: fast passe au-dessus de slow
         golden_cross = fast_above & ~fast_above_prev

@@ -73,8 +73,8 @@ PARAM_CONSTRAINTS: Dict[str, Dict[str, object]] = {
     },
     # Commun
     "leverage": {
-        "min": 1, "max": 100, "step": 1, "default": 1,
-        "description": "Levier de trading (1-100)",
+        "min": 1, "max": 10, "step": 1, "default": 1,
+        "description": "Levier de trading (1-10) - défaut: 1 pour éviter ruine du compte",
     },
     # EMA Cross / MA Crossover Strategy
     "fast_period": {

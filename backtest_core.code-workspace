@@ -1,11 +1,99 @@
 {
 	"folders": [
 		{
+			"name": "backtest_core (root)",
 			"path": "."
 		},
 		{
+			"name": "models",
 			"path": "../models"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"files.exclude": {
+			"**/__pycache__": true,
+			"**/*.pyc": true,
+			"**/*.pyo": true,
+			"**/*.egg-info": true,
+			"**/.pytest_cache": true,
+			"**/.mypy_cache": true,
+			"**/venv": true,
+			"**/env": true
+		},
+		"search.exclude": {
+			"**/backtest_results/**": true,
+			"**/runs/**": true,
+			"**/logs/**": true,
+			"**/profiling_results/**": true,
+			"**/__pycache__": true,
+			"**/*.pyc": true
+		},
+		"python.analysis.exclude": [
+			"**/backtest_results/**",
+			"**/runs/**",
+			"**/logs/**",
+			"**/__pycache__/**",
+			"**/venv/**"
+		],
+		"files.watcherExclude": {
+			"**/backtest_results/**": true,
+			"**/runs/**": true,
+			"**/logs/**": true,
+			"**/profiling_results/**": true,
+			"**/__pycache__/**": true,
+			"**/venv/**": true
+		},
+		"python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
+		"python.testing.pytestEnabled": true,
+		"python.testing.pytestArgs": [
+			"tests"
+		],
+		"editor.formatOnSave": false,
+		"python.analysis.typeCheckingMode": "basic",
+		"files.associations": {
+			"*.toml": "toml",
+			"*.yaml": "yaml",
+			"*.yml": "yaml"
+		},
+		"github.copilot.chat.claudeCode.debug": true,
+		"chat.useClaudeSkills": true
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-python.python",
+			"ms-python.vscode-pylance",
+			"ms-toolsai.jupyter",
+			"tamasfe.even-better-toml"
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Streamlit UI",
+				"type": "debugpy",
+				"request": "launch",
+				"module": "streamlit",
+				"args": [
+					"run",
+					"ui/app.py"
+				],
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Run Backtest",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/run_grid_backtest.py",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "LLM Optimization",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/run_llm_optimization.py",
+				"console": "integratedTerminal"
+			}
+		]
+	}
 }

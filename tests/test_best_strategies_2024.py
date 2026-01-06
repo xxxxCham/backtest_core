@@ -3,12 +3,12 @@
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent))
 
-from data.loader import load_ohlcv
 from backtest.engine import BacktestEngine
-from strategies.ema_cross import EMACrossStrategy
-from strategies.bollinger_atr import BollingerATRStrategy
+from data.loader import load_ohlcv
+
 
 def test_ema_cross_21_38():
     """Test EMA Cross (21/38) - Meilleur résultat du sweep."""
@@ -58,6 +58,7 @@ def test_ema_cross_21_38():
     print(f"   CAGR: {result.metrics.get('annualized_return', 0):.2f}%")
 
     return result
+
 
 def test_bollinger_atr_optimized():
     """Test BollingerATR avec paramètres optimisés (run 0150267a)."""
@@ -111,6 +112,7 @@ def test_bollinger_atr_optimized():
     print(f"   CAGR: {result.metrics.get('annualized_return', 0):.2f}%")
 
     return result
+
 
 def test_top_5_ema():
     """Test top 5 configs EMA Cross."""
@@ -175,6 +177,7 @@ def test_top_5_ema():
 
     return sorted_results
 
+
 def main():
     print("\n" + "="*80)
     print("🎯 TEST DES MEILLEURES STRATÉGIES - ANNÉE COMPLÈTE 2024")
@@ -192,7 +195,7 @@ def main():
     result_bollinger = test_bollinger_atr_optimized()
 
     # Test 3: Top 5 EMA
-    top5_results = test_top_5_ema()
+    test_top_5_ema()
 
     # Comparaison finale
     print("\n" + "="*80)
@@ -222,6 +225,7 @@ def main():
     print("\n" + "="*80)
     print("✅ TESTS TERMINÉS")
     print("="*80)
+
 
 if __name__ == "__main__":
     main()

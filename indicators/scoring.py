@@ -16,9 +16,10 @@ Dependencies: pandas, numpy
 Conventions: Score = somme ponderee patterns detectes, normalise 0-1
 """
 
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 
 def calculate_bull_score(df: pd.DataFrame, **params) -> np.ndarray:

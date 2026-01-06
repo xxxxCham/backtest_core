@@ -6,13 +6,13 @@ Vérifie que le mapping d'indicateurs est compatible avec le système de Presets
 et de granularité défini dans utils/parameters.py
 """
 
-from utils.parameters import (
-    SAFE_RANGES_PRESET,
-    PRESETS,
-)
 from strategies.indicators_mapping import (
-    get_strategy_info,
     STRATEGY_INDICATORS_MAP,
+    get_strategy_info,
+)
+from utils.parameters import (
+    PRESETS,
+    SAFE_RANGES_PRESET,
 )
 
 

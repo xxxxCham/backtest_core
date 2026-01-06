@@ -33,8 +33,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 try:
-    import streamlit as st
     import plotly.graph_objects as go
+    import streamlit as st
     from plotly.subplots import make_subplots
     STREAMLIT_AVAILABLE = True
 except ImportError:

@@ -80,7 +80,7 @@ class BollingerATRStrategyV2(StrategyBase):
             # Trading
             "entry_z": 2.0,  # Z-score pour entrée (touch band = 2 std)
             "bb_stop_factor": 0.5,  # NOUVEAU: Facteur de stop-loss Bollinger
-            "leverage": 3,
+            "leverage": 1,  # Fixé à 1 - ne pas optimiser
             # Frais (pour référence)
             "fees_bps": 10,
             "slippage_bps": 5
@@ -128,9 +128,10 @@ class BollingerATRStrategyV2(StrategyBase):
             ),
             "leverage": ParameterSpec(
                 name="leverage",
-                min_val=1, max_val=10, default=3,
+                min_val=1, max_val=10, default=1,
                 param_type="int",
-                description="Levier de trading"
+                description="Levier de trading (non optimisé)",
+                optimize=False,
             ),
         }
 

@@ -29,8 +29,8 @@ from .commands import (
     cmd_check_gpu,
     cmd_export,
     cmd_grid_backtest,
-    cmd_info,
     cmd_indicators,
+    cmd_info,
     cmd_list,
     cmd_llm_optimize,
     cmd_optuna,
@@ -261,6 +261,11 @@ Exemples:
         type=float,
         default=0.5,
         help="Granularité (0.0=fin, 1.0=grossier, défaut: 0.5)"
+    )
+    sweep_parser.add_argument(
+        "--include-optional-params",
+        action="store_true",
+        help="Inclure les paramètres optionnels (ex: leverage) dans la grille"
     )
     sweep_parser.add_argument(
         "--max-combinations",
@@ -690,6 +695,11 @@ Exemples:
         "--param-grid",
         type=str,
         help="Grille de paramètres en JSON (ex: '{\"atr_period\": [10, 14, 20]}'). Si omis, grille auto depuis param_ranges"
+    )
+    grid_backtest_parser.add_argument(
+        "--include-optional-params",
+        action="store_true",
+        help="Inclure les paramètres optionnels (ex: leverage) dans la grille auto"
     )
     grid_backtest_parser.add_argument(
         "--max-combinations",

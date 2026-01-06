@@ -8,8 +8,8 @@ Tests:
 - Bloc action == "sweep" dans optimize() fonctionne
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 from agents.autonomous_strategist import (
     AutonomousStrategist,
     IterationDecision,

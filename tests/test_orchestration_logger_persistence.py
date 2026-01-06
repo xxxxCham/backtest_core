@@ -61,8 +61,8 @@ def test_orchestration_logger_writes_events_to_jsonl(tmp_path: Path) -> None:
 def test_create_orchestrator_with_backtest_uses_injected_logger_and_session_id(monkeypatch) -> None:
     """Vérifie que l'orchestrateur multi-agents réutilise le logger UI (session_id cohérent)."""
 
-    from agents.llm_client import LLMConfig, LLMProvider
     import agents.orchestrator as orchestrator_module
+    from agents.llm_client import LLMConfig, LLMProvider
 
     class _DummyLLMClient:
         def __init__(self, config: LLMConfig):

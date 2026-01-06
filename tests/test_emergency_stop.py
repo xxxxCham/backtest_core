@@ -7,7 +7,8 @@ Usage:
 
 import logging
 import time
-from ui.emergency_stop import get_emergency_handler, execute_emergency_stop
+
+from ui.emergency_stop import execute_emergency_stop, get_emergency_handler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

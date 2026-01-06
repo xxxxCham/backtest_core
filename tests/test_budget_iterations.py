@@ -8,12 +8,13 @@ Tests:
 - Orchestrator: backtest normal consomme 1 combo
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
+
 import pandas as pd
+
 from agents.autonomous_strategist import AutonomousStrategist
+from agents.base_agent import AgentResult, AgentRole
 from agents.orchestrator import Orchestrator, OrchestratorConfig
-from agents.base_agent import AgentRole
 
 
 class TestAutonomousStrategistBudget:
@@ -22,7 +23,7 @@ class TestAutonomousStrategistBudget:
     @patch('agents.integration.run_llm_sweep')
     def test_sweep_consumes_n_combinations_budget(self, mock_run_llm_sweep):
         """Test qu'un sweep consomme n_combinations vers max_iterations."""
-        from agents.backtest_executor import BacktestExecutor, BacktestRequest, BacktestResult
+        from agents.backtest_executor import BacktestExecutor, BacktestResult
 
         # Mock run_llm_sweep pour retourner 20 combinaisons testées
         mock_run_llm_sweep.return_value = {
@@ -45,7 +46,10 @@ class TestAutonomousStrategistBudget:
         executor_mock.strategy_name = "test_strategy"
         executor_mock.get_context_for_agent = Mock(return_value="Baseline: Sharpe=1.5")
 
-        def fake_backtest(request):
+        def fake_backtest(self_or_request, request=None):
+            # Supporte les deux signatures: (request) ou (self, request)
+            if request is None:
+                request = self_or_request
             return BacktestResult(
                 request=request,
                 success=True,
@@ -59,7 +63,13 @@ class TestAutonomousStrategistBudget:
 
         executor_mock.run_backtest = fake_backtest
 
-        strategist = AutonomousStrategist(model="mock")
+        # Créer un mock LLMClient (nouvelle signature)
+        mock_llm_client = Mock()
+        mock_llm_client.config = Mock()
+        mock_llm_client.config.model = "mock-model"
+        mock_llm_client.chat = Mock(return_value="mocked response")
+
+        strategist = AutonomousStrategist(llm_client=mock_llm_client)
 
         # Mock _get_llm_decision pour demander un sweep puis stop
         decision_count = 0
@@ -117,7 +127,7 @@ class TestAutonomousStrategistBudget:
     @patch('agents.integration.run_llm_sweep')
     def test_sweep_limit_per_session(self, mock_run_llm_sweep):
         """Test que la limite de sweeps par session est respectée."""
-        from agents.backtest_executor import BacktestExecutor, BacktestRequest, BacktestResult
+        from agents.backtest_executor import BacktestExecutor, BacktestResult
 
         # Mock run_llm_sweep
         mock_run_llm_sweep.return_value = {
@@ -153,7 +163,13 @@ class TestAutonomousStrategistBudget:
 
         executor_mock.run_backtest = fake_backtest
 
-        strategist = AutonomousStrategist(model="mock")
+        # Créer un mock LLMClient (nouvelle signature)
+        mock_llm_client = Mock()
+        mock_llm_client.config = Mock()
+        mock_llm_client.config.model = "mock-model"
+        mock_llm_client.chat = Mock(return_value="mocked response")
+
+        strategist = AutonomousStrategist(llm_client=mock_llm_client)
 
         # Mock _get_llm_decision pour demander 5 sweeps (dépasse la limite de 3)
         decision_count = 0
@@ -177,7 +193,23 @@ class TestAutonomousStrategistBudget:
             )
 
         strategist._get_llm_decision = fake_get_llm_decision
-        strategist._run_backtest_with_gpu_optimization = fake_backtest
+
+        # fake_backtest supporte les 2 signatures
+        def fake_backtest_for_run(self_or_request, request=None):
+            if request is None:
+                request = self_or_request
+            from agents.backtest_executor import BacktestResult as BR
+            return BR(
+                request=request,
+                success=True,
+                sharpe_ratio=1.5,
+                total_return=0.1,
+                max_drawdown=0.1,
+                win_rate=0.55,
+                total_trades=30,
+                execution_time_ms=10,
+            )
+        strategist._run_backtest_with_gpu_optimization = fake_backtest_for_run
 
         # Run avec max_iterations suffisant pour 5 sweeps
         session = strategist.optimize(
@@ -191,8 +223,8 @@ class TestAutonomousStrategistBudget:
         # Vérifier que run_llm_sweep a été appelé maximum 3 fois (limite)
         assert mock_run_llm_sweep.call_count <= 3
 
-        # Vérifier status (devrait être "sweep_limit_reached")
-        assert session.final_status in ("sweep_limit_reached", "no_improvement", "max_iterations")
+        # Vérifier status (devrait être "sweep_limit_reached" ou "ranges_already_tested")
+        assert session.final_status in ("sweep_limit_reached", "no_improvement", "max_iterations", "ranges_already_tested")
 
 
 class TestOrchestratorBudget:
@@ -226,7 +258,6 @@ class TestOrchestratorBudget:
 
         # Mock strategist pour demander un sweep
         def fake_strategist_execute(context):
-            from agents.base_agent import AgentResult, AgentRole
             return AgentResult(
                 success=True,
                 agent_role=AgentRole.STRATEGIST,
@@ -324,7 +355,6 @@ class TestOrchestratorBudget:
 
         # Mock strategist pour sweep
         def fake_strategist_execute(context):
-            from agents.base_agent import AgentResult, AgentRole
             return AgentResult(
                 success=True,
                 agent_role=AgentRole.STRATEGIST,
@@ -357,11 +387,14 @@ class TestOrchestratorBudget:
         # Simuler budget déjà consommé à 20 (atteint la limite 20)
         orchestrator._total_combinations_tested = 20
 
+        # Mettre l'orchestrator en état ITERATE pour le test
+        from agents.state_machine import AgentState
+        orchestrator.state_machine._current_state = AgentState.ITERATE
+
         # Appeler _handle_iterate() devrait vérifier le budget et arrêter
         orchestrator._handle_iterate()
 
         # Vérifier que le budget a déclenché un arrêt (transition vers REJECTED)
-        from agents.state_machine import AgentState
         assert orchestrator.state_machine.current_state == AgentState.REJECTED
         assert len(orchestrator._warnings) > 0
         assert "Budget épuisé" in orchestrator._warnings[0]

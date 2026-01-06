@@ -29,7 +29,7 @@ if exist ".venv\Scripts\activate.bat" call ".venv\Scripts\activate.bat"
 REM Définir variables d'environnement
 set PYTHONPATH=%~dp0
 set MODELS_JSON_PATH=D:\models\models.json
-set CUDA_VISIBLE_DEVICES=1,0
+set CUDA_VISIBLE_DEVICES=0,1
 
 REM Lancer Streamlit dans une nouvelle fenêtre
 start "Backtest Core Streamlit" cmd /c "streamlit run ui\app.py"

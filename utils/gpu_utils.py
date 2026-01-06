@@ -20,7 +20,8 @@ Read-if: Modification conversions, détection GPU.
 Skip-if: Vous utilisez juste ensure_numpy_array().
 """
 
-from typing import Any, List, Tuple, Union, Optional
+from typing import Any, Optional, Union
+
 import numpy as np
 
 try:
@@ -132,7 +133,7 @@ def ensure_numpy_array(
     except Exception as e:
         raise TypeError(
             f"Impossible de convertir {type(arr)} en NumPy array. "
-            f"Types supportés: CuPy array, NumPy array, tuple/list, None. "
+            "Types supportés: CuPy array, NumPy array, tuple/list, None. "
             f"Erreur: {e}"
         )
 
@@ -237,7 +238,7 @@ def _test_ensure_numpy_array():
     assert ensure_numpy_array(42) == 42, "❌ Scalaire int échoue"
     assert ensure_numpy_array(3.14) == 3.14, "❌ Scalaire float échoue"
     assert ensure_numpy_array(True) is True, "❌ Scalaire bool échoue"
-    print(f"✅ PASS - Scalaires: 42, 3.14, True")
+    print("✅ PASS - Scalaires: 42, 3.14, True")
 
     # Test 4: Tuple de NumPy arrays
     print("\n[Test 4] Tuple de NumPy arrays")

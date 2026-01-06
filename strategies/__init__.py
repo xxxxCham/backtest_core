@@ -10,14 +10,14 @@ from .bollinger_atr import BollingerATRStrategy
 from .bollinger_atr_v2 import BollingerATRStrategyV2
 from .bollinger_atr_v3 import BollingerATRStrategyV3
 from .ema_cross import EMACrossStrategy
+from .indicators_mapping import (
+    STRATEGY_INDICATORS_MAP,
+    get_all_indicators,
+    get_required_indicators,
+    get_strategy_info,
+)
 from .macd_cross import MACDCrossStrategy
 from .rsi_reversal import RSIReversalStrategy
-from .indicators_mapping import (
-    get_required_indicators,
-    get_all_indicators,
-    get_strategy_info,
-    STRATEGY_INDICATORS_MAP,
-)
 
 __all__ = [
     "StrategyBase",

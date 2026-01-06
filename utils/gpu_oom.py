@@ -168,8 +168,9 @@ class GPUOOMHandler:
             return False
 
         try:
-            import cupy as cp
             import gc
+
+            import cupy as cp
 
             # Garbage collection Python
             gc.collect()

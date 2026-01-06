@@ -97,7 +97,8 @@ class MACDCrossStrategy(StrategyBase):
                 max_val=10,
                 default=1,
                 param_type="int",
-                description="Levier de trading"
+                description="Levier de trading",
+                optimize=False,
             ),
         }
 
@@ -163,7 +164,8 @@ class MACDCrossStrategy(StrategyBase):
         # Détecter les croisements
         # MACD au-dessus de Signal
         macd_above = macd_line > signal_line
-        macd_above_prev = macd_above.shift(1).fillna(False)
+        # Utiliser shift avec fill_value pour éviter FutureWarning
+        macd_above_prev = macd_above.shift(1, fill_value=False)
 
         # Golden Cross: MACD passe au-dessus de Signal
         golden_cross = macd_above & ~macd_above_prev

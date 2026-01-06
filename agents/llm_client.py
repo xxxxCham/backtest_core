@@ -23,7 +23,6 @@ Skip-if: Vous appelez juste le client via create_llm_client().
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import json
 import logging
 import os
@@ -275,6 +274,84 @@ class OllamaClient(LLMClient):
         self._http_client = httpx.Client(timeout=adaptive_timeout)
         self._adaptive_timeout = adaptive_timeout
 
+    def _messages_to_prompt(self, messages: List[LLMMessage], json_mode: bool) -> str:
+        """Convertit une conversation en prompt simple pour /api/generate."""
+        lines: List[str] = []
+        for msg in messages:
+            role = (msg.role or "user").strip().lower()
+            if role == "system":
+                label = "System"
+            elif role == "assistant":
+                label = "Assistant"
+            else:
+                label = "User"
+            content = msg.content.strip()
+            if content:
+                lines.append(f"{label}: {content}")
+        if json_mode:
+            lines.append("System: Respond with valid JSON only.")
+        lines.append("Assistant:")
+        return "\n".join(lines).strip()
+
+    def _chat_via_generate(
+        self,
+        messages: List[LLMMessage],
+        temperature: Optional[float],
+        max_tokens: Optional[int],
+        json_mode: bool,
+    ) -> LLMResponse:
+        """Fallback Ollama via /api/generate quand /api/chat est indisponible."""
+        url = f"{self.config.ollama_host}/api/generate"
+        prompt = self._messages_to_prompt(messages, json_mode)
+
+        payload = {
+            "model": self.config.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": temperature or self.config.temperature,
+                "num_predict": max_tokens or self.config.max_tokens,
+                "top_p": self.config.top_p,
+            },
+        }
+
+        if json_mode:
+            payload["format"] = "json"
+
+        start_time = time.time()
+        response = self._http_client.post(
+            url,
+            json=payload,
+            timeout=self._adaptive_timeout,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        latency = (time.time() - start_time) * 1000
+
+        prompt_tokens = data.get("prompt_eval_count", 0)
+        completion_tokens = data.get("eval_count", 0)
+        total_tokens = prompt_tokens + completion_tokens
+
+        self._total_tokens += total_tokens
+        self._total_requests += 1
+
+        llm_response = LLMResponse(
+            content=data.get("response", ""),
+            model=self.config.model,
+            provider=LLMProvider.OLLAMA,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency,
+            raw_response=data,
+        )
+
+        if json_mode:
+            llm_response.parse_json()
+
+        return llm_response
+
     def is_available(self) -> bool:
         """Vérifie si Ollama est disponible."""
         try:
@@ -308,6 +385,7 @@ class OllamaClient(LLMClient):
         """Envoie une conversation à Ollama."""
 
         url = f"{self.config.ollama_host}/api/chat"
+        use_generate_fallback = False
 
         payload = {
             "model": self.config.model,
@@ -333,11 +411,21 @@ class OllamaClient(LLMClient):
                         f"🤖 Interrogation {self.config.model} (timeout: {self._adaptive_timeout:.0f}s)..."
                     )
 
+                if use_generate_fallback:
+                    return self._chat_via_generate(messages, temperature, max_tokens, json_mode)
+
                 response = self._http_client.post(
                     url,
                     json=payload,
                     timeout=self._adaptive_timeout,
                 )
+                if response.status_code == 404:
+                    logger.warning(
+                        "Ollama /api/chat introuvable (404). Fallback vers /api/generate."
+                    )
+                    use_generate_fallback = True
+                    return self._chat_via_generate(messages, temperature, max_tokens, json_mode)
+
                 response.raise_for_status()
 
                 data = response.json()

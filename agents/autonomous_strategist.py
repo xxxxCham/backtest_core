@@ -23,7 +23,6 @@ Skip-if: Vous utilisez uniquement le mode orchestré sans exécution de backtest
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
-
 import itertools
 import logging
 
@@ -34,17 +33,18 @@ from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
+from strategies.base import get_strategy_overview
+from utils.parameters import ParameterSpec, RangeProposal, compute_search_space_stats
+
 from .backtest_executor import (
     BacktestExecutor,
     BacktestRequest,
     BacktestResult,
 )
 from .base_agent import AgentContext, AgentResult, AgentRole, BaseAgent
+from .indicator_context import build_indicator_context
 from .llm_client import LLMClient, LLMConfig
 from .ollama_manager import GPUMemoryManager
-from .indicator_context import build_indicator_context
-from utils.parameters import compute_search_space_stats, ParameterSpec, RangeProposal
-from strategies.base import get_strategy_overview
 
 logger = logging.getLogger(__name__)
 # Force WARNING level pour ce module pour voir les décisions critiques

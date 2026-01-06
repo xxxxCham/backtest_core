@@ -23,12 +23,12 @@ Skip-if: Vous importez directement depuis utils.config ou utils.log.
 from .config import Config
 from .log import get_logger
 from .visualization import (
-    plot_trades,
-    plot_equity_curve,
-    plot_drawdown,
-    visualize_backtest,
-    load_and_visualize,
     PLOTLY_AVAILABLE,
+    load_and_visualize,
+    plot_drawdown,
+    plot_equity_curve,
+    plot_trades,
+    visualize_backtest,
 )
 
 __all__ = [

@@ -27,10 +27,6 @@ from typing import Optional
 import pandas as pd
 import streamlit as st
 
-from ui.context import resolve_latest_version, save_versioned_preset
-from ui.helpers import build_indicator_overlays, generate_strategies_table
-from ui.log_taps import BestPnlTracker
-from ui.state import SidebarState
 from ui.components.charts import (
     render_equity_and_drawdown,
     render_ohlcv_with_trades,
@@ -38,6 +34,10 @@ from ui.components.charts import (
     render_returns_distribution,
     render_trade_pnl_distribution,
 )
+from ui.context import resolve_latest_version, save_versioned_preset
+from ui.helpers import build_indicator_overlays, generate_strategies_table
+from ui.log_taps import BestPnlTracker
+from ui.state import SidebarState
 
 
 def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracker]) -> None:
@@ -317,6 +317,8 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
 def render_home(state: SidebarState) -> None:
     st.info("👆 Configurez dans la sidebar puis cliquez sur **🚀 Lancer le Backtest**")
 
+    llm_mode_active = state.optimization_mode == "🤖 Optimisation LLM"
+
     tab1, tab2, tab3, tab4 = st.tabs(
         ["🎯 Stratégies", "📊 Optimisation", "📁 Données", "❓ FAQ"]
     )
@@ -344,22 +346,31 @@ def render_home(state: SidebarState) -> None:
         - Limite configurable (jusqu'à 1,000,000)
 
         **Mode Simple** : Test d'une seule combinaison de paramètres.
+        """
+        )
 
+        table_lines = [
+            "| Mode | Combinaisons | Intelligence | Coût |",
+            "|------|--------------|--------------|------|",
+            "| Simple | 1 | ❌ | Gratuit |",
+            "| Grille | Jusqu'à 1M | ❌ | Gratuit |",
+        ]
+        if llm_mode_active:
+            table_lines.append("| LLM | ~10-50 ciblées | ✅ | Variable |")
+        st.markdown("\n".join(table_lines))
+
+        if llm_mode_active:
+            st.markdown(
+                """
         **Mode LLM** 🤖 : Optimisation intelligente par agents IA.
         - 4 agents spécialisés (Analyst, Strategist, Critic, Validator)
         - Boucle d'amélioration itérative automatique
         - Walk-Forward anti-overfitting intégré
         - Supporte Ollama (local/gratuit) ou OpenAI
 
-        | Mode | Combinaisons | Intelligence | Coût |
-        |------|--------------|--------------|------|
-        | Simple | 1 | ❌ | Gratuit |
-        | Grille | Jusqu'à 1M | ❌ | Gratuit |
-        | LLM | ~10-50 ciblées | ✅ | Variable |
-
         ⚠️ Mode LLM nécessite Ollama installé localement ou une clé OpenAI.
         """
-        )
+            )
 
     with tab3:
         st.markdown(
@@ -388,6 +399,12 @@ def render_home(state: SidebarState) -> None:
 
         **Q: Pourquoi le mode Grille est lent?**
         R: Il teste toutes les combinaisons. Augmentez le Step ou réduisez la plage.
+        """
+        )
+
+        if llm_mode_active:
+            st.markdown(
+                """
 
         **Q: Comment éviter l'overfitting?**
         R: Utilisez le Walk-Forward Validation (activé par défaut en mode LLM).
@@ -403,4 +420,4 @@ def render_home(state: SidebarState) -> None:
         R: Ollama est gratuit et local (installer depuis ollama.ai).
         OpenAI est plus puissant mais payant (~0.01$/requête).
         """
-        )
+            )

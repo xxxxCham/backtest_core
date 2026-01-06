@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 # pylint: disable=import-outside-toplevel,too-many-lines
-
-import gc
 import logging
 import time
 import traceback
@@ -13,49 +11,85 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from ui.constants import PARAM_CONSTRAINTS
-from ui.context import (
-    LLM_AVAILABLE,
-    LLM_IMPORT_ERROR,
-    OrchestrationLogger,
-    BacktestEngine,
-    compute_search_space_stats,
-    create_llm_client,
-    create_optimizer_from_engine,
-    create_orchestrator_with_backtest,
-    get_strategy_param_bounds,
-    get_strategy_param_space,
-    generate_session_id,
-    render_deep_trace_viewer,
-    render_full_orchestration_viewer,
-    LiveOrchestrationViewer,
-)
-from ui.helpers import (
-    ProgressMonitor,
-    build_strategy_params_for_comparison,
-    render_progress_monitor,
-    safe_load_data,
-    load_selected_data,
-    safe_run_backtest,
-    safe_copy_cleanup,
-    show_status,
-    summarize_comparison_results,
-    validate_all_params,
-    _maybe_auto_save_run,
-)
-from ui.state import SidebarState
 from ui.components.charts import (
     render_comparison_chart,
-    render_strategy_param_diagram,
     render_ohlcv_with_trades_and_indicators,
+    render_strategy_param_diagram,
 )
 from ui.components.sweep_monitor import (
     SweepMonitor,
     render_sweep_progress,
     render_sweep_summary,
 )
-from ui.helpers import build_indicator_overlays
+from ui.constants import PARAM_CONSTRAINTS
+from ui.context import (
+    LLM_AVAILABLE,
+    LLM_IMPORT_ERROR,
+    BacktestEngine,
+    LiveOrchestrationViewer,
+    OrchestrationLogger,
+    compute_search_space_stats,
+    create_llm_client,
+    create_optimizer_from_engine,
+    create_orchestrator_with_backtest,
+    generate_session_id,
+    get_strategy_param_bounds,
+    get_strategy_param_space,
+    render_deep_trace_viewer,
+    render_full_orchestration_viewer,
+)
+
+# Import Optuna optimizer
+try:
+    from backtest.optuna_optimizer import OptunaOptimizer, OPTUNA_AVAILABLE
+except ImportError:
+    OPTUNA_AVAILABLE = False
+    OptunaOptimizer = None
+
+logger = logging.getLogger(__name__)
+from ui.emergency_stop import execute_emergency_stop, get_emergency_handler
+from ui.helpers import (
+    ProgressMonitor,
+    _maybe_auto_save_run,
+    build_indicator_overlays,
+    build_strategy_params_for_comparison,
+    load_selected_data,
+    render_progress_monitor,
+    safe_load_data,
+    safe_run_backtest,
+    show_status,
+    summarize_comparison_results,
+    validate_all_params,
+)
+from ui.state import SidebarState
 from utils.run_tracker import RunSignature, get_global_tracker
+
+_MP_SHARED_DF = None
+_MP_INITIAL_CAPITAL = None
+_MP_STRATEGY_KEY = None
+_MP_SYMBOL = None
+_MP_TIMEFRAME = None
+_MP_DEBUG_ENABLED = False
+_MP_ENGINE = None
+
+
+def _init_backtest_worker(
+    df: pd.DataFrame,
+    initial_capital: float,
+    strategy_key: str,
+    symbol: str,
+    timeframe: str,
+    debug_enabled: bool,
+) -> None:
+    global _MP_SHARED_DF, _MP_INITIAL_CAPITAL, _MP_STRATEGY_KEY
+    global _MP_SYMBOL, _MP_TIMEFRAME, _MP_DEBUG_ENABLED, _MP_ENGINE
+    _MP_SHARED_DF = df
+    _MP_INITIAL_CAPITAL = initial_capital
+    _MP_STRATEGY_KEY = strategy_key
+    _MP_SYMBOL = symbol
+    _MP_TIMEFRAME = timeframe
+    _MP_DEBUG_ENABLED = debug_enabled
+    _MP_ENGINE = BacktestEngine(initial_capital=initial_capital)
 
 
 def _run_backtest_multiprocess(args):
@@ -63,17 +97,33 @@ def _run_backtest_multiprocess(args):
     Wrapper picklable pour ProcessPoolExecutor.
 
     Args:
-        args: tuple (param_combo, initial_capital, df, strategy_key, symbol, timeframe, debug_enabled)
+        args: param_combo ou tuple legacy (param_combo, initial_capital, df, strategy_key, symbol, timeframe, debug_enabled)
 
     Returns:
         Dict avec résultats du backtest ou erreur
     """
-    param_combo, initial_capital, df, strategy_key, symbol, timeframe, debug_enabled = args
+    global _MP_ENGINE
+
+    if isinstance(args, tuple) and len(args) == 7:
+        param_combo, initial_capital, df, strategy_key, symbol, timeframe, debug_enabled = args
+        engine = BacktestEngine(initial_capital=initial_capital)
+    else:
+        param_combo = args
+        df = _MP_SHARED_DF
+        strategy_key = _MP_STRATEGY_KEY
+        symbol = _MP_SYMBOL
+        timeframe = _MP_TIMEFRAME
+        debug_enabled = _MP_DEBUG_ENABLED
+        if df is None or strategy_key is None:
+            raise ValueError("Worker multiprocess non initialisé (missing shared context).")
+        if _MP_ENGINE is None:
+            if _MP_INITIAL_CAPITAL is None:
+                raise ValueError("Worker multiprocess non initialisé (missing initial_capital).")
+            _MP_ENGINE = BacktestEngine(initial_capital=_MP_INITIAL_CAPITAL)
+        engine = _MP_ENGINE
 
     try:
-        # Créer l'engine localement (pas picklable donc recréé dans chaque process)
-        engine = BacktestEngine(initial_capital=initial_capital)
-
+        # Utiliser l'engine initialisé par worker (ou fallback legacy)
         result_i, msg_i = safe_run_backtest(
             engine,
             df,
@@ -95,8 +145,8 @@ def _run_backtest_multiprocess(args):
                 "params_dict": param_combo,
                 "total_pnl": result_i.metrics["total_pnl"],
                 "sharpe": result_i.metrics["sharpe_ratio"],
-                "max_dd": result_i.metrics["max_drawdown"],
-                "win_rate": result_i.metrics["win_rate"],
+                "max_dd": result_i.metrics["max_drawdown_pct"],
+                "win_rate": result_i.metrics["win_rate_pct"],
                 "trades": result_i.metrics["total_trades"],
                 "profit_factor": result_i.metrics["profit_factor"],
             }
@@ -153,26 +203,30 @@ Le système de granularité limite le nombre de valeurs testables.
         )
 
     if stop_button:
+        # Signaler l'arrêt via le handler d'urgence
+        handler = get_emergency_handler()
+        handler.request_stop()
+
         st.session_state.stop_requested = True
         st.session_state.is_running = False
 
-        gc.collect()
+        # Exécuter le nettoyage complet via emergency_stop
+        with st.spinner("🛑 Arrêt d'urgence en cours..."):
+            stats = execute_emergency_stop(st.session_state)
 
-        try:
-            import torch
+        # Afficher le résumé du nettoyage
+        n_cleaned = len(stats.get("components_cleaned", []))
+        n_errors = len(stats.get("errors", []))
 
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                torch.cuda.synchronize()
-                st.success("✅ VRAM GPU vidée")
-        except ImportError:
-            pass
+        if n_errors == 0:
+            st.success(f"✅ Arrêt d'urgence complet : {n_cleaned} composants nettoyés")
+        else:
+            st.warning(f"⚠️ Arrêt avec {n_errors} erreurs : {n_cleaned} composants nettoyés")
 
-        logger = logging.getLogger(__name__)
-        safe_copy_cleanup(logger)
-
-        st.success("✅ RAM système vidée")
         st.info("💡 Système prêt pour un nouveau test")
+
+        # Réinitialiser le flag d'arrêt
+        handler.reset_stop()
         st.session_state.stop_requested = False
         st.rerun()
 
@@ -239,6 +293,14 @@ def render_main(
     debug_enabled = state.debug_enabled
     max_combos = state.max_combos
     n_workers = state.n_workers
+
+    # Optuna config
+    use_optuna = state.use_optuna
+    optuna_n_trials = state.optuna_n_trials
+    optuna_sampler = state.optuna_sampler
+    optuna_pruning = state.optuna_pruning
+    optuna_metric = state.optuna_metric
+    optuna_early_stop = state.optuna_early_stop
 
     llm_config = state.llm_config
     llm_model = state.llm_model
@@ -335,316 +397,598 @@ def render_main(
             _maybe_auto_save_run(result)
 
         elif optimization_mode == "Grille de Paramètres":
-            with st.spinner("📊 Génération de la grille..."):
-                try:
-                    param_grid = []
-                    param_names = list(param_ranges.keys())
-
-                    if param_names:
-                        param_values_lists = []
-                        for pname in param_names:
-                            r = param_ranges[pname]
-                            pmin, pmax, step = r["min"], r["max"], r["step"]
-
-                            if isinstance(pmin, int) and isinstance(step, int):
-                                values = list(range(int(pmin), int(pmax) + 1, int(step)))
-                            else:
-                                values = list(
-                                    np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
-                                )
-                                values = [round(v, 2) for v in values if v <= pmax]
-
-                            param_values_lists.append(values)
-
-                        for combo in product(*param_values_lists):
-                            # Fusionner params fixes (UI) avec params variants (grille)
-                            param_dict = {**params, **dict(zip(param_names, combo))}
-                            param_grid.append(param_dict)
-                    else:
-                        param_grid = [params.copy()]
-
-                    if len(param_grid) > max_combos:
-                        st.warning(
-                            f"⚠️ Grille limitée: {len(param_grid):,} → {max_combos:,}"
-                        )
-                        param_grid = param_grid[:max_combos]
-
-                    show_status("info", f"Grille: {len(param_grid):,} combinaisons")
-
-                except Exception as exc:
-                    show_status("error", f"Échec génération grille: {exc}")
+            # Branche Optuna (bayésien) ou Grille classique (exhaustif)
+            if use_optuna:
+                # === MODE OPTUNA (BAYESIEN) ===
+                if not OPTUNA_AVAILABLE:
+                    show_status("error", "Optuna non installé. pip install optuna")
                     st.session_state.is_running = False
                     st.stop()
 
-            results_list = []
-            param_combos_map = {}
+                st.markdown("### ⚡ Optimisation Bayésienne (Optuna)")
 
-            monitor = ProgressMonitor(total_runs=len(param_grid))
-            monitor_placeholder = st.empty()
+                # Construire l'espace des paramètres pour Optuna
+                param_space = {}
+                for pname, r in param_ranges.items():
+                    pmin, pmax, step = r["min"], r["max"], r["step"]
+                    if isinstance(pmin, int) and isinstance(step, int):
+                        param_space[pname] = {
+                            "type": "int",
+                            "low": int(pmin),
+                            "high": int(pmax),
+                            "step": int(step),
+                        }
+                    else:
+                        param_space[pname] = {
+                            "type": "float",
+                            "low": float(pmin),
+                            "high": float(pmax),
+                            "step": float(step),
+                        }
 
-            sweep_monitor = SweepMonitor(
-                total_combinations=len(param_grid),
-                objectives=["sharpe_ratio", "total_return_pct", "max_drawdown"],
-                top_k=15,
-            )
-            sweep_monitor.start()
-            sweep_placeholder = st.empty()
+                st.info(f"⚡ {optuna_n_trials} trials avec algorithme {optuna_sampler.upper()}")
 
-            st.markdown("### 📊 Progression en temps réel")
-            render_progress_monitor(monitor, monitor_placeholder)
+                # DEBUG: Afficher le param_space utilisé
+                with st.expander("🔍 Espace de paramètres (DEBUG)", expanded=False):
+                    st.json(param_space)
+                    st.caption(f"Paramètres optimisés: {list(param_space.keys())}")
 
-            def run_single_backtest(param_combo: Dict[str, Any]):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                metrics_placeholder = st.empty()
+                results_placeholder = st.empty()
+
                 try:
-                    result_i, msg_i = safe_run_backtest(
+                    # Créer la config avec les frais
+                    from utils.config import Config
+                    optuna_config = Config(
+                        fees_bps=state.fees_bps if hasattr(state, 'fees_bps') else 10.0,
+                        slippage_bps=state.slippage_bps if hasattr(state, 'slippage_bps') else 5.0,
+                    )
+
+                    optimizer = OptunaOptimizer(
+                        strategy_name=strategy_key,
+                        data=df,
+                        param_space=param_space,
+                        initial_capital=state.initial_capital,
+                        config=optuna_config,  # Ajout de la config avec frais
+                        seed=42,
+                        early_stop_patience=optuna_early_stop if optuna_early_stop > 0 else None,
+                        symbol=symbol,
+                        timeframe=timeframe,
+                    )
+
+                    # Callback pour mise à jour UI en temps réel
+                    # OPTIMISATION: Ne rafraîchir l'UI que tous les N trials pour éviter le ralentissement
+                    _last_ui_update = [0]  # Mutable pour closure
+                    _ui_update_interval = max(1, optuna_n_trials // 100)  # ~100 updates max
+
+                    def optuna_callback(study, trial):
+                        n_completed = len(study.trials)
+
+                        # OPTIMISATION: Skip les updates UI intermédiaires pour les gros runs
+                        if n_completed - _last_ui_update[0] < _ui_update_interval and n_completed < optuna_n_trials:
+                            return  # Skip cette update
+                        _last_ui_update[0] = n_completed
+
+                        pct = n_completed / optuna_n_trials
+                        progress_bar.progress(min(pct, 1.0))
+
+                        # Récupérer le meilleur P&L depuis l'optimizer
+                        best_pnl = optimizer.best_pnl
+                        best_return = optimizer.best_return_pct
+
+                        # Formatage du P&L avec couleur
+                        if best_pnl > 0:
+                            pnl_str = f"+${best_pnl:,.2f}"
+                            pnl_delta = f"+{best_return:.1f}%"
+                        elif best_pnl > float("-inf"):
+                            pnl_str = f"${best_pnl:,.2f}"
+                            pnl_delta = f"{best_return:.1f}%"
+                        else:
+                            pnl_str = "—"
+                            pnl_delta = None
+
+                        status_text.text(f"Trial {n_completed}/{optuna_n_trials} - Best P&L: {pnl_str}")
+
+                        with metrics_placeholder.container():
+                            c1, c2, c3 = st.columns(3)
+                            c1.metric("Complétés", f"{n_completed}/{optuna_n_trials}")
+                            # Afficher le meilleur P&L au lieu du Sharpe (qui est 0 pour les comptes ruinés)
+                            c2.metric("💰 Meilleur P&L", pnl_str, delta=pnl_delta)
+                            n_pruned = sum(1 for t in study.trials if t.state.name == "PRUNED")
+                            c3.metric("Pruned", f"{n_pruned}")
+
+                    result_optuna = optimizer.optimize(
+                        n_trials=optuna_n_trials,
+                        metric=optuna_metric,
+                        direction="maximize",
+                        sampler=optuna_sampler,
+                        pruner="median" if optuna_pruning else "none",
+                        callbacks=[optuna_callback],
+                        show_progress=False,
+                        early_stop_patience=optuna_early_stop if optuna_early_stop > 0 else None,
+                    )
+
+                    progress_bar.progress(1.0)
+                    # Message de fin avec le meilleur P&L
+                    final_pnl = optimizer.best_pnl
+                    final_return = optimizer.best_return_pct
+                    if final_pnl > float("-inf"):
+                        status_text.text(f"✅ Terminé: {result_optuna.n_completed}/{optuna_n_trials} trials | Best P&L: ${final_pnl:,.2f} ({final_return:+.1f}%)")
+                    else:
+                        status_text.text(f"✅ Terminé: {result_optuna.n_completed}/{optuna_n_trials} trials")
+
+                    st.markdown("---")
+                    st.markdown("### 🏆 Résultats Optuna")
+
+                    st.success(f"**Meilleur {optuna_metric}:** {result_optuna.best_value:.4f}")
+                    st.json(result_optuna.best_params)
+
+                    # Top 10 résultats
+                    top_df = result_optuna.get_top_n(10)
+                    if not top_df.empty:
+                        st.subheader("🏆 Top 10 Trials")
+                        st.dataframe(top_df, use_container_width=True)
+
+                    # Rerun le meilleur pour avoir le résultat complet
+                    best_params = {**params, **result_optuna.best_params}
+                    result, _ = safe_run_backtest(
                         engine,
                         df,
                         strategy_key,
-                        param_combo,
+                        best_params,
                         symbol,
                         timeframe,
                         silent_mode=not debug_enabled,
                     )
 
-                    params_native = {
-                        k: float(v) if hasattr(v, "item") else v for k, v in param_combo.items()
-                    }
-                    params_str = str(params_native)
+                    if result is not None:
+                        winner_params = best_params
+                        winner_metrics = result.metrics
+                        winner_origin = "optuna"
+                        winner_meta = result.meta
+                        st.session_state["last_run_result"] = result
+                        st.session_state["last_winner_params"] = winner_params
+                        st.session_state["last_winner_metrics"] = winner_metrics
+                        st.session_state["last_winner_origin"] = winner_origin
+                        st.session_state["last_winner_meta"] = winner_meta
+                        _maybe_auto_save_run(result)
 
-                    if result_i:
+                    with status_container:
+                        show_status("success", f"Optuna: {result_optuna.n_completed} trials terminés")
+
+                except Exception as exc:
+                    show_status("error", f"Erreur Optuna: {exc}")
+                    st.code(traceback.format_exc())
+                    st.session_state.is_running = False
+                    st.stop()
+
+                # Optuna terminé avec succès - ne pas continuer vers le sweep classique
+                st.session_state.is_running = False
+
+            else:
+                # === MODE GRILLE CLASSIQUE (EXHAUSTIF) ===
+                with st.spinner("📊 Génération de la grille..."):
+                    try:
+                        param_grid = []
+                        param_names = list(param_ranges.keys())
+
+                        if param_names:
+                            param_values_lists = []
+                            for pname in param_names:
+                                r = param_ranges[pname]
+                                pmin, pmax, step = r["min"], r["max"], r["step"]
+
+                                if isinstance(pmin, int) and isinstance(step, int):
+                                    values = list(range(int(pmin), int(pmax) + 1, int(step)))
+                                else:
+                                    values = list(
+                                        np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
+                                    )
+                                    values = [round(v, 2) for v in values if v <= pmax]
+
+                                param_values_lists.append(values)
+
+                            for combo in product(*param_values_lists):
+                                # Fusionner params fixes (UI) avec params variants (grille)
+                                param_dict = {**params, **dict(zip(param_names, combo))}
+                                param_grid.append(param_dict)
+                        else:
+                            param_grid = [params.copy()]
+
+                        if len(param_grid) > max_combos:
+                            st.warning(
+                                f"⚠️ Grille limitée: {len(param_grid):,} → {max_combos:,}"
+                            )
+                            param_grid = param_grid[:max_combos]
+
+                        show_status("info", f"Grille: {len(param_grid):,} combinaisons")
+
+                        # Estimation du temps pour grands volumes
+                        if len(param_grid) > 10000:
+                            estimated_time_sec = len(param_grid) / max(n_workers, 1) * 0.05
+                            if estimated_time_sec > 3600:
+                                time_str = f"{estimated_time_sec/3600:.1f} heures"
+                            elif estimated_time_sec > 60:
+                                time_str = f"{estimated_time_sec/60:.0f} minutes"
+                            else:
+                                time_str = f"{estimated_time_sec:.0f} secondes"
+                            st.info(f"⏱️ Temps estimé: ~{time_str} avec {n_workers} workers")
+
+                    except Exception as exc:
+                        show_status("error", f"Échec génération grille: {exc}")
+                        st.session_state.is_running = False
+                        st.stop()
+
+                # Initialiser les variables locales directement (pas de session_state complexe)
+                results_list = []
+                param_combos_map = {}
+
+                sweep_monitor = SweepMonitor(
+                    total_combinations=len(param_grid),
+                    objectives=["sharpe_ratio", "total_return_pct", "total_pnl", "max_drawdown"],
+                    top_k=15,
+                )
+                sweep_monitor.start()
+
+                monitor = ProgressMonitor(total_runs=len(param_grid))
+
+                start_time = time.time()
+                last_render_time = start_time
+
+                st.markdown("### 📊 Progression en temps réel")
+
+                def run_single_backtest(param_combo: Dict[str, Any]):
+                    try:
+                        result_i, msg_i = safe_run_backtest(
+                            engine,
+                            df,
+                            strategy_key,
+                            param_combo,
+                            symbol,
+                            timeframe,
+                            silent_mode=not debug_enabled,
+                        )
+
+                        params_native = {
+                            k: float(v) if hasattr(v, "item") else v for k, v in param_combo.items()
+                        }
+                        params_str = str(params_native)
+
+                        if result_i:
+                            return {
+                                "params": params_str,
+                                "params_dict": param_combo,
+                                "total_pnl": result_i.metrics["total_pnl"],
+                                "sharpe": result_i.metrics["sharpe_ratio"],
+                                "max_dd": result_i.metrics["max_drawdown_pct"],
+                                "win_rate": result_i.metrics["win_rate_pct"],
+                                "trades": result_i.metrics["total_trades"],
+                                "profit_factor": result_i.metrics["profit_factor"],
+                            }
                         return {
                             "params": params_str,
                             "params_dict": param_combo,
-                            "total_pnl": result_i.metrics["total_pnl"],
-                            "sharpe": result_i.metrics["sharpe_ratio"],
-                            "max_dd": result_i.metrics["max_drawdown"],
-                            "win_rate": result_i.metrics["win_rate"],
-                            "trades": result_i.metrics["total_trades"],
-                            "profit_factor": result_i.metrics["profit_factor"],
+                            "error": msg_i,
                         }
-                    return {
-                        "params": params_str,
-                        "params_dict": param_combo,
-                        "error": msg_i,
-                    }
-                except Exception as exc:
-                    params_str = str(param_combo)
-                    return {
-                        "params": params_str,
-                        "params_dict": param_combo,
-                        "error": str(exc),
-                    }
+                    except Exception as exc:
+                        params_str = str(param_combo)
+                        return {
+                            "params": params_str,
+                            "params_dict": param_combo,
+                            "error": str(exc),
+                        }
 
-            if n_workers > 1 and len(param_grid) > 1:
-                from concurrent.futures import ProcessPoolExecutor, as_completed
+                if n_workers > 1 and len(param_grid) > 1:
+                    from concurrent.futures import ProcessPoolExecutor, as_completed, wait, FIRST_COMPLETED
 
-                with ProcessPoolExecutor(max_workers=n_workers) as executor:
-                    future_to_params = {
-                        executor.submit(
-                            _run_backtest_multiprocess,
-                            (combo, state.initial_capital, df, strategy_key, symbol, timeframe, debug_enabled)
-                        ): combo
-                        for combo in param_grid
-                    }
-
+                    total = len(param_grid)
                     completed = 0
+
+                    # Taille de batch adaptative selon le volume
+                    batch_size = min(n_workers * 10, 1000, total)  # Max 1000 par batch
+                    n_batches = (total + batch_size - 1) // batch_size
+
+                    logger.info(f"🚀 Démarrage sweep parallèle: {total:,} combinaisons, {n_workers} workers, {n_batches} batches")
+                    st.info(f"🚀 Démarrage: {total:,} combinaisons en {n_batches} batches ({batch_size} par batch)")
+
+                    # Utiliser st.status pour le streaming en temps réel
+                    with st.status(f"🔄 Initialisation... (batch 1/{n_batches})", expanded=True) as status:
+                        # Créer les placeholders dans le status
+                        metrics_placeholder = st.empty()
+                        progress_bar = st.progress(0)
+                        results_placeholder = st.empty()
+
+                        # Message initial pendant le démarrage
+                        with metrics_placeholder.container():
+                            st.info("⏳ Démarrage des workers... Les premiers résultats arrivent dans quelques secondes.")
+
+                        with ProcessPoolExecutor(
+                            max_workers=n_workers,
+                            initializer=_init_backtest_worker,
+                            initargs=(df, state.initial_capital, strategy_key, symbol, timeframe, debug_enabled),
+                        ) as executor:
+                            # Traitement par batches pour un meilleur feedback
+                            for batch_idx in range(n_batches):
+                                # Vérifier arrêt d'urgence
+                                if st.session_state.get("stop_requested", False):
+                                    logger.warning("🛑 Arrêt demandé")
+                                    status.update(label=f"⚠️ Arrêté: {completed:,}/{total:,}", state="error")
+                                    break
+
+                                batch_start = batch_idx * batch_size
+                                batch_end = min(batch_start + batch_size, total)
+                                batch_combos = param_grid[batch_start:batch_end]
+
+                                status.update(label=f"🔄 Batch {batch_idx+1}/{n_batches} ({completed:,}/{total:,})")
+
+                                # Soumettre le batch
+                                futures = {
+                                    executor.submit(_run_backtest_multiprocess, combo): combo
+                                    for combo in batch_combos
+                                }
+
+                                # Traiter les résultats du batch
+                                for future in as_completed(futures):
+                                    if st.session_state.get("stop_requested", False):
+                                        for f in futures:
+                                            f.cancel()
+                                        break
+
+                                    completed += 1
+                                    monitor.runs_completed = completed
+
+                                    try:
+                                        result = future.result()
+                                    except Exception as exc:
+                                        result = {"params": "error", "error": str(exc)}
+
+                                    params_str = result.get("params", "")
+                                    param_combo = result.get("params_dict", {})
+                                    param_combos_map[params_str] = param_combo
+
+                                    if "error" not in result:
+                                        pnl = result.get("total_pnl", 0.0)
+                                        metrics = {
+                                            "sharpe_ratio": result.get("sharpe", 0.0),
+                                            "total_pnl": pnl,
+                                            "total_return_pct": (pnl / state.initial_capital * 100) if state.initial_capital else 0.0,
+                                            "max_drawdown": abs(result.get("max_dd", 0.0)),
+                                            "win_rate": result.get("win_rate", 0.0),
+                                            "total_trades": result.get("trades", 0),
+                                            "profit_factor": result.get("profit_factor", 0.0),
+                                        }
+                                        sweep_monitor.update(params=param_combo, metrics=metrics)
+                                    else:
+                                        sweep_monitor.update(params=param_combo, metrics={}, error=True)
+
+                                    result_clean = {k: v for k, v in result.items() if k != "params_dict"}
+                                    results_list.append(result_clean)
+
+                                    # Mise à jour UI adaptative (temps réel mais throttled)
+                                    current_time = time.time()
+                                    if current_time - last_render_time > 0.5 or completed == total:
+                                        elapsed = current_time - start_time
+                                        last_render_time = current_time  # Update last render timestamp
+
+                                        rate = completed / max(elapsed, 0.001)
+                                        remaining = total - completed
+                                        eta_sec = remaining / rate if rate > 0 else 0
+
+                                        if eta_sec > 3600:
+                                            eta_str = f"{eta_sec/3600:.1f}h"
+                                        elif eta_sec > 60:
+                                            eta_str = f"{eta_sec/60:.0f}min"
+                                        else:
+                                            eta_str = f"{eta_sec:.0f}s"
+
+                                        pct = (completed / total) * 100
+
+                                        status.update(label=f"🔄 {completed:,}/{total:,} ({pct:.1f}%) - ETA: {eta_str}")
+                                        progress_bar.progress(min(completed / total, 1.0))
+
+                                        with metrics_placeholder.container():
+                                            c1, c2, c3, c4 = st.columns(4)
+                                            c1.metric("Complétés", f"{completed:,}")
+                                            c2.metric("Vitesse", f"{rate:.1f}/s")
+                                            c3.metric("ETA", eta_str)
+                                            c4.metric("Erreurs", f"{sweep_monitor.stats.errors}")
+
+                                        with results_placeholder.container():
+                                            # Afficher les premières erreurs si présentes
+                                            if sweep_monitor.stats.errors > 0 and completed <= 5:
+                                                last_error = results_list[-1].get("error", "Unknown") if results_list else "Unknown"
+                                                st.error(f"⚠️ Erreur backtest: {last_error[:200]}")
+
+                                            top_results = sweep_monitor.get_top_results("sharpe_ratio")
+                                            # Si tous les sharpe sont 0, utiliser total_pnl
+                                            if top_results and all(r.metrics.get("sharpe_ratio", 0) == 0 for r in top_results[:5]):
+                                                top_results = sweep_monitor.get_top_results("total_pnl")
+                                                metric_label = "PnL"
+                                            else:
+                                                metric_label = "Sharpe"
+                                            if top_results:
+                                                st.markdown(f"**🏆 Top 5 actuels ({metric_label}):**")
+                                                for i, res in enumerate(top_results[:5]):
+                                                    sharpe = res.metrics.get("sharpe_ratio", 0)
+                                                    pnl = res.metrics.get("total_pnl", 0)
+                                                    ret = res.metrics.get("total_return_pct", 0)
+                                                    pf = res.metrics.get("profit_factor", 0)
+                                                    st.caption(f"{i+1}. PnL=${pnl:,.0f} | Sharpe={sharpe:.3f} | Return={ret:.1f}% | PF={pf:.2f}")
+
+                        # Fin du sweep
+                        status.update(label=f"✅ Terminé: {completed:,}/{total:,}", state="complete")
+                else:
+                    # Mode séquentiel avec rendu temps réel
+                    progress_placeholder = st.empty()
+                    total = len(param_grid)
                     last_render_time = time.perf_counter()
 
-                    for future in as_completed(future_to_params):
-                        completed += 1
-                        monitor.runs_completed = completed
+                    for i, param_combo in enumerate(param_grid):
+                        # Vérifier si un arrêt d'urgence a été demandé
+                        if st.session_state.get("stop_requested", False):
+                            logger.warning("🛑 Arrêt demandé - interruption du sweep")
+                            show_status("warning", f"Arrêté après {i}/{total} runs")
+                            break
 
-                        result = future.result()
+                        monitor.runs_completed = i + 1
+
+                        result = run_single_backtest(param_combo)
                         params_str = result.get("params", "")
-                        param_combo = result.get("params_dict", {})
-                        param_combos_map[params_str] = param_combo
+                        param_combo_result = result.get("params_dict", {})
+                        param_combos_map[params_str] = param_combo_result
 
                         if "error" not in result:
+                            pnl = result.get("total_pnl", 0.0)
                             metrics = {
                                 "sharpe_ratio": result.get("sharpe", 0.0),
-                                "total_return_pct": result.get("total_pnl", 0.0),
+                                "total_pnl": pnl,
+                                "total_return_pct": (pnl / state.initial_capital * 100) if state.initial_capital else 0.0,
                                 "max_drawdown": abs(result.get("max_dd", 0.0)),
                                 "win_rate": result.get("win_rate", 0.0),
                                 "total_trades": result.get("trades", 0),
                                 "profit_factor": result.get("profit_factor", 0.0),
                             }
-                            sweep_monitor.update(params=param_combo, metrics=metrics)
+                            sweep_monitor.update(params=param_combo_result, metrics=metrics)
                         else:
-                            sweep_monitor.update(params=param_combo, metrics={}, error=True)
+                            sweep_monitor.update(params=param_combo_result, metrics={}, error=True)
 
                         result_clean = {
                             k: v for k, v in result.items() if k != "params_dict"
                         }
                         results_list.append(result_clean)
 
+                        # Rafraîchir l'UI toutes les 5 itérations ou 300ms
                         current_time = time.perf_counter()
-                        if completed % 5 == 0 or current_time - last_render_time >= 0.5:
-                            render_progress_monitor(monitor, monitor_placeholder)
-                            with sweep_placeholder.container():
+                        if (i + 1) % 5 == 0 or current_time - last_render_time >= 0.3:
+                            with progress_placeholder.container():
+                                col1, col2, col3, col4 = st.columns(4)
+                                elapsed = time.time() - st.session_state.get("_sweep_start_time", time.time())
+                                rate = (i + 1) / max(elapsed, 0.001)
+
+                                with col1:
+                                    st.metric("Progression", f"{i + 1}/{total}")
+                                with col2:
+                                    st.metric("Vitesse", f"{rate:.1f}/s")
+                                with col3:
+                                    eta = (total - i - 1) / rate if rate > 0 else 0
+                                    st.metric("ETA", f"{eta:.0f}s")
+                                with col4:
+                                    pct = ((i + 1) / max(total, 1)) * 100
+                                    st.metric("Complété", f"{pct:.1f}%")
+
+                                st.progress((i + 1) / max(total, 1))
+
                                 render_sweep_progress(
                                     sweep_monitor,
-                                    key=f"sweep_parallel_{completed}",
+                                    key=f"sweep_seq_{i}",
                                     show_top_results=True,
                                     show_evolution=True,
                                 )
                             last_render_time = current_time
-                            time.sleep(0.01)
 
-                    render_progress_monitor(monitor, monitor_placeholder)
-                    with sweep_placeholder.container():
-                        render_sweep_progress(
-                            sweep_monitor,
-                            key="sweep_parallel_final",
-                            show_top_results=True,
-                            show_evolution=True,
+                st.markdown("---")
+                st.markdown("### 🎯 Résumé de l'Optimisation")
+
+                # Debug: afficher le nombre de résultats
+                logger.info(f"📊 Sweep terminé: {len(results_list)} résultats collectés")
+                st.write(f"**Debug:** {len(results_list)} résultats collectés")
+
+                render_sweep_summary(sweep_monitor, key="sweep_summary")
+
+                with status_container:
+                    show_status("success", f"Optimisation: {len(results_list)} tests")
+
+                results_df = pd.DataFrame(results_list)
+
+                if "trades" in results_df.columns:
+                    logger.info("=" * 80)
+                    logger.info("🔍 DEBUG GRID SEARCH - Analyse de la colonne 'trades'")
+                    logger.info("   Type: %s", results_df["trades"].dtype)
+                    logger.info("   Shape: %s", results_df["trades"].shape)
+                    logger.info(
+                        "   Premières valeurs: %s",
+                        results_df["trades"].head(10).tolist(),
+                    )
+                    logger.info(
+                        "   Stats: min=%s, max=%s, mean=%.2f",
+                        results_df["trades"].min(),
+                        results_df["trades"].max(),
+                        results_df["trades"].mean(),
+                    )
+
+                    trades_values = results_df["trades"].values
+                    fractional = [
+                        x for x in trades_values if isinstance(x, float) and not x.is_integer()
+                    ]
+                    if fractional:
+                        logger.warning(
+                            "   ⚠️  %s valeurs fractionnaires détectées: %s",
+                            len(fractional),
+                            fractional[:5],
                         )
-            else:
-                last_render_time = time.perf_counter()
-
-                for i, param_combo in enumerate(param_grid):
-                    monitor.runs_completed = i + 1
-
-                    result = run_single_backtest(param_combo)
-                    params_str = result.get("params", "")
-                    param_combo_result = result.get("params_dict", {})
-                    param_combos_map[params_str] = param_combo_result
-
-                    if "error" not in result:
-                        metrics = {
-                            "sharpe_ratio": result.get("sharpe", 0.0),
-                            "total_return_pct": result.get("total_pnl", 0.0),
-                            "max_drawdown": abs(result.get("max_dd", 0.0)),
-                            "win_rate": result.get("win_rate", 0.0),
-                            "total_trades": result.get("trades", 0),
-                            "profit_factor": result.get("profit_factor", 0.0),
-                        }
-                        sweep_monitor.update(params=param_combo_result, metrics=metrics)
                     else:
-                        sweep_monitor.update(params=param_combo_result, metrics={}, error=True)
+                        logger.info("   ✅ Toutes les valeurs sont des entiers")
+                    logger.info("=" * 80)
 
-                    result_clean = {
-                        k: v for k, v in result.items() if k != "params_dict"
-                    }
-                    results_list.append(result_clean)
-
-                    current_time = time.perf_counter()
-                    if (i + 1) % 5 == 0 or current_time - last_render_time >= 0.5:
-                        render_progress_monitor(monitor, monitor_placeholder)
-                        with sweep_placeholder.container():
-                            render_sweep_progress(
-                                sweep_monitor,
-                                key=f"sweep_sequential_{i}",
-                                show_top_results=True,
-                                show_evolution=True,
-                            )
-                        last_render_time = current_time
-                        time.sleep(0.01)
-
-                render_progress_monitor(monitor, monitor_placeholder)
-                with sweep_placeholder.container():
-                    render_sweep_progress(
-                        sweep_monitor,
-                        key="sweep_sequential_final",
-                        show_top_results=True,
-                        show_evolution=True,
-                    )
-
-            st.markdown("---")
-            st.markdown("### 🎯 Résumé de l'Optimisation")
-            render_sweep_summary(sweep_monitor, key="sweep_summary")
-
-            monitor_placeholder.empty()
-            sweep_placeholder.empty()
-
-            with status_container:
-                show_status("success", f"Optimisation: {len(results_list)} tests")
-
-            results_df = pd.DataFrame(results_list)
-
-            if "trades" in results_df.columns:
-                logger = logging.getLogger(__name__)
-                logger.info("=" * 80)
-                logger.info("🔍 DEBUG GRID SEARCH - Analyse de la colonne 'trades'")
-                logger.info("   Type: %s", results_df["trades"].dtype)
-                logger.info("   Shape: %s", results_df["trades"].shape)
-                logger.info(
-                    "   Premières valeurs: %s",
-                    results_df["trades"].head(10).tolist(),
-                )
-                logger.info(
-                    "   Stats: min=%s, max=%s, mean=%.2f",
-                    results_df["trades"].min(),
-                    results_df["trades"].max(),
-                    results_df["trades"].mean(),
-                )
-
-                trades_values = results_df["trades"].values
-                fractional = [
-                    x for x in trades_values if isinstance(x, float) and not x.is_integer()
-                ]
-                if fractional:
-                    logger.warning(
-                        "   ⚠️  %s valeurs fractionnaires détectées: %s",
-                        len(fractional),
-                        fractional[:5],
-                    )
+                error_column = results_df.get("error")
+                if error_column is not None:
+                    valid_results = results_df[error_column.isna()]
                 else:
-                    logger.info("   ✅ Toutes les valeurs sont des entiers")
-                logger.info("=" * 80)
+                    valid_results = results_df
 
-            error_column = results_df.get("error")
-            if error_column is not None:
-                valid_results = results_df[error_column.isna()]
-            else:
-                valid_results = results_df
+                if not valid_results.empty:
+                    # Trier par sharpe puis par total_pnl (pour départager si sharpe=0)
+                    valid_results = valid_results.sort_values(
+                        ["sharpe", "total_pnl"], ascending=[False, False]
+                    )
 
-            if not valid_results.empty:
-                valid_results = valid_results.sort_values("sharpe", ascending=False)
+                    st.subheader("🏆 Top 10 Combinaisons")
 
-                st.subheader("🏆 Top 10 Combinaisons")
+                    with st.expander("🔍 Debug Info - Types de données"):
+                        st.text(f"Nombre de résultats: {len(valid_results)}")
+                        st.text("Types des colonnes:")
+                        st.text(str(valid_results.dtypes))
+                        if "trades" in valid_results.columns:
+                            st.text("\nStatistiques 'trades':")
+                            st.text(f"  Type: {valid_results['trades'].dtype}")
+                            st.text(f"  Min: {valid_results['trades'].min()}")
+                            st.text(f"  Max: {valid_results['trades'].max()}")
+                            st.text(
+                                f"  Mean: {valid_results['trades'].mean():.2f}"
+                            )
 
-                with st.expander("🔍 Debug Info - Types de données"):
-                    st.text(f"Nombre de résultats: {len(valid_results)}")
-                    st.text("Types des colonnes:")
-                    st.text(str(valid_results.dtypes))
-                    if "trades" in valid_results.columns:
-                        st.text("\nStatistiques 'trades':")
-                        st.text(f"  Type: {valid_results['trades'].dtype}")
-                        st.text(f"  Min: {valid_results['trades'].min()}")
-                        st.text(f"  Max: {valid_results['trades'].max()}")
-                        st.text(
-                            f"  Mean: {valid_results['trades'].mean():.2f}"
-                        )
+                    st.dataframe(valid_results.head(10), width="stretch")
 
-                st.dataframe(valid_results.head(10), width="stretch")
+                    best = valid_results.iloc[0]
+                    st.info(f"🥇 Meilleure: {best['params']}")
 
-                best = valid_results.iloc[0]
-                st.info(f"🥇 Meilleure: {best['params']}")
-
-                best_params = param_combos_map.get(best["params"], {})
-                result, _ = safe_run_backtest(
-                    engine,
-                    df,
-                    strategy_key,
-                    best_params,
-                    symbol,
-                    timeframe,
-                    silent_mode=not debug_enabled,
-                )
-                if result is not None:
-                    winner_params = best_params
-                    winner_metrics = result.metrics
-                    winner_origin = "grid"
-                    winner_meta = result.meta
-                    st.session_state["last_run_result"] = result
-                    st.session_state["last_winner_params"] = winner_params
-                    st.session_state["last_winner_metrics"] = winner_metrics
-                    st.session_state["last_winner_origin"] = winner_origin
-                    st.session_state["last_winner_meta"] = winner_meta
-                    _maybe_auto_save_run(result)
-            else:
-                show_status("error", "Aucun résultat valide")
-                st.session_state.is_running = False
-                st.stop()
+                    best_params = param_combos_map.get(best["params"], {})
+                    result, _ = safe_run_backtest(
+                        engine,
+                        df,
+                        strategy_key,
+                        best_params,
+                        symbol,
+                        timeframe,
+                        silent_mode=not debug_enabled,
+                    )
+                    if result is not None:
+                        winner_params = best_params
+                        winner_metrics = result.metrics
+                        winner_origin = "grid"
+                        winner_meta = result.meta
+                        st.session_state["last_run_result"] = result
+                        st.session_state["last_winner_params"] = winner_params
+                        st.session_state["last_winner_metrics"] = winner_metrics
+                        st.session_state["last_winner_origin"] = winner_origin
+                        st.session_state["last_winner_meta"] = winner_meta
+                        _maybe_auto_save_run(result)
+                else:
+                    show_status("error", "Aucun résultat valide")
+                    st.session_state.is_running = False
+                    st.stop()
 
         elif optimization_mode == "🤖 Optimisation LLM":
             if not LLM_AVAILABLE:

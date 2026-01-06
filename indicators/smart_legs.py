@@ -16,9 +16,10 @@ Dependencies: pandas, numpy
 Conventions: Smart leg valide = segment entre 2 swings contenant >= 1 FVG
 """
 
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any
 
 
 def calculate_smart_legs_bullish(df: pd.DataFrame, **params) -> np.ndarray:
