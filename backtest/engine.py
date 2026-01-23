@@ -160,7 +160,8 @@ class BacktestEngine:
         symbol: str = "UNKNOWN",
         timeframe: str = "1m",
         seed: int = 42,
-        silent_mode: bool = False
+        silent_mode: bool = False,
+        fast_metrics: bool = False
     ) -> RunResult:
         """
         Exécute un backtest complet.
@@ -173,6 +174,7 @@ class BacktestEngine:
             timeframe: Timeframe des données (pour ajustements)
             seed: Seed pour reproductibilité
             silent_mode: Si True, désactive les logs structurés pour améliorer les performances en grid search
+            fast_metrics: Si True, utilise calculs rapides (ignoré dans version restaurée)
 
         Returns:
             RunResult avec equity, returns, trades, metrics et meta
