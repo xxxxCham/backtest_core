@@ -69,12 +69,14 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 st.metric("Sharpe Ratio", f"{sharpe:.2f}")
 
             with col3:
-                max_dd = result.metrics["max_drawdown_pct"]
+                # Compatibilité: engine restauré retourne "max_drawdown", UI récent cherche "max_drawdown_pct"
+                max_dd = result.metrics.get("max_drawdown_pct", result.metrics.get("max_drawdown", 0))
                 st.metric("Max Drawdown", f"{max_dd:.1f}%")
 
             with col4:
                 trades = result.metrics["total_trades"]
-                win_rate = result.metrics["win_rate_pct"]
+                # Compatibilité: engine restauré retourne "win_rate", UI récent cherche "win_rate_pct"
+                win_rate = result.metrics.get("win_rate_pct", result.metrics.get("win_rate", 0))
                 st.metric("Trades", f"{trades}", delta=f"{win_rate:.0f}% wins")
 
             with col5:
@@ -91,6 +93,40 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                         )
                         if best_run_id:
                             st.caption(f"run {best_run_id}")
+
+        liquidation_pnl = result.metrics.get("liquidation_total_pnl")
+        if liquidation_pnl is not None:
+            if result.metrics.get("liquidation_triggered"):
+                liquidation_time = result.metrics.get("liquidation_time")
+                time_note = f" à {liquidation_time}" if liquidation_time else ""
+                st.warning(
+                    f"💥 Liquidation détectée{time_note}. "
+                    "Le mode liquidation coupe les trades dès que le capital atteint 0."
+                )
+
+            with st.expander("🧯 Liquidation vs crédit infini", expanded=False):
+                credit_col, liq_col = st.columns(2)
+                with credit_col:
+                    st.markdown("**Crédit infini**")
+                    st.metric("P&L", f"${result.metrics.get('total_pnl', 0):,.2f}")
+                    st.metric("Sharpe", f"{result.metrics.get('sharpe_ratio', 0):.2f}")
+                    st.metric("Max DD", f"{result.metrics.get('max_drawdown_pct', 0):.1f}%")
+                    st.metric("Trades", f"{result.metrics.get('total_trades', 0)}")
+                with liq_col:
+                    st.markdown("**Liquidation**")
+                    st.metric("P&L", f"${result.metrics.get('liquidation_total_pnl', 0):,.2f}")
+                    st.metric(
+                        "Sharpe",
+                        f"{result.metrics.get('liquidation_sharpe_ratio', 0):.2f}",
+                    )
+                    st.metric(
+                        "Max DD",
+                        f"{result.metrics.get('liquidation_max_drawdown_pct', 0):.1f}%",
+                    )
+                    st.metric(
+                        "Trades",
+                        f"{result.metrics.get('liquidation_total_trades', result.metrics.get('total_trades', 0))}",
+                    )
 
         if result is not None and winner_params is not None:
             st.subheader("Versioned preset")
@@ -229,12 +265,16 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 st.text(f"Sharpe: {result.metrics['sharpe_ratio']:.2f}")
                 st.text(f"Sortino: {result.metrics['sortino_ratio']:.2f}")
                 st.text(f"Calmar: {result.metrics['calmar_ratio']:.2f}")
-                st.text(f"Max DD: {result.metrics['max_drawdown_pct']:.2f}%")
+                # Compatibilité: fallback max_drawdown si max_drawdown_pct absent
+                max_dd = result.metrics.get('max_drawdown_pct', result.metrics.get('max_drawdown', 0))
+                st.text(f"Max DD: {max_dd:.2f}%")
 
             with col3:
                 st.markdown("**🎯 Trading**")
                 st.text(f"Trades: {result.metrics['total_trades']}")
-                st.text(f"Win Rate: {result.metrics['win_rate_pct']:.1f}%")
+                # Compatibilité: fallback win_rate si win_rate_pct absent
+                win_rate = result.metrics.get('win_rate_pct', result.metrics.get('win_rate', 0))
+                st.text(f"Win Rate: {win_rate:.1f}%")
                 st.text(f"Profit Factor: {result.metrics['profit_factor']:.2f}")
                 st.text(f"Expectancy: ${result.metrics['expectancy']:.2f}")
 
