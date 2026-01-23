@@ -159,7 +159,8 @@ class BacktestEngine:
         *,
         symbol: str = "UNKNOWN",
         timeframe: str = "1m",
-        seed: int = 42
+        seed: int = 42,
+        silent_mode: bool = False
     ) -> RunResult:
         """
         Exécute un backtest complet.
@@ -171,6 +172,7 @@ class BacktestEngine:
             symbol: Symbole de l'actif (pour logging)
             timeframe: Timeframe des données (pour ajustements)
             seed: Seed pour reproductibilité
+            silent_mode: Si True, désactive les logs structurés pour améliorer les performances en grid search
 
         Returns:
             RunResult avec equity, returns, trades, metrics et meta
@@ -184,9 +186,10 @@ class BacktestEngine:
         
         # Enrichir le logger avec contexte
         self.logger = self.logger.with_context(symbol=symbol, timeframe=timeframe)
-        self.logger.info("pipeline_start strategy=%s bars=%s", 
-                         strategy if isinstance(strategy, str) else getattr(strategy, 'name', 'custom'),
-                         len(df))
+        if not silent_mode:
+            self.logger.info("pipeline_start strategy=%s bars=%s",
+                             strategy if isinstance(strategy, str) else getattr(strategy, 'name', 'custom'),
+                             len(df))
 
         # Seed pour déterminisme
         np.random.seed(seed)
@@ -290,10 +293,11 @@ class BacktestEngine:
                 meta=meta
             )
 
-            self.logger.info(
-                "pipeline_end duration_ms=%.1f trades=%s sharpe=%.2f pnl=%.2f",
-                total_ms, len(trades_df), metrics.get('sharpe_ratio', 0), metrics.get('total_pnl', 0)
-            )
+            if not silent_mode:
+                self.logger.info(
+                    "pipeline_end duration_ms=%.1f trades=%s sharpe=%.2f pnl=%.2f",
+                    total_ms, len(trades_df), metrics.get('sharpe_ratio', 0), metrics.get('total_pnl', 0)
+                )
 
             return result
 
