@@ -76,6 +76,20 @@ from ui.state import SidebarState
 from utils.observability import is_debug_enabled, set_log_level
 
 
+def _is_valid_timeframe_format(tf: str) -> bool:
+    """Valide qu'un timeframe est dans un format correct."""
+    if not tf or len(tf) < 2:
+        return False
+    unit = tf[-1]
+    if unit not in ('m', 'h', 'd', 'w', 'M'):
+        return False
+    try:
+        amount = int(tf[:-1])
+        return amount > 0
+    except ValueError:
+        return False
+
+
 def render_sidebar() -> SidebarState:
     st.sidebar.header("⚙️ Configuration")
 
@@ -105,6 +119,16 @@ def render_sidebar() -> SidebarState:
         if not available_timeframes:
             available_timeframes = ["1h", "4h", "1d"]
 
+        # Nettoyer les valeurs de session invalides (bug fix 23/01/2026)
+        if "symbol_select" in st.session_state:
+            if st.session_state["symbol_select"] not in available_tokens:
+                del st.session_state["symbol_select"]
+
+        if "timeframe_select" in st.session_state:
+            if not _is_valid_timeframe_format(st.session_state["timeframe_select"]) or \
+               st.session_state["timeframe_select"] not in available_timeframes:
+                del st.session_state["timeframe_select"]
+
     except Exception as exc:
         available_tokens = ["BTCUSDC", "ETHUSDC"]
         available_timeframes = ["1h", "4h", "1d"]
@@ -121,10 +145,17 @@ def render_sidebar() -> SidebarState:
             pending_meta = None
 
     if pending_meta is not None:
+        # Valider que symbol et timeframe sont valides avant de les ajouter
         if pending_meta.symbol and pending_meta.symbol not in available_tokens:
-            available_tokens = [pending_meta.symbol] + available_tokens
+            # Vérifier que le symbol est valide (lettres et chiffres seulement)
+            if pending_meta.symbol.replace("_", "").replace("-", "").isalnum():
+                available_tokens = [pending_meta.symbol] + available_tokens
+
         if pending_meta.timeframe and pending_meta.timeframe not in available_timeframes:
-            available_timeframes = [pending_meta.timeframe] + available_timeframes
+            # Valider format timeframe (ex: 1m, 5m, 1h, 4h, 1d)
+            if _is_valid_timeframe_format(pending_meta.timeframe):
+                available_timeframes = [pending_meta.timeframe] + available_timeframes
+
         if pending_meta.symbol:
             st.session_state["symbol_select"] = pending_meta.symbol
         if pending_meta.timeframe:
@@ -134,24 +165,110 @@ def render_sidebar() -> SidebarState:
         end_ts = _parse_run_timestamp(pending_meta.period_end)
         if start_ts is not None and end_ts is not None:
             st.session_state["use_date_filter"] = True
-            st.session_state["start_date"] = start_ts.date()
-            st.session_state["end_date"] = end_ts.date()
+            # Initialiser seulement si pas déjà défini (évite conflit avec widget)
+            if "start_date" not in st.session_state:
+                st.session_state["start_date"] = start_ts.date()
+            if "end_date" not in st.session_state:
+                st.session_state["end_date"] = end_ts.date()
 
-    btc_idx = available_tokens.index("BTCUSDC") if "BTCUSDC" in available_tokens else 0
-    symbol = st.sidebar.selectbox(
-        "Symbole",
-        available_tokens,
-        index=btc_idx,
-        key="symbol_select",
-    )
+    # === NETTOYAGE SESSION STATE ===
+    # Nettoyer les clés de session obsolètes ou invalides
+    session_keys_to_clean = [
+        "symbols_select", "timeframes_select", "symbol_select", "timeframe_select"
+    ]
+    for key in session_keys_to_clean:
+        if key in st.session_state:
+            if "symbol" in key:
+                if isinstance(st.session_state[key], list):
+                    # Multi-select : filtrer valeurs invalides
+                    valid_symbols = [s for s in st.session_state[key] if s in available_tokens]
+                    if not valid_symbols or len(valid_symbols) != len(st.session_state[key]):
+                        st.session_state[key] = valid_symbols if valid_symbols else available_tokens[:1]
+                elif st.session_state[key] not in available_tokens:
+                    del st.session_state[key]
+            elif "timeframe" in key:
+                if isinstance(st.session_state[key], list):
+                    # Multi-select : filtrer valeurs invalides
+                    valid_timeframes = [tf for tf in st.session_state[key] if tf in available_timeframes]
+                    if not valid_timeframes or len(valid_timeframes) != len(st.session_state[key]):
+                        st.session_state[key] = valid_timeframes if valid_timeframes else available_timeframes[:1]
+                elif st.session_state[key] not in available_timeframes:
+                    del st.session_state[key]
 
-    tf_idx = available_timeframes.index("30m") if "30m" in available_timeframes else 0
-    timeframe = st.sidebar.selectbox(
-        "Timeframe",
+    # === MULTI-SÉLECTION TOKENS (multiselect) ===
+    # Tokens à potentiel (base de comparaison méticuleuse)
+    POTENTIAL_TOKENS = [
+        "BTCUSDC",    # Bitcoin - Référence marché
+        "ETHUSDC",    # Ethereum - Leader DeFi
+        "BNBUSDC",    # Binance Coin - Plateforme CEX
+        "SOLUSDC",    # Solana - Haute vitesse
+        "AVAXUSDC",   # Avalanche - DeFi concurrente
+        "LINKUSDC",   # Chainlink - Oracle leader
+        "ADAUSDC",    # Cardano - Approche académique
+        "DOTUSDC",    # Polkadot - Interopérabilité
+        "ATOMUSDC",   # Cosmos - Hub inter-chaînes
+    ]
+
+    default_symbols = ["BTCUSDC"] if "BTCUSDC" in available_tokens else available_tokens[:1]
+
+    # Appliquer la sélection des tokens potentiels avant la création du widget
+    if st.session_state.get("_apply_potential_tokens", False):
+        valid_potential = [t for t in POTENTIAL_TOKENS if t in available_tokens]
+        current_symbols = st.session_state.get("symbols_select", default_symbols)
+        merged_symbols = list(current_symbols)
+        for token in valid_potential:
+            if token not in merged_symbols:
+                merged_symbols.append(token)
+        st.session_state["symbols_select"] = merged_symbols or default_symbols
+        del st.session_state["_apply_potential_tokens"]
+
+    # Layout: multiselect + bouton côte à côte
+    col1, col2 = st.sidebar.columns([3, 1])
+    with col1:
+        multiselect_kwargs = {
+            "label": "Symbole(s)",
+            "options": available_tokens,
+            "key": "symbols_select",
+            "help": "Sélectionnez un ou plusieurs tokens à analyser",
+        }
+        if "symbols_select" not in st.session_state:
+            multiselect_kwargs["default"] = default_symbols
+        symbols = st.multiselect(**multiselect_kwargs)
+    with col2:
+        st.write("")  # Espacement pour aligner avec le multiselect
+        if st.button("🎯", key="select_potential_tokens", help="Sélectionner tokens à potentiel"):
+            st.session_state["_apply_potential_tokens"] = True
+            st.rerun()
+
+    # Fallback si aucune sélection
+    if not symbols:
+        symbols = default_symbols
+        st.sidebar.warning("⚠️ Au moins un symbole requis. BTCUSDC sélectionné par défaut.")
+    symbol = symbols[0]  # Compatibilité rétro
+
+    # === MULTI-SÉLECTION TIMEFRAMES (multiselect) ===
+    default_timeframes = ["30m"] if "30m" in available_timeframes else available_timeframes[:1]
+    timeframes = st.sidebar.multiselect(
+        "Timeframe(s)",
         available_timeframes,
-        index=tf_idx,
-        key="timeframe_select",
+        default=default_timeframes,
+        key="timeframes_select",
+        help="Sélectionnez un ou plusieurs timeframes",
     )
+    # Fallback si aucune sélection
+    if not timeframes:
+        timeframes = default_timeframes
+        st.sidebar.warning("⚠️ Au moins un timeframe requis. 30m sélectionné par défaut.")
+    timeframe = timeframes[0]  # Compatibilité rétro
+
+    # Info multi-sweep si plusieurs sélections
+    if len(symbols) > 1 or len(timeframes) > 1:
+        total_combos = len(symbols) * len(timeframes)
+        st.sidebar.info(f"🔄 Mode multi-sweep: {len(symbols)} token(s) × {len(timeframes)} TF(s) = {total_combos} combinaison(s)")
+
+    # Analyse des données disponibles pour validation (toujours nécessaire)
+    from data.config import scan_data_availability
+    availability_result = scan_data_availability(symbols, timeframes)
 
     use_date_filter = st.sidebar.checkbox(
         "Filtrer par dates",
@@ -160,63 +277,209 @@ def render_sidebar() -> SidebarState:
         key="use_date_filter",
     )
     if use_date_filter:
-        # Afficher la plage de données disponible
-        date_range = get_data_date_range(symbol, timeframe)
-        if date_range:
-            data_start, data_end = date_range
-            st.sidebar.caption(
-                f"📅 Données disponibles: **{data_start.strftime('%Y-%m-%d')}** → "
-                f"**{data_end.strftime('%Y-%m-%d')}**"
+        # === ANALYSE PAR CATÉGORIE DE TIMEFRAME ===
+        from data.config import (
+            analyze_by_timeframe,
+            find_optimal_periods,
+            get_min_period_days_for_timeframes,
+        )
+
+        # Analyse par timeframe (plage commune par TF)
+        timeframe_analysis = analyze_by_timeframe(symbols, timeframes)
+
+        # Interface de sélection par timeframe
+        with st.sidebar.expander("🎯 **Analyse par Timeframe**", expanded=True):
+            if len(timeframes) > 1:
+                analysis_mode = st.radio(
+                    "Mode d'analyse",
+                    ["Période harmonisée", "Périodes indépendantes par timeframe"],
+                    help="Harmonisée = même période pour tous. Indépendantes = période optimale par timeframe",
+                )
+            else:
+                analysis_mode = "Période harmonisée"  # Auto si un seul timeframe
+
+            if analysis_mode == "Période harmonisée":
+                if availability_result.has_common_range:
+                    common_start = availability_result.common_start
+                    common_end = availability_result.common_end
+                    duration = (common_end - common_start).days
+
+                    st.success(f"✅ **Période harmonisée**: {common_start.strftime('%d/%m/%Y')} → {common_end.strftime('%d/%m/%Y')} ({duration}j)")
+                    st.caption(
+                        f"💡 Plage commune stricte (max début, min fin) sur "
+                        f"{len(symbols)} token(s) × {len(timeframes)} TF(s)"
+                    )
+
+                    default_start = common_start.date()
+                    default_end = common_end.date()
+                else:
+                    st.warning("⚠️ Impossible de trouver une période commune (intersection vide)")
+                    default_start = pd.Timestamp("2023-01-01").date()
+                    default_end = pd.Timestamp.now().date()
+
+            else:
+                st.info("📊 **Périodes optimales par timeframe**:")
+
+                best_timeframe = None
+                best_score = 0.0
+
+                for tf, data in timeframe_analysis.items():
+                    st.write(f"**{tf}**")
+
+                    if data['optimal_periods']:
+                        best_period = data['optimal_periods'][0]
+                        start_fr = best_period.start_date.strftime("%d/%m/%Y")
+                        end_fr = best_period.end_date.strftime("%d/%m/%Y")
+                        duration = (best_period.end_date - best_period.start_date).days
+
+                        st.write(f"- 🎯 {start_fr} → {end_fr} ({duration}j)")
+                        st.caption(
+                            f"  Score: {best_period.completeness_score:.0f}%, "
+                            f"Gap toléré: {data['gap_tolerance']:.0f}%"
+                        )
+
+                        for recommendation in data['recommendations']:
+                            st.caption(f"  {recommendation}")
+
+                        combined_score = best_period.completeness_score * best_period.avg_data_density
+                        if combined_score > best_score:
+                            best_score = combined_score
+                            best_timeframe = tf
+                            default_start = best_period.start_date.date()
+                            default_end = best_period.end_date.date()
+                    else:
+                        st.write("- ❌ Aucune période optimale trouvée")
+
+                if best_timeframe:
+                    st.success(f"🏆 **Défaut basé sur {best_timeframe}** (meilleur score: {best_score:.1f})")
+                else:
+                    st.warning("⚠️ Aucune période optimale trouvée pour les timeframes sélectionnés")
+                    default_start = pd.Timestamp("2023-01-01").date()
+                    default_end = pd.Timestamp.now().date()
+
+        # Interface dates avec format français
+        st.sidebar.caption("📅 **Période d'analyse** (format: DD/MM/YYYY)")
+
+        # Auto-aligner les dates sur la plage commune si hors limites.
+        if default_start and default_end:
+            selection_key = (
+                tuple(sorted(symbols)),
+                tuple(sorted(timeframes)),
+                analysis_mode,
             )
+            if st.session_state.get("_date_range_selection_key") != selection_key:
+                st.session_state["start_date"] = default_start
+                st.session_state["end_date"] = default_end
+                st.session_state["_date_range_selection_key"] = selection_key
+
+            start_state = st.session_state.get("start_date")
+            end_state = st.session_state.get("end_date")
+            if start_state and (start_state < default_start or start_state > default_end):
+                st.session_state["start_date"] = default_start
+            if end_state and (end_state < default_start or end_state > default_end):
+                st.session_state["end_date"] = default_end
+
+            if st.session_state.get("start_date") and st.session_state.get("end_date"):
+                if st.session_state["start_date"] >= st.session_state["end_date"]:
+                    st.session_state["start_date"] = default_start
+                    st.session_state["end_date"] = default_end
 
         col1, col2 = st.sidebar.columns(2)
         with col1:
             start_date = st.date_input(
-                "Début",
-                value=pd.Timestamp("2023-01-01"),
+                "Date début 📅",
+                value=default_start,
                 key="start_date",
+                format="DD/MM/YYYY",
+                help="Date de début de la période d'analyse"
             )
         with col2:
             end_date = st.date_input(
-                "Fin",
-                value=pd.Timestamp.now(),
+                "Date fin 📅",
+                value=default_end,
                 key="end_date",
+                format="DD/MM/YYYY",
+                help="Date de fin de la période d'analyse"
             )
 
-        # Avertissement si dates hors plage
-        if date_range and start_date and end_date:
-            data_start, data_end = date_range
+        # Validation que start_date < end_date
+        if start_date and end_date and start_date >= end_date:
+            st.sidebar.error("⚠️ La date de début doit être antérieure à la date de fin")
+
+        # Affichage de la durée sélectionnée
+        if start_date and end_date and start_date < end_date:
+            selected_days = (end_date - start_date).days
+            st.sidebar.caption(f"📊 Durée sélectionnée: **{selected_days} jours**")
+
+        # Validation de la période par rapport à la plage commune
+        if availability_result.has_common_range and start_date and end_date:
             start_ts = pd.Timestamp(start_date, tz="UTC")
             end_ts = pd.Timestamp(end_date, tz="UTC")
-            data_start_naive = data_start.tz_localize(None) if data_start.tzinfo else data_start
-            data_end_naive = data_end.tz_localize(None) if data_end.tzinfo else data_end
-            start_naive = start_ts.tz_localize(None)
-            end_naive = end_ts.tz_localize(None)
+            common_start = availability_result.common_start
+            common_end = availability_result.common_end
 
-            if end_naive < data_start_naive:
-                # Période entièrement AVANT les données
+            if end_ts < common_start:
+                # Période entièrement AVANT la plage commune
                 st.sidebar.error(
-                    f"⚠️ Période demandée ({start_date} → {end_date}) est AVANT "
-                    f"les données disponibles ({data_start.strftime('%Y-%m-%d')})"
+                    f"⚠️ Période demandée ({start_date.strftime('%d/%m/%Y')} → {end_date.strftime('%d/%m/%Y')}) est AVANT "
+                    f"la plage commune ({common_start.strftime('%d/%m/%Y')})"
                 )
-            elif start_naive > data_end_naive:
-                # Période entièrement APRÈS les données
+            elif start_ts > common_end:
+                # Période entièrement APRÈS la plage commune
                 st.sidebar.error(
-                    f"⚠️ Période demandée ({start_date} → {end_date}) est APRÈS "
-                    f"les données disponibles ({data_end.strftime('%Y-%m-%d')})"
+                    f"⚠️ Période demandée ({start_date.strftime('%d/%m/%Y')} → {end_date.strftime('%d/%m/%Y')}) est APRÈS "
+                    f"la plage commune ({common_end.strftime('%d/%m/%Y')})"
                 )
-            elif start_naive < data_start_naive:
-                # Début demandé AVANT les données (mais fin OK)
+            elif start_ts < common_start:
+                # Début demandé AVANT la plage commune (mais fin OK)
                 st.sidebar.warning(
-                    f"⚠️ Début demandé ({start_date}) est AVANT les données. "
-                    f"Données réelles à partir de **{data_start.strftime('%Y-%m-%d')}**"
+                    f"⚠️ Début demandé ({start_date.strftime('%d/%m/%Y')}) est AVANT la plage commune. "
+                    f"Données réelles à partir de **{common_start.strftime('%d/%m/%Y')}**"
                 )
-            elif end_naive > data_end_naive:
-                # Fin demandée APRÈS les données (mais début OK)
+            elif end_ts > common_end:
+                # Fin demandée APRÈS la plage commune (mais début OK)
                 st.sidebar.warning(
-                    f"⚠️ Fin demandée ({end_date}) est APRÈS les données. "
-                    f"Données réelles jusqu'à **{data_end.strftime('%Y-%m-%d')}**"
+                    f"⚠️ Fin demandée ({end_date.strftime('%d/%m/%Y')}) est APRÈS la plage commune. "
+                    f"Données réelles jusqu'à **{common_end.strftime('%d/%m/%Y')}**"
                 )
+
+        # Affichage détaillé de l'analyse des données
+        with st.sidebar.expander("🔍 Analyse détaillée des données", expanded=False):
+            if availability_result.rows:
+                df_analysis = pd.DataFrame(availability_result.rows)
+                st.dataframe(
+                    df_analysis,
+                    width="stretch",
+                    column_config={
+                        "Token": st.column_config.TextColumn("Token", width="small"),
+                        "TF": st.column_config.TextColumn("TF", width="small"),
+                        "Début": st.column_config.TextColumn("Début", width="medium"),
+                        "Fin": st.column_config.TextColumn("Fin", width="medium"),
+                        "Jours": st.column_config.NumberColumn("Jours", width="small"),
+                        "Plage commune %": st.column_config.NumberColumn("Plage commune %", format="%.1f%%", width="small"),
+                        "Couverture %": st.column_config.NumberColumn("Couverture %", format="%.1f%%", width="small"),
+                        "Manquant %": st.column_config.NumberColumn("Manquant %", format="%.1f%%", width="small"),
+                        "Jours manquants": st.column_config.NumberColumn("Jours manquants", format="%.1f", width="small"),
+                        "Status": st.column_config.TextColumn("Status", width="small"),
+                        "Détails": st.column_config.TextColumn("Détails", width="large")
+                    }
+                )
+
+                # Statistiques de l'analyse
+                total_combos = len(df_analysis)
+                complete_combos = len(df_analysis[df_analysis["Status"] == "✅"])
+                incomplete_combos = len(df_analysis[df_analysis["Status"] == "⚠️"])
+                missing_combos = len(df_analysis[df_analysis["Status"] == "❌"])
+
+                st.markdown(f"""
+                **Résumé de l'analyse :**
+                - ✅ Complètes : {complete_combos}/{total_combos}
+                - ⚠️ Incomplètes : {incomplete_combos}/{total_combos}
+                - ❌ Manquantes : {missing_combos}/{total_combos}
+                """)
+
+                if hasattr(availability_result, 'optimal_periods') and availability_result.optimal_periods:
+                    st.markdown("💡 **Conseil :** Les périodes optimales ci-dessus évitent automatiquement les zones avec trop de données manquantes.")
     else:
         start_date = None
         end_date = None
@@ -264,6 +527,8 @@ def render_sidebar() -> SidebarState:
         st.session_state.pop("pending_run_load_data", None)
 
     if st.sidebar.button("Charger donnees", key="load_ohlcv_button"):
+        # DEBUG: Afficher les paramètres de chargement
+        st.sidebar.caption(f"🔍 Debug: {symbol}/{timeframe}")
         df_loaded, msg = load_selected_data(symbol, timeframe, start_date, end_date)
         if df_loaded is None:
             st.sidebar.error(f"Erreur chargement: {msg}")
@@ -311,25 +576,12 @@ def render_sidebar() -> SidebarState:
         st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
 
     st.sidebar.subheader("Indicateurs")
-    st.sidebar.caption("_Affichage graphique uniquement (le backtest utilise toujours tous les indicateurs requis)_")
     available_indicators = get_strategy_ui_indicators(strategy_key)
-    active_indicators: List[str] = []
+    # Tous les indicateurs sont toujours affichés
+    active_indicators: List[str] = available_indicators if available_indicators else []
 
     if available_indicators:
-        for indicator_name in available_indicators:
-            checkbox_key = f"{strategy_key}_indicator_{indicator_name}"
-            if st.sidebar.checkbox(
-                f"📊 {indicator_name}",
-                value=True,
-                key=checkbox_key,
-                help=f"Afficher {indicator_name} sur le graphique",
-            ):
-                active_indicators.append(indicator_name)
-
-        # Feedback visuel si des indicateurs sont masqués
-        hidden_count = len(available_indicators) - len(active_indicators)
-        if hidden_count > 0:
-            st.sidebar.info(f"ℹ️ {hidden_count} indicateur(s) masqué(s) sur le graphique")
+        st.sidebar.caption(f"📊 {len(available_indicators)} indicateur(s) : {', '.join(available_indicators)}")
     else:
         st.sidebar.caption("Aucun indicateur disponible.")
 
@@ -458,7 +710,7 @@ def render_sidebar() -> SidebarState:
                 mode_name,
                 key=button_key,
                 help=description,
-                use_container_width=True,
+                width="stretch",
                 type="primary" if is_active else "secondary",
             ):
                 st.session_state.optimization_mode = mode_name
@@ -468,8 +720,11 @@ def render_sidebar() -> SidebarState:
 
     st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
 
-    max_combos = 100000000
-    n_workers = 30
+    # LIMITE SÉCURITÉ : 1M combinaisons max par défaut (au lieu de 100M)
+    max_combos = 30_000_000  # Limite optimisée pour exploitation multi-GPU
+    # 🚀 BOOST PERFORMANCE: 30 millions de combinaisons pour
+    # exploiter pleinement les 2 cartes graphiques
+    n_workers = 40  # Augmenté pour dual-GPU utilization
 
     # Configuration Optuna (intégrée dans Grille de Paramètres)
     use_optuna = False
@@ -484,7 +739,7 @@ def render_sidebar() -> SidebarState:
         st.sidebar.subheader("⚙️ Méthode d'exploration")
 
         use_optuna = st.sidebar.checkbox(
-            "⚡ Utiliser Optuna (Bayésien)",
+            "Utiliser Optuna (Bayésien) ⚡",
             value=False,
             help="Optuna explore intelligemment l'espace des paramètres (10-100x plus rapide que la grille exhaustive)",
         )
@@ -516,7 +771,7 @@ def render_sidebar() -> SidebarState:
             )
 
             optuna_pruning = st.sidebar.checkbox(
-                "Pruning (arrêt précoce)",
+                "Pruning (arrêt précoce) ✂️",
                 value=True,
                 help="Abandonne les trials peu prometteurs pour accélérer",
             )
@@ -543,20 +798,20 @@ def render_sidebar() -> SidebarState:
             st.sidebar.caption("🔢 **Mode Grille** - Exploration exhaustive")
 
             max_combos = st.sidebar.number_input(
-                "Max combinaisons",
+                "Max combinaisons [🚀 GPU OPTIMIZED]",
                 min_value=10,
                 max_value=100000000,
-                value=100000000,
+                value=30000000,  # Valeur par défaut optimisée pour GPU
                 step=100000,
-                help="Limite de combinaisons (10 - 100,000,000). Attention aux temps d'exécution pour valeurs élevées.",
+                help="Limite de combinaisons optimisée pour dual-GPU (10 - 100M).",
             )
 
             n_workers = st.sidebar.slider(
-                "Workers parallèles",
+                "Workers parallèles [🚀 GPU]",
                 min_value=1,
-                max_value=32,
-                value=30,
-                help="Nombre de processus parallèles pour l'optimisation (30 recommandé)",
+                max_value=61,  # Limite système Windows
+                value=24,      # Optimisé pour 9950X (32 threads) - balance perf/overhead
+                help="24-32 recommandé pour 9950X. Données pré-chargées = initialisation rapide",
             )
 
     llm_config = None
@@ -587,12 +842,12 @@ def render_sidebar() -> SidebarState:
         st.sidebar.caption("**⚙️ Paramètres d'exécution**")
 
         max_combos = st.sidebar.number_input(
-            "Max combinaisons",
+            "Max combinaisons [🚀 LLM+GPU]",
             min_value=10,
             max_value=100000000,
-            value=100000000,
+            value=30000000,  # Optimisé pour dual-GPU
             step=100000,
-            help="Nombre maximum de backtests que le LLM peut lancer (10 - 100,000,000)",
+            help="Limite optimisée pour LLM + dual-GPU (10 - 100M)",
             key="llm_max_combos",
         )
 
@@ -621,7 +876,7 @@ def render_sidebar() -> SidebarState:
             )
 
             llm_use_multi_agent = st.sidebar.checkbox(
-                "Mode multi-agents",
+                "Mode multi-agents 👥",
                 value=False,
                 key="llm_use_multi_agent",
                 help="Utiliser Analyst/Strategist/Critic/Validator",
@@ -841,7 +1096,7 @@ def render_sidebar() -> SidebarState:
 
                     # Checkbox pour pré-configuration optimale
                     use_optimal_config = st.sidebar.checkbox(
-                        "⚡ Pré-config optimale",
+                        "Pré-config optimale",
                         value=False,
                         key="use_optimal_model_config",
                         help=(
@@ -880,7 +1135,7 @@ def render_sidebar() -> SidebarState:
                     display_to_name = {v: k for k, v in name_to_display.items()}
 
                     use_single_model_for_roles = st.sidebar.checkbox(
-                        "🔁 Même modèle pour tous les rôles",
+                        "Même modèle pour tous les rôles",
                         value=False,
                         key="llm_single_model_for_roles",
                         help="Applique un seul modèle à Analyst/Strategist/Critic/Validator.",
@@ -1232,7 +1487,7 @@ def render_sidebar() -> SidebarState:
             )
 
             llm_unload_during_backtest = st.sidebar.checkbox(
-                "🎮 Décharger LLM du GPU",
+                "Décharger LLM du GPU",
                 value=False,
                 help=(
                     "Libère la VRAM GPU pendant les backtests pour améliorer les performances. "
@@ -1365,6 +1620,16 @@ def render_sidebar() -> SidebarState:
         temp_strategy = strategy_class()
         strategy_instance = temp_strategy
         param_specs = temp_strategy.parameter_specs or {}
+        label_overrides: Dict[str, str] = {}
+
+        if strategy_key == "bollinger_best_longe_3i":
+            label_overrides = {
+                "entry_level": "Entrée",
+                "tp_level": "Sortie_gagnante",
+                "sl_level": "Stop-loss",
+                "bb_std": "Bollinger_amplitude",
+                "bb_period": "Bollinger_signal",
+            }
 
         if param_specs:
             validation_errors = []
@@ -1375,7 +1640,11 @@ def render_sidebar() -> SidebarState:
 
                 if param_mode == "single":
                     value = create_param_range_selector(
-                        param_name, strategy_key, mode="single", spec=spec
+                        param_name,
+                        strategy_key,
+                        mode="single",
+                        spec=spec,
+                        label=label_overrides.get(param_name),
                     )
                     if value is not None:
                         params[param_name] = value
@@ -1385,7 +1654,11 @@ def render_sidebar() -> SidebarState:
                             validation_errors.append(error)
                 else:
                     range_data = create_param_range_selector(
-                        param_name, strategy_key, mode="range", spec=spec
+                        param_name,
+                        strategy_key,
+                        mode="range",
+                        spec=spec,
+                        label=label_overrides.get(param_name),
                     )
                     if range_data is not None:
                         param_ranges[param_name] = range_data
@@ -1435,7 +1708,7 @@ def render_sidebar() -> SidebarState:
 
     # Checkbox pour activer/désactiver le leverage
     leverage_enabled = st.sidebar.checkbox(
-        "🔓 Activer le leverage",
+        "� Activer le leverage",
         value=False,  # Désactivé par défaut = leverage forcé à 1
         key="leverage_enabled",
         help="Si décoché, leverage=1 (sans effet de levier). Recommandé pour tests sûrs.",
@@ -1476,6 +1749,13 @@ def render_sidebar() -> SidebarState:
         timeframe,
     )
 
+    # Multi-sweep lists (symbols et timeframes déjà définis par multiselect)
+    # strategy_keys et all_params/ranges/specs basés sur sélection simple de stratégie
+    strategy_keys = [strategy_key]
+    all_params = {strategy_key: params}
+    all_param_ranges = {strategy_key: param_ranges}
+    all_param_specs = {strategy_key: param_specs}
+
     return SidebarState(
         debug_enabled=debug_enabled,
         symbol=symbol,
@@ -1496,6 +1776,14 @@ def render_sidebar() -> SidebarState:
         optimization_mode=optimization_mode,
         max_combos=max_combos,
         n_workers=n_workers,
+        # Multi-sweep lists
+        symbols=symbols,
+        timeframes=timeframes,
+        strategy_keys=strategy_keys,
+        all_params=all_params,
+        all_param_ranges=all_param_ranges,
+        all_param_specs=all_param_specs,
+        # Optuna
         use_optuna=use_optuna,
         optuna_n_trials=optuna_n_trials,
         optuna_sampler=optuna_sampler,

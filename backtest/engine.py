@@ -185,7 +185,7 @@ class BacktestEngine:
         # Initialiser counters et contexte
         self.counters = PerfCounters()
         self.counters.start("total")
-        
+
         # Enrichir le logger avec contexte
         self.logger = self.logger.with_context(symbol=symbol, timeframe=timeframe)
         if not silent_mode:
@@ -204,7 +204,7 @@ class BacktestEngine:
             # 2. Préparer la stratégie
             if isinstance(strategy, str):
                 strategy = self._get_strategy_by_name(strategy)
-            
+
             strategy_name = strategy.name
             self.logger = self.logger.with_context(strategy=strategy_name)
 
@@ -264,12 +264,40 @@ class BacktestEngine:
                 initial_capital=self.initial_capital,
                 periods_per_year=periods_per_year
             )
+
+            # BUGFIX CRITIQUE: Invalider métriques si compte ruiné
+            account_ruined = metrics.get("account_ruined", False)
+            if account_ruined:
+                self.logger.warning(
+                    "account_ruined_detected invalidating_performance_metrics original_sharpe=%.2f",
+                    metrics.get("sharpe_ratio", 0)
+                )
+                # Forcer métriques de performance à zéro pour cohérence
+                metrics["sharpe_ratio"] = -20.0  # Pénalité maximale
+                metrics["sortino_ratio"] = -20.0
+                metrics["calmar_ratio"] = -20.0
+                # Note: garder total_pnl pour analyse, mais signaler danger
+
+            # Couverture des données: ratio barres réelles vs barres attendues
+            try:
+                period_days = max(
+                    1,
+                    int((df.index[-1] - df.index[0]).total_seconds() / 86400)
+                )
+                bars_per_day = periods_per_year / 365
+                expected_bars = period_days * bars_per_day
+                if expected_bars > 0:
+                    coverage_ratio = min(1.0, len(df) / expected_bars)
+                    metrics["data_coverage_pct"] = coverage_ratio * 100.0
+            except Exception:
+                pass
+
             self.counters.stop("metrics")
 
             # 9. Construire les métadonnées
             self.counters.stop("total")
             total_ms = self.counters.get_duration("total")
-            
+
             meta = {
                 "run_id": self.run_id,
                 "symbol": symbol,

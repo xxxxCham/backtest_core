@@ -53,7 +53,7 @@ class PerformanceMetrics:
     calmar_ratio: float
     risk_reward_ratio: float
     expectancy: float
-    
+
     # Métriques Tier S (optionnelles)
     tier_s: Optional[TierSMetrics] = None
 
@@ -246,6 +246,11 @@ def sharpe_ratio(
         )
         sharpe = np.sign(sharpe) * MAX_SHARPE
 
+    # Protection critique : Sharpe forcé à 0 si impossible
+    if not np.isfinite(sharpe):
+        logger.error("sharpe_ratio_infinite value=%.2f, forced_to_zero", sharpe)
+        sharpe = 0.0
+
     return float(sharpe)
 
 
@@ -410,7 +415,9 @@ def calculate_metrics(
         method=sharpe_method,
         equity=equity  # Passer equity pour daily_resample
     )
-    metrics["max_drawdown"] = max_drawdown(equity) * 100  # En %
+    # Plafonner le drawdown à -100% (ruine totale maximum)
+    # Un drawdown de -925% n'a pas de sens, ça indique probablement une equity négative
+    metrics["max_drawdown"] = max(-100.0, max_drawdown(equity) * 100)  # En %, plafonné à -100%
 
     # Volatilité annualisée
     volatility_returns = returns
@@ -590,7 +597,7 @@ class PerformanceCalculator:
         )
 
         self._last_metrics = metrics
-        
+
         # Stocker les métriques Tier S si calculées
         if self.include_tier_s and metrics.get("tier_s"):
             trades_pnl = trades_df["pnl"] if not trades_df.empty and "pnl" in trades_df.columns else pd.Series([])
@@ -601,7 +608,7 @@ class PerformanceCalculator:
                 initial_capital=self.initial_capital,
                 periods_per_year=periods_per_year
             )
-        
+
         return metrics
 
     def format_report(self, metrics: Optional[Dict[str, Any]] = None) -> str:

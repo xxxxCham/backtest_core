@@ -130,6 +130,8 @@ def _run_single_backtest_wrapper(
     df: pd.DataFrame,
     strategy: "StrategyBase",
     initial_capital: float,
+    silent_mode: bool = True,
+    fast_metrics: bool = True,
 ) -> Dict[str, Any]:
     """
     Wrapper function pour exécuter un backtest en parallèle (picklable).
@@ -144,13 +146,21 @@ def _run_single_backtest_wrapper(
         df: DataFrame OHLCV
         strategy: Instance de stratégie
         initial_capital: Capital initial
+        silent_mode: Désactive les logs pour accélérer les sweeps
+        fast_metrics: Utilise la version rapide des métriques
 
     Returns:
         Dict avec clés: params, metrics, success, error (optionnel)
     """
     try:
         engine = BacktestEngine(initial_capital=initial_capital)
-        result = engine.run(df=df, strategy=strategy, params=params)
+        result = engine.run(
+            df=df,
+            strategy=strategy,
+            params=params,
+            silent_mode=silent_mode,
+            fast_metrics=fast_metrics,
+        )
 
         return {
             "params": params,
@@ -201,6 +211,8 @@ class SweepEngine:
         initial_capital: float = 10000.0,
         enable_profiling: bool = False,
         auto_save: bool = True,
+        silent_mode: bool = True,
+        fast_metrics: bool = True,
     ):
         """
         Initialise le moteur de sweep.
@@ -211,16 +223,21 @@ class SweepEngine:
             initial_capital: Capital de départ
             enable_profiling: Activer le profiling des performances
             auto_save: Sauvegarder automatiquement les résultats
+            silent_mode: Désactiver les logs internes pendant le sweep
+            fast_metrics: Utiliser les métriques rapides (Sharpe/Sortino)
         """
         self.max_workers = max_workers
         self.use_processes = use_processes
         self.initial_capital = initial_capital
         self.enable_profiling = enable_profiling
         self.auto_save = auto_save
+        self.silent_mode = silent_mode
+        self.fast_metrics = fast_metrics
 
         self._runner = ParallelRunner(
             max_workers=max_workers,
             use_processes=use_processes,
+            backend="loky",  # Optimal: évite pickling répétitif du DataFrame
         )
 
         self._stop_requested = False
@@ -240,6 +257,8 @@ class SweepEngine:
         minimize: bool = False,
         show_progress: bool = True,
         early_stop_threshold: Optional[float] = None,
+        silent_mode: Optional[bool] = None,
+        fast_metrics: Optional[bool] = None,
     ) -> SweepResults:
         """
         Exécute un sweep paramétrique complet.
@@ -252,12 +271,16 @@ class SweepEngine:
             minimize: True pour minimiser (ex: drawdown)
             show_progress: Afficher la progression
             early_stop_threshold: Arrêter si métrique atteint ce seuil
+            silent_mode: Désactiver logs internes (None = valeur engine)
+            fast_metrics: Utiliser métriques rapides (None = valeur engine)
 
         Returns:
             SweepResults avec tous les résultats et le meilleur
         """
         self._stop_requested = False
         start_time = time.time()
+        silent_mode = self.silent_mode if silent_mode is None else silent_mode
+        fast_metrics = self.fast_metrics if fast_metrics is None else fast_metrics
 
         # Calculer les statistiques d'espace de recherche
         try:
@@ -320,6 +343,8 @@ class SweepEngine:
                 df=df,
                 strategy=strategy,
                 initial_capital=self.initial_capital,
+                silent_mode=silent_mode,
+                fast_metrics=fast_metrics,
             )
 
             if pbar:
@@ -424,6 +449,8 @@ class SweepEngine:
         *,
         optimize_for: str = "sharpe_ratio",
         minimize: bool = False,
+        silent_mode: Optional[bool] = None,
+        fast_metrics: Optional[bool] = None,
     ) -> SweepResults:
         """
         Exécute un sweep paramétrique en parallèle (multiprocessing).
@@ -437,11 +464,15 @@ class SweepEngine:
             param_grid: Dict des plages de paramètres
             optimize_for: Métrique à optimiser
             minimize: True pour minimiser
+            silent_mode: Désactiver logs internes (None = valeur engine)
+            fast_metrics: Utiliser métriques rapides (None = valeur engine)
 
         Returns:
             SweepResults
         """
         start_time = time.time()
+        silent_mode = self.silent_mode if silent_mode is None else silent_mode
+        fast_metrics = self.fast_metrics if fast_metrics is None else fast_metrics
 
         combinations = generate_param_grid(param_grid)
         n_combos = len(combinations)
@@ -458,6 +489,8 @@ class SweepEngine:
             df=df,
             strategy=strategy,
             initial_capital=self.initial_capital,
+            silent_mode=silent_mode,
+            fast_metrics=fast_metrics,
         )
 
         # Convertir les résultats
