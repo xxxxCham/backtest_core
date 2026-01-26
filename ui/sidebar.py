@@ -721,10 +721,10 @@ def render_sidebar() -> SidebarState:
     st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
 
     # LIMITE SÉCURITÉ : 1M combinaisons max par défaut (au lieu de 100M)
-    max_combos = 30_000_000  # Limite optimisée pour exploitation multi-GPU
+    max_combos = 30_000_000  # Limite optimisée pour CPU 32-threads (9950X)
     # 🚀 BOOST PERFORMANCE: 30 millions de combinaisons pour
-    # exploiter pleinement les 2 cartes graphiques
-    n_workers = 40  # Augmenté pour dual-GPU utilization
+    # exploiter pleinement les 32 threads du 9950X
+    n_workers = 30  # Optimisé pour AMD 9950X (32 threads)
 
     # Configuration Optuna (intégrée dans Grille de Paramètres)
     use_optuna = False
@@ -807,11 +807,11 @@ def render_sidebar() -> SidebarState:
             )
 
             n_workers = st.sidebar.slider(
-                "Workers parallèles [🚀 GPU]",
+                "Workers parallèles [🚀 CPU]",
                 min_value=1,
                 max_value=61,  # Limite système Windows
-                value=24,      # Optimisé pour 9950X (32 threads) - balance perf/overhead
-                help="24-32 recommandé pour 9950X. Données pré-chargées = initialisation rapide",
+                value=30,      # Optimisé pour 9950X (32 threads) - sweet spot perf/stabilité
+                help="28-32 recommandé pour 9950X (32 threads). 30 = sweet spot performance.",
             )
 
     llm_config = None
@@ -1755,6 +1755,37 @@ def render_sidebar() -> SidebarState:
     all_params = {strategy_key: params}
     all_param_ranges = {strategy_key: param_ranges}
     all_param_specs = {strategy_key: param_specs}
+
+    # === BOUTONS D'ACTION ===
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🚀 Actions")
+    
+    col1, col2 = st.sidebar.columns(2)
+    
+    with col1:
+        load_data_clicked = st.button(
+            "📊 Charger données",
+            key="load_data_button",
+            help="Charger les données OHLCV sélectionnées",
+            use_container_width=True
+        )
+        if load_data_clicked:
+            st.session_state["data_loaded"] = True
+            st.rerun()
+    
+    with col2:
+        # Désactiver le bouton de lancement si les données ne sont pas chargées
+        data_loaded = st.session_state.get("data_loaded", False)
+        run_clicked = st.button(
+            "▶️ Lancer",
+            key="run_backtest_button",
+            disabled=not data_loaded,
+            help="Lancer le backtest selon le mode sélectionné" if data_loaded else "Veuillez d'abord charger les données",
+            use_container_width=True
+        )
+        if run_clicked:
+            st.session_state["run_backtest_requested"] = True
+            st.rerun()
 
     return SidebarState(
         debug_enabled=debug_enabled,
