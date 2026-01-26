@@ -25,6 +25,13 @@ import pandas as pd
 from strategies.base import StrategyBase
 
 from backtest.performance import calculate_metrics
+from backtest.trade_analytics import (
+    enrich_trade_metrics,
+    analyze_exit_reasons,
+    calculate_streaks,
+    calculate_exposure,
+)
+from backtest.returns_safe import compute_returns_safe
 
 # Import simulateur rapide (Numba) avec fallback
 try:
@@ -248,21 +255,32 @@ class BacktestEngine:
             self.counters.start("equity")
             if USE_FAST_SIMULATOR:
                 equity = calculate_equity_fast(df, trades_df, self.initial_capital)
-                returns = calculate_returns_fast(equity)
             else:
                 equity = calculate_equity_curve(df, trades_df, self.initial_capital)
-                returns = calculate_returns(equity)
+
+            # 7b. Calculer returns SAFE (évite explosion si equity <= 0)
+            returns = compute_returns_safe(
+                equity,
+                initial_capital=self.initial_capital,
+                method="log_returns"  # Méthode par défaut (avec plancher)
+            )
             self.counters.stop("equity")
 
             # 8. Calculer les métriques
             self.counters.start("metrics")
             periods_per_year = self._get_periods_per_year(timeframe)
+            
+            # BUGFIX PERFORMANCE: utiliser sharpe_method="standard" en fast_metrics
+            # Évite le resample quotidien coûteux (300 bt/s → 450+ bt/s)
+            sharpe_method = "standard" if fast_metrics else "daily_resample"
+            
             metrics = calculate_metrics(
                 equity=equity,
                 returns=returns,
                 trades_df=trades_df,
                 initial_capital=self.initial_capital,
-                periods_per_year=periods_per_year
+                periods_per_year=periods_per_year,
+                sharpe_method=sharpe_method
             )
 
             # BUGFIX CRITIQUE: Invalider métriques si compte ruiné
@@ -294,6 +312,51 @@ class BacktestEngine:
 
             self.counters.stop("metrics")
 
+            # 8b. Enrichir avec analyse détaillée des trades (MFE/MAE, distribution, TP/SL)
+            self.counters.start("trade_analytics")
+            if not silent_mode:
+                try:
+                    trade_analytics = enrich_trade_metrics(df, trades_df, final_params)
+                    metrics["trade_analytics"] = trade_analytics.to_dict()
+                    if not silent_mode:
+                        self.logger.debug("trade_analytics_enriched mfe_median=%.2f mae_median=%.2f",
+                                         trade_analytics.excursions.mfe_median,
+                                         trade_analytics.excursions.mae_median)
+                except Exception as e:
+                    self.logger.warning("trade_analytics_failed error=%s", str(e))
+                    metrics["trade_analytics"] = None
+            else:
+                # En mode silent (grid search), skip enrichissement pour performance
+                metrics["trade_analytics"] = None
+            self.counters.stop("trade_analytics")
+
+            # 8c. Métriques enrichies supplémentaires (exit_reasons, streaks, exposure)
+            enriched_meta = {}
+            if not silent_mode and not trades_df.empty:
+                try:
+                    # Exit reasons analytics
+                    if "exit_reason" in trades_df.columns:
+                        exit_reasons = analyze_exit_reasons(trades_df)
+                        enriched_meta["exit_reasons"] = exit_reasons
+                        self.logger.debug("exit_reasons_analyzed most_common=%s",
+                                        exit_reasons.get("most_common_reason"))
+
+                    # Consecutive streaks
+                    streaks = calculate_streaks(trades_df)
+                    enriched_meta["streaks"] = streaks
+                    self.logger.debug("streaks max_wins=%d max_losses=%d",
+                                    streaks["max_consecutive_wins"],
+                                    streaks["max_consecutive_losses"])
+
+                    # Exposure time
+                    total_bars = len(df)
+                    exposure = calculate_exposure(trades_df, total_bars)
+                    enriched_meta["exposure"] = exposure
+                    self.logger.debug("exposure exposure_pct=%.1f%%", exposure["exposure_pct"])
+
+                except Exception as e:
+                    self.logger.warning("enriched_metrics_failed error=%s", str(e))
+
             # 9. Construire les métadonnées
             self.counters.stop("total")
             total_ms = self.counters.get_duration("total")
@@ -311,6 +374,9 @@ class BacktestEngine:
                 "seed": seed,
                 "perf_counters": self.counters.summary(),
             }
+
+            # Fusionner les métriques enrichies
+            meta.update(enriched_meta)
 
             self.last_run_meta = meta
 
@@ -385,7 +451,7 @@ class BacktestEngine:
         indicators = {}
 
         for indicator_name in strategy.required_indicators:
-            self.logger.debug(f"  Calcul indicateur: {indicator_name}")
+            self.logger.debug("indicator_calc name=%s", indicator_name)
 
             # Extraire les paramètres spécifiques à l'indicateur
             indicator_params = self._extract_indicator_params(indicator_name, params)
@@ -395,7 +461,7 @@ class BacktestEngine:
                     indicator_name, df, indicator_params
                 )
             except Exception as e:
-                self.logger.warning(f"  ⚠️ Erreur calcul {indicator_name}: {e}")
+                self.logger.warning("indicator_calc_failed name=%s error=%s", indicator_name, str(e))
                 indicators[indicator_name] = None
 
         return indicators
