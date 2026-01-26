@@ -145,8 +145,10 @@ def calculate_indicator(
             # Déterminer le backend (CPU/GPU) pour clé de cache correcte
             backend = "cpu"  # Défaut CPU
             try:
-                from performance.gpu import gpu_available
-                if gpu_available() and len(df) >= 5000:
+                from performance.hybrid_compute import get_hybrid_compute
+                hc = get_hybrid_compute()
+                # ⚠️ BENCHMARK RTX 5080: GPU PAS RENTABLE < 50k points
+                if hc.gpu_available and len(df) >= 50000:
                     backend = "gpu"
             except ImportError:
                 pass
@@ -311,8 +313,10 @@ def calculate_indicator(
             # Déterminer backend (cohérent avec logique ci-dessus)
             backend = "cpu"
             try:
-                from performance.gpu import gpu_available
-                if gpu_available() and len(df) >= 5000:
+                from performance.hybrid_compute import get_hybrid_compute
+                hc = get_hybrid_compute()
+                # ⚠️ BENCHMARK RTX 5080: GPU PAS RENTABLE < 50k points
+                if hc.gpu_available and len(df) >= 50000:
                     backend = "gpu"
             except ImportError:
                 pass
