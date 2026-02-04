@@ -1150,10 +1150,9 @@ def render_main(
                 logger = logging.getLogger(__name__)
                 stall_timeout_sec = float(os.getenv("BACKTEST_SWEEP_STALL_SEC", "60"))
                 stall_startup_sec = float(os.getenv("BACKTEST_SWEEP_STALL_STARTUP_SEC", "180"))
-                # ✅ FIX #1: Augmenter max_inflight pour alimenter tous les workers
-                # Avant: n_workers × 2 = 48 tâches pour 24 workers (workers idle 50% du temps)
-                # Après: n_workers × 8 = 192 tâches pour 24 workers (workers toujours alimentés)
-                max_inflight = max(1, min(total_runs, n_workers_effective * 8))
+                # Max inflight: n_workers × 2 (évite saturation queue)
+                # 24 workers → 48 tâches max en parallèle
+                max_inflight = max(1, min(total_runs, n_workers_effective * 2))
                 pending = {}
                 failed_pending = []
                 pool_failed = False
@@ -1204,11 +1203,24 @@ def render_main(
                         if not submit_next():
                             break
 
+                    logger.info(f"Boucle d'attente démarrée: {len(pending)} tâches en attente")
+                    iteration_count = 0
+                    last_log_iteration = 0
+
                     while pending:
-                        # ✅ FIX #2: Réduire timeout de 0.5s à 0.05s (10× plus rapide)
-                        # Avant: Latence de 500ms entre chaque vérification
-                        # Après: Latence de 50ms (workers alimentés 10× plus vite)
-                        done, _ = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
+                        iteration_count += 1
+                        # Log toutes les 100 itérations pour voir que la boucle tourne
+                        if iteration_count - last_log_iteration >= 100:
+                            logger.debug(f"Boucle iteration {iteration_count}: {len(pending)} pending, {completed} completed")
+                            last_log_iteration = iteration_count
+                        # Timeout optimal: 500ms (équilibre entre réactivité et contention CPU)
+                        # Timeout trop court (50ms) cause contention avec workers → performance 8× plus lente
+                        done, _ = wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
+
+                        # FIX: Log quand aucune tâche n'est complétée (pour debug)
+                        if not done and iteration_count % 200 == 0:
+                            logger.debug(f"Aucune tâche complétée après {iteration_count} iterations")
+
                         if not done:
                             now = time.perf_counter()
                             if completed == 0:
@@ -1334,10 +1346,9 @@ def render_main(
                                 submit_next()
 
                             current_time = time.perf_counter()
-                            # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
-                            # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
-                            # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
-                            if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
+                            # Affichage équilibré: tous les 100 runs ou toutes les 2 secondes
+                            # Assez fréquent pour voir la progression, assez espacé pour ne pas saturer CPU/WebSocket
+                            if completed % 100 == 0 or current_time - last_render_time >= 2.0 or completed == 1:
                                 with sweep_placeholder.container():
                                     progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
                                     elapsed = time.perf_counter() - start_time
@@ -1356,7 +1367,7 @@ def render_main(
                                         st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
 
                                 last_render_time = current_time
-                                time.sleep(0.01)
+                                # Pas de sleep si on vient de compléter la 1ère itération (affichage immédiat)
 
                         if pool_failed:
                             diag.log_pool_broken(pool_fail_reason or "unknown", pool_error)
