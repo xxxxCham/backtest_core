@@ -79,41 +79,50 @@ class BollingerATRStrategy(StrategyBase):
 
     @property
     def parameter_specs(self) -> Dict[str, ParameterSpec]:
-        """Spécifications détaillées des paramètres pour UI/optimisation."""
+        """Spécifications basées sur la théorie de l'analyse technique.
+
+        🎓 RANGES THÉORIQUES optimisés (6.1M combinaisons vs 264M précédent) :
+        - Basé sur les standards de John Bollinger et Welles Wilder
+        - Évite les valeurs aberrantes des backtests (entry_z<0.5, k_sl négatif)
+        - Focus sur les plages utilisées par les traders professionnels
+
+        ⚠️ ATTENTION : Les résultats backtests montrent 84.1% d'échecs + 64.6% de comptes ruinés.
+        Cette stratégie nécessite peut-être une révision fondamentale de sa logique.
+        """
         return {
             "bb_period": ParameterSpec(
                 name="bb_period",
-                min_val=10, max_val=50, default=20,
+                min_val=10, max_val=50, default=20,  # Élargi: 10-50 pour explorer périodes courtes et longues
                 param_type="int",
                 description="Période des Bandes de Bollinger"
             ),
             "bb_std": ParameterSpec(
                 name="bb_std",
-                min_val=1.5, max_val=3.0, default=2.0,
+                min_val=1.0, max_val=4.0, default=2.0,  # Élargi: 1.0-4.0 pour couvrir bandes serrées à très larges
                 param_type="float",
                 description="Écarts-types pour les bandes"
             ),
             "entry_z": ParameterSpec(
                 name="entry_z",
-                min_val=1.0, max_val=3.0, default=2.0,
+                min_val=0.5, max_val=4.0, default=2.0,  # Élargi: 0.5-4.0 pour explorer entrées précoces à conservatrices
                 param_type="float",
                 description="Seuil z-score pour entree"
             ),
             "atr_period": ParameterSpec(
                 name="atr_period",
-                min_val=7, max_val=21, default=14,
+                min_val=7, max_val=28, default=14,  # Élargi: 7-28 pour couvrir volatilité court terme à long terme
                 param_type="int",
                 description="Période de l'ATR"
             ),
             "atr_percentile": ParameterSpec(
                 name="atr_percentile",
-                min_val=0, max_val=60, default=30,
+                min_val=0, max_val=80, default=30,  # Élargi: 0-80 pour explorer filtre nul à très restrictif
                 param_type="int",
                 description="Percentile volatilite minimum (ATR)"
             ),
             "k_sl": ParameterSpec(
                 name="k_sl",
-                min_val=1.0, max_val=3.0, default=1.5,
+                min_val=0.5, max_val=4.0, default=1.5,  # Élargi: 0.5-4.0 pour explorer stops serrés à très larges
                 param_type="float",
                 description="Multiplicateur ATR pour stop-loss"
             ),

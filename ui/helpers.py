@@ -51,6 +51,66 @@ from ui.context import (
 from utils.observability import generate_run_id, get_obs_logger
 
 
+def compute_period_days(start_ts: pd.Timestamp, end_ts: pd.Timestamp) -> int:
+    """
+    Calcule le nombre de jours entre deux timestamps.
+
+    Args:
+        start_ts: Timestamp de début
+        end_ts: Timestamp de fin
+
+    Returns:
+        Nombre de jours (entier)
+    """
+    if pd.isna(start_ts) or pd.isna(end_ts):
+        return 0
+    delta = end_ts - start_ts
+    return max(1, int(delta.total_seconds() / 86400))
+
+
+def compute_period_days_from_df(df: pd.DataFrame) -> int:
+    """
+    Calcule le nombre de jours couverts par un DataFrame OHLCV.
+
+    Args:
+        df: DataFrame avec index datetime
+
+    Returns:
+        Nombre de jours (entier)
+    """
+    if df is None or df.empty:
+        return 0
+    return compute_period_days(df.index[0], df.index[-1])
+
+
+def format_pnl_with_daily(
+    pnl: float,
+    period_days: int,
+    show_plus: bool = False,
+    escape_markdown: bool = False,
+) -> str:
+    """
+    Formate un PnL avec son équivalent journalier.
+
+    Args:
+        pnl: PnL total
+        period_days: Nombre de jours de la période
+        show_plus: Si True, affiche un + devant les valeurs positives
+
+    Returns:
+        Chaîne formatée "PnL (PnL/jour/day)"
+    """
+    if period_days <= 0:
+        prefix = "+" if show_plus and pnl > 0 else ""
+        result = f"{prefix}${pnl:,.2f}"
+        return result.replace("$", "\\$") if escape_markdown else result
+
+    pnl_per_day = pnl / period_days
+    prefix = "+" if show_plus and pnl > 0 else ""
+    result = f"{prefix}${pnl:,.2f} ({prefix}${pnl_per_day:,.2f}/jour)"
+    return result.replace("$", "\\$") if escape_markdown else result
+
+
 def generate_strategies_table() -> str:
     """
     Génère dynamiquement le tableau markdown des stratégies disponibles.
@@ -153,34 +213,44 @@ class ProgressMonitor:
 
 
 def render_progress_monitor(monitor: ProgressMonitor, placeholder) -> None:
-    metrics = monitor.update(monitor.runs_completed)
+    """
+    Affiche la progression du backtest avec gestion des déconnexions WebSocket.
 
-    with placeholder.container():
-        st.progress(metrics["progress"])
+    Si le client se déconnecte (page fermée/rafraîchie), les erreurs sont
+    ignorées silencieusement au lieu de polluer les logs.
+    """
+    try:
+        metrics = monitor.update(monitor.runs_completed)
 
-        col1, col2, col3, col4 = st.columns(4)
+        with placeholder.container():
+            st.progress(metrics["progress"])
 
-        with col1:
-            st.metric(
-                "Progression",
-                f"{metrics['runs_completed']}/{metrics['total_runs']}",
-                f"{metrics['progress']*100:.1f}%",
-            )
+            col1, col2, col3, col4 = st.columns(4)
 
-        with col2:
-            st.metric(
-                "Vitesse",
-                f"{metrics['speed_per_sec']:.2f} runs/s",
-                f"{metrics['speed_per_2sec']:.1f} runs/2s",
-            )
+            with col1:
+                st.metric(
+                    "Progression",
+                    f"{metrics['runs_completed']}/{metrics['total_runs']}",
+                    f"{metrics['progress']*100:.1f}%",
+                )
 
-        with col3:
-            elapsed_str = monitor.format_time(metrics["elapsed_time_sec"])
-            st.metric("Temps écoulé", elapsed_str)
+            with col2:
+                st.metric(
+                    "Vitesse",
+                    f"{metrics['speed_per_sec']:.2f} runs/s",
+                    f"{metrics['speed_per_2sec']:.1f} runs/2s",
+                )
 
-        with col4:
-            remaining_str = monitor.format_time(metrics["time_remaining_sec"])
-            st.metric("Temps restant", remaining_str)
+            with col3:
+                elapsed_str = monitor.format_time(metrics["elapsed_time_sec"])
+                st.metric("Temps écoulé", elapsed_str)
+
+            with col4:
+                remaining_str = monitor.format_time(metrics["time_remaining_sec"])
+                st.metric("Temps restant", remaining_str)
+    except Exception:
+        # Client déconnecté (WebSocket fermé) - ignorer silencieusement
+        pass
 
 
 def show_status(status_type: str, message: str, details: Optional[str] = None):
@@ -245,9 +315,11 @@ def create_param_range_selector(
     key_prefix: str = "",
     mode: str = "single",
     spec: Optional[ParameterSpec] = None,
+    label: Optional[str] = None,
 ) -> Any:
     constraints: Dict[str, Any] = {}
     is_int = False
+    display_name = label or name
 
     if spec is not None:
         spec_type = spec.param_type
@@ -287,7 +359,7 @@ def create_param_range_selector(
     if mode == "single":
         if is_int:
             return st.sidebar.slider(
-                name,
+                display_name,
                 min_value=int(constraints["min"]),
                 max_value=int(constraints["max"]),
                 value=int(constraints["default"]),
@@ -296,7 +368,7 @@ def create_param_range_selector(
                 key=unique_key,
             )
         return st.sidebar.slider(
-            name,
+            display_name,
             min_value=float(constraints["min"]),
             max_value=float(constraints["max"]),
             value=float(constraints["default"]),
@@ -305,7 +377,7 @@ def create_param_range_selector(
             key=unique_key,
         )
 
-    with st.sidebar.expander(f"📊 {name}", expanded=False):
+    with st.sidebar.expander(f"📊 {display_name}", expanded=False):
         st.caption(constraints["description"])
 
         col1, col2 = st.columns(2)
@@ -314,8 +386,6 @@ def create_param_range_selector(
             with col1:
                 param_min = st.number_input(
                     "Min",
-                    min_value=int(constraints["min"]),
-                    max_value=int(constraints["max"]),
                     value=int(constraints["min"]),
                     step=1,
                     key=f"{unique_key}_min",
@@ -323,8 +393,6 @@ def create_param_range_selector(
             with col2:
                 param_max = st.number_input(
                     "Max",
-                    min_value=int(constraints["min"]),
-                    max_value=int(constraints["max"]),
                     value=int(constraints["max"]),
                     step=1,
                     key=f"{unique_key}_max",
@@ -332,7 +400,6 @@ def create_param_range_selector(
             param_step = st.number_input(
                 "Step",
                 min_value=1,
-                max_value=max(1, (int(constraints["max"]) - int(constraints["min"])) // 2),
                 value=int(constraints["step"]),
                 step=1,
                 key=f"{unique_key}_step",
@@ -341,8 +408,6 @@ def create_param_range_selector(
             with col1:
                 param_min = st.number_input(
                     "Min",
-                    min_value=float(constraints["min"]),
-                    max_value=float(constraints["max"]),
                     value=float(constraints["min"]),
                     step=0.1,
                     format="%.2f",
@@ -351,8 +416,6 @@ def create_param_range_selector(
             with col2:
                 param_max = st.number_input(
                     "Max",
-                    min_value=float(constraints["min"]),
-                    max_value=float(constraints["max"]),
                     value=float(constraints["max"]),
                     step=0.1,
                     format="%.2f",
@@ -361,7 +424,6 @@ def create_param_range_selector(
             param_step = st.number_input(
                 "Step",
                 min_value=0.01,
-                max_value=max(0.1, (float(constraints["max"]) - float(constraints["min"])) / 2),
                 value=float(constraints["step"]),
                 step=0.01,
                 format="%.2f",
@@ -398,28 +460,51 @@ def safe_load_data(
         df = load_ohlcv(symbol, timeframe, start=start, end=end)
 
         if df is None or df.empty:
-            return None, "Données vides ou fichier non trouvé"
+            return None, "❌ Données vides ou fichier non trouvé"
 
         required_cols = ["open", "high", "low", "close", "volume"]
         missing = [c for c in required_cols if c not in df.columns]
         if missing:
-            return None, f"Colonnes manquantes: {missing}"
+            return None, f"❌ Colonnes manquantes: {missing}"
 
         if not isinstance(df.index, pd.DatetimeIndex):
-            return None, "L'index n'est pas un DatetimeIndex"
+            return None, "❌ L'index n'est pas un DatetimeIndex"
 
-        nan_pct = df.isna().sum().sum() / (len(df) * len(df.columns)) * 100
+        # Validation plus détaillée des données
+        nan_count = df.isna().sum().sum()
+        total_values = len(df) * len(df.columns)
+        nan_pct = (nan_count / total_values) * 100 if total_values > 0 else 0
+
         if nan_pct > 10:
-            return None, f"Trop de valeurs NaN ({nan_pct:.1f}%)"
+            return None, f"❌ Trop de valeurs NaN ({nan_pct:.1f}%, {nan_count}/{total_values})"
 
-        start_fmt = df.index[0].strftime("%Y-%m-%d")
-        end_fmt = df.index[-1].strftime("%Y-%m-%d")
-        return df, f"OK: {len(df)} barres ({start_fmt} → {end_fmt})"
+        # Validation cohérence OHLC
+        invalid_ohlc = ((df['high'] < df['low']) |
+                       (df['open'] < df['low']) | (df['open'] > df['high']) |
+                       (df['close'] < df['low']) | (df['close'] > df['high'])).sum()
 
-    except FileNotFoundError:
-        return None, f"Fichier non trouvé: {symbol}_{timeframe}"
+        if invalid_ohlc > 0:
+            return None, f"❌ Données OHLC incohérentes ({invalid_ohlc} barres)"
+
+        start_fmt = df.index[0].strftime("%Y-%m-%d %H:%M")
+        end_fmt = df.index[-1].strftime("%Y-%m-%d %H:%M")
+        quality_msg = f"NaN: {nan_pct:.1f}%" if nan_pct > 0 else "✓ Propre"
+        return df, f"✅ {len(df)} barres ({start_fmt} → {end_fmt}) - {quality_msg}"
+
+    except FileNotFoundError as e:
+        from data.loader import _get_data_dir
+        data_dir = _get_data_dir()
+        return None, f"📁 Fichier non trouvé: {symbol}_{timeframe} dans {data_dir}"
+    except ValueError as e:
+        return None, f"📊 Erreur de données: {str(e)}"
+    except pd.errors.EmptyDataError:
+        return None, f"📄 Fichier vide: {symbol}_{timeframe}"
+    except pd.errors.ParserError as e:
+        return None, f"🔧 Erreur format fichier: {str(e)}"
     except Exception as exc:
-        return None, f"Erreur: {str(exc)}"
+        import traceback
+        tb_summary = traceback.format_exc().split('\n')[-3] if len(traceback.format_exc().split('\n')) > 2 else str(exc)
+        return None, f"⚠️ Erreur inattendue: {tb_summary}"
 
 
 def _data_cache_key(
@@ -439,10 +524,26 @@ def load_selected_data(
     start_date: Optional[object],
     end_date: Optional[object],
 ) -> Tuple[Optional[pd.DataFrame], str]:
+    from .cache_manager import get_cached_data, cache_data
+
+    # Vérifier cache d'abord
+    cached_df = get_cached_data(symbol, timeframe, start_date, end_date)
+    if cached_df is not None:
+        # Mise à jour session state avec données cached
+        st.session_state["ohlcv_df"] = cached_df
+        st.session_state["ohlcv_cache_key"] = _data_cache_key(
+            symbol, timeframe, start_date, end_date
+        )
+        st.session_state["ohlcv_status_msg"] = "📋 Données du cache (5min TTL)"
+        return cached_df, "📋 Données du cache (5min TTL)"
+
+    # Charger depuis source si pas en cache
     start_str = str(start_date) if start_date else None
     end_str = str(end_date) if end_date else None
     df, msg = safe_load_data(symbol, timeframe, start_str, end_str)
     if df is not None:
+        # Mettre en cache les nouvelles données
+        cache_data(symbol, timeframe, start_date, end_date, df)
         st.session_state["ohlcv_df"] = df
         st.session_state["ohlcv_cache_key"] = _data_cache_key(
             symbol, timeframe, start_date, end_date
@@ -642,6 +743,7 @@ def safe_run_backtest(
     timeframe: str,
     run_id: Optional[str] = None,
     silent_mode: bool = False,
+    fast_metrics: bool = False,
 ) -> Tuple[Optional[Any], str]:
     run_id = run_id or generate_run_id(
         strategy=strategy,
@@ -650,7 +752,8 @@ def safe_run_backtest(
     )
     logger = get_obs_logger("ui.app", run_id=run_id, strategy=strategy, symbol=symbol)
 
-    logger.info("ui_backtest_start params=%s", params)
+    if not silent_mode:
+        logger.info("ui_backtest_start params=%s", params)
 
     try:
         engine.run_id = run_id
@@ -663,12 +766,14 @@ def safe_run_backtest(
             symbol=symbol,
             timeframe=timeframe,
             silent_mode=silent_mode,
+            fast_metrics=fast_metrics,
         )
 
         pnl = result.metrics.get("total_pnl", 0)
         sharpe = result.metrics.get("sharpe_ratio", 0)
 
-        logger.info("ui_backtest_end pnl=%.2f sharpe=%.2f", pnl, sharpe)
+        if not silent_mode:
+            logger.info("ui_backtest_end pnl=%.2f sharpe=%.2f", pnl, sharpe)
         return result, f"Terminé | P&L: ${pnl:,.2f} | Sharpe: {sharpe:.2f}"
 
     except ValueError as exc:
@@ -827,10 +932,12 @@ def build_indicator_overlays(
                 "atr_percentile": atr_percentile,
             }
 
-        elif strategy_key == "bollinger_atr_v2":
+        elif strategy_key == "bollinger_best_longe_3i":
             bb_period = int(params.get("bb_period", 20))
             bb_std = float(params.get("bb_std", 2.0))
-            bb_stop_factor = float(params.get("bb_stop_factor", 1.0))
+            entry_level = float(params.get("entry_level", 0.0))
+            sl_level = float(params.get("sl_level", -0.5))
+            tp_level = float(params.get("tp_level", 0.85))
             atr_period = int(params.get("atr_period", 14))
             atr_percentile = float(params.get("atr_percentile", 30))
 
@@ -844,24 +951,30 @@ def build_indicator_overlays(
                 df,
                 {"period": atr_period},
             )
+            upper = pd.Series(bb_upper, index=df.index)
+            lower = pd.Series(bb_lower, index=df.index)
+            mid = pd.Series(bb_mid, index=df.index)
+            entry_line = lower + entry_level * (upper - lower)
             atr_series = pd.Series(atr_values, index=df.index)
             overlays["bollinger"] = {
-                "upper": pd.Series(bb_upper, index=df.index),
-                "lower": pd.Series(bb_lower, index=df.index),
-                "mid": pd.Series(bb_mid, index=df.index),
-                "stop_factor": bb_stop_factor,
+                "upper": upper,
+                "lower": lower,
+                "mid": mid,
+                "entry_lower": entry_line,
+                "sl_level": sl_level,
+                "tp_level": tp_level,
             }
             overlays["atr"] = {
                 "atr": atr_series,
                 "atr_percentile": atr_percentile,
             }
 
-        elif strategy_key == "bollinger_atr_v3":
+        elif strategy_key == "bollinger_best_short_3i":
             bb_period = int(params.get("bb_period", 20))
             bb_std = float(params.get("bb_std", 2.0))
-            entry_z = float(params.get("entry_z", bb_std))
-            k_sl = float(params.get("k_sl", 1.5))
-            k_tp = float(params.get("k_tp", 2.0))
+            entry_level = float(params.get("entry_level", 1.0))
+            sl_level = float(params.get("sl_level", 1.5))
+            tp_level = float(params.get("tp_level", 0.15))
             atr_period = int(params.get("atr_period", 14))
             atr_percentile = float(params.get("atr_percentile", 30))
 
@@ -875,14 +988,18 @@ def build_indicator_overlays(
                 df,
                 {"period": atr_period},
             )
+            upper = pd.Series(bb_upper, index=df.index)
+            lower = pd.Series(bb_lower, index=df.index)
+            mid = pd.Series(bb_mid, index=df.index)
+            entry_line = lower + entry_level * (upper - lower)
             atr_series = pd.Series(atr_values, index=df.index)
             overlays["bollinger"] = {
-                "upper": pd.Series(bb_upper, index=df.index),
-                "lower": pd.Series(bb_lower, index=df.index),
-                "mid": pd.Series(bb_mid, index=df.index),
-                "entry_z": entry_z,
-                "k_sl": k_sl,
-                "k_tp": k_tp,
+                "upper": upper,
+                "lower": lower,
+                "mid": mid,
+                "entry_upper": entry_line,
+                "sl_level": sl_level,
+                "tp_level": tp_level,
             }
             overlays["atr"] = {
                 "atr": atr_series,
@@ -1038,3 +1155,312 @@ def safe_copy_cleanup(logger=None) -> None:
     except Exception as exc:
         if logger:
             logger.warning("CuPy cleanup failed (ignored): %s", exc)
+
+
+# LEGACY CODE - SUPPRIMÉ: Remplacé par version SweepEngine moderne (ligne ~1306)
+# Cette fonction n'était jamais appelée (écrasée par définition suivante)
+def _legacy_run_sweep_parallel_with_callback_UNUSED(
+    df,
+    strategy_name,
+    param_combinations,
+    param_names,
+    base_params,
+    symbol,
+    timeframe,
+    initial_capital,
+    n_workers,
+    period_days,
+    fast_metrics,
+    silent_mode=True,
+    callback=None
+):
+    """[LEGACY - NON UTILISÉ] Version du sweep parallèle avec callback pour affichage temps réel."""
+    from performance.parallel import ParallelRunner
+    import os
+
+    # Configuration parallélisation
+    config_dict = {
+        "n_workers": n_workers,
+        "max_in_flight": n_workers * 3,
+        "timeout_per_task": 300.0,
+        "continue_on_timeout": True,
+        "shared_kwargs": {
+            "strategy_name": strategy_name,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "initial_capital": initial_capital,
+            "period_days": period_days,
+            "fast_metrics": fast_metrics,
+            "silent_mode": silent_mode
+        }
+    }
+
+    runner = ParallelRunner(config_dict)
+
+    # Préparer les tâches
+    tasks = []
+    for i, combo in enumerate(param_combinations):
+        params = base_params.copy()
+        for j, param_name in enumerate(param_names):
+            params[param_name] = combo[j]
+
+        tasks.append({
+            "df": df,
+            "params": params,
+            "combo_id": i
+        })
+
+    # Fonction de traitement des résultats avec callback
+    results = []
+    completed = 0
+    total = len(tasks)
+
+    def process_result(result):
+        nonlocal completed, results
+        completed += 1
+        if result and "error" not in result:
+            results.append(result)
+
+        # Callback pour affichage temps réel
+        if callback:
+            try:
+                callback(completed, total, result)
+            except Exception:
+                # Client déconnecté - ignorer l'erreur et continuer le sweep
+                pass
+
+    # Exécuter avec callback
+    from backtest.worker import run_backtest_worker
+    try:
+        for task in tasks:
+            result = run_backtest_worker(task)
+            process_result(result)
+    except Exception as e:
+        print(f"Erreur sweep parallèle: {e}")
+
+    return results
+
+
+def run_sweep_sequential_with_callback(
+    df,
+    strategy_name,
+    param_combinations,
+    param_names,
+    base_params,
+    symbol,
+    timeframe,
+    initial_capital,
+    period_days,
+    fast_metrics,
+    silent_mode=True,
+    callback=None
+):
+    """Version du sweep séquentiel avec callback pour affichage temps réel."""
+    from ui.context import get_strategy
+    from backtest.engine import BacktestEngine
+    import time
+
+    results = []
+    total = len(param_combinations)
+
+    for i, combo in enumerate(param_combinations):
+        # Construire paramètres
+        params = base_params.copy()
+        for j, param_name in enumerate(param_names):
+            params[param_name] = combo[j]
+
+        try:
+            # Exécuter backtest
+            engine = BacktestEngine(initial_capital=initial_capital)
+            strategy = get_strategy(strategy_name)()
+            result = engine.run(
+                df=df,
+                strategy=strategy,
+                params=params,
+                symbol=symbol,
+                timeframe=timeframe,
+                silent_mode=silent_mode
+            )
+
+            # Formater pour compatibilité avec worker
+            result_dict = {
+                "params": params,
+                "metrics": result.metrics,
+                "meta": result.meta,
+                "period_days": period_days,
+                "combo_id": i
+            }
+            results.append(result_dict)
+
+            # Callback pour affichage temps réel
+            if callback:
+                try:
+                    callback(i + 1, total, result_dict)
+                except Exception:
+                    # Client déconnecté - ignorer l'erreur et continuer le sweep
+                    pass
+
+        except Exception as e:
+            error_result = {
+                "params": params,
+                "error": str(e),
+                "combo_id": i
+            }
+            # Callback même en cas d'erreur
+            if callback:
+                try:
+                    callback(i + 1, total, error_result)
+                except Exception:
+                    # Client déconnecté - ignorer l'erreur et continuer le sweep
+                    pass
+
+    return results
+
+
+def run_sweep_parallel_with_callback(
+    df, strategy, param_grid, initial_capital, n_workers=None, callback=None,
+    silent_mode=True, fast_metrics=False, symbol="unknown", timeframe="unknown"
+):
+    """
+    Exécute un sweep en parallèle avec callback de progression temps réel.
+
+    Utilise SweepEngine moderne avec joblib/loky (plus stable que ProcessPoolExecutor).
+    Support cache RAM 100k entries pour performance optimale sur gros sweeps.
+
+    Note: GPU désactivé pour sweeps (CPU + cache RAM plus efficace, économise 10 Go VRAM).
+    """
+    from backtest.sweep import SweepEngine
+    import os
+
+    # Désactiver GPU pour sweeps (inutile en multiprocess, économise 10 Go VRAM + évite yoyo 2060)
+    os.environ["BACKTEST_USE_GPU"] = "0"
+    os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
+
+    # Réduire verbosité logs pour gros sweeps (éviter saturation terminal avec 2.4M logs)
+    import logging
+    logging.getLogger("backtest.engine").setLevel(logging.WARNING)
+    logging.getLogger("backtest.sweep").setLevel(logging.INFO)
+
+    if n_workers is None:
+        n_workers = max(1, os.cpu_count() // 2)
+
+    # Initialiser SweepEngine avec cache RAM optimisé si disponible
+    try:
+        from config.gpu_config_30gb_ram import get_indicator_cache_config
+        indicator_cache_config = get_indicator_cache_config()
+    except Exception:
+        # Fallback: config cache par défaut
+        indicator_cache_config = None
+
+    engine = SweepEngine(
+        max_workers=n_workers,
+        initial_capital=initial_capital,
+        auto_save=True
+    )
+
+    # Callback wrapper pour mettre à jour la progression
+    class ProgressTracker:
+        def __init__(self):
+            self.completed = 0
+            self.best_result = None
+            self.results = []
+
+    tracker = ProgressTracker()
+
+    # Lancer le sweep avec SweepEngine (plus stable que ProcessPoolExecutor)
+    try:
+        sweep_results = engine.run_sweep(
+            df=df,
+            strategy=strategy,
+            param_grid=param_grid,
+            optimize_for="sharpe_ratio",
+            silent_mode=silent_mode,
+            fast_metrics=fast_metrics,
+            indicator_cache_config=indicator_cache_config
+        )
+
+        # Formater résultats pour compatibilité avec l'UI
+        results = []
+        for result in sweep_results.results:
+            if result is not None:
+                formatted_result = {
+                    "params": result.params,
+                    "metrics": {
+                        "total_pnl": result.metrics.total_pnl,
+                        "sharpe_ratio": result.metrics.sharpe_ratio,
+                        "win_rate_pct": result.metrics.win_rate_pct,
+                        "max_drawdown_pct": result.metrics.max_drawdown_pct,
+                        "total_trades": result.metrics.total_trades,
+                        "profit_factor": result.metrics.profit_factor,
+                        "total_return_pct": result.metrics.total_return_pct,
+                    }
+                }
+                results.append(formatted_result)
+
+                # Callback final avec tous les résultats
+                if callback:
+                    try:
+                        best_result = {
+                            "result": formatted_result,
+                            "best_pnl": result.metrics.total_pnl
+                        }
+                        callback(len(results), len(sweep_results.results), best_result)
+                    except Exception:
+                        # Client déconnecté - ignorer l'erreur et continuer le sweep
+                        pass
+            else:
+                results.append(None)
+
+        return results
+
+    except Exception as e:
+        print(f"Erreur sweep SweepEngine: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+def run_sweep_sequential_with_callback(
+    df, strategy, param_grid, initial_capital, callback=None,
+    silent_mode=True, fast_metrics=False
+):
+    """Exécute un sweep en séquentiel avec callback de progression."""
+    from utils.config import Config
+    from backtest.engine import BacktestEngine
+
+    config = Config(initial_capital=initial_capital)
+    engine = BacktestEngine(config=config)
+
+    results = []
+    total_combos = len(param_grid)
+    best_result = None
+
+    for i, params in enumerate(param_grid):
+        try:
+            result, _ = safe_run_backtest(
+                engine, df, strategy, params,
+                "unknown", "unknown",  # Pas besoin de symbol/timeframe ici
+                silent_mode=silent_mode,
+                fast_metrics=fast_metrics
+            )
+
+            if result:
+                results.append({"metrics": result.metrics, "params": params})
+                pnl = result.metrics.get("total_pnl", 0.0)
+                if best_result is None or pnl > best_result.get("best_pnl", float("-inf")):
+                    best_result = {"result": result, "best_pnl": pnl}
+            else:
+                results.append(None)
+
+        except Exception:
+            results.append(None)
+
+        # Callback de progression
+        if callback:
+            try:
+                callback(i + 1, total_combos, best_result)
+            except Exception:
+                # Client déconnecté - ignorer l'erreur et continuer le sweep
+                pass
+
+    return results

@@ -1,0 +1,160 @@
+"""Debug COMPLET v2 - Simuler exactement le simulateur avec trace"""
+import pandas as pd
+import numpy as np
+from data.loader import load_ohlcv
+from indicators.bollinger import bollinger_bands
+
+# Charger les données exactes du backtest
+df = load_ohlcv('BTCUSDC', '30m', start='2019-06-01', end='2019-10-31')
+
+# Calculer Bollinger
+upper, middle, lower = bollinger_bands(df['close'].values, period=20, std_dev=2.0)
+upper = pd.Series(upper, index=df.index)
+middle = pd.Series(middle, index=df.index)
+lower = pd.Series(lower, index=df.index)
+
+# Calculer bb_pos
+width = upper - lower
+bb_pos_low = (df['low'] - lower) / width
+bb_pos_high = (df['high'] - lower) / width
+
+# Ajouter au DataFrame
+df['bb_pos_low'] = bb_pos_low
+df['bb_pos_high'] = bb_pos_high
+df['sl_level'] = -0.32
+df['tp_level'] = 0.9
+df['entry_level'] = 0.0
+
+# Générer les signaux comme la stratégie
+entry_level = 0.0
+crossed = (bb_pos_low <= entry_level) & (bb_pos_low.shift(1) > entry_level)
+invalid_width = (width <= 0) | width.isna()
+crossed = crossed & (~invalid_width)
+
+signals = pd.Series(0.0, index=df.index)
+signals[crossed.fillna(False)] = 1.0
+
+print("=== SIGNAUX GENERES ===")
+print(f"Nombre de signaux d'entrée: {(signals == 1).sum()}")
+signal_times = df.index[signals == 1]
+print(f"Premiers signaux: {list(signal_times[:10])}")
+
+# SIMULATION COMPLETE comme le simulateur
+print("\n=== SIMULATION COMPLETE ===")
+
+bb_pos_low_arr = df['bb_pos_low'].values
+bb_pos_high_arr = df['bb_pos_high'].values
+sl_level_arr = df['sl_level'].values
+tp_level_arr = df['tp_level'].values
+signal_values = signals.values
+closes = df['close'].values
+invalid_bbpos = np.isnan(bb_pos_low_arr) | np.isnan(bb_pos_high_arr)
+
+position = 0
+entry_idx = None
+trades = []
+n_bars = len(df)
+
+# Variables pour tracer le trade #6
+trade_6_entry = None
+trade_6_barres_check = []
+
+for i in range(n_bars):
+    signal = signal_values[i]
+
+    # === Entrée en position ===
+    if position == 0 and signal != 0:
+        position = int(signal)
+        entry_idx = i
+        entry_price = closes[i]
+
+        # Est-ce le trade #6 (autour de 2019-06-06 18:00) ?
+        if len(trades) == 5:  # C'est le 6ème trade (index 5)
+            trade_6_entry = i
+            print(f"\n*** TRADE #6 ENTREE à barre {i} ({df.index[i]}) ***")
+            print(f"    Signal: {signal}, Position: {position}")
+            print(f"    bb_pos_low: {bb_pos_low_arr[i]:.4f}")
+            print(f"    sl_level: {sl_level_arr[i]:.4f}")
+            print(f"    stop_hit serait: {bb_pos_low_arr[i] <= sl_level_arr[i]}")
+
+    # === En position: vérifier sortie ===
+    elif position != 0:
+        exit_condition = False
+        exit_reason = ""
+
+        # Check SL/TP bb_pos
+        if position == 1 and not invalid_bbpos[i]:
+            stop_hit = bb_pos_low_arr[i] <= sl_level_arr[i]
+            tp_hit = bb_pos_high_arr[i] >= tp_level_arr[i]
+
+            # Tracer pour trade #6
+            if trade_6_entry is not None and entry_idx == trade_6_entry:
+                if stop_hit or tp_hit:
+                    trade_6_barres_check.append({
+                        'barre': i,
+                        'time': df.index[i],
+                        'bb_pos_low': bb_pos_low_arr[i],
+                        'bb_pos_high': bb_pos_high_arr[i],
+                        'stop_hit': stop_hit,
+                        'tp_hit': tp_hit
+                    })
+
+            if stop_hit and tp_hit:
+                exit_condition = True
+                exit_reason = "stop_loss"
+            elif stop_hit:
+                exit_condition = True
+                exit_reason = "stop_loss"
+            elif tp_hit:
+                exit_condition = True
+                exit_reason = "take_profit"
+
+        # === Exécuter sortie ===
+        if exit_condition:
+            exit_price = closes[i]
+            pnl = (exit_price - entry_price) * (1 if position == 1 else -1)
+
+            trades.append({
+                'entry_idx': entry_idx,
+                'exit_idx': i,
+                'entry_time': df.index[entry_idx],
+                'exit_time': df.index[i],
+                'entry_price': entry_price,
+                'exit_price': exit_price,
+                'pnl': pnl,
+                'reason': exit_reason,
+                'duration_bars': i - entry_idx
+            })
+
+            if entry_idx == trade_6_entry:
+                print(f"\n*** TRADE #6 SORTIE à barre {i} ({df.index[i]}) ***")
+                print(f"    Raison: {exit_reason}")
+                print(f"    Durée: {i - entry_idx} barres")
+                print(f"    PnL: {pnl:.2f}")
+
+            position = 0
+            entry_idx = None
+
+print(f"\n=== RESULTATS ===")
+print(f"Nombre total de trades: {len(trades)}")
+
+# Afficher tous les trades
+print("\n=== LISTE DES TRADES ===")
+for idx, t in enumerate(trades):
+    print(f"Trade #{idx+1}: {t['entry_time']} -> {t['exit_time']}, "
+          f"durée={t['duration_bars']} barres, raison={t['reason']}, PnL={t['pnl']:.2f}")
+
+# Trade #6 spécifiquement
+if len(trades) >= 6:
+    t6 = trades[5]
+    print(f"\n=== TRADE #6 DETAILS ===")
+    print(f"Entrée: {t6['entry_time']}")
+    print(f"Sortie: {t6['exit_time']}")
+    print(f"Durée: {t6['duration_bars']} barres ({t6['duration_bars'] * 0.5} heures)")
+    print(f"Raison sortie: {t6['reason']}")
+
+    if trade_6_barres_check:
+        print(f"\nBarres où SL/TP aurait dû trigger ({len(trade_6_barres_check)} trouvées):")
+        for check in trade_6_barres_check[:20]:
+            print(f"  Barre {check['barre']} ({check['time']}): "
+                  f"stop_hit={check['stop_hit']}, tp_hit={check['tp_hit']}")

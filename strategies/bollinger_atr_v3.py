@@ -125,51 +125,51 @@ class BollingerATRStrategyV3(StrategyBase):
         return {
             "bb_period": ParameterSpec(
                 name="bb_period",
-                min_val=10, max_val=50, default=20,
+                min_val=5, max_val=60, default=20,  # Élargi: 5-60 pour explorer très court terme à long terme
                 param_type="int",
                 description="Période des Bandes de Bollinger"
             ),
             "bb_std": ParameterSpec(
                 name="bb_std",
-                min_val=1.0, max_val=4.0, step=0.25, default=2.0,
+                min_val=0.5, max_val=5.0, step=0.25, default=2.0,  # Élargi: 0.5-5.0 pour bandes très serrées à ultra larges
                 param_type="float",
-                description="Amplitude Bollinger (écarts-types) 1σ → 4σ"
+                description="Amplitude Bollinger (écarts-types) 0.5σ → 5σ"
             ),
             "atr_period": ParameterSpec(
                 name="atr_period",
-                min_val=7, max_val=21, default=14,
+                min_val=5, max_val=35, default=14,  # Élargi: 5-35 pour volatilité ultra court à long terme
                 param_type="int",
                 description="Période de l'ATR"
             ),
             "atr_percentile": ParameterSpec(
                 name="atr_percentile",
-                min_val=0, max_val=60, default=30,
+                min_val=0, max_val=90, default=30,  # Élargi: 0-90 pour aucun filtre à très restrictif
                 param_type="int",
                 description="Percentile volatilité minimum (ATR)"
             ),
             "entry_pct_long": ParameterSpec(
                 name="entry_pct_long",
-                min_val=-0.5, max_val=0.2, step=0.05, default=0.0,
+                min_val=-1.0, max_val=0.5, step=0.05, default=0.0,  # Élargi: -1.0→+0.5 pour très sous lower à milieu bandes
                 param_type="float",
-                description="Entrée LONG: -50% (agressif) → +20% (prudent)"
+                description="Entrée LONG: -100% (très agressif) → +50% (milieu bande)"
             ),
             "entry_pct_short": ParameterSpec(
                 name="entry_pct_short",
-                min_val=0.8, max_val=1.5, step=0.05, default=1.0,
+                min_val=0.5, max_val=2.0, step=0.05, default=1.0,  # Élargi: 0.5→2.0 pour milieu à très au-dessus upper
                 param_type="float",
-                description="Entrée SHORT: +80% (prudent) → +150% (agressif)"
+                description="Entrée SHORT: +50% (milieu) → +200% (très au-dessus)"
             ),
             "stop_factor": ParameterSpec(
                 name="stop_factor",
-                min_val=0.1, max_val=1.0, step=0.05, default=0.5,
+                min_val=0.05, max_val=1.5, step=0.05, default=0.5,  # Élargi: 0.05-1.5 pour stops ultra serrés à très larges
                 param_type="float",
-                description="Stop-loss: 10% (proche) → 100% (loin)"
+                description="Stop-loss: 5% (ultra proche) → 150% (très loin)"
             ),
             "tp_factor": ParameterSpec(
                 name="tp_factor",
-                min_val=0.2, max_val=1.5, step=0.1, default=0.7,
+                min_val=0.1, max_val=2.0, step=0.1, default=0.7,  # Élargi: 0.1-2.0 pour TP très proche à très loin
                 param_type="float",
-                description="Take-profit: 20% (proche) → 150% (loin)"
+                description="Take-profit: 10% (très proche) → 200% (très loin)"
             ),
             "leverage": ParameterSpec(
                 name="leverage",

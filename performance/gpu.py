@@ -34,23 +34,12 @@ logger = logging.getLogger(__name__)
 
 # ======================== Détection GPU ========================
 
-# CuPy (GPU array operations)
-try:
-    import cupy as cp
-    HAS_CUPY = True
-    try:
-        version = cp.__version__
-    except AttributeError:
-        version = "unknown"
-    logger.info(f"CuPy disponible: version {version}")
-except ImportError:
-    HAS_CUPY = False
-    cp = None
+# Désactivation forcée du GPU : opération CPU-only (RAM)
+GPU_DISABLED = True
+HAS_CUPY = False
+cp = None
 
-# Numba CUDA (JIT GPU kernels)
-# NOTE: Désactivé car incompatible avec RTX 5080 (sm_90)
-# Numba CUDA 0.61 ne supporte pas les architectures Blackwell.
-# Utiliser CuPy à la place qui fonctionne correctement.
+# Numba CUDA (JIT GPU kernels) - désactivé pour mode CPU-only
 HAS_NUMBA_CUDA = False
 cuda = None
 float64 = None  # Pour éviter NameError si utilisé quelque part
@@ -269,7 +258,7 @@ def get_gpu_manager() -> GPUDeviceManager:
     return _gpu_manager
 
 
-# Initialisation automatique au chargement du module si CuPy disponible
+# Initialisation automatique au chargement du module (noop en CPU-only)
 if HAS_CUPY:
     try:
         _gpu_manager = GPUDeviceManager()
@@ -279,8 +268,8 @@ if HAS_CUPY:
 
 
 def gpu_available() -> bool:
-    """Vérifie si le GPU est disponible."""
-    return HAS_CUPY or HAS_NUMBA_CUDA
+    """Vérifie si le GPU est disponible (forcé à False)."""
+    return False
 
 
 def get_gpu_info() -> dict:
@@ -433,7 +422,9 @@ class GPUIndicatorCalculator:
 
         # Calcul rolling mean
         cumsum = xp.cumsum(arr)
-        result[period-1:] = (cumsum[period-1:] - xp.concatenate([[0], cumsum[:-period]])) / period
+        result[period-1:] = (
+            cumsum[period-1:] - xp.concatenate((xp.zeros(1, dtype=cumsum.dtype), cumsum[:-period]))
+        ) / period
 
         return self._to_numpy(result)
 
@@ -601,8 +592,8 @@ class GPUIndicatorCalculator:
 
         # True Range
         tr1 = high_arr - low_arr
-        tr2 = xp.abs(high_arr - xp.concatenate([[close_arr[0]], close_arr[:-1]]))
-        tr3 = xp.abs(low_arr - xp.concatenate([[close_arr[0]], close_arr[:-1]]))
+        tr2 = xp.abs(high_arr - xp.concatenate((close_arr[:1], close_arr[:-1])))
+        tr3 = xp.abs(low_arr - xp.concatenate((close_arr[:1], close_arr[:-1])))
 
         tr = xp.maximum(tr1, xp.maximum(tr2, tr3))
 

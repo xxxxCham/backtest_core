@@ -1036,6 +1036,7 @@ __all__ = [
     "cmd_optuna",
     "cmd_visualize",
     "cmd_check_gpu",
+    "cmd_benchmark",
     "cmd_llm_optimize",
     "cmd_grid_backtest",
     "cmd_analyze",
@@ -1565,6 +1566,53 @@ def cmd_visualize(args) -> int:
             import traceback
             traceback.print_exc()
         return 1
+
+
+# =============================================================================
+# COMMANDE: BENCHMARK
+# =============================================================================
+
+def cmd_benchmark(args) -> int:
+    """Exécute les benchmarks de performance (indicateurs, simulateur, GPU)."""
+    if args.no_color:
+        Colors.disable()
+
+    from performance.benchmark import (
+        benchmark_gpu_vs_cpu,
+        benchmark_indicator_calculation,
+        benchmark_simulator_performance,
+        run_all_benchmarks,
+    )
+
+    if not args.quiet:
+        print_header("Benchmarks de performance", "=")
+
+    try:
+        if args.category == "all":
+            run_all_benchmarks(verbose=not args.quiet)
+        elif args.category == "indicators":
+            comp = benchmark_indicator_calculation(data_size=args.size, period=args.period)
+            if not args.quiet:
+                print(comp.summary())
+        elif args.category == "simulator":
+            comp = benchmark_simulator_performance(n_bars=args.size)
+            if not args.quiet:
+                print(comp.summary())
+        elif args.category == "gpu":
+            comp = benchmark_gpu_vs_cpu(data_size=args.size)
+            if not args.quiet:
+                print(comp.summary())
+        else:
+            print_error(f"Catégorie inconnue: {args.category}")
+            return 1
+    except Exception as e:
+        print_error(f"Erreur benchmark: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+    return 0
 
 
 # =============================================================================

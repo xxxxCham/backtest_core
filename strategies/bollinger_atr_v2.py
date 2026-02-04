@@ -92,39 +92,39 @@ class BollingerATRStrategyV2(StrategyBase):
         return {
             "bb_period": ParameterSpec(
                 name="bb_period",
-                min_val=10, max_val=50, default=20,
+                min_val=5, max_val=60, default=20,  # Élargi: 5-60 pour explorer très court terme à long terme
                 param_type="int",
                 description="Période des Bandes de Bollinger"
             ),
             "bb_std": ParameterSpec(
                 name="bb_std",
-                min_val=1.5, max_val=3.0, default=2.0,
+                min_val=0.5, max_val=5.0, default=2.0,  # Élargi: 0.5-5.0 pour bandes très serrées à ultra larges
                 param_type="float",
                 description="Écarts-types pour les bandes"
             ),
             "entry_z": ParameterSpec(
                 name="entry_z",
-                min_val=1.0, max_val=3.0, default=2.0,
+                min_val=0.5, max_val=4.0, default=2.0,  # Élargi: 0.5-4.0 pour entrées agressives à conservatrices
                 param_type="float",
                 description="Seuil z-score pour entrée"
             ),
             "atr_period": ParameterSpec(
                 name="atr_period",
-                min_val=7, max_val=21, default=14,
+                min_val=5, max_val=35, default=14,  # Élargi: 5-35 pour volatilité ultra court à long terme
                 param_type="int",
                 description="Période de l'ATR"
             ),
             "atr_percentile": ParameterSpec(
                 name="atr_percentile",
-                min_val=0, max_val=60, default=30,
+                min_val=0, max_val=90, default=30,  # Élargi: 0-90 pour aucun filtre à très restrictif
                 param_type="int",
                 description="Percentile volatilité minimum (ATR)"
             ),
             "bb_stop_factor": ParameterSpec(
                 name="bb_stop_factor",
-                min_val=0.2, max_val=2.0, step=0.1, default=0.5,
+                min_val=0.1, max_val=3.0, step=0.1, default=0.5,  # Élargi: 0.1-3.0 pour stops ultra serrés à très larges
                 param_type="float",
-                description="Facteur stop-loss Bollinger (0.2=proche, 2.0=loin)"
+                description="Facteur stop-loss Bollinger (0.1=très proche, 3.0=très loin)"
             ),
             "leverage": ParameterSpec(
                 name="leverage",

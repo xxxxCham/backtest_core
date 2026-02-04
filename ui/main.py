@@ -11,12 +11,23 @@ from __future__ import annotations
 
 # pylint: disable=import-outside-toplevel,too-many-lines
 
+# ============================================================================
+# DÉSACTIVATION GPU POUR SWEEPS STREAMLIT
+# ============================================================================
+# DOIT être au tout début AVANT tout import pour éviter chargement VRAM inutile
+# GPU queue ne fonctionne pas en multiprocess → CPU + cache RAM plus efficace
+import os
+os.environ["BACKTEST_USE_GPU"] = "0"
+os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
+# ============================================================================
+
 import gc
 import logging
 import math
 import os
 import time
 import traceback
+from collections import deque
 from itertools import chain, islice, product
 from typing import Any, Dict, List, Optional
 
@@ -24,84 +35,37 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-# ==============================================================================
-# PERFORMANCE & MEMORY OPTIMIZATIONS
-# ==============================================================================
-
-# Cache global pour éviter rechargements répétés
-_DATA_CACHE = {}
-_CACHE_MAX_SIZE = 10  # Nombre max d'entrées en cache
-_CACHE_TTL = 300  # TTL en secondes (5 minutes)
-
-def _get_cached_data(symbol: str, timeframe: str, start_date, end_date) -> Optional[pd.DataFrame]:
-    """Récupère les données du cache si disponibles et valides."""
-    cache_key = f"{symbol}_{timeframe}_{start_date}_{end_date}"
-
-    if cache_key in _DATA_CACHE:
-        cached_entry = _DATA_CACHE[cache_key]
-        # Vérifier TTL
-        if time.time() - cached_entry["timestamp"] < _CACHE_TTL:
-            return cached_entry["data"].copy()  # Copie défensive
-        else:
-            # Nettoyer entrée expirée
-            del _DATA_CACHE[cache_key]
-
-    return None
-
-def _cache_data(symbol: str, timeframe: str, start_date, end_date, df: pd.DataFrame) -> None:
-    """Stocke les données en cache avec nettoyage automatique."""
-    cache_key = f"{symbol}_{timeframe}_{start_date}_{end_date}"
-
-    # Nettoyer le cache si trop plein
-    if len(_DATA_CACHE) >= _CACHE_MAX_SIZE:
-        # Supprimer l'entrée la plus ancienne
-        oldest_key = min(_DATA_CACHE.keys(),
-                         key=lambda k: _DATA_CACHE[k]["timestamp"])
-        del _DATA_CACHE[oldest_key]
-        gc.collect()  # Forcer nettoyage mémoire
-
-    _DATA_CACHE[cache_key] = {
-        "data": df.copy(),
-        "timestamp": time.time()
-    }
-
-def _clear_data_cache() -> None:
-    """Nettoie complètement le cache de données."""
-    global _DATA_CACHE
-    _DATA_CACHE.clear()
-    gc.collect()
-
-# ==============================================================================
-# IMPORTS AND DEPENDENCIES
-# ==============================================================================
-
-from ui.cache_manager import get_cached_data, cache_data, clear_data_cache
-from ui.worker_utils import apply_thread_limit
-from ui.llm_handlers import handle_llm_optimization
 from ui.constants import PARAM_CONSTRAINTS
 from ui.context import (
+    LLM_AVAILABLE,
+    LLM_IMPORT_ERROR,
+    OrchestrationLogger,
     BacktestEngine,
     compute_search_space_stats,
+    create_llm_client,
+    create_optimizer_from_engine,
+    create_orchestrator_with_backtest,
     get_strategy_param_bounds,
     get_strategy_param_space,
+    generate_session_id,
     render_deep_trace_viewer,
     render_full_orchestration_viewer,
     LiveOrchestrationViewer,
 )
-from agents.integration import create_comparison_context
 from ui.helpers import (
     ProgressMonitor,
-    compute_period_days_from_df,
-    format_pnl_with_daily,
+    build_strategy_params_for_comparison,
     render_progress_monitor,
     safe_load_data,
     load_selected_data,
     safe_run_backtest,
     safe_copy_cleanup,
     show_status,
+    summarize_comparison_results,
     validate_all_params,
     _maybe_auto_save_run,
 )
+from ui.cache_manager import clear_data_cache
 from ui.state import SidebarState
 from ui.components.charts import (
     render_comparison_chart,
@@ -122,24 +86,378 @@ from utils.run_tracker import RunSignature, get_global_tracker
 from backtest.worker import run_backtest_worker as _isolated_worker
 
 
-# ==============================================================================
-# UI CONTROLS & ENGINE INITIALIZATION
-# ==============================================================================
+# Fonction _run_backtest_multiprocess SUPPRIMÉE (obsolète)
+# Utilisez run_backtest_worker de backtest.worker à la place
+# Voir commit pour restauration si nécessaire
+
+def _apply_thread_limit(thread_limit: int, label: str = "") -> None:
+    if thread_limit <= 0:
+        return
+
+    os.environ["BACKTEST_WORKER_THREADS"] = str(thread_limit)
+    for var in (
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "BLIS_NUM_THREADS",
+    ):
+        os.environ[var] = str(thread_limit)
+
+    try:
+        from threadpoolctl import threadpool_limits
+
+        threadpool_limits(thread_limit)
+    except Exception:
+        pass
+
+    try:
+        import torch
+
+        torch.set_num_threads(thread_limit)
+        torch.set_num_interop_threads(max(1, thread_limit // 2))
+    except Exception:
+        pass
+
+    if label:
+        logger = logging.getLogger(__name__)
+        logger.info("Thread limit %s appliqué: %s", label, thread_limit)
+
+
+def _init_sweep_worker(thread_limit: int) -> None:
+    """Initializer ProcessPoolExecutor - applique limites threads AVANT tout calcul."""
+    _apply_thread_limit(thread_limit, label="worker")
+
+    # Forcer avec threadpoolctl (plus efficace que les env vars seules)
+    try:
+        import threadpoolctl
+        info_before = threadpoolctl.threadpool_info()
+        threadpoolctl.threadpool_limits(limits=max(1, thread_limit), user_api="blas")
+        info_after = threadpoolctl.threadpool_info()
+
+        # Log pour debug
+        import logging
+        logger = logging.getLogger(__name__)
+        num_threads_before = sum(pool.get("num_threads", 0) for pool in info_before)
+        num_threads_after = sum(pool.get("num_threads", 0) for pool in info_after)
+        logger.debug(f"Worker threads BLAS: {num_threads_before} → {num_threads_after}")
+    except ImportError:
+        pass  # threadpoolctl non installé - les env vars suffiront
+
+
+def _timeframe_to_minutes(timeframe: str) -> int:
+    """Convertit un timeframe en minutes pour tri/estimation."""
+    if not timeframe or len(timeframe) < 2:
+        return 0
+    unit = timeframe[-1]
+    try:
+        amount = int(timeframe[:-1])
+    except ValueError:
+        return 0
+    multipliers = {"m": 1, "h": 60, "d": 1440, "w": 10080, "M": 43200}
+    return amount * multipliers.get(unit, 60)
+
+
+def _build_multi_sweep_plan(symbols: List[str], timeframes: List[str]) -> List[tuple[str, str]]:
+    """Construit un plan multi-sweep avec un ordre stable et léger."""
+    combos = [(symbol, tf) for symbol in symbols for tf in timeframes]
+    combos.sort(key=lambda item: (_timeframe_to_minutes(item[1]), item[0]), reverse=True)
+    return combos
+
+
+def _estimate_grid_size(param_ranges: Dict[str, Any]) -> int:
+    """Estime le nombre de combinaisons de la grille sans la matérialiser."""
+    if not param_ranges:
+        return 1
+    total = 1
+    for r in param_ranges.values():
+        try:
+            pmin, pmax, step = r["min"], r["max"], r["step"]
+            if isinstance(pmin, int) and isinstance(step, int):
+                count = max(1, ((int(pmax) - int(pmin)) // max(1, int(step))) + 1)
+            else:
+                if float(step) <= 0:
+                    count = 1
+                else:
+                    span = float(pmax) - float(pmin)
+                    count = int(math.floor(span / float(step))) + 1
+            total *= max(1, int(count))
+        except Exception:
+            total *= 1
+    return max(1, int(total))
+
+
+def _compute_max_safe_combos(total_sweeps: int, max_combos: int) -> int:
+    """Limite adaptative pour multi-sweep (mémoire)."""
+    if total_sweeps <= 0:
+        return max_combos
+    adaptive = max(50_000, 500_000 // max(1, total_sweeps))
+    if max_combos and max_combos > 0:
+        return min(max_combos, adaptive)
+    return adaptive
+
+
+def _build_param_combo_iter(
+    params: Dict[str, Any],
+    param_ranges: Dict[str, Any],
+    max_runs: Optional[int],
+) -> tuple[Any, int, int]:
+    """Construit un itérateur lazy de combinaisons + stats."""
+    param_names = list(param_ranges.keys())
+    param_values_lists = []
+
+    if param_names:
+        for pname in param_names:
+            r = param_ranges[pname]
+            pmin, pmax, step = r["min"], r["max"], r["step"]
+
+            if isinstance(pmin, int) and isinstance(step, int):
+                values = list(range(int(pmin), int(pmax) + 1, max(1, int(step))))
+            else:
+                values = list(
+                    np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
+                )
+                values = [round(v, 2) for v in values if v <= pmax]
+
+            if not values:
+                values = [pmin]
+
+            param_values_lists.append(values)
+
+        total_combinations = max(
+            1, math.prod(len(values) for values in param_values_lists)
+        )
+        combo_iter = (
+            {**params, **dict(zip(param_names, combo))}
+            for combo in product(*param_values_lists)
+        )
+    else:
+        total_combinations = 1
+        combo_iter = iter([params.copy()])
+
+    if max_runs and max_runs > 0 and total_combinations > max_runs:
+        combo_iter = islice(combo_iter, max_runs)
+        total_runs = max_runs
+    else:
+        total_runs = total_combinations
+
+    return combo_iter, total_runs, total_combinations
+
+
+def _run_grid_sequential(
+    df: pd.DataFrame,
+    engine: BacktestEngine,
+    strategy_key: str,
+    symbol: str,
+    timeframe: str,
+    params: Dict[str, Any],
+    param_ranges: Dict[str, Any],
+    max_runs: Optional[int],
+    debug_enabled: bool,
+    progress_placeholder: Any,
+) -> Dict[str, Any]:
+    """Exécute une grille séquentielle et retourne le meilleur résultat."""
+    combo_iter, total_runs, total_combinations = _build_param_combo_iter(
+        params=params,
+        param_ranges=param_ranges,
+        max_runs=max_runs,
+    )
+
+    best_params: Dict[str, Any] = {}
+    best_metrics: Dict[str, Any] = {}
+    best_score = (float("-inf"), float("-inf"))
+    completed = 0
+    failed = 0
+    last_render = time.perf_counter()
+
+    fast_metrics = False
+    try:
+        fast_threshold = int(os.getenv("BACKTEST_SWEEP_FAST_METRICS_THRESHOLD", "500"))
+        fast_metrics = total_runs >= fast_threshold
+    except (TypeError, ValueError):
+        fast_metrics = False
+
+    for param_combo in combo_iter:
+        if st.session_state.get("stop_requested", False):
+            break
+
+        completed += 1
+        result, msg = safe_run_backtest(
+            engine,
+            df,
+            strategy_key,
+            param_combo,
+            symbol,
+            timeframe,
+            silent_mode=not debug_enabled,
+            fast_metrics=fast_metrics,
+        )
+
+        if result is None:
+            failed += 1
+        else:
+            metrics = result.metrics or {}
+            sharpe = metrics.get("sharpe_ratio", float("-inf"))
+            pnl = metrics.get("total_pnl", float("-inf"))
+            score = (sharpe, pnl)
+            if score > best_score:
+                best_score = score
+                best_params = param_combo
+                best_metrics = metrics
+
+        now = time.perf_counter()
+        if completed == 1 or completed % 200 == 0 or now - last_render >= 5.0:
+            progress_placeholder.caption(
+                f"Grille en cours: {completed}/{total_runs} (max {total_combinations:,})"
+            )
+            last_render = now
+
+    return {
+        "best_params": best_params,
+        "best_metrics": best_metrics,
+        "completed": completed,
+        "failed": failed,
+        "total_runs": total_runs,
+        "total_combinations": total_combinations,
+    }
+
+
+def _run_grid_parallel_basic(
+    df: pd.DataFrame,
+    strategy_key: str,
+    symbol: str,
+    timeframe: str,
+    params: Dict[str, Any],
+    param_ranges: Dict[str, Any],
+    max_runs: Optional[int],
+    initial_capital: float,
+    n_workers: int,
+    worker_thread_limit: int,
+    debug_enabled: bool,
+    progress_placeholder: Any,
+    stats_placeholder: Any,
+) -> Dict[str, Any]:
+    """Exécute une grille en parallèle (pool par sweep) avec progress live."""
+    from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+    from backtest.worker import init_worker_with_dataframe
+
+    combo_iter, total_runs, total_combinations = _build_param_combo_iter(
+        params=params,
+        param_ranges=param_ranges,
+        max_runs=max_runs,
+    )
+
+    try:
+        fast_threshold = int(os.getenv("BACKTEST_SWEEP_FAST_METRICS_THRESHOLD", "500"))
+    except (TypeError, ValueError):
+        fast_threshold = 500
+    fast_metrics = total_runs >= fast_threshold
+
+    monitor = ProgressMonitor(total_runs=total_runs)
+    best_params: Dict[str, Any] = {}
+    best_metrics: Dict[str, Any] = {}
+    best_score = (float("-inf"), float("-inf"))
+
+    completed = 0
+    failed = 0
+    last_render = time.perf_counter()
+
+    max_inflight = max(1, min(total_runs, n_workers * 2))
+    pending: Dict[Any, Dict[str, Any]] = {}
+
+    def submit_next(executor: ProcessPoolExecutor) -> bool:
+        try:
+            param_combo = next(combo_iter)
+        except StopIteration:
+            return False
+        future = executor.submit(_isolated_worker, param_combo)
+        pending[future] = param_combo
+        return True
+
+    with ProcessPoolExecutor(
+        max_workers=n_workers,
+        initializer=init_worker_with_dataframe,
+        initargs=(
+            df,
+            strategy_key,
+            symbol,
+            timeframe,
+            initial_capital,
+            debug_enabled,
+            worker_thread_limit,
+            fast_metrics,
+            False,  # ✅ CRITIQUE: is_path (DataFrame fourni directement, pas un chemin)
+        ),
+    ) as executor:
+        for _ in range(max_inflight):
+            if not submit_next(executor):
+                break
+
+        while pending:
+            if st.session_state.get("stop_requested", False):
+                break
+
+            # ✅ FIX #12: Réduire timeout de 0.25s à 0.05s
+            done, _ = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
+            if not done:
+                continue
+
+            for future in done:
+                param_combo = pending.pop(future)
+                result = None
+                try:
+                    result = future.result(timeout=300)
+                except Exception as exc:
+                    result = {"params_dict": param_combo, "error": f"{type(exc).__name__}: {exc}"}
+
+                completed += 1
+                monitor.runs_completed = completed
+
+                if result and "error" not in result:
+                    metrics = {
+                        "total_pnl": result.get("total_pnl", 0.0),
+                        "sharpe_ratio": result.get("sharpe", 0.0),
+                        "max_drawdown": result.get("max_dd", 0.0),
+                        "win_rate": result.get("win_rate", 0.0),
+                        "profit_factor": result.get("profit_factor", 0.0),
+                    }
+                    score = (metrics.get("sharpe_ratio", float("-inf")),
+                             metrics.get("total_pnl", float("-inf")))
+                    if score > best_score:
+                        best_score = score
+                        best_params = param_combo
+                        best_metrics = metrics
+                else:
+                    failed += 1
+
+                submit_next(executor)
+
+                now = time.perf_counter()
+                if completed == 1 or completed % 200 == 0 or now - last_render >= 2.0:
+                    render_progress_monitor(monitor, progress_placeholder)
+                    if best_metrics:
+                        stats_placeholder.caption(
+                            f"⚡ {completed}/{total_runs} | "
+                            f"Sharpe {best_metrics.get('sharpe_ratio', 0):.2f} | "
+                            f"PnL ${best_metrics.get('total_pnl', 0):,.2f}"
+                        )
+                    last_render = now
+
+    return {
+        "best_params": best_params,
+        "best_metrics": best_metrics,
+        "completed": completed,
+        "failed": failed,
+        "total_runs": total_runs,
+        "total_combinations": total_combinations,
+    }
+
 
 def render_controls() -> tuple[bool, Any]:
     st.title("📈 Backtest Core - Moteur Simplifié")
 
     status_container = st.container()
-
-    # Nettoyage périodique du cache (tous les 50 runs)
-    if not hasattr(st.session_state, 'cache_cleanup_counter'):
-        st.session_state.cache_cleanup_counter = 0
-
-    st.session_state.cache_cleanup_counter += 1
-    if st.session_state.cache_cleanup_counter % 50 == 0:
-        clear_data_cache()
-        st.session_state.cache_cleanup_counter = 0
-        st.session_state.cache_cleanup_counter = 0
 
     st.markdown(
         """
@@ -154,23 +472,12 @@ Le système de granularité limite le nombre de valeurs testables.
         st.session_state.stop_requested = False
 
     st.markdown("---")
-    col_btn1, col_btn2, col_spacer = st.columns([2, 2, 6])
-
-    with col_btn1:
-        run_button = st.button(
-            "🚀 Lancer le Backtest",
-            type="primary",
-            disabled=st.session_state.is_running,
-            width="stretch",
-            key="btn_run_backtest",
-        )
-
-    with col_btn2:
+    stop_button = False
+    if st.session_state.is_running:
         stop_button = st.button(
             "⛔ Arrêt d'urgence",
             type="secondary",
-            disabled=not st.session_state.is_running,
-            width="stretch",
+            use_container_width=True,
             key="btn_stop_backtest",
         )
 
@@ -200,112 +507,46 @@ Le système de granularité limite le nombre de valeurs testables.
 
     st.markdown("---")
 
-    return run_button, status_container
+    run_requested = bool(st.session_state.get("run_backtest_requested", False))
+    if run_requested:
+        st.session_state.run_backtest_requested = False
+
+    return run_requested, status_container
 
 
 def render_setup_previews(state: SidebarState) -> None:
-    """
-    Affiche les prévisualisations de configuration (schémas + OHLCV).
-
-    En mode multi-stratégie, organise les graphiques en onglets pour éviter
-    un affichage trop chargé.
-    """
-    from ui.context import get_strategy
-
-    # Récupérer les listes multi-sweep avec fallback sur valeurs simples
-    strategy_keys = getattr(state, 'strategy_keys', None)
-    if strategy_keys is None:
-        strategy_keys = [state.strategy_key] if hasattr(state, 'strategy_key') else []
-
-    all_params = getattr(state, 'all_params', None)
-    if all_params is None:
-        all_params = {state.strategy_key: state.params} if hasattr(state, 'strategy_key') and hasattr(state, 'params') else {}
-
-    is_multi_strategy = len(strategy_keys) > 1
-
     st.markdown("---")
-    st.subheader("📊 Schema indicateurs & parametres")
-
-    if is_multi_strategy:
-        # Mode multi-stratégie : utiliser des onglets
-        st.caption(f"💡 {len(strategy_keys)} stratégies sélectionnées - utilisez les onglets ci-dessous")
-
-        tabs = st.tabs([f"📈 {sk}" for sk in strategy_keys])
-        for tab, sk in zip(tabs, strategy_keys):
-            with tab:
-                strat_class = get_strategy(sk)
-                if strat_class is None:
-                    st.warning(f"Stratégie '{sk}' non trouvée")
-                    continue
-
-                # Instancier la classe pour accéder aux properties
-                try:
-                    strat_instance = strat_class()
-                    default_params = strat_instance.default_params or {}
-                except Exception:
-                    default_params = {}
-
-                strat_params = all_params.get(sk, {})
-                diagram_params = {
-                    **default_params,
-                    **strat_params,
-                }
-                render_strategy_param_diagram(
-                    sk,
-                    diagram_params,
-                    key=f"diagram_{sk}",
-                )
+    st.subheader("Schema indicateurs & parametres")
+    if state.strategy_instance is None:
+        st.info("Selectionnez une strategie pour afficher le schema.")
     else:
-        # Mode simple : une seule stratégie
-        if state.strategy_instance is None:
-            st.info("Selectionnez une strategie pour afficher le schema.")
-        else:
-            default_params = getattr(state.strategy_instance, 'default_params', None) or {}
-            current_params = state.params if state.params else {}
-            diagram_params = {
-                **default_params,
-                **current_params,
-            }
-            render_strategy_param_diagram(
-                state.strategy_key,
-                diagram_params,
-                key=f"diagram_{state.strategy_key}",
-            )
-
-    st.markdown("---")
-    st.subheader("📉 Apercu OHLCV + indicateurs")
-
-    # En multi-stratégie, afficher un message explicatif
-    symbols = getattr(state, 'symbols', [state.symbol])
-    timeframes = getattr(state, 'timeframes', [state.timeframe])
-    is_multi_data = len(symbols) > 1 or len(timeframes) > 1
-
-    if is_multi_data:
-        st.info(
-            f"📊 **Multi-sélection active** : {len(symbols)} token(s) × {len(timeframes)} timeframe(s)\n\n"
-            f"L'aperçu ci-dessous montre le premier token/timeframe (`{symbols[0]}/{timeframes[0]}`). "
-            f"Tous les tokens seront traités lors du sweep."
+        diagram_params = {
+            **state.strategy_instance.default_params,
+            **state.params,
+        }
+        render_strategy_param_diagram(
+            state.strategy_key,
+            diagram_params,
+            key=f"diagram_{state.strategy_key}",
         )
 
+    st.markdown("---")
+    st.subheader("Apercu OHLCV + indicateurs")
     preview_df = st.session_state.get("ohlcv_df")
     if preview_df is None:
         st.info("Chargez les donnees pour afficher l'apercu.")
     else:
-        # Utiliser les overlays de la première stratégie sélectionnée
-        first_strategy = strategy_keys[0]
-        first_params = all_params.get(first_strategy, state.params)
-
         preview_overlays = build_indicator_overlays(
-            first_strategy,
+            state.strategy_key,
             preview_df,
-            first_params,
+            state.params,
         )
         render_ohlcv_with_trades_and_indicators(
             df=preview_df,
             trades_df=pd.DataFrame(),
             overlays=preview_overlays,
             active_indicators=state.active_indicators,
-            title=f"OHLCV + indicateurs ({first_strategy})",
+            title="OHLCV + indicateurs (apercu)",
             key="ohlcv_indicator_preview",
             height=650,
         )
@@ -332,26 +573,6 @@ def render_main(
     max_combos = state.max_combos
     n_workers = state.n_workers
 
-    # Multi-sweep: récupérer les listes et dicts
-    strategy_keys = state.strategy_keys
-    symbols = state.symbols
-    timeframes = state.timeframes
-    all_params = getattr(state, 'all_params', {strategy_key: params})
-    all_param_ranges = getattr(state, 'all_param_ranges', {strategy_key: param_ranges})
-
-    # DEBUG: Tracer les sélections multi-sweep
-    if debug_enabled:
-        st.info(
-            f"🔍 **DEBUG Multi-Sweep**\n\n"
-            f"- Strategy keys: {strategy_keys} (len={len(strategy_keys)})\n"
-            f"- Symbols: {symbols} (len={len(symbols)})\n"
-            f"- Timeframes: {timeframes} (len={len(timeframes)})\n"
-            f"- All params keys: {list(all_params.keys())}"
-        )
-
-    # Déterminer si on est en mode multi-sweep
-    is_multi_sweep = (len(strategy_keys) > 1 or len(symbols) > 1 or len(timeframes) > 1)
-
     llm_config = state.llm_config
     llm_model = state.llm_model
     llm_use_multi_agent = state.llm_use_multi_agent
@@ -368,6 +589,34 @@ def render_main(
     llm_compare_max_runs = state.llm_compare_max_runs
     llm_compare_use_preset = state.llm_compare_use_preset
     llm_compare_generate_report = state.llm_compare_generate_report
+
+    use_gpu_indicators = bool(st.session_state.get("use_gpu_indicators", False))
+    gpu_workers_override = bool(st.session_state.get("gpu_workers_override", False))
+
+    def _resolve_workers(default_workers: int) -> int:
+        if use_gpu_indicators and gpu_workers_override:
+            try:
+                return max(1, int(st.session_state.get("gpu_n_workers", default_workers)))
+            except (TypeError, ValueError):
+                return max(1, int(default_workers)) if default_workers else 1
+        try:
+            return max(1, int(default_workers))
+        except (TypeError, ValueError):
+            return 1
+
+    def _resolve_threads(default_threads: int) -> int:
+        if use_gpu_indicators and gpu_workers_override:
+            try:
+                return max(1, int(st.session_state.get("gpu_worker_threads", default_threads)))
+            except (TypeError, ValueError):
+                return max(1, int(default_threads)) if default_threads else 1
+        try:
+            return max(1, int(default_threads))
+        except (TypeError, ValueError):
+            return 1
+
+    def _format_combo_limit(value: int) -> str:
+        return "illimitée" if value >= 1_000_000_000_000 else f"{value:,}"
 
     if run_button:
         st.session_state.is_running = True
@@ -387,35 +636,231 @@ def render_main(
             st.session_state.is_running = False
             st.stop()
 
+        is_multi_sweep = (len(state.symbols) > 1 or len(state.timeframes) > 1)
+        if is_multi_sweep and optimization_mode in ("Backtest Simple", "Grille de Paramètres"):
+            sweep_plan = _build_multi_sweep_plan(state.symbols, state.timeframes)
+            total_sweeps = len(sweep_plan)
+            st.session_state["multi_sweep_plan"] = sweep_plan
+
+            st.info(
+                f"🔄 **Mode multi-sweep séquentiel**\n\n"
+                f"- {len(state.symbols)} token(s)\n"
+                f"- {len(state.timeframes)} timeframe(s)\n"
+                f"- {total_sweeps} sweep(s) au total\n\n"
+                "Exécution **un par un** pour éviter la saturation mémoire."
+            )
+
+            with st.expander("📋 Plan des sweeps", expanded=False):
+                plan_df = pd.DataFrame(
+                    [{"symbol": sym, "timeframe": tf} for sym, tf in sweep_plan]
+                )
+                st.dataframe(plan_df, width="stretch")
+
+            if optimization_mode == "Grille de Paramètres":
+                n_workers_effective = _resolve_workers(n_workers)
+                try:
+                    worker_thread_limit = int(
+                        st.session_state.get(
+                            "grid_worker_threads",
+                            int(os.environ.get("BACKTEST_WORKER_THREADS", "1")),
+                        )
+                    )
+                except (TypeError, ValueError):
+                    worker_thread_limit = 1
+                worker_thread_limit = _resolve_threads(worker_thread_limit)
+                _apply_thread_limit(worker_thread_limit, label="main")
+                max_runs_per_sweep = None
+            else:
+                max_runs_per_sweep = None
+
+            overall_progress = st.progress(0.0)
+            status_placeholder = st.empty()
+            sweep_results: List[Dict[str, Any]] = []
+            logger = logging.getLogger(__name__)
+
+            start_str = None
+            end_str = None
+            if state.use_date_filter and state.start_date and state.end_date:
+                start_str = state.start_date.strftime("%Y-%m-%d")
+                end_str = state.end_date.strftime("%Y-%m-%d")
+
+            for idx, (sym, tf) in enumerate(sweep_plan, start=1):
+                if st.session_state.get("stop_requested", False):
+                    st.warning("🛑 Arrêt demandé par l'utilisateur")
+                    break
+
+                status_placeholder.info(
+                    f"⏳ Sweep {idx}/{total_sweeps}: {strategy_key} × {sym} × {tf}"
+                )
+
+                df, msg = safe_load_data(sym, tf, start=start_str, end=end_str)
+                if df is None:
+                    sweep_results.append({
+                        "strategy": strategy_key,
+                        "symbol": sym,
+                        "timeframe": tf,
+                        "status": "error",
+                        "error": msg,
+                    })
+                    overall_progress.progress(idx / total_sweeps)
+                    continue
+
+                combo_engine = BacktestEngine(initial_capital=state.initial_capital)
+
+                if optimization_mode == "Backtest Simple":
+                    result, result_msg = safe_run_backtest(
+                        combo_engine,
+                        df,
+                        strategy_key,
+                        params,
+                        sym,
+                        tf,
+                        silent_mode=not debug_enabled,
+                    )
+
+                    if result is None:
+                        sweep_results.append({
+                            "strategy": strategy_key,
+                            "symbol": sym,
+                            "timeframe": tf,
+                            "status": "error",
+                            "error": result_msg,
+                        })
+                    else:
+                        sweep_results.append({
+                            "strategy": strategy_key,
+                            "symbol": sym,
+                            "timeframe": tf,
+                            "status": "ok",
+                            "best_params": result.meta.get("params", params),
+                            "metrics": result.metrics or {},
+                        })
+                        _maybe_auto_save_run(result)
+                else:
+                    progress_placeholder = st.empty()
+                    stats_placeholder = st.empty()
+                    if n_workers_effective > 1 and max_runs_per_sweep != 1:
+                        sweep_summary = _run_grid_parallel_basic(
+                            df=df,
+                            strategy_key=strategy_key,
+                            symbol=sym,
+                            timeframe=tf,
+                            params=params,
+                            param_ranges=param_ranges,
+                            max_runs=max_runs_per_sweep,
+                            initial_capital=state.initial_capital,
+                            n_workers=n_workers_effective,
+                            worker_thread_limit=worker_thread_limit,
+                            debug_enabled=debug_enabled,
+                            progress_placeholder=progress_placeholder,
+                            stats_placeholder=stats_placeholder,
+                        )
+                    else:
+                        sweep_summary = _run_grid_sequential(
+                            df=df,
+                            engine=combo_engine,
+                            strategy_key=strategy_key,
+                            symbol=sym,
+                            timeframe=tf,
+                            params=params,
+                            param_ranges=param_ranges,
+                            max_runs=max_runs_per_sweep,
+                            debug_enabled=debug_enabled,
+                            progress_placeholder=progress_placeholder,
+                        )
+                    progress_placeholder.empty()
+                    stats_placeholder.empty()
+
+                    sweep_results.append({
+                        "strategy": strategy_key,
+                        "symbol": sym,
+                        "timeframe": tf,
+                        "status": "ok",
+                        "best_params": sweep_summary.get("best_params", {}),
+                        "metrics": sweep_summary.get("best_metrics", {}),
+                        "completed": sweep_summary.get("completed", 0),
+                        "failed": sweep_summary.get("failed", 0),
+                        "total_runs": sweep_summary.get("total_runs", 0),
+                    })
+
+                # Nettoyage mémoire entre sweeps
+                try:
+                    del df
+                except Exception:
+                    pass
+                clear_data_cache()
+                safe_copy_cleanup(logger)
+                gc.collect()
+
+                overall_progress.progress(idx / total_sweeps)
+
+            status_placeholder.empty()
+            st.session_state["multi_sweep_results"] = sweep_results
+
+            if sweep_results:
+                summary_rows = []
+                for item in sweep_results:
+                    metrics = item.get("metrics", {}) or {}
+                    summary_rows.append({
+                        "strategy": item.get("strategy"),
+                        "symbol": item.get("symbol"),
+                        "timeframe": item.get("timeframe"),
+                        "status": item.get("status"),
+                        "total_pnl": metrics.get("total_pnl", 0.0),
+                        "sharpe_ratio": metrics.get("sharpe_ratio", 0.0),
+                        "max_drawdown": metrics.get("max_drawdown_pct", metrics.get("max_drawdown", 0.0)),
+                        "win_rate": metrics.get("win_rate_pct", metrics.get("win_rate", 0.0)),
+                        "total_runs": item.get("total_runs"),
+                        "completed": item.get("completed"),
+                        "failed": item.get("failed"),
+                        "error": item.get("error"),
+                    })
+
+                results_df = pd.DataFrame(summary_rows)
+                st.markdown("### ✅ Résumé Multi-Sweep")
+                st.dataframe(results_df, width="stretch")
+
+                ok_df = results_df[results_df["status"] == "ok"].copy()
+                if not ok_df.empty:
+                    best_row = ok_df.loc[ok_df["total_pnl"].idxmax()]
+                    st.success(
+                        f"🏆 Meilleur résultat: {best_row['symbol']} {best_row['timeframe']} "
+                        f"| PnL ${best_row['total_pnl']:,.2f} | Sharpe {best_row['sharpe_ratio']:.2f}"
+                    )
+
+                    tab_table, tab_heatmap, tab_rank = st.tabs(
+                        ["📊 Tableau", "🔥 Heatmap", "🏆 Classement"]
+                    )
+                    with tab_table:
+                        st.dataframe(ok_df, width="stretch")
+                    with tab_heatmap:
+                        render_multi_sweep_heatmap(ok_df, metric="total_pnl")
+                    with tab_rank:
+                        render_multi_sweep_ranking(ok_df, metric="total_pnl", top_n=min(15, len(ok_df)))
+                else:
+                    st.warning("Aucun sweep réussi.")
+
+            st.session_state.is_running = False
+            return
+
         with st.spinner("📥 Chargement des données..."):
             df = st.session_state.get("ohlcv_df")
             data_msg = st.session_state.get("ohlcv_status_msg", "")
 
             if df is None:
-                # Vérifier d'abord le cache
-                df = get_cached_data(symbol, timeframe, state.start_date, state.end_date)
-                if df is not None:
-                    data_msg = f"{symbol}/{timeframe} (cached) | {len(df):,} barres"
-                else:
-                    # Charger depuis le disque avec gestion d'erreur
-                    try:
-                        df, data_msg = load_selected_data(
-                            symbol,
-                            timeframe,
-                            state.start_date,
-                            state.end_date,
-                        )
-                        if df is not None:
-                            cache_data(symbol, timeframe, state.start_date, state.end_date, df)
-                    except Exception as e:
-                        df = None
-                        data_msg = f"Erreur: {e}"
+                df, data_msg = load_selected_data(
+                    symbol,
+                    timeframe,
+                    state.start_date,
+                    state.end_date,
+                )
 
             if df is None:
                 with status_container:
                     show_status("error", f"Échec chargement: {data_msg}")
                     st.info(
-                        "💡 Vérifiez les fichiers dans le répertoire de données configuré"
+                        "💡 Vérifiez les fichiers dans "
+                        "`D:\\ThreadX_big\\data\\crypto\\processed\\parquet\\`"
                     )
                 st.session_state.is_running = False
                 st.stop()
@@ -424,924 +869,49 @@ def render_main(
                 with status_container:
                     show_status("success", f"Données chargées: {data_msg}")
 
-        period_days = compute_period_days_from_df(df)
-
         engine = BacktestEngine(initial_capital=state.initial_capital)
 
         if optimization_mode == "Backtest Simple":
-            # Détecter si mode comparaison multi-sweep est demandé
-            if is_multi_sweep:
-                st.info(
-                    f"🔄 **Mode Backtest Simple avec Comparaison Multi-Sweep activé**\n\n"
-                    f"- {len(strategy_keys)} stratégie(s): {', '.join(strategy_keys)}\n"
-                    f"- {len(symbols)} token(s): {', '.join(symbols[:5])}{'...' if len(symbols) > 5 else ''}\n"
-                    f"- {len(timeframes)} timeframe(s): {', '.join(timeframes)}\n\n"
-                    f"**Total**: {len(strategy_keys) * len(symbols) * len(timeframes)} backtests"
+            with st.spinner("⚙️ Exécution du backtest..."):
+                result, result_msg = safe_run_backtest(
+                    engine,
+                    df,
+                    strategy_key,
+                    params,
+                    symbol,
+                    timeframe,
+                    silent_mode=not debug_enabled,
                 )
 
-                # Exécuter les comparaisons multi-sweep avec paramètres fixes
-                multi_sweep_results = []
-                progress_bar = st.progress(0)
-                status_placeholder = st.empty()
-                total_combinations = len(strategy_keys) * len(symbols) * len(timeframes)
-                completed = 0
-
-                for i, strategy_name in enumerate(strategy_keys):
-                    # Récupérer les paramètres pour cette stratégie
-                    strategy_params = all_params.get(strategy_name, {})
-
-                    if debug_enabled:
-                        st.info(f"🔍 **DEBUG**: Traitement stratégie {i+1}/{len(strategy_keys)}: {strategy_name}")
-
-                    for j, symbol in enumerate(symbols):
-                        if debug_enabled:
-                            st.info(f"🔍 **DEBUG**: Traitement symbol {j+1}/{len(symbols)}: {symbol}")
-
-                        for k, timeframe in enumerate(timeframes):
-                            if debug_enabled:
-                                st.info(f"🔍 **DEBUG**: Traitement timeframe {k+1}/{len(timeframes)}: {timeframe}")
-                                st.info(f"🔍 **DEBUG**: Combinaison {completed+1}/{total_combinations}: {strategy_name} × {symbol} × {timeframe}")
-                            try:
-                                # Charger les données pour cette combinaison
-                                combo_df, msg = safe_load_data(symbol, timeframe,
-                                                               str(state.start_date) if state.start_date else None,
-                                                               str(state.end_date) if state.end_date else None)
-
-                                if combo_df is None:
-                                    continue
-
-                                # Exécuter le backtest avec les paramètres fixes
-                                result, result_msg = safe_run_backtest(
-                                    engine,
-                                    combo_df,
-                                    strategy_name,
-                                    strategy_params,
-                                    symbol,
-                                    timeframe,
-                                    silent_mode=not debug_enabled,
-                                )
-
-                                if result is not None:
-                                    # Calculer PnL par jour pour comparaisons
-                                    period_days_combo = compute_period_days_from_df(combo_df)
-                                    pnl_per_day = result.metrics.get("total_pnl", 0) / max(1, period_days_combo) if period_days_combo else 0
-
-                                    multi_sweep_results.append({
-                                        "strategy": strategy_name,
-                                        "symbol": symbol,
-                                        "timeframe": timeframe,
-                                        "total_pnl": result.metrics.get("total_pnl", 0),
-                                        "pnl_per_day": pnl_per_day,
-                                        "sharpe_ratio": result.metrics.get("sharpe_ratio", 0),
-                                        "total_return": result.metrics.get("total_return", 0),
-                                        "max_drawdown": result.metrics.get("max_drawdown", 0),
-                                        "win_rate": result.metrics.get("win_rate", 0),
-                                        "total_trades": result.metrics.get("total_trades", 0),
-                                        "period_days": period_days_combo,
-                                        "params": strategy_params,
-                                        "metrics": result.metrics,
-                                    })
-
-                                completed += 1
-                                progress_bar.progress(completed / total_combinations)
-                                status_placeholder.text(f"Backtest {completed}/{total_combinations}: {strategy_name} × {symbol} × {timeframe}")
-
-                            except Exception as e:
-                                st.warning(f"Erreur pour {strategy_name} × {symbol} × {timeframe}: {e}")
-                                completed += 1
-                                continue
-
-                # Afficher les résultats sous forme de comparaison
-                if multi_sweep_results:
-                    st.markdown("---")
-                    st.subheader("📊 Résultats de Comparaison Multi-Sweep")
-
-                    # Créer le DataFrame des résultats
-                    comparison_df = pd.DataFrame(multi_sweep_results)
-
-                    # Trier par PnL décroissant
-                    comparison_df = comparison_df.sort_values("total_pnl", ascending=False)
-
-                    # Configuration des colonnes pour affichage
-                    from ui.results_hub import _get_numeric_column_config
-                    column_config = _get_numeric_column_config()
-
-                    # Tabs pour différentes vues
-                    tab_table, tab_heatmap, tab_ranking = st.tabs(["📋 Tableau", "🎯 Heatmap", "🏆 Classement"])
-
-                    with tab_table:
-                        # Afficher le tableau principal
-                        display_columns = ["strategy", "symbol", "timeframe", "total_pnl", "pnl_per_day",
-                                           "sharpe_ratio", "total_return", "max_drawdown", "win_rate", "total_trades"]
-
-                        st.dataframe(
-                            comparison_df[display_columns],
-                            width="stretch",
-                            column_config=column_config,
-                            hide_index=True,
-                        )
-
-                    with tab_heatmap:
-                        # Heatmap interactive stratégie × token/timeframe
-                        render_multi_sweep_heatmap(
-                            multi_sweep_results,
-                            metric="total_pnl",
-                            title="Performance par Stratégie × Token/Timeframe",
-                            key="backtest_simple_comparison_heatmap",
-                        )
-
-                    with tab_ranking:
-                        # Classement des meilleurs résultats
-                        render_multi_sweep_ranking(
-                            multi_sweep_results,
-                            metric="total_pnl",
-                            top_n=10,
-                            title="Top 10 Meilleurs Résultats",
-                            key="backtest_simple_comparison_ranking",
-                        )
-
-                    # Meilleur global
-                    best_result = comparison_df.iloc[0]
-                    st.markdown("---")
-                    col1, col2 = st.columns([2, 1])
-
-                    with col1:
-                        pnl_value = best_result["total_pnl"]
-                        best_pnl_display = format_pnl_with_daily(
-                            best_result["total_pnl"],
-                            best_result.get("period_days"),
-                            show_plus=True,
-                            escape_markdown=True,
-                        )
-                        message = (
-                            f"🏆 **Meilleur résultat**: `{best_result['strategy']}` × "
-                            f"`{best_result['symbol']}` × `{best_result['timeframe']}`\n\n"
-                            f"💰 PnL: **{best_pnl_display}**"
-                        )
-                        if pnl_value > 0:
-                            st.success(message)
-                        elif pnl_value < 0:
-                            st.error(message)
-                        else:
-                            st.info(message)
-
-                    with col2:
-                        # Afficher les paramètres utilisés
-                        with st.expander("🔧 Paramètres utilisés", expanded=True):
-                            for k, v in best_result["params"].items():
-                                if not k.startswith("_"):  # Ignorer les params internes
-                                    st.text(f"{k}: {v}")
-
-                    # Stocker comme winner pour cohérence avec autres modes
-                    winner_params = best_result["params"]
-                    winner_metrics = best_result["metrics"]
-                    winner_origin = "backtest_comparison"
-                    st.session_state["last_winner_params"] = winner_params
-                    st.session_state["last_winner_metrics"] = winner_metrics
-                    st.session_state["last_winner_origin"] = winner_origin
-
-                    # Créer le contexte de comparaison pour les LLM
-                    comparison_summary = [
-                        {
-                            "strategy": r["strategy"],
-                            "symbol": r["symbol"],
-                            "timeframe": r["timeframe"],
-                            "best_pnl": r["total_pnl"],
-                            "sharpe": r["sharpe_ratio"],
-                            "best_params": r["params"]
-                        }
-                        for r in multi_sweep_results[:10]  # Top 10 pour les LLM
-                    ]
-
-                    # Stocker pour usage LLM ultérieur avec namespace sécurisé
-                    st.session_state["llm_comparison_contexts"] = {
-                        "backtest_simple": {
-                            "mode": "backtest_simple_comparison",
-                            "results": comparison_summary,
-                            "total_combinations": len(multi_sweep_results),
-                            "strategies_tested": strategy_keys,
-                            "tokens_tested": symbols,
-                            "timeframes_tested": timeframes,
-                            "timestamp": time.time(),  # Pour invalidation cache
-                        },
-                        "multi_sweep": None  # Placeholder for future multi-sweep context
-                    }
-
-                else:
-                    st.error("Aucun résultat valide obtenu lors des comparaisons")
-
-                st.session_state.is_running = False
-                return  # Sortir après comparaison multi-sweep
-
-            else:
-                # Mode Backtest Simple standard (une seule combinaison)
-                with st.spinner("⚙️ Exécution du backtest..."):
-                    result, result_msg = safe_run_backtest(
-                        engine,
-                        df,
-                        strategy_key,
-                        params,
-                        symbol,
-                        timeframe,
-                        silent_mode=not debug_enabled,
-                    )
-
-                if result is None:
-                    with status_container:
-                        show_status("error", f"Échec backtest: {result_msg}")
-                    st.session_state.is_running = False
-                    st.stop()
-
+            if result is None:
                 with status_container:
-                    show_status("success", f"Backtest terminé: {result_msg}")
-                winner_params = result.meta.get("params", params)
-                winner_metrics = result.metrics
-                winner_origin = "backtest"
-                winner_meta = result.meta
-                st.session_state["last_run_result"] = result
-                st.session_state["last_winner_params"] = winner_params
-                st.session_state["last_winner_metrics"] = winner_metrics
-                st.session_state["last_winner_origin"] = winner_origin
-                st.session_state["last_winner_meta"] = winner_meta
-                _maybe_auto_save_run(result)
+                    show_status("error", f"Échec backtest: {result_msg}")
+                st.session_state.is_running = False
+                st.stop()
+
+            with status_container:
+                show_status("success", f"Backtest terminé: {result_msg}")
+            winner_params = result.meta.get("params", params)
+            winner_metrics = result.metrics
+            winner_origin = "backtest"
+            winner_meta = result.meta
+            st.session_state["last_run_result"] = result
+            st.session_state["last_winner_params"] = winner_params
+            st.session_state["last_winner_metrics"] = winner_metrics
+            st.session_state["last_winner_origin"] = winner_origin
+            st.session_state["last_winner_meta"] = winner_meta
+            _maybe_auto_save_run(result)
 
         elif optimization_mode == "Grille de Paramètres":
-            # === MODE MULTI-SWEEP ===
-            if is_multi_sweep:
-                import gc  # Import une seule fois pour nettoyage mémoire
-
-                total_sweeps = len(strategy_keys) * len(symbols) * len(timeframes)
-                st.info(
-                    f"🔄 **Mode Multi-Sweep activé**\n\n"
-                    f"- {len(strategy_keys)} stratégie(s): {', '.join(strategy_keys)}\n"
-                    f"- {len(symbols)} token(s): {', '.join(symbols)}\n"
-                    f"- {len(timeframes)} timeframe(s): {', '.join(timeframes)}\n\n"
-                    f"➡️ **{total_sweeps} sweep(s)** seront exécutés en série"
-                )
-
-                # Accumulateur de résultats multi-sweep
-                multi_sweep_results = []
-                sweep_idx = 0
-
-                # 🚨 PROTECTION MÉMOIRE MULTI-SWEEP
-                # ✅ PRINCIPE FONDAMENTAL : Chaque sweep démarre à 0 en mémoire
-                # ✅ AUCUNE limitation basée sur le nombre total de sweeps
-                # ✅ Chaque grille peut utiliser ses combinaisons complètes
-                # ✅ Nettoyage automatique entre sweeps (gc.collect)
-                if total_sweeps > 1:
-                    st.success(
-                        "🚀 **Mode Multi-Sweep Indépendant**\n\n"
-                        "• Chaque sweep utilise sa grille complète\n"
-                        "• Mémoire réinitialisée entre sweeps\n"
-                        "• Aucune limitation basée sur le nombre de sweeps\n"
-                        "• Protection uniquement par sweep individuel"
-                    )
-
-                def _estimate_parallel_grid_limit(param_count: int) -> int:
-                    try:
-                        import psutil
-                        available_bytes = psutil.virtual_memory().available
-                        per_combo_bytes = 1024 + (param_count * 128)
-                        budget_bytes = int(available_bytes * 0.15)  # Plus de mémoire pour sweep individuel
-                        estimated_limit = budget_bytes // per_combo_bytes
-                        # Limite raisonnable mais généreuse pour sweep unique
-                        return max(100_000, estimated_limit)  # Min 100k au lieu de 50k
-                    except Exception:
-                        return 1_000_000  # Fallback généreux
-                try:
-                    n_workers_effective = max(1, int(n_workers))
-                except (TypeError, ValueError):
-                    n_workers_effective = 1
-                # Lire threads depuis UI ou fallback env
-                try:
-                    worker_thread_limit = int(st.session_state.get(
-                        "grid_worker_threads",
-                        int(os.environ.get("BACKTEST_WORKER_THREADS", "1"))
-                    ))
-                except (TypeError, ValueError):
-                    worker_thread_limit = 1
-                worker_thread_limit = max(1, worker_thread_limit)
-                apply_thread_limit(worker_thread_limit, label="multi_sweep")
-
-                fast_metrics_env = os.getenv("BACKTEST_SWEEP_FAST_METRICS")
-                if fast_metrics_env is not None:
-                    fast_metrics_env_value = fast_metrics_env.strip().lower() in ("1", "true", "yes", "on")
-                else:
-                    fast_metrics_env_value = None
-                try:
-                    fast_metrics_threshold = int(os.getenv("BACKTEST_SWEEP_FAST_METRICS_THRESHOLD", "500"))
-                except (TypeError, ValueError):
-                    fast_metrics_threshold = 500
-                try:
-                    min_parallel_runs = int(os.getenv("BACKTEST_SWEEP_MIN_PARALLEL", "200"))
-                except (TypeError, ValueError):
-                    min_parallel_runs = 200
-                min_parallel_runs = max(0, min_parallel_runs)
-
-                # ═══════════════════════════════════════════════════════════════════════
-                # OPTIMISATION CRITIQUE: Pré-charger toutes les données UNIQUES une fois
-                # ═══════════════════════════════════════════════════════════════════════
-                # AVANT: Charger les données dans la boucle → N_strategies × rechargements
-                # APRÈS: Pré-charger combinaisons uniques → 1 chargement par (symbol, tf)
-                # Gain: 3 stratégies × même symbol/tf → 3x moins de I/O disque!
-                # ═══════════════════════════════════════════════════════════════════════
-                sweep_start = state.start_date if state.use_date_filter else None
-                sweep_end = state.end_date if state.use_date_filter else None
-
-                # Identifier combinaisons uniques (symbol, timeframe)
-                unique_data_keys = set((sym, tf) for sym in symbols for tf in timeframes)
-
-                # Pré-charger toutes les données nécessaires
-                st.info(f"🔄 Pré-chargement de {len(unique_data_keys)} dataset(s) unique(s)...")
-                preloaded_data = {}
-                for sym, tf in unique_data_keys:
-                    try:
-                        df_preload, msg_preload = load_selected_data(sym, tf, sweep_start, sweep_end)
-                        if df_preload is not None and not df_preload.empty:
-                            preloaded_data[(sym, tf)] = {
-                                "df": df_preload,
-                                "msg": msg_preload,
-                                "period_days": compute_period_days_from_df(df_preload)
-                            }
-                            st.success(f"✅ {sym}/{tf}: {len(df_preload):,} barres")
-                        else:
-                            st.warning(f"⚠️ {sym}/{tf}: {msg_preload}")
-                            preloaded_data[(sym, tf)] = None
-                    except Exception as e:
-                        st.error(f"❌ Erreur chargement {sym}/{tf}: {e}")
-                        preloaded_data[(sym, tf)] = None
-
-                st.success(f"✅ Données pré-chargées | {len([v for v in preloaded_data.values() if v])} OK, {len([v for v in preloaded_data.values() if not v])} échecs")
-
-                for sk in strategy_keys:
-                    for sym in symbols:
-                        for tf in timeframes:
-                            sweep_idx += 1
-
-                            # Vérifier si arrêt demandé
-                            if st.session_state.get("stop_requested", False):
-                                st.warning("⏹️ Arrêt demandé par l'utilisateur")
-                                break
-
-                            st.markdown(f"---\n### 🔄 Sweep {sweep_idx}/{total_sweeps}: `{sk}` × `{sym}` × `{tf}`")
-
-                            # Monitoring RAM avant chargement (optionnel)
-                            try:
-                                import psutil
-                                ram_used = psutil.virtual_memory().percent
-                                ram_avail_gb = psutil.virtual_memory().available / (1024**3)
-                                st.caption(f"💾 RAM: {ram_used:.1f}% utilisée • {ram_avail_gb:.1f} GB disponible")
-                            except ImportError:
-                                pass
-
-                            # Récupérer les données pré-chargées (ZÉRO I/O disque!)
-                            data_entry = preloaded_data.get((sym, tf))
-                            if data_entry is None:
-                                st.error(f"❌ Pas de données pour {sym}/{tf}")
-                                multi_sweep_results.append({
-                                    "strategy": sk, "symbol": sym, "timeframe": tf,
-                                    "status": "no_data", "best_pnl": None
-                                })
-                                continue
-
-                            df_sweep = data_entry["df"]
-                            load_msg = data_entry["msg"]  # Disponible si besoin de logs
-                            period_days_sweep = data_entry["period_days"]
-
-                            # Récupérer les param_ranges pour cette stratégie
-                            strat_param_ranges = all_param_ranges.get(sk, {})
-                            strat_params = all_params.get(sk, {})
-
-                            if not strat_param_ranges:
-                                st.warning(f"⚠️ Pas de paramètres optimisables pour {sk}")
-                                multi_sweep_results.append({
-                                    "strategy": sk, "symbol": sym, "timeframe": tf,
-                                    "status": "no_params", "best_pnl": None
-                                })
-                                continue
-
-                            # Créer un engine frais pour ce sweep
-                            # Générer la grille pour cette stratégie - AVEC PROTECTION ANTI-EXPLOSION
-                            param_names_sweep = list(strat_param_ranges.keys())
-                            param_values_lists_sweep = []
-                            estimated_combos = 1
-
-                            for pname in param_names_sweep:
-                                r = strat_param_ranges[pname]
-                                pmin, pmax, step = r["min"], r["max"], r["step"]
-                                if isinstance(pmin, int) and isinstance(step, int):
-                                    values = list(range(int(pmin), int(pmax) + 1, int(step)))
-                                else:
-                                    values = list(np.arange(float(pmin), float(pmax) + float(step) / 2, float(step)))
-                                    values = [round(v, 2) for v in values if v <= pmax]
-                                if not values:
-                                    values = [pmin]
-                                estimated_combos *= len(values)
-                                param_values_lists_sweep.append(values)
-
-                            # Définir max_safe_combos pour cette stratégie
-                            # Pour multi-sweep, on peut être plus généreux car chaque sweep est indépendant
-                            max_combos_env = os.getenv("BACKTEST_SWEEP_MAX_COMBOS")
-                            if max_combos_env:
-                                try:
-                                    max_combos = int(max_combos_env)
-                                except (TypeError, ValueError):
-                                    max_combos = None
-                            else:
-                                max_combos = None
-
-                            # � FORCE UTILISATION GRILLE COMPLÈTE EN MULTI-SWEEP
-                            # Récupérer max_combos de la sidebar (valeur utilisateur)
-                            original_max_combos = max_combos  # Valeur définie par l'utilisateur
-
-                            max_combos_env = os.getenv("BACKTEST_SWEEP_MAX_COMBOS")
-                            if max_combos_env:
-                                try:
-                                    env_max_combos = int(max_combos_env)
-                                except (TypeError, ValueError):
-                                    env_max_combos = original_max_combos
-                            else:
-                                env_max_combos = original_max_combos
-
-                            # 🚀 SWEEP INDÉPENDANT : Chaque sweep démarre à 0 en mémoire
-                            # Utiliser la grille complète ou la limite utilisateur, JAMAIS de division par nombre de sweeps
-                            max_safe_combos = min(env_max_combos, estimated_combos) if env_max_combos is not None else estimated_combos
-
-                            # SOLUTION LAZY : Générer les combinaisons à la volée (pas de stockage en RAM)
-                            def generate_combinations_lazy():
-                                """Générateur lazy qui produit les combinaisons une par une."""
-                                if not param_names_sweep:
-                                    yield strat_params.copy()
-                                    return
-
-                                combo_count = 0
-                                for combo in product(*param_values_lists_sweep):
-                                    yield {**strat_params, **dict(zip(param_names_sweep, combo))}
-                                    combo_count += 1
-                                    # Limite de sécurité même en lazy
-                                    if max_safe_combos and combo_count >= max_safe_combos:
-                                        break
-
-                            # Calculer le total théorique pour affichage
-                            total_theoretical = min(estimated_combos, max_safe_combos)
-
-                            st.info(f"""
-                            🚀 **Sweep {sk} - {sym} {tf}**
-                            **Combinaisons théoriques :** {estimated_combos:,}
-                            **Limite appliquée :** {total_theoretical:,}
-                            **Mémoire :** Génération lazy (pas de stockage RAM)
-                            **Mode :** {'Parallèle' if total_theoretical >= 200 else 'Séquentiel'}
-                            """)
-
-                            # EXÉCUTION avec générateur lazy (zéro RAM pour la grille)
-                            combo_generator = generate_combinations_lazy()
-
-                            best_pnl_sweep = float("-inf")
-                            best_params_sweep = None
-                            completed_sweep = 0
-                            progress_bar = st.progress(0.0)
-
-                            # Créer un sweep monitor pour ce sweep individuel
-                            sweep_monitor_multi = SweepMonitor(
-                                total_combinations=total_theoretical,
-                                objectives=["total_pnl", "theoretical_pnl", "sharpe_ratio", "total_return_pct", "max_drawdown"],
-                                top_k=10,
-                            )
-                            sweep_monitor_multi.start()
-                            sweep_placeholder_multi = st.empty()
-                            last_render_time = time.perf_counter()
-                            sweep_start_time = time.perf_counter()
-
-                            fast_metrics = (
-                                fast_metrics_env_value
-                                if fast_metrics_env_value is not None
-                                else (total_theoretical >= fast_metrics_threshold and not debug_enabled)
-                            )
-                            run_parallel_sweep = (
-                                n_workers_effective > 1
-                                and total_theoretical > 1
-                                and (min_parallel_runs == 0 or total_theoretical >= min_parallel_runs)
-                            )
-                            if run_parallel_sweep:
-                                parallel_grid_limit = _estimate_parallel_grid_limit(len(param_names_sweep))
-                                if total_theoretical > parallel_grid_limit:
-                                    st.info(
-                                        f"ℹ️ Grille volumineuse ({total_theoretical:,} > {parallel_grid_limit:,}). "
-                                        "Utilisation mode séquentiel optimisé (lazy, 0 RAM)."
-                                    )
-                                    run_parallel_sweep = False
-                                # 🔥 ISOLATION SWEEP : Même en parallèle, chaque sweep est isolé
-                                # Le nettoyage mémoire entre sweeps évite l'accumulation
-                            st.caption(
-                                f"📊 {total_theoretical:,} combinaisons pour ce sweep • "
-                                f"mode: {'parallel' if run_parallel_sweep else 'séquentiel'} • "
-                                f"workers: {n_workers_effective} • "
-                                f"fast_metrics: {'on' if fast_metrics else 'off'}"
-                            )
-
-                            if run_parallel_sweep:
-                                from ui.helpers import run_sweep_parallel_with_callback
-
-                                def live_callback(current: int, total: int, best_result) -> None:
-                                    """Callback pour affichage live pendant sweep parallèle"""
-                                    if total > 0:
-                                        progress_bar.progress(min(1.0, current / total))
-
-                                    # Afficher monitor en temps réel toutes les 50 runs ou 1 seconde
-                                    nonlocal last_render_time
-                                    current_time = time.perf_counter()
-                                    if current % 50 == 0 or current_time - last_render_time >= 1.0 or current == total:
-                                        last_render_time = current_time
-                                        elapsed = current_time - sweep_start_time
-                                        bt_per_sec = current / elapsed if elapsed > 0 else 0
-                                        progress_pct = (current / total * 100) if total > 0 else 0
-
-                                        with sweep_placeholder_multi.container():
-                                            # Afficher débit gaming-style
-                                            if bt_per_sec > 100:
-                                                speed_emoji, speed_color = "🚀", "#00ff80"
-                                                speed_label = "TURBO"
-                                            elif bt_per_sec > 10:
-                                                speed_emoji, speed_color = "⚡", "#ffff00"
-                                                speed_label = "FAST"
-                                            else:
-                                                speed_emoji, speed_color = "🐢", "#ff5555"
-                                                speed_label = "SLOW"
-
-                                            st.markdown(
-                                                f"""<div style="background: linear-gradient(45deg, #1e1e2e, #313244);
-                                                border: 2px solid {speed_color}; border-radius: 10px; padding: 15px;
-                                                box-shadow: 0 0 20px {speed_color}40; margin: 10px 0; text-align: center;">
-                                                <h3 style="color: {speed_color}; margin: 0; font-family: 'Courier New';">
-                                                {speed_emoji} {bt_per_sec:,.1f} bt/s {speed_label}
-                                                </h3>
-                                                <p style="color: #cdd6f4; margin: 5px 0;">
-                                                {current:,}/{total:,} runs ({progress_pct:.1f}%)
-                                                </p></div>""",
-                                                unsafe_allow_html=True
-                                            )
-
-                                            # Afficher top résultats si disponible
-                                            render_sweep_progress(
-                                                sweep_monitor_multi,
-                                                key=f"sweep_progress_multi_{sweep_idx}_{current}",
-                                                show_evolution=False,  # Pas de graphiques en multi-sweep
-                                                show_top_results=True
-                                            )
-
-                            if run_parallel_sweep:
-                                from ui.helpers import run_sweep_parallel_with_callback
-
-                                # Passer le générateur directement pour éviter de bloquer l'UI
-                                # La nouvelle version utilise une fenêtre glissante qui accepte les générateurs
-                                parallel_error = None
-                                try:
-                                    parallel_result = run_sweep_parallel_with_callback(
-                                        df=df_sweep,
-                                        strategy=sk,
-                                        param_grid=combo_generator,
-                                        initial_capital=state.initial_capital,
-                                        n_workers=n_workers_effective,
-                                        callback=live_callback,
-                                        silent_mode=True,
-                                        fast_metrics=fast_metrics,
-                                        symbol=sym,
-                                        timeframe=tf,
-                                    )
-                                except Exception as exc:
-                                    parallel_error = exc
-                                    parallel_result = None
-
-                                if parallel_error is not None:
-                                    st.warning(
-                                        f"⚠️ Parallélisation échouée ({parallel_error}). Repli séquentiel."
-                                    )
-                                    run_parallel_sweep = False
-                                else:
-                                    completed_sweep = len(parallel_result)
-                                    for result_data in parallel_result:
-                                        if not result_data:
-                                            continue
-
-                                        metrics = result_data.get("metrics", {})
-                                        # PROTECTION CONTRE -inf : Valider PnL
-                                        pnl = metrics.get("total_pnl", 0.0)
-                                        if not isinstance(pnl, (int, float)) or not np.isfinite(pnl):
-                                            pnl = 0.0  # Fallback si -inf/nan
-
-                                        # Mettre à jour le sweep monitor
-                                        sweep_monitor_multi.update(
-                                            params=result_data.get("params", {}),
-                                            metrics={
-                                                "total_pnl": pnl,
-                                                "theoretical_pnl": metrics.get("theoretical_pnl", 0.0),
-                                                "sharpe_ratio": metrics.get("sharpe_ratio", 0.0),
-                                                "total_return_pct": metrics.get("total_return_pct", 0.0),
-                                                "max_drawdown": abs(metrics.get("max_drawdown_pct", metrics.get("max_drawdown", 0.0))),
-                                            }
-                                        )
-
-                                        if pnl > best_pnl_sweep:
-                                            best_pnl_sweep = pnl
-                                            best_params_sweep = result_data.get("params", {})
-
-                            if not run_parallel_sweep:
-                                from utils.config import Config
-                                sweep_config = Config(initial_capital=state.initial_capital)
-                                sweep_engine = BacktestEngine(config=sweep_config)
-
-                                # Mode séquentiel : utiliser le générateur lazy directement
-                                successful_runs = 0
-                                failed_runs = 0
-
-                                for param_combo in combo_generator:
-                                    if st.session_state.get("stop_requested", False):
-                                        break
-
-                                    try:
-                                        result_i, _ = safe_run_backtest(
-                                            sweep_engine, df_sweep, sk, param_combo,
-                                            sym, tf, silent_mode=True, fast_metrics=fast_metrics
-                                        )
-                                        if result_i:
-                                            successful_runs += 1
-                                            m = result_i.metrics
-                                            # PROTECTION CONTRE -inf : Valider PnL
-                                            pnl = m.get("total_pnl", 0.0)
-                                            if not isinstance(pnl, (int, float)) or not np.isfinite(pnl):
-                                                pnl = 0.0  # Fallback si -inf/nan
-                                                # Log pour debug
-                                                if debug_enabled:
-                                                    st.caption(f"⚠️ PnL invalide détecté pour {param_combo}: {m.get('total_pnl', 'N/A')} → 0.0")
-
-                                            # Mettre à jour le sweep monitor
-                                            sweep_monitor_multi.update(
-                                                params=param_combo,
-                                                metrics={
-                                                    "total_pnl": pnl,
-                                                    "theoretical_pnl": m.get("theoretical_pnl", 0.0),
-                                                    "sharpe_ratio": m.get("sharpe_ratio", 0.0),
-                                                    "total_return_pct": m.get("total_return_pct", 0.0),
-                                                    "max_drawdown": abs(m.get("max_drawdown_pct", m.get("max_drawdown", 0.0))),
-                                                }
-                                            )
-
-                                            if pnl > best_pnl_sweep:
-                                                best_pnl_sweep = pnl
-                                                best_params_sweep = param_combo.copy()
-                                        else:
-                                            failed_runs += 1
-                                            sweep_monitor_multi.update(params=param_combo, metrics={}, error=True)
-                                    except Exception as e:
-                                        failed_runs += 1
-                                        sweep_monitor_multi.update(params=param_combo, metrics={}, error=True)
-                                        if debug_enabled:
-                                            st.caption(f"⚠️ Erreur backtest: {str(e)}")
-
-                                    completed_sweep += 1
-                                    current_time = time.perf_counter()
-                                    # Afficher métriques temps réel tous les 100 runs OU toutes les 2 secondes
-                                    if completed_sweep % 100 == 0 or current_time - last_render_time >= 2.0 or completed_sweep >= total_theoretical:
-                                        progress_bar.progress(min(1.0, completed_sweep / total_theoretical))
-                                        last_render_time = current_time
-
-                                        # Afficher les métriques en temps réel
-                                        with sweep_placeholder_multi.container():
-                                            elapsed = current_time - sweep_start_time
-                                            bt_per_sec = completed_sweep / elapsed if elapsed > 0 else 0
-                                            progress_pct = (completed_sweep / total_theoretical * 100) if total_theoretical > 0 else 0
-                                            st.info(f"⚡ {completed_sweep}/{total_theoretical} runs ({progress_pct:.1f}%) • 🚀 {bt_per_sec:.1f} bt/s")
-
-                                            render_sweep_progress(
-                                                sweep_monitor_multi,
-                                                key=f"sweep_progress_multi_{sweep_idx}",
-                                                show_evolution=False,  # Pas de graphiques en multi-sweep pour éviter surcharge
-                                                show_top_results=True
-                                            )
-
-                                # Debug info à la fin du sweep séquentiel
-                                if debug_enabled:
-                                    st.info(f"📊 Debug sweep: {successful_runs} réussis, {failed_runs} échoués sur {completed_sweep} runs total")
-
-                            progress_bar.empty()
-                            sweep_placeholder_multi.empty()
-
-                            # Enregistrer le résultat
-                            pnl_display = (
-                                format_pnl_with_daily(
-                                    best_pnl_sweep,
-                                    period_days_sweep,
-                                    show_plus=True,
-                                    escape_markdown=True,
-                                )
-                                if best_pnl_sweep > float("-inf")
-                                else "N/A"
-                            )
-                            status = "success" if best_pnl_sweep > float("-inf") else "no_valid_result"
-                            best_pnl_per_day = (
-                                best_pnl_sweep / period_days_sweep
-                                if period_days_sweep and best_pnl_sweep > float("-inf")
-                                else None
-                            )
-                            multi_sweep_results.append({
-                                "strategy": sk, "symbol": sym, "timeframe": tf,
-                                "status": status, "best_pnl": best_pnl_sweep if best_pnl_sweep > float("-inf") else None,
-                                "best_params": best_params_sweep,
-                                "best_pnl_per_day": best_pnl_per_day,
-                                "period_days": period_days_sweep,
-                                "combinations": total_theoretical,
-                            })
-
-                            if best_pnl_sweep > float("-inf"):
-                                message = f"✅ Meilleur PnL: {pnl_display}"
-                                if best_pnl_sweep > 0:
-                                    st.success(message)
-                                elif best_pnl_sweep < 0:
-                                    st.error(message)
-                                else:
-                                    st.info(message)
-                            else:
-                                st.warning("⚠️ Aucun résultat valide")
-
-                            # Nettoyage mémoire AGRESSIF après chaque sweep
-                            if 'sweep_engine' in locals():
-                                del sweep_engine
-                            if 'param_grid_sweep' in locals():
-                                del param_grid_sweep
-                            if 'sweep_monitor_multi' in locals():
-                                del sweep_monitor_multi
-                            if 'combo_generator' in locals():
-                                del combo_generator
-                            del df_sweep
-
-                            # Forcer nettoyage immédiat pour libérer RAM entre sweeps
-                            gc.collect()
-
-                            # Optionnel : Afficher RAM libre (debug)
-                            if debug_enabled:
-                                try:
-                                    import psutil
-                                    ram_avail = psutil.virtual_memory().available / (1024**3)
-                                    st.caption(f"🧹 RAM libre après nettoyage: {ram_avail:.1f} GB")
-                                except ImportError:
-                                    pass
-
-                    if st.session_state.get("stop_requested", False):
-                        break
-
-                # === AFFICHAGE DU RÉSUMÉ MULTI-SWEEP ===
-                st.markdown("---\n### 📊 Résumé Multi-Sweep")
-
-                if multi_sweep_results:
-                    # Onglets pour organiser les différentes vues
-                    tab_table, tab_heatmap, tab_ranking = st.tabs([
-                        "📋 Tableau", "🗺️ Heatmap", "🏆 Classement"
-                    ])
-
-                    with tab_table:
-                        # Tableau récapitulatif avec colonnes numériques pour tri correct
-                        summary_df = pd.DataFrame(multi_sweep_results)
-                        display_df = summary_df.copy()
-
-                        # Configurer les colonnes pour affichage et tri
-                        column_config = {
-                            "strategy": st.column_config.TextColumn("Stratégie"),
-                            "symbol": st.column_config.TextColumn("Token"),
-                            "timeframe": st.column_config.TextColumn("TF"),
-                            "status": st.column_config.TextColumn("Status"),
-                            "best_pnl": st.column_config.NumberColumn(
-                                "Meilleur PnL",
-                                format="$%.2f",
-                                help="PnL du meilleur résultat"
-                            ),
-                            "best_pnl_per_day": st.column_config.NumberColumn(
-                                "PnL/jour",
-                                format="$%.2f",
-                                help="PnL moyen par jour"
-                            ),
-                            "combinations": st.column_config.NumberColumn(
-                                "Combinaisons",
-                                format="%d",
-                                help="Nombre de combinaisons testées"
-                            ),
-                        }
-
-                        st.dataframe(
-                            display_df[[
-                                "strategy",
-                                "symbol",
-                                "timeframe",
-                                "status",
-                                "best_pnl",
-                                "best_pnl_per_day",
-                                "combinations",
-                            ]],
-                            width="stretch",
-                            column_config=column_config,
-                            hide_index=True,
-                        )
-
-                    with tab_heatmap:
-                        # Heatmap interactive stratégie × token/timeframe
-                        render_multi_sweep_heatmap(
-                            multi_sweep_results,
-                            metric="best_pnl",
-                            title="Performance par Stratégie × Token/Timeframe",
-                            key="multi_sweep_heatmap_main",
-                        )
-
-                    with tab_ranking:
-                        # Classement des meilleurs résultats
-                        render_multi_sweep_ranking(
-                            multi_sweep_results,
-                            metric="best_pnl",
-                            top_n=10,
-                            title="Top 10 Meilleurs Résultats",
-                            key="multi_sweep_ranking_main",
-                        )
-
-                    # Meilleur global + PnL cumulé (toujours visible)
-                    valid_sweeps = [r for r in multi_sweep_results if r.get("best_pnl") is not None]
-                    if valid_sweeps:
-                        best_overall = max(valid_sweeps, key=lambda r: r["best_pnl"])
-
-                        # Calculer PnL cumulé de tous les sweeps
-                        cumulative_pnl = sum(r["best_pnl"] for r in valid_sweeps)
-                        avg_period_days = sum(r.get("period_days", 0) for r in valid_sweeps if r.get("period_days")) / max(len([r for r in valid_sweeps if r.get("period_days")]), 1)
-
-                        st.markdown("---")
-                        col1, col2, col3 = st.columns([2, 1.5, 1])
-
-                        with col1:
-                            best_overall_pnl = format_pnl_with_daily(
-                                best_overall["best_pnl"],
-                                best_overall.get("period_days"),
-                                show_plus=True,
-                                escape_markdown=True,
-                            )
-                            message = (
-                                f"🏆 **Meilleur sweep**: `{best_overall['strategy']}` × "
-                                f"`{best_overall['symbol']}` × `{best_overall['timeframe']}`\n\n"
-                                f"💰 PnL: **{best_overall_pnl}**"
-                            )
-                            if best_overall["best_pnl"] > 0:
-                                st.success(message)
-                            elif best_overall["best_pnl"] < 0:
-                                st.error(message)
-                            else:
-                                st.info(message)
-
-                        with col2:
-                            # PnL cumulé de tous les sweeps
-                            cumul_display = format_pnl_with_daily(
-                                cumulative_pnl,
-                                avg_period_days,
-                                show_plus=True,
-                                escape_markdown=True,
-                            )
-                            message = (
-                                f"📊 **PnL Cumulé Total**\n\n"
-                                f"({len(valid_sweeps)} sweeps)\n\n"
-                                f"💰 **{cumul_display}**"
-                            )
-                            if cumulative_pnl > 0:
-                                st.success(message)
-                            elif cumulative_pnl < 0:
-                                st.error(message)
-                            else:
-                                st.info(message)
-
-                        with col3:
-                            # Afficher les meilleurs paramètres
-                            best_params = best_overall.get("best_params")
-                            if best_params:
-                                with st.expander("🔧 Paramètres gagnants", expanded=True):
-                                    for k, v in best_params.items():
-                                        if not k.startswith("_"):  # Ignorer les params internes
-                                            st.text(f"{k}: {v}")
-
-                        # Stocker comme winner
-                        winner_params = best_overall.get("best_params")
-                        winner_origin = "multi_sweep"
-                        st.session_state["last_winner_params"] = winner_params
-                        st.session_state["last_winner_origin"] = winner_origin
-
-                st.session_state.is_running = False
-                return  # Sortir après multi-sweep
-
-            # === MODE SWEEP SIMPLE (code existant) ===
-            try:
-                n_workers_effective = max(1, int(n_workers))
-            except (TypeError, ValueError):
-                n_workers_effective = 1
+            n_workers_effective = _resolve_workers(n_workers)
             # Lire threads depuis UI ou fallback env
             try:
                 worker_thread_limit = int(st.session_state.get("grid_worker_threads",
                                                                  int(os.environ.get("BACKTEST_WORKER_THREADS", "1"))))
             except (TypeError, ValueError):
                 worker_thread_limit = 1
-            worker_thread_limit = max(1, worker_thread_limit)
-            apply_thread_limit(worker_thread_limit, label="main")
+            worker_thread_limit = _resolve_threads(worker_thread_limit)
+            _apply_thread_limit(worker_thread_limit, label="main")
 
             with st.spinner("📊 Génération de la grille..."):
                 try:
@@ -1377,15 +947,7 @@ def render_main(
                         total_combinations = 1
                         combo_iter = iter([params.copy()])
 
-                    # Appliquer limite uniquement si max_combos < 100M (considéré comme illimité au-delà)
-                    if max_combos and max_combos < 100_000_000 and total_combinations > max_combos:
-                        st.warning(
-                            f"⚠️ Grille limitée: {total_combinations:,} → {max_combos:,}"
-                        )
-                        total_runs = max_combos
-                        combo_iter = islice(combo_iter, max_combos)
-                    else:
-                        total_runs = total_combinations
+                    total_runs = total_combinations
 
                     if total_runs < total_combinations:
                         show_status(
@@ -1400,37 +962,13 @@ def render_main(
                     st.session_state.is_running = False
                     st.stop()
 
-            # Choisir le mode fast_metrics pour les sweeps volumineux
-            fast_metrics_env = os.getenv("BACKTEST_SWEEP_FAST_METRICS")
-            if fast_metrics_env is not None:
-                fast_metrics = fast_metrics_env.strip().lower() in ("1", "true", "yes", "on")
-            else:
-                try:
-                    fast_metrics_threshold = int(os.getenv("BACKTEST_SWEEP_FAST_METRICS_THRESHOLD", "500"))
-                except (TypeError, ValueError):
-                    fast_metrics_threshold = 500
-                fast_metrics = total_runs >= fast_metrics_threshold and not debug_enabled
-
-            # Heuristique: éviter multiprocessing pour petites grilles (overhead > gain)
+            # ✅ CRITIQUE: Définir fast_metrics ICI pour qu'il soit accessible aux fonctions imbriquées
+            # Déterminer si on utilise les métriques rapides (sweeps >500 runs)
             try:
-                min_parallel_runs = int(os.getenv("BACKTEST_SWEEP_MIN_PARALLEL", "200"))
+                fast_threshold = int(os.getenv("BACKTEST_SWEEP_FAST_METRICS_THRESHOLD", "500"))
             except (TypeError, ValueError):
-                min_parallel_runs = 200
-            min_parallel_runs = max(0, min_parallel_runs)
-            run_parallel = (
-                n_workers_effective > 1
-                and total_runs > 1
-                and (min_parallel_runs == 0 or total_runs >= min_parallel_runs)
-            )
-            if not run_parallel:
-                n_workers_effective = 1
-
-            st.caption(
-                f"⚙️ Grille: {total_runs:,} combos | mode: "
-                f"{'parallel' if run_parallel else 'séquentiel'} | "
-                f"workers: {n_workers_effective} | threads: {worker_thread_limit} | "
-                f"fast_metrics: {'on' if fast_metrics else 'off'}"
-            )
+                fast_threshold = 500
+            fast_metrics = total_runs >= fast_threshold
 
             results_list = []
             param_combos_map = {}
@@ -1468,6 +1006,7 @@ def render_main(
 
             def run_single_backtest(param_combo: Dict[str, Any]):
                 try:
+                    # ✅ CRITIQUE: Utiliser fast_metrics pour sweeps séquentiels aussi
                     result_i, msg_i = safe_run_backtest(
                         engine,
                         df,
@@ -1475,8 +1014,8 @@ def render_main(
                         param_combo,
                         symbol,
                         timeframe,
-                        silent_mode=True,
-                        fast_metrics=fast_metrics,
+                        silent_mode=not debug_enabled,
+                        fast_metrics=fast_metrics,  # ✅ Activer métriques rapides
                     )
 
                     params_str = _params_to_str(param_combo)
@@ -1496,18 +1035,6 @@ def render_main(
                             "win_rate": m.get("win_rate", 0.0),
                             "trades": m.get("total_trades", 0),
                             "profit_factor": m.get("profit_factor", 0.0),
-                            "account_ruined": m.get("account_ruined", False),
-                            "min_equity": m.get("min_equity", 0.0),
-                            "consecutive_losses_max": m.get("consecutive_losses_max", 0),
-                            "avg_win_loss_ratio": m.get("avg_win_loss_ratio", 0.0),
-                            "robustness_score": m.get("robustness_score", 0.0),
-                            "liquidation_total_pnl": m.get("liquidation_total_pnl", m.get("total_pnl", 0.0)),
-                            "liquidation_total_return_pct": m.get("liquidation_total_return_pct", m.get("total_return_pct", 0.0)),
-                            "liquidation_sharpe_ratio": m.get("liquidation_sharpe_ratio", m.get("sharpe_ratio", 0.0)),
-                            "liquidation_max_drawdown_pct": m.get("liquidation_max_drawdown_pct", m.get("max_drawdown_pct", 0.0)),
-                            "liquidation_triggered": m.get("liquidation_triggered", False),
-                            "liquidation_time": m.get("liquidation_time"),
-                            "period_days": period_days,
                         }
                     return {
                         "params": params_str,
@@ -1541,15 +1068,12 @@ def render_main(
                         "theoretical_pnl": result.get("theoretical_pnl", 0.0),
                         "total_return_pct": result.get("total_pnl", 0.0) / state.initial_capital * 100 if state.initial_capital else 0.0,
                         "max_drawdown": abs(result.get("max_dd", 0.0)),
-                        "account_ruined": result.get("account_ruined", False),
-                        "min_equity": result.get("min_equity", 0.0),
                         "win_rate": result.get("win_rate", 0.0),
                         "total_trades": result.get("trades", 0),
                         "profit_factor": result.get("profit_factor", 0.0),
                         "consecutive_losses_max": result.get("consecutive_losses_max", 0),
                         "avg_win_loss_ratio": result.get("avg_win_loss_ratio", 0.0),
                         "robustness_score": result.get("robustness_score", 0.0),
-                        "period_days": result.get("period_days", period_days),
                     }
                     sweep_monitor.update(params=param_combo_result, metrics=metrics)
                 else:
@@ -1567,7 +1091,7 @@ def render_main(
             completed_params = set()
             completed = 0
             start_time = time.perf_counter()
-            last_render_time = start_time
+            last_render_time = time.perf_counter()
 
             def run_sequential_combos(combo_source, key_prefix: str) -> None:
                 nonlocal completed, last_render_time
@@ -1584,123 +1108,34 @@ def render_main(
                     completed_params.add(params_str)
 
                     current_time = time.perf_counter()
-                    # 🚀 AFFICHAGE TEMPS RÉEL: Update fréquent pour voir progression live
-                    # Update tous les 100 runs OU toutes les 2 secondes
-                    # Avec graphiques désactivés, pas de surcharge WebSocket
-                    if completed % 100 == 0 or current_time - last_render_time >= 2.0:
-                        render_progress_monitor(monitor, monitor_placeholder)
-                        # Réactiver graphiques avec throttling ultra lent + mode statique
+                    # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                    # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                    # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                    if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
                         with sweep_placeholder.container():
                             progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
-                            # Calculer backtests/sec
                             elapsed = time.perf_counter() - start_time
-                            bt_per_sec = completed / elapsed if elapsed > 0 else 0
-                            st.info(f"⚡ {completed}/{total_runs} runs ({progress_pct:.1f}%) • 🚀 {bt_per_sec:.1f} bt/s")
+                            rate = completed / elapsed if elapsed > 0 else 0
+                            remaining = (total_runs - completed) / rate if rate > 0 else 0
 
-                            # Afficher le meilleur PnL + métriques critiques
+                            # Barre de progression simple (pas d'HTML custom lourd)
+                            st.progress(progress_pct / 100.0)
+                            st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
+
+                            # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
                             if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
-                                # Extraire métriques - optimisé avec un seul parcours
-                                cumulative_pnl = 0.0
-                                pnl_values = []
-                                best_sharpe = float("-inf")
-                                best_pf = 0.0
-                                best_robustness = 0.0
-                                best_run = None
-                                period_days_sum = 0.0
-                                period_days_count = 0
+                                best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
+                                best_pnl = best_result.metrics.get("total_pnl", 0)
+                                pnl_color = "green" if best_pnl > 0 else "red"
+                                st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
 
-                                for r in sweep_monitor._results:
-                                    pnl = r.metrics.get("total_pnl", 0.0)
-                                    cumulative_pnl += pnl
-                                    pnl_values.append(pnl)
-
-                                    sharpe = r.metrics.get("sharpe_ratio", float("-inf"))
-                                    pf = r.metrics.get("profit_factor", 0.0)
-                                    rob = r.metrics.get("robustness_score", 0.0)
-
-                                    if sharpe > best_sharpe:
-                                        best_sharpe = sharpe
-                                    if pf > best_pf:
-                                        best_pf = pf
-                                    if rob > best_robustness:
-                                        best_robustness = rob
-                                        best_run = r
-
-                                    # Moyenne period_days
-                                    if 'period_days' in r.metrics:
-                                        period_days_sum += r.metrics['period_days']
-                                        period_days_count += 1
-
-                                # Fallback sur meilleur PnL si aucun robustness valide
-                                if best_run is None:
-                                    best_run = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
-
-                                best_wl_ratio = best_run.metrics.get("avg_win_loss_ratio", 0.0)
-                                best_consec_losses = best_run.metrics.get("consecutive_losses_max", 0)
-
-                                # PnL moyen + meilleur + pire avec moyenne period_days
-                                avg_period_days = period_days_sum / period_days_count if period_days_count > 0 else period_days
-                                avg_pnl = cumulative_pnl / len(pnl_values) if pnl_values else 0.0
-                                best_pnl = max(pnl_values) if pnl_values else 0.0
-                                worst_pnl = min(pnl_values) if pnl_values else 0.0  # PnL le plus négatif
-                                best_pnl_display = format_pnl_with_daily(
-                                    best_pnl,
-                                    avg_period_days,
-                                    show_plus=True,
-                                    escape_markdown=True,
-                                )
-                                avg_pnl_display = format_pnl_with_daily(
-                                    avg_pnl,
-                                    avg_period_days,
-                                    show_plus=True,
-                                    escape_markdown=True,
-                                )
-                                worst_pnl_display = format_pnl_with_daily(
-                                    worst_pnl,
-                                    avg_period_days,
-                                    show_plus=True,
-                                    escape_markdown=True,
-                                )
-
-                                # Affichage compact des métriques critiques avec worst PnL
-                                col1, col2, col3 = st.columns(3)
-                                with col1:
-                                    st.markdown(f"💰 **Meilleur PnL**: **{best_pnl_display}**")
-                                    st.caption(
-                                        f"📊 PnL moyen: **{avg_pnl_display}**"
-                                    )
-                                    # Worst PnL avec indicateur de risque liquidation
-                                    liquidation_icon = " ⚠️" if worst_pnl < -5000 else " ⚠️" if worst_pnl < 0 else ""
-                                    worst_color = "red" if worst_pnl < 0 else "green"
-                                    st.caption(
-                                        f"📉 Pire PnL: :{worst_color}[**{worst_pnl_display}**]{liquidation_icon}"
-                                    )
-                                with col2:
-                                    robustness_color = "green" if best_robustness > 2.0 else "orange" if best_robustness > 1.0 else "red"
-                                    st.markdown(f"🎯 **Robustesse**: :{robustness_color}[**{best_robustness:.2f}**]")
-                                    st.caption(
-                                        f"Best Sharpe: **{best_sharpe:.2f}** | "
-                                        f"Best PF: **{best_pf:.2f}**"
-                                    )
-                                    st.caption(f"📈 Sharpe × PF (idéal >3.0)")
-                                with col3:
-                                    wl_color = "green" if best_wl_ratio > 2.0 else "orange" if best_wl_ratio > 1.5 else "red"
-                                    st.markdown(f"⚖️ **W/L Ratio**: :{wl_color}[**{best_wl_ratio:.2f}**]")
-                                    st.caption(f"💔 Max pertes: **{best_consec_losses}** consécutives")
-
-                            # Graphiques avec mode statique (pas d'interactivité = moins de données WebSocket)
-                            render_sweep_progress(
-                                sweep_monitor,
-                                key=f"sweep_progress_seq_{completed}",
-                                static_plots=True,  # Désactiver interactivité Plotly
-                                show_top_results=True,  # Afficher meilleur/moyen PnL gaming-style
-                                show_evolution=False  # Pas d'évolution pendant le sweep
-                            )
-                            st.caption(f"🔄 Rafraîchissement: tous les 100 runs ou 2s (temps réel)")
                         last_render_time = current_time
                         time.sleep(0.01)
 
-            if run_parallel:
+            if n_workers_effective > 1:
+                os.environ.setdefault("BACKTEST_INDICATOR_DISK_CACHE", "0")
+
+            if n_workers_effective > 1 and total_runs > 1:
                 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, TimeoutError as FutureTimeoutError, wait
                 try:
                     from concurrent.futures import BrokenProcessPool
@@ -1714,37 +1149,26 @@ def render_main(
 
                 logger = logging.getLogger(__name__)
                 stall_timeout_sec = float(os.getenv("BACKTEST_SWEEP_STALL_SEC", "60"))
-                max_inflight = max(1, min(total_runs, n_workers_effective * 2))
+                stall_startup_sec = float(os.getenv("BACKTEST_SWEEP_STALL_STARTUP_SEC", "180"))
+                # ✅ FIX #1: Augmenter max_inflight pour alimenter tous les workers
+                # Avant: n_workers × 2 = 48 tâches pour 24 workers (workers idle 50% du temps)
+                # Après: n_workers × 8 = 192 tâches pour 24 workers (workers toujours alimentés)
+                max_inflight = max(1, min(total_runs, n_workers_effective * 8))
                 pending = {}
                 failed_pending = []
                 pool_failed = False
                 pool_fail_reason = None
                 pool_error: Exception | None = None
+                pool_start_time = time.perf_counter()
                 last_completion_time = time.perf_counter()
+                recent_durations_sec = deque(maxlen=20)
                 pickle_error_count = 0  # Compteur d'erreurs de pickling
                 combo_counter = 0  # Compteur pour diagnostics
-                start_time = time.perf_counter()  # Pour calcul bt/s
-
-                def submit_next() -> bool:
-                    nonlocal combo_counter
-                    try:
-                        param_combo = next(combo_iter)
-                    except StopIteration:
-                        return False
-                    combo_counter += 1
-                    diag.log_submit(combo_counter, param_combo)
-                    # Soumettre UNIQUEMENT param_combo - le DataFrame est déjà dans le worker
-                    # Cela évite la sérialisation pickle répétée du DataFrame (économie CPU + mémoire)
-                    future = executor.submit(
-                        _isolated_worker,
-                        param_combo  # Seul paramètre : dict des paramètres de stratégie
-                    )
-                    pending[future] = param_combo
-                    return True
 
                 # Import de l'initializer optimisé qui charge le DataFrame une seule fois par worker
                 from backtest.worker import init_worker_with_dataframe
 
+                # ✅ FIX #5: Définir executor AVANT submit_next() pour éviter closure sur variable non définie
                 executor = ProcessPoolExecutor(
                     max_workers=n_workers_effective,
                     initializer=init_worker_with_dataframe,
@@ -1756,41 +1180,75 @@ def render_main(
                         state.initial_capital,
                         debug_enabled,
                         worker_thread_limit,
-                        fast_metrics,
+                        fast_metrics,  # ✅ CRITIQUE: Activer métriques rapides pour sweeps
+                        False,         # is_path (DataFrame fourni directement, pas un chemin)
                     ),
                 )
+
+                # ✅ FIX #5 (suite): Définir submit_next() APRÈS executor
+                def submit_next() -> bool:
+                    nonlocal combo_counter
+                    try:
+                        param_combo = next(combo_iter)
+                    except StopIteration:
+                        return False
+                    combo_counter += 1
+                    diag.log_submit(combo_counter, param_combo)
+                    submit_ts = time.perf_counter()
+                    future = executor.submit(_isolated_worker, param_combo)
+                    pending[future] = (param_combo, submit_ts)
+                    return True
+
                 try:
                     for _ in range(max_inflight):
                         if not submit_next():
                             break
 
                     while pending:
-                        done, _ = wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
+                        # ✅ FIX #2: Réduire timeout de 0.5s à 0.05s (10× plus rapide)
+                        # Avant: Latence de 500ms entre chaque vérification
+                        # Après: Latence de 50ms (workers alimentés 10× plus vite)
+                        done, _ = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
                         if not done:
-                            if time.perf_counter() - last_completion_time >= stall_timeout_sec:
+                            now = time.perf_counter()
+                            if completed == 0:
+                                stall_threshold_sec = stall_startup_sec
+                                stalled = (now - pool_start_time) >= stall_threshold_sec
+                            else:
+                                avg_duration = (
+                                    sum(recent_durations_sec) / len(recent_durations_sec)
+                                    if recent_durations_sec else 0.0
+                                )
+                                stall_threshold_sec = max(
+                                    stall_timeout_sec,
+                                    avg_duration * 3 if avg_duration > 0 else stall_timeout_sec,
+                                )
+                                stalled = (now - last_completion_time) >= stall_threshold_sec
+
+                            if stalled:
                                 pool_failed = True
                                 pool_fail_reason = "stall"
                                 pool_error = TimeoutError(
-                                    f"Aucune completion depuis {stall_timeout_sec:.0f}s"
+                                    f"Aucune completion depuis {stall_threshold_sec:.0f}s"
                                 )
-                                diag.log_stall(stall_timeout_sec, list(pending.values()))
+                                diag.log_stall(stall_threshold_sec, len(pending))
                                 logger.error(
                                     "Sweep multiprocess bloque depuis %ss, bascule sequentielle.",
-                                    int(stall_timeout_sec),
+                                    int(stall_threshold_sec),
                                 )
                                 break
                             continue
 
                         for future in done:
-                            param_combo = pending.pop(future)
-                            future_start = time.perf_counter()
+                            param_combo, submit_ts = pending.pop(future)
                             result = None
                             should_record = True
 
                             try:
                                 # Timeout 300s pour éviter freeze si Windows interrupt (Task Manager, focus change, etc.)
                                 result = future.result(timeout=300)
-                                duration_ms = (time.perf_counter() - future_start) * 1000
+                                duration_ms = (time.perf_counter() - submit_ts) * 1000
+                                recent_durations_sec.append(duration_ms / 1000.0)
 
                                 # Log completion
                                 combo_idx = combo_counter - len(pending) - len(failed_pending)
@@ -1876,103 +1334,27 @@ def render_main(
                                 submit_next()
 
                             current_time = time.perf_counter()
-                            # 🚀 AFFICHAGE TEMPS RÉEL: Update fréquent pour voir progression live
-                            # Update tous les 100 runs OU toutes les 2 secondes
-                            if completed % 100 == 0 or current_time - last_render_time >= 2.0:
-                                render_progress_monitor(monitor, monitor_placeholder)
-                                # Réactiver graphiques avec throttling ultra lent + mode statique
+                            # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                            # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                            # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                            if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
                                 with sweep_placeholder.container():
                                     progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
-                                    # Calculer backtests/sec
                                     elapsed = time.perf_counter() - start_time
-                                    bt_per_sec = completed / elapsed if elapsed > 0 else 0
-                                    st.info(f"⚡ {completed}/{total_runs} runs ({progress_pct:.1f}%) • 🚀 {bt_per_sec:.1f} bt/s")
+                                    rate = completed / elapsed if elapsed > 0 else 0
+                                    remaining = (total_runs - completed) / rate if rate > 0 else 0
 
-                                    # Afficher le meilleur PnL + métriques critiques
+                                    # Barre de progression simple (pas d'HTML custom lourd)
+                                    st.progress(progress_pct / 100.0)
+                                    st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
+
+                                    # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
                                     if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
-                                        # Extraire métriques - optimisé avec un seul parcours
-                                        cumulative_pnl = 0.0
-                                        pnl_values = []
-                                        best_sharpe = float("-inf")
-                                        best_pf = 0.0
-                                        best_robustness = 0.0
-                                        best_run = None
-                                        period_days_sum = 0.0
-                                        period_days_count = 0
+                                        best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
+                                        best_pnl = best_result.metrics.get("total_pnl", 0)
+                                        pnl_color = "green" if best_pnl > 0 else "red"
+                                        st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
 
-                                        for r in sweep_monitor._results:
-                                            pnl = r.metrics.get("total_pnl", 0.0)
-                                            cumulative_pnl += pnl
-                                            pnl_values.append(pnl)
-
-                                            sharpe = r.metrics.get("sharpe_ratio", float("-inf"))
-                                            pf = r.metrics.get("profit_factor", 0.0)
-                                            rob = r.metrics.get("robustness_score", 0.0)
-
-                                            if sharpe > best_sharpe:
-                                                best_sharpe = sharpe
-                                            if pf > best_pf:
-                                                best_pf = pf
-                                            if rob > best_robustness:
-                                                best_robustness = rob
-                                                best_run = r
-
-                                            # Moyenne period_days
-                                            if 'period_days' in r.metrics and r.metrics['period_days'] is not None:
-                                                period_days_sum += r.metrics['period_days']
-                                                period_days_count += 1
-
-                                        # Fallback sur meilleur PnL si aucun robustness valide
-                                        if best_run is None:
-                                            best_run = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
-
-                                        best_wl_ratio = best_run.metrics.get("avg_win_loss_ratio", 0.0)
-                                        best_consec_losses = best_run.metrics.get("consecutive_losses_max", 0)
-
-                                        # PnL moyen + meilleur avec moyenne period_days
-                                        avg_period_days = period_days_sum / period_days_count if period_days_count > 0 else period_days
-                                        avg_pnl = cumulative_pnl / len(pnl_values) if pnl_values else 0.0
-                                        best_pnl = max(pnl_values) if pnl_values else 0.0
-                                        best_pnl_display = format_pnl_with_daily(
-                                            best_pnl,
-                                            avg_period_days,
-                                            show_plus=True,
-                                            escape_markdown=True,
-                                        )
-                                        avg_pnl_display = format_pnl_with_daily(
-                                            avg_pnl,
-                                            avg_period_days,
-                                            show_plus=True,
-                                            escape_markdown=True,
-                                        )
-
-                                        # Affichage compact des métriques critiques
-                                        col1, col2, col3 = st.columns(3)
-                                        with col1:
-                                            st.markdown(f"💰 **Meilleur PnL**: **{best_pnl_display}**")
-                                            st.caption(
-                                                f"📊 PnL moyen: **{avg_pnl_display}** | "
-                                                f"Best Sharpe: **{best_sharpe:.2f}** | "
-                                                f"Best PF: **{best_pf:.2f}**"
-                                            )
-                                        with col2:
-                                            robustness_color = "green" if best_robustness > 2.0 else "orange" if best_robustness > 1.0 else "red"
-                                            st.markdown(f"🎯 **Robustesse**: :{robustness_color}[**{best_robustness:.2f}**]")
-                                            st.caption(f"📈 Sharpe × PF (idéal >3.0)")
-                                        with col3:
-                                            wl_color = "green" if best_wl_ratio > 2.0 else "orange" if best_wl_ratio > 1.5 else "red"
-                                            st.markdown(f"⚖️ **W/L Ratio**: :{wl_color}[**{best_wl_ratio:.2f}**]")
-                                            st.caption(f"💔 Max pertes: **{best_consec_losses}** consécutives")
-
-                                    # Graphiques avec mode statique
-                                    render_sweep_progress(
-                                        sweep_monitor,
-                                        key=f"sweep_progress_multi_{completed}",
-                                        static_plots=True,
-                                        show_top_results=True,  # Afficher meilleur/moyen PnL gaming-style
-                                        show_evolution=False  # Pas d'évolution pendant le sweep
-                                    )
-                                    st.caption(f"🔄 Rafraîchissement: tous les 100 runs ou 2s (temps réel)")
                                 last_render_time = current_time
                                 time.sleep(0.01)
 
@@ -2005,19 +1387,14 @@ def render_main(
                         if pool_error:
                             st.caption(f"Détails: {pool_error}")
 
-                    pending_combos = failed_pending + list(pending.values())
+                    pending_combos = failed_pending + [item[0] for item in pending.values()]
                     if pool_fail_reason == "stall" and pending_combos:
-                        for param_combo in pending_combos:
-                            completed += 1
-                            monitor.runs_completed = completed
-                            params_str = record_sweep_result(
-                                {"params_dict": param_combo, "error": "worker_stall"},
-                                param_combo,
-                            )
-                            completed_params.add(params_str)
-                        pending_combos = []
+                        logger.warning(
+                            "Stall détecté: %d combinaisons en attente seront relancées en séquentiel.",
+                            len(pending_combos),
+                        )
 
-                    diag.log_sequential_fallback(len(pending_combos))
+                    diag.log_sequential_fallback(pool_fail_reason, len(pending_combos))
                     fallback_iter = chain(pending_combos, combo_iter)
                     run_sequential_combos(fallback_iter, "sweep_fallback")
             else:
@@ -2097,7 +1474,7 @@ def render_main(
                             for msg, count in error_items[:10]
                         ]
                     )
-                    st.dataframe(error_df, width="stretch")
+                    st.dataframe(error_df, use_container_width=True)
 
             error_column = results_df.get("error")
             if error_column is not None:
@@ -2123,7 +1500,7 @@ def render_main(
                             f"  Mean: {valid_results['trades'].mean():.2f}"
                         )
 
-                st.dataframe(valid_results.head(10), width="stretch")
+                st.dataframe(valid_results.head(10), use_container_width=True)
 
                 best = valid_results.iloc[0]
                 st.info(f"🥇 Meilleure: {best['params']}")
@@ -2137,7 +1514,6 @@ def render_main(
                     symbol,
                     timeframe,
                     silent_mode=not debug_enabled,
-                    fast_metrics=False,
                 )
                 if result is not None:
                     winner_params = best_params
@@ -2183,12 +1559,562 @@ def render_main(
                 st.stop()
 
         elif optimization_mode == "🤖 Optimisation LLM":
-            handle_llm_optimization(
-                state=state,
-                df=df,
-                engine=engine,
-                status_container=status_container,
+            if not LLM_AVAILABLE:
+                show_status("error", "Module agents LLM non disponible")
+                st.code(LLM_IMPORT_ERROR)
+                st.session_state.is_running = False
+                st.stop()
+
+            if llm_config is None:
+                show_status("error", "Configuration LLM incomplète")
+                st.info("Configurez le provider LLM dans la sidebar")
+                st.session_state.is_running = False
+                st.stop()
+
+            session_id = generate_session_id()
+            orchestration_logger = OrchestrationLogger(session_id=session_id)
+
+            try:
+                param_bounds = get_strategy_param_bounds(strategy_key)
+                if not param_bounds:
+                    param_bounds = {}
+                    for pname in params.keys():
+                        if pname in PARAM_CONSTRAINTS:
+                            c = PARAM_CONSTRAINTS[pname]
+                            param_bounds[pname] = (c["min"], c["max"])
+            except Exception as exc:
+                show_status("warning", f"Bornes par défaut utilisées: {exc}")
+                param_bounds = {}
+                for pname in params.keys():
+                    if pname in PARAM_CONSTRAINTS:
+                        c = PARAM_CONSTRAINTS[pname]
+                        param_bounds[pname] = (c["min"], c["max"])
+
+            try:
+                full_param_space = get_strategy_param_space(strategy_key, include_step=True)
+                llm_space_stats = compute_search_space_stats(full_param_space)
+            except Exception:
+                llm_space_stats = None
+
+            max_iterations = min(llm_max_iterations, max_combos)
+
+            comparison_summary: List[Dict[str, Any]] = []
+            should_run_comparison = llm_compare_enabled and (
+                llm_compare_auto_run or st.session_state.get("llm_compare_run_now", False)
             )
+            if should_run_comparison:
+                st.subheader("Comparaison multi-strategies")
+                if not llm_compare_strategies:
+                    st.warning("Aucune strategie selectionnee pour la comparaison.")
+                elif not llm_compare_tokens or not llm_compare_timeframes:
+                    st.warning("Selectionnez au moins un token et un timeframe.")
+                else:
+                    start_str = str(state.start_date) if state.start_date else None
+                    end_str = str(state.end_date) if state.end_date else None
+                    progress_bar = st.progress(0)
+                    comparison_results: List[Dict[str, Any]] = []
+                    comparison_errors: List[str] = []
+                    data_cache: Dict[tuple[str, str], pd.DataFrame] = {}
+
+                    for token in llm_compare_tokens:
+                        for tf in llm_compare_timeframes:
+                            df_cmp, msg = safe_load_data(token, tf, start_str, end_str)
+                            if df_cmp is None:
+                                comparison_errors.append(f"{token}/{tf}: {msg}")
+                            else:
+                                data_cache[(token, tf)] = df_cmp
+
+                    valid_pairs = list(data_cache.keys())
+                    total_runs = len(valid_pairs) * len(llm_compare_strategies)
+                    total_runs = max(0, min(total_runs, llm_compare_max_runs))
+                    run_index = 0
+
+                    with st.spinner("Comparaison en cours..."):
+                        for strategy_name_cmp in llm_compare_strategies:
+                            params_cmp = build_strategy_params_for_comparison(
+                                strategy_name_cmp,
+                                use_preset=llm_compare_use_preset,
+                            )
+                            for token, tf in valid_pairs:
+                                if run_index >= total_runs:
+                                    break
+                                df_cmp = data_cache[(token, tf)]
+                                result_cmp, status = safe_run_backtest(
+                                    engine,
+                                    df_cmp,
+                                    strategy_name_cmp,
+                                    params_cmp,
+                                    token,
+                                    tf,
+                                    silent_mode=not debug_enabled,
+                                )
+                                if result_cmp is None:
+                                    comparison_errors.append(
+                                        f"{strategy_name_cmp} {token}/{tf}: {status}"
+                                    )
+                                else:
+                                    comparison_results.append(
+                                        {
+                                            "strategy": strategy_name_cmp,
+                                            "symbol": token,
+                                            "timeframe": tf,
+                                            "metrics": result_cmp.metrics,
+                                            "trades": len(result_cmp.trades),
+                                        }
+                                    )
+                                run_index += 1
+                                if total_runs > 0:
+                                    progress_bar.progress(run_index / total_runs)
+                            if run_index >= total_runs:
+                                break
+
+                    if comparison_errors:
+                        st.warning(
+                            "Comparaison: "
+                            + "; ".join(comparison_errors[:8])
+                            + (" ..." if len(comparison_errors) > 8 else "")
+                        )
+
+                    if comparison_results:
+                        comparison_summary = summarize_comparison_results(
+                            comparison_results,
+                            aggregate=llm_compare_aggregate,
+                            primary_metric=llm_compare_metric,
+                            expected_runs=len(valid_pairs),
+                        )
+                        st.caption(
+                            f"Runs effectues: {len(comparison_results)} / {total_runs}"
+                        )
+                        st.dataframe(pd.DataFrame(comparison_summary), use_container_width=True)
+
+                        chart_rows = []
+                        for row in comparison_summary:
+                            chart_rows.append(
+                                {
+                                    "name": row["strategy"],
+                                    "metrics": {
+                                        llm_compare_metric: row.get(llm_compare_metric)
+                                    },
+                                }
+                            )
+                        render_comparison_chart(
+                            chart_rows,
+                            metric=llm_compare_metric,
+                            title="Comparaison agregree",
+                            key="llm_strategy_comparison",
+                        )
+
+                        if llm_compare_generate_report:
+                            try:
+                                llm_client = create_llm_client(llm_config)
+                                if not llm_client.is_available():
+                                    st.warning("LLM indisponible pour la justification.")
+                                else:
+                                    summary_lines = [
+                                        "strategy | runs | sharpe | return_pct | max_drawdown | win_rate"
+                                    ]
+                                    for row in comparison_summary:
+                                        summary_lines.append(
+                                            f"{row.get('strategy')} | "
+                                            f"{row.get('runs')} | "
+                                            f"{row.get('sharpe_ratio', float('nan')):.2f} | "
+                                            f"{row.get('total_return_pct', float('nan')):.2f} | "
+                                            f"{row.get('max_drawdown', float('nan')):.2f} | "
+                                            f"{row.get('win_rate', float('nan')):.1f}"
+                                        )
+
+                                    system_prompt = (
+                                        "You are a senior quantitative strategist. "
+                                        "Compare strategy robustness across assets and timeframes."
+                                    )
+                                    user_message = (
+                                        "Comparison scope:\n"
+                                        f"- tokens: {', '.join(llm_compare_tokens)}\n"
+                                        f"- timeframes: {', '.join(llm_compare_timeframes)}\n"
+                                        f"- aggregation: {llm_compare_aggregate}\n"
+                                        f"- primary metric: {llm_compare_metric}\n\n"
+                                        "Summary table (metrics are percent where applicable):\n"
+                                        + "\n".join(summary_lines)
+                                        + "\n\n"
+                                        "Provide:\n"
+                                        "1) Ranking with short justification.\n"
+                                        "2) Notes on robustness and risk.\n"
+                                        "3) Which strategies deserve further optimization."
+                                    )
+
+                                    response = llm_client.simple_chat(
+                                        user_message=user_message,
+                                        system_prompt=system_prompt,
+                                        temperature=0.3,
+                                    )
+                                    st.markdown("**Justification LLM**")
+                                    st.write(response.content)
+                            except Exception as exc:
+                                st.warning(f"Justification LLM indisponible: {exc}")
+                    st.session_state["llm_compare_run_now"] = False
+
+            st.subheader("🤖 Optimisation par Agents LLM")
+
+            col_info, col_timeline = st.columns([1, 2])
+
+            with col_info:
+                st.markdown(
+                    f"""
+            **Stratégie:** `{strategy_key}`
+            **Paramètres initiaux:** `{params}`
+            **Max itérations:** {llm_max_iterations}
+            **Walk-Forward:** {'✅' if llm_use_walk_forward else '❌'}
+            """
+                )
+
+                st.markdown("**Bornes des paramètres:**")
+                for pname, (pmin, pmax) in param_bounds.items():
+                    st.caption(f"• {pname}: [{pmin}, {pmax}]")
+
+                if llm_space_stats:
+                    st.markdown("---")
+                    if llm_space_stats.is_continuous:
+                        st.info("ℹ️ **Espace continu** : exploration adaptative par LLM")
+                    else:
+                        st.caption(
+                            "📊 Espace discret estimé: "
+                            f"~{llm_space_stats.total_combinations:,} combinaisons"
+                        )
+                        st.caption("_(Le LLM explore de façon intelligente sans énumérer)_")
+
+            col_timeline.empty()
+
+            strategist = None
+            executor = None
+            orchestrator = None
+
+            run_tracker = get_global_tracker()
+            data_identifier = (
+                f"df_{len(df)}rows_{df.index[0]}_{df.index[-1]}"
+                if len(df) > 0
+                else "empty_df"
+            )
+            run_signature = RunSignature(
+                strategy_name=strategy_key,
+                data_path=data_identifier,
+                initial_params=params,
+                llm_model=llm_model,
+                mode="multi_agents" if llm_use_multi_agent else "autonomous",
+                session_id=session_id,
+            )
+
+            # Enregistrer le run (pour statistiques) sans bloquer l'exécution
+            # Note: Le tracking des duplications durant la session est géré par session_param_tracker
+            run_tracker.register(run_signature)
+
+            with st.spinner("🔌 Connexion au LLM..."):
+                try:
+                    if llm_use_multi_agent:
+                        live_events_placeholder = st.empty()
+                        live_viewer = LiveOrchestrationViewer(
+                            container_key="live_orch_viewer_multi"
+                        )
+
+                        def on_orchestration_event(entry):
+                            live_viewer.add_event(entry)
+                            live_viewer.render(live_events_placeholder, show_header=True)
+
+                        orchestration_logger.set_on_event_callback(on_orchestration_event)
+
+                        n_workers_effective = _resolve_workers(n_workers)
+                        orchestrator = create_orchestrator_with_backtest(
+                            llm_config=llm_config,
+                            strategy_name=strategy_key,
+                            data=df,
+                            initial_params=params,
+                            data_symbol=symbol,
+                            data_timeframe=timeframe,
+                            role_model_config=state.role_model_config,
+                            use_walk_forward=llm_use_walk_forward,
+                            orchestration_logger=orchestration_logger,
+                            session_id=session_id,
+                            n_workers=n_workers_effective,
+                            max_iterations=max_iterations,
+                            initial_capital=state.initial_capital,
+                            config=engine.config,
+                        )
+                        show_status(
+                            "success",
+                            "Connexion LLM établie (mode multi-agents)",
+                        )
+                    else:
+                        strategist, executor = create_optimizer_from_engine(
+                            llm_config=llm_config,
+                            strategy_name=strategy_key,
+                            data=df,
+                            initial_capital=state.initial_capital,
+                            use_walk_forward=llm_use_walk_forward,
+                            verbose=True,
+                            unload_llm_during_backtest=llm_unload_during_backtest,
+                            orchestration_logger=orchestration_logger,
+                        )
+                        show_status("success", "Connexion LLM établie")
+                except Exception as exc:
+                    show_status("error", f"Echec connexion LLM: {exc}")
+                    st.code(traceback.format_exc())
+                    st.session_state.is_running = False
+                    st.stop()
+
+            if llm_use_multi_agent:
+                st.markdown("---")
+                st.markdown("### Progression multi-agents")
+                n_workers_effective = _resolve_workers(n_workers)
+                st.caption(
+                    f"Limite: {_format_combo_limit(max_combos)} backtests max, "
+                    f"{n_workers_effective} workers, {max_iterations} iterations max"
+                )
+
+                if orchestrator is None:
+                    show_status("error", "Orchestrator non initialise")
+                    st.session_state.is_running = False
+                    st.stop()
+
+                try:
+                    with st.spinner("Optimisation multi-agents en cours..."):
+                        orchestrator_result = orchestrator.run()
+
+                    try:
+                        orchestration_logger.save_to_jsonl()
+                    except Exception:
+                        pass
+
+                    if orchestrator_result.errors:
+                        st.warning(
+                            f"Orchestration errors: {len(orchestrator_result.errors)}"
+                        )
+                    if orchestrator_result.warnings:
+                        st.warning(
+                            f"Orchestration warnings: {len(orchestrator_result.warnings)}"
+                        )
+
+                    if orchestrator_result.success:
+                        st.success("Optimisation multi-agents terminee")
+                    else:
+                        st.warning(
+                            "Optimisation multi-agents terminee "
+                            f"(decision: {orchestrator_result.decision})"
+                        )
+
+                    if orchestrator_result.final_params:
+                        st.subheader("Resultat multi-agents")
+                        st.json(orchestrator_result.final_params)
+                    else:
+                        st.warning("Aucun parametre final retourne")
+
+                    if orchestrator_result.final_metrics:
+                        metrics = orchestrator_result.final_metrics
+                        col_a, col_b, col_c = st.columns(3)
+                        with col_a:
+                            st.metric("Sharpe", f"{metrics.sharpe_ratio:.3f}")
+                        with col_b:
+                            st.metric("Return", f"{metrics.total_return:.2%}")
+                        with col_c:
+                            st.metric("Max Drawdown", f"{metrics.max_drawdown:.2%}")
+
+                    if orchestrator_result.iteration_history:
+                        st.markdown("---")
+                        st.dataframe(
+                            pd.DataFrame(orchestrator_result.iteration_history),
+                            use_container_width=True,
+                        )
+
+                    best_params = orchestrator_result.final_params or {}
+                    if best_params:
+                        result, _ = safe_run_backtest(
+                            engine,
+                            df,
+                            strategy_key,
+                            best_params,
+                            symbol,
+                            timeframe,
+                            silent_mode=not debug_enabled,
+                        )
+                        if result is not None:
+                            winner_params = best_params
+                            winner_metrics = result.metrics
+                            winner_origin = "llm"
+                            winner_meta = result.meta
+                            st.session_state["last_run_result"] = result
+                            st.session_state["last_winner_params"] = winner_params
+                            st.session_state["last_winner_metrics"] = winner_metrics
+                            st.session_state["last_winner_origin"] = winner_origin
+                            st.session_state["last_winner_meta"] = winner_meta
+                            _maybe_auto_save_run(result)
+                except Exception as exc:
+                    show_status("error", f"Erreur optimisation multi-agents: {exc}")
+                    st.code(traceback.format_exc())
+                    st.session_state.is_running = False
+                    st.stop()
+            else:
+                st.markdown("---")
+                st.markdown("### 📊 Progression de l'optimisation LLM")
+
+                live_status = st.status(
+                    "🚀 Démarrage de l'optimisation...",
+                    expanded=True,
+                )
+                live_events_placeholder = st.empty()
+                orchestration_placeholder = st.empty()
+
+                max_iterations = min(llm_max_iterations, max_combos)
+
+                live_viewer = LiveOrchestrationViewer(
+                    container_key="live_orch_viewer"
+                )
+
+                def on_orchestration_event(entry):
+                    live_viewer.add_event(entry)
+                    live_viewer.render(live_events_placeholder, show_header=True)
+
+                orchestration_logger.set_on_event_callback(on_orchestration_event)
+
+                n_workers_effective = _resolve_workers(n_workers)
+                st.caption(
+                    "🔧 Limite: "
+                    f"{_format_combo_limit(max_combos)} backtests max, {n_workers_effective} workers, "
+                    f"{max_iterations} itérations max"
+                )
+
+                try:
+                    with live_status:
+                        st.write("🤖 **Agent LLM actif** - Optimisation autonome")
+                        st.write(
+                            f"📊 Stratégie: `{strategy_key}` | Modèle: `{llm_model}`"
+                        )
+
+                        session = strategist.optimize(
+                            executor=executor,
+                            initial_params=params,
+                            param_bounds=param_bounds,
+                            max_iterations=max_iterations,
+                            min_sharpe=-5.0,
+                            max_drawdown=0.50,
+                        )
+
+                        live_status.update(
+                            label=(
+                                "✅ Optimisation terminée en "
+                                f"{session.current_iteration} itérations"
+                            ),
+                            state="complete",
+                            expanded=False,
+                        )
+
+                    st.success(
+                        f"✅ Optimisation terminée en {session.current_iteration} itérations"
+                    )
+
+                    with st.expander("📝 Historique des itérations", expanded=True):
+                        for i, exp in enumerate(session.all_results):
+                            icon = "🟢" if exp.sharpe_ratio > 0 else "🔴"
+                            col_it1, col_it2, col_it3 = st.columns([2, 1, 1])
+                            with col_it1:
+                                st.markdown(f"**Itération {i+1}** {icon}")
+                                st.caption(
+                                    f"Params: `{exp.request.parameters}`"
+                                )
+                            with col_it2:
+                                st.metric("Sharpe", f"{exp.sharpe_ratio:.3f}")
+                            with col_it3:
+                                st.metric("Return", f"{exp.total_return:.2%}")
+
+                    try:
+                        orchestration_logger.save_to_jsonl()
+                    except Exception:
+                        pass
+
+                    with orchestration_placeholder:
+                        st.markdown("---")
+
+                        tab_simple, tab_deep = st.tabs(
+                            ["📋 Logs d'orchestration", "🔍 Deep Trace (avancé)"]
+                        )
+
+                        with tab_simple:
+                            render_full_orchestration_viewer(
+                                orchestration_logger=orchestration_logger,
+                                max_entries=50,
+                            )
+
+                        with tab_deep:
+                            if LLM_AVAILABLE:
+                                render_deep_trace_viewer(
+                                    logger=orchestration_logger
+                                )
+                            else:
+                                st.warning(
+                                    "Module LLM non disponible pour Deep Trace avancé"
+                                )
+
+                    st.markdown("---")
+                    st.subheader("🏆 Résultat de l'optimisation LLM")
+
+                    col_best, col_improve = st.columns(2)
+
+                    with col_best:
+                        st.markdown("**Meilleurs paramètres trouvés:**")
+                        st.json(session.best_result.request.parameters)
+
+                        st.metric(
+                            "Meilleur Sharpe",
+                            f"{session.best_result.sharpe_ratio:.3f}",
+                        )
+                        st.metric(
+                            "Return",
+                            f"{session.best_result.total_return:.2%}",
+                        )
+
+                    with col_improve:
+                        if session.all_results:
+                            initial_sharpe = session.all_results[0].sharpe_ratio
+                            best_sharpe = session.best_result.sharpe_ratio
+                            improvement = (
+                                (best_sharpe - initial_sharpe) / abs(initial_sharpe) * 100
+                            ) if initial_sharpe != 0 else 0
+
+                            st.metric(
+                                "Amélioration Sharpe",
+                                f"{improvement:+.1f}%",
+                                delta=f"{best_sharpe - initial_sharpe:+.3f}",
+                            )
+                            st.metric("Itérations utilisées", session.current_iteration)
+
+                            if session.final_reasoning:
+                                st.info(f"🛑 Arrêt: {session.final_reasoning}")
+
+                    best_params = session.best_result.request.parameters
+                    result, _ = safe_run_backtest(
+                        engine,
+                        df,
+                        strategy_key,
+                        best_params,
+                        symbol,
+                        timeframe,
+                        silent_mode=not debug_enabled,
+                    )
+                    if result is not None:
+                        winner_params = best_params
+                        winner_metrics = result.metrics
+                        winner_origin = "llm"
+                        winner_meta = result.meta
+                        st.session_state["last_run_result"] = result
+                        st.session_state["last_winner_params"] = winner_params
+                        st.session_state["last_winner_metrics"] = winner_metrics
+                        st.session_state["last_winner_origin"] = winner_origin
+                        st.session_state["last_winner_meta"] = winner_meta
+                        _maybe_auto_save_run(result)
+
+                except Exception as exc:
+                    live_status.update(label=f"❌ Erreur: {exc}", state="error")
+                    show_status("error", f"Erreur optimisation LLM: {exc}")
+                    st.code(traceback.format_exc())
+                    st.session_state.is_running = False
+                    st.stop()
 
         else:
             show_status("error", f"Mode non reconnu: {optimization_mode}")

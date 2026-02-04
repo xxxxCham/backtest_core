@@ -1,0 +1,131 @@
+"""Debug du bug TP - comparaison prix fixes vs bb_pos dynamique"""
+import pandas as pd
+import numpy as np
+from data.loader import load_ohlcv
+from indicators.registry import calculate_indicator
+
+# Charger les données
+df = load_ohlcv('BTCUSDC', '30m', start='2019-06-06', end='2019-10-24')
+
+# Calculer Bollinger avec period=20, std=2.0
+from indicators.bollinger import bollinger_bands
+upper, middle, lower = bollinger_bands(df['close'].values, period=20, std_dev=2.0)
+
+# Convertir en Series
+upper = pd.Series(upper, index=df.index)
+middle = pd.Series(middle, index=df.index)
+lower = pd.Series(lower, index=df.index)
+
+# Calculer bb_pos
+width = upper - lower
+bb_pos_low = (df['low'] - lower) / width
+bb_pos_high = (df['high'] - lower) / width
+
+# Trouver l'entrée du trade #6 (première barre après 2019-06-06 18:00)
+entry_time = pd.Timestamp('2019-06-06 18:00:00+00:00')
+entry_idx = df.index.get_indexer([entry_time], method='nearest')[0]
+entry_bar = df.index[entry_idx]
+
+print("=== TRADE #6 ENTREE ===")
+print(f"Barre entree: {entry_bar}")
+print(f"Prix close: {df.iloc[entry_idx]['close']:.2f}")
+print(f"Lower band: {lower.iloc[entry_idx]:.2f}")
+print(f"Upper band: {upper.iloc[entry_idx]:.2f}")
+print(f"Width: {width.iloc[entry_idx]:.2f}")
+print(f"bb_pos_low: {bb_pos_low.iloc[entry_idx]:.4f}")
+print(f"bb_pos_high: {bb_pos_high.iloc[entry_idx]:.4f}")
+
+# Calculer les PRIX FIXES de SL et TP à l'entrée
+sl_level = -0.32
+tp_level = 0.9
+
+entry_lower = lower.iloc[entry_idx]
+entry_upper = upper.iloc[entry_idx]
+entry_width = width.iloc[entry_idx]
+
+sl_price_fixed = entry_lower + sl_level * entry_width
+tp_price_fixed = entry_lower + tp_level * entry_width
+
+print()
+print("=== NIVEAUX FIXES A L'ENTREE ===")
+print(f"SL level: {sl_level} -> SL price: ${sl_price_fixed:.2f}")
+print(f"TP level: {tp_level} -> TP price: ${tp_price_fixed:.2f}")
+print(f"(Lower={entry_lower:.2f}, Upper={entry_upper:.2f}, Width={entry_width:.2f})")
+
+# Chercher quand ces prix auraient été touchés
+period_after_entry = df.iloc[entry_idx:]
+lows_after = period_after_entry['low']
+highs_after = period_after_entry['high']
+
+# Première fois que high >= tp_price_fixed
+tp_hits = highs_after[highs_after >= tp_price_fixed]
+sl_hits = lows_after[lows_after <= sl_price_fixed]
+
+print()
+print("=== AVEC PRIX FIXES (CORRECT) ===")
+if len(tp_hits) > 0:
+    first_tp = tp_hits.index[0]
+    print(f"Premier TP hit: {first_tp}")
+    print(f"  High={highs_after.loc[first_tp]:.2f} >= TP={tp_price_fixed:.2f}")
+    delta = first_tp - entry_bar
+    print(f"  -> {delta.total_seconds()/3600:.1f}h apres entree")
+else:
+    print(f"TP jamais touche (prix fixe ${tp_price_fixed:.2f})")
+
+if len(sl_hits) > 0:
+    first_sl = sl_hits.index[0]
+    print(f"Premier SL hit: {first_sl}")
+    print(f"  Low={lows_after.loc[first_sl]:.2f} <= SL={sl_price_fixed:.2f}")
+else:
+    print(f"SL jamais touche (prix fixe ${sl_price_fixed:.2f})")
+
+# Quel aurait été le résultat CORRECT ?
+if len(tp_hits) > 0 and len(sl_hits) > 0:
+    if tp_hits.index[0] < sl_hits.index[0]:
+        print("\n*** RESULTAT CORRECT: TP touché en premier! ***")
+    else:
+        print("\n*** RESULTAT CORRECT: SL touché en premier ***")
+elif len(tp_hits) > 0:
+    print("\n*** RESULTAT CORRECT: TP touché (SL jamais) ***")
+elif len(sl_hits) > 0:
+    print("\n*** RESULTAT CORRECT: SL touché (TP jamais) ***")
+
+# Maintenant comparons avec la méthode bb_pos DYNAMIQUE (le bug actuel)
+print()
+print("=== AVEC bb_pos DYNAMIQUE (BUG ACTUEL) ===")
+bb_pos_high_after = bb_pos_high.iloc[entry_idx:]
+bb_pos_low_after = bb_pos_low.iloc[entry_idx:]
+
+# Première fois que bb_pos_high >= 0.9
+tp_hits_bbpos = bb_pos_high_after[bb_pos_high_after >= tp_level]
+sl_hits_bbpos = bb_pos_low_after[bb_pos_low_after <= sl_level]
+
+if len(tp_hits_bbpos) > 0:
+    first_tp_bbpos = tp_hits_bbpos.index[0]
+    print(f"Premier TP bb_pos hit: {first_tp_bbpos}")
+    print(f"  bb_pos_high={bb_pos_high_after.loc[first_tp_bbpos]:.4f} >= {tp_level}")
+    delta = first_tp_bbpos - entry_bar
+    print(f"  -> {delta.total_seconds()/3600:.1f}h apres entree")
+else:
+    print(f"TP bb_pos jamais >= {tp_level}")
+
+if len(sl_hits_bbpos) > 0:
+    first_sl_bbpos = sl_hits_bbpos.index[0]
+    print(f"Premier SL bb_pos hit: {first_sl_bbpos}")
+    print(f"  bb_pos_low={bb_pos_low_after.loc[first_sl_bbpos]:.4f} <= {sl_level}")
+else:
+    print(f"SL bb_pos jamais <= {sl_level}")
+
+# Statistiques
+print()
+print("=== STATISTIQUES bb_pos PENDANT LE TRADE ===")
+print(f"bb_pos_high max: {bb_pos_high_after.max():.4f}")
+print(f"bb_pos_high mean: {bb_pos_high_after.mean():.4f}")
+print(f"bb_pos_low min: {bb_pos_low_after.min():.4f}")
+print(f"bb_pos_low mean: {bb_pos_low_after.mean():.4f}")
+
+# Compter les opportunités
+print()
+print("=== OPPORTUNITES RATEES ===")
+print(f"Barres où bb_pos_high >= {tp_level}: {len(tp_hits_bbpos)}")
+print(f"Barres où bb_pos_low <= {sl_level}: {len(sl_hits_bbpos)}")
