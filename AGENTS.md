@@ -1002,3 +1002,22 @@ python run_streamlit.bat
 - Résultat : **CONFLIT RÉSOLU** - Le séquentiel ne se lance plus après Numba; limite combinaisons ouverte à ~50M max (avec 60GB RAM disponible).
 - Problèmes détectés : Branche `else:` exécutait `run_sequential_combos` même après sweep Numba réussi; limite 100k trop conservatrice pour 60GB RAM.
 - Améliorations proposées : Surveiller si des processus Python zombies persistent (probablement VS Code ou watcher).
+
+- Date : 05/02/2026
+- Objectif : Corriger mapping des paramètres Bollinger en sweep + empêcher mélange de logs SweepDiagnostics.
+- Fichiers modifiés : backtest/engine.py, utils/sweep_diagnostics.py.
+- Actions réalisées : Utilisation de strategy.get_indicator_params() dans le moteur pour respecter les mappings (bb_std → std_dev); ajout fallback + normalisation std→std_dev dans _extract_indicator_params; reset des handlers du logger SweepDiagnostics pour éviter réutilisation et mélange de fichiers.
+- Vérifications effectuées : aucune.
+- Résultat : Paramètres Bollinger correctement consommés par l'indicateur (bb_std n'est plus ignoré) et logs de sweep isolés par run.
+- Problèmes détectés : Le moteur ignorait le mapping stratégie et passait bb_std comme std (std_dev manquant) → valeurs par défaut; SweepDiagnostics réutilisait des handlers.
+- Améliorations proposées : Ajouter un test unitaire simple pour valider bb_std dans les sweeps; journaliser explicitement params indicateurs au démarrage d'un sweep.
+
+- Date : 05/02/2026
+- Objectif : Nettoyage du code ui/sidebar.py - suppression imports inutilisés, variable non utilisée, correction warnings linters
+- Fichiers modifiés : ui/sidebar.py, run_streamlit.bat, AGENTS.md
+- Actions réalisées : **1. Suppression imports inutilisés** - Retrait de `get_data_date_range` (ligne 53), `find_optimal_periods` et `get_min_period_days_for_timeframes` (lignes 466-467); **2. Suppression variable non utilisée** - Retrait de `default_max_combos = _env_int("BACKTEST_SWEEP_MAX_COMBOS", 30_000_000)` (ligne 872) avec commentaire explicatif; **3. Ajout newline fin de fichier** - Ajout ligne vide finale pour conformité PEP8; **4. Corrections widgets Streamlit** - Retrait paramètre `value=` des sliders `grid_n_workers` et `grid_worker_threads` (conflit avec `key=`); Pré-initialisation `symbols_select` et `timeframes_select` dans session_state AVANT création widgets (suppression logique conditionnelle `default=`); Correction logique nettoyage session_state (ne réinitialise plus si certains symboles sont valides)
+- Vérifications effectuées : `flake8 ui\sidebar.py --select=F401,F841,W292 --count` → 0 erreur; `ruff check ui\sidebar.py --select F,E` → 10 warnings E501 (longueur ligne) seulement, aucune erreur critique
+- Résultat : **Code nettoyé et conforme** - 0 imports inutilisés, 0 variables non utilisées, fichier conforme PEP8; Warning Streamlit `grid_n_workers` résolu; Sélection Bitcoin ne disparaît plus après chargement données; Application démarre sans erreur critique
+- Problèmes détectés : Imports `get_data_date_range`, `find_optimal_periods`, `get_min_period_days_for_timeframes` jamais utilisés; Variable `default_max_combos` assignée mais jamais lue; Widgets Streamlit avec `value=` + `key=` causant conflit session_state; Logique nettoyage session_state trop agressive (réinitialisait dès qu'UN symbole invalide détecté)
+- Améliorations proposées : Surveiller nouveaux imports inutilisés lors ajouts futurs; Considérer refactorisation ui/sidebar.py en modules plus petits (2425 lignes > limite 1000 recommandée); Ajouter type hints pour réduire warnings mypy restants
+

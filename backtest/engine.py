@@ -456,7 +456,9 @@ class BacktestEngine:
 
         for indicator_name in strategy.required_indicators:
             # Extraire les paramètres spécifiques à l'indicateur
-            indicator_params = self._extract_indicator_params(indicator_name, params)
+            indicator_params = strategy.get_indicator_params(indicator_name, params)
+            if not isinstance(indicator_params, dict):
+                indicator_params = self._extract_indicator_params(indicator_name, params)
 
             self.logger.debug(f"  Calcul indicateur: {indicator_name}")
 
@@ -507,6 +509,9 @@ class BacktestEngine:
         for param in direct_params.get(indicator_name, []):
             if param in params and param not in indicator_params:
                 indicator_params[param] = params[param]
+
+        if indicator_name == "bollinger" and "std" in indicator_params:
+            indicator_params.setdefault("std_dev", indicator_params.pop("std"))
 
         return indicator_params
 

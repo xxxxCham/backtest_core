@@ -50,7 +50,6 @@ from ui.context import (
     discover_available_data,
     ensure_ollama_running,
     get_available_models_for_ui,
-    get_data_date_range,
     get_global_model_config,
     get_model_info,
     get_storage,
@@ -461,11 +460,7 @@ def render_sidebar() -> SidebarState:
     )
     if use_date_filter:
         # === ANALYSE PAR CATÉGORIE DE TIMEFRAME ===
-        from data.config import (
-            analyze_by_timeframe,
-            find_optimal_periods,
-            get_min_period_days_for_timeframes,
-        )
+        from data.config import analyze_by_timeframe
 
         # Analyse par timeframe (plage commune par TF)
         timeframe_analysis = analyze_by_timeframe(symbols, timeframes)
@@ -869,7 +864,7 @@ def render_sidebar() -> SidebarState:
 
     action_slot = st.sidebar.container()
 
-    default_max_combos = _env_int("BACKTEST_SWEEP_MAX_COMBOS", 30_000_000)
+    # default_max_combos non utilisé - supprimé pour éviter warning
     unlimited_max_combos = 1_000_000_000_000
     default_workers_gpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 40)
     default_llm_unload = _env_bool("UNLOAD_LLM_DURING_BACKTEST", True)

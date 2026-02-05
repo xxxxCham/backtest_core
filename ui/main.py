@@ -1162,11 +1162,16 @@ def render_main(
                 use_numba_sweep = is_numba_supported(strategy_key) and total_runs <= NUMBA_MAX_COMBOS
                 if is_numba_supported(strategy_key) and total_runs > NUMBA_MAX_COMBOS:
                     show_status("warning", f"Grille ({total_runs:,}) dépasse limite Numba ({NUMBA_MAX_COMBOS:,}). Set NUMBA_MAX_COMBOS pour augmenter.")
-            except ImportError:
+                    logger.warning(f"[NUMBA SKIP] Grille trop grande: {total_runs:,} > {NUMBA_MAX_COMBOS:,}")
+                elif not is_numba_supported(strategy_key):
+                    logger.info(f"[NUMBA SKIP] Stratégie '{strategy_key}' non supportée par Numba")
+            except ImportError as import_err:
+                logger.warning(f"[NUMBA SKIP] Import failed: {import_err}")
                 pass
 
             if use_numba_sweep and total_runs > 1:
                 # ⚡ NUMBA SWEEP - ~20000-100000 bt/s (vs ~500-3000 avec ProcessPool)
+                logger.info(f"[EXECUTION PATH] 🚀 NUMBA SWEEP sélectionné: {total_runs:,} combos, strategy={strategy_key}")
                 show_status("info", f"⚡ Mode Numba activé pour '{strategy_key}' ({total_runs:,} combos, limite={NUMBA_MAX_COMBOS:,})")
 
                 # Initialiser diagnostics pour Numba aussi
@@ -1313,7 +1318,9 @@ def render_main(
             # MODE PROCESSPOOL (fallback ou stratégies non supportées par Numba)
             # Ne s'exécute que si Numba n'a PAS été utilisé avec succès
             # ═══════════════════════════════════════════════════════════════════════════
-            if not use_numba_sweep and n_workers_effective > 1 and total_runs > 1:
+            # 🔒 GUARD: Ne pas exécuter si Numba a déjà complété (completed == total_runs)
+            if not use_numba_sweep and completed < total_runs and n_workers_effective > 1 and total_runs > 1:
+                logger.info(f"[EXECUTION PATH] 🔄 PROCESSPOOL sélectionné: {total_runs:,} combos, workers={n_workers_effective}, completed={completed}")
                 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, TimeoutError as FutureTimeoutError, wait
                 try:
                     from concurrent.futures import BrokenProcessPool
@@ -1586,9 +1593,16 @@ def render_main(
                     diag.log_sequential_fallback(pool_fail_reason, len(pending_combos))
                     fallback_iter = chain(pending_combos, combo_iter)
                     run_sequential_combos(fallback_iter, "sweep_fallback")
-            elif not use_numba_sweep:
-                # Mode séquentiel uniquement si Numba n'a PAS été utilisé
+            elif not use_numba_sweep and completed < total_runs:
+                # 🔒 GUARD: Mode séquentiel uniquement si Numba n'a PAS été utilisé ET pas encore complété
+                logger.info(f"[EXECUTION PATH] 📋 MODE SEQUENTIEL sélectionné: {total_runs:,} combos, completed={completed}")
                 run_sequential_combos(combo_iter, "sweep_sequential")
+            else:
+                # Aucun mode exécuté = sweep déjà complété OU conditions non remplies
+                if completed >= total_runs:
+                    logger.info(f"[EXECUTION PATH] ✅ SKIP: Sweep déjà complété ({completed}/{total_runs})")
+                else:
+                    logger.warning(f"[EXECUTION PATH] ⚠️ SKIP: Aucun mode sélectionné (use_numba={use_numba_sweep}, completed={completed}/{total_runs}, workers={n_workers_effective})")
 
             render_progress_monitor(monitor, monitor_placeholder)
             sweep_placeholder.empty()

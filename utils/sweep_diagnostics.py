@@ -24,6 +24,14 @@ class SweepDiagnostics:
         # Logger Python
         self.logger = logging.getLogger(f"sweep_diag.{run_id}")
         self.logger.setLevel(logging.DEBUG)
+        self.logger.propagate = False
+        if self.logger.handlers:
+            for handler in list(self.logger.handlers):
+                self.logger.removeHandler(handler)
+                try:
+                    handler.close()
+                except Exception:
+                    pass
 
         # Handler fichier avec format détaillé
         fh = logging.FileHandler(self.log_file, encoding="utf-8")

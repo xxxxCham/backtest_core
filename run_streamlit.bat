@@ -81,13 +81,15 @@ set NUMBA_NUM_THREADS=32
 set NUMBA_THREADING_LAYER=omp
 set OMP_NUM_THREADS=32
 set MKL_NUM_THREADS=1
+set NUMEXPR_MAX_THREADS=32
 set BACKTEST_USE_GPU=0
 
 if not defined BACKTEST_DATA_DIR (
     set BACKTEST_DATA_DIR=D:\my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet
 )
 
-echo       [OK] NUMBA_NUM_THREADS=16
+echo       [OK] NUMBA_NUM_THREADS=32
+echo       [OK] NUMEXPR_MAX_THREADS=32
 echo       [OK] Threading: OpenMP
 echo       [OK] GPU desactive
 echo.
