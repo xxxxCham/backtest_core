@@ -452,16 +452,19 @@ class BacktestEngine:
         except (ImportError, AttributeError) as e:
             self.logger.debug(f"GPU context indisponible: {e}")
 
-        for indicator_name in strategy.required_indicators:
-            self.logger.debug(f"  Calcul indicateur: {indicator_name}")
+        data_len = len(df)
 
+        for indicator_name in strategy.required_indicators:
             # Extraire les paramètres spécifiques à l'indicateur
             indicator_params = self._extract_indicator_params(indicator_name, params)
 
+            self.logger.debug(f"  Calcul indicateur: {indicator_name}")
+
             try:
-                indicators[indicator_name] = calculate_indicator(
+                result = calculate_indicator(
                     indicator_name, df, indicator_params, gpu_queues=gpu_queues
                 )
+                indicators[indicator_name] = result
             except Exception as e:
                 self.logger.warning(f"  ⚠️ Erreur calcul {indicator_name}: {e}")
                 indicators[indicator_name] = None

@@ -166,6 +166,7 @@ def init_worker_with_dataframe(
         "NUMEXPR_NUM_THREADS",
         "VECLIB_MAXIMUM_THREADS",
         "BLIS_NUM_THREADS",
+        "NUMBA_NUM_THREADS",  # 🚀 CRITIQUE: Éviter nested parallelism Numba dans workers
     ):
         os.environ[var] = str(effective_limit)
 

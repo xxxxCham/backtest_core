@@ -105,17 +105,34 @@ class SweepResult:
 
 def _get_cpu_count() -> int:
     """
-    Retourne le nombre de CPUs optimisé pour setup dual-GPU.
+    Retourne le nombre de CPUs optimisé pour setup CPU-only haute performance.
 
-    Pour setup multi-GPU, utilise plus de threads pour alimenter les GPU
-    et éviter la sous-utilisation des cartes graphiques.
+    🚀 OPTIMISÉ POUR RYZEN 9950X (32 threads) + DDR5 60GB:
+    - Mode CPU-only: multiplier 2.0-2.5x pour saturer tous les threads
+    - Utilise les cores logiques (SMT) pour maximiser le throughput
+    - Variables d'environnement pour tuning fin
     """
     if HAS_PSUTIL:
-        cpu_count = psutil.cpu_count(logical=False) or os.cpu_count() or 4
-        # 🚀 OPTIMISATION DUAL-GPU: 1.5x plus de workers pour saturer les GPU
-        gpu_multiplier = float(os.environ.get("BACKTEST_GPU_MULTIPLIER", "1.5"))
-        optimized_count = int(cpu_count * gpu_multiplier)
-        return max(cpu_count, optimized_count)
+        # Utiliser les cores LOGIQUES (avec SMT/Hyperthreading)
+        logical_cores = psutil.cpu_count(logical=True) or os.cpu_count() or 4
+        physical_cores = psutil.cpu_count(logical=False) or logical_cores
+
+        # 🚀 OPTIMISATION CPU-ONLY: 2.5x pour saturer les 32 threads (Ryzen 9950X)
+        # Configurable via BACKTEST_CPU_MULTIPLIER (défaut: 2.0 pour stabilité)
+        cpu_multiplier = float(os.environ.get("BACKTEST_CPU_MULTIPLIER", "2.0"))
+
+        # Calculer workers optimaux basé sur cores logiques
+        optimized_count = int(physical_cores * cpu_multiplier)
+
+        # Limiter aux cores logiques disponibles pour éviter oversubscription
+        max_workers = min(optimized_count, logical_cores)
+
+        logger.debug(
+            f"CPU Config: {physical_cores} physical, {logical_cores} logical, "
+            f"multiplier={cpu_multiplier}x -> {max_workers} workers"
+        )
+
+        return max(physical_cores, max_workers)
     return os.cpu_count() or 4
 
 
@@ -261,7 +278,7 @@ class ParallelRunner:
         max_workers: Optional[int] = None,
         use_processes: bool = True,
         backend: str = "loky",
-        chunk_size: int = 50,
+        chunk_size: int = 100,  # 🚀 Augmenté de 50 à 100 pour DDR5
         memory_limit_gb: Optional[float] = None,
         max_in_flight: Optional[int] = None,
         share_fixed_kwargs: bool = True,
@@ -271,11 +288,16 @@ class ParallelRunner:
         """
         Initialise le runner parallèle.
 
+        🚀 OPTIMISÉ POUR RYZEN 9950X + DDR5 60GB:
+        - chunk_size=100 (vs 50) pour réduire overhead
+        - max_workers auto = 32 threads
+        - backend loky pour shared memory
+
         Args:
             max_workers: Nombre de workers (None = auto)
             use_processes: True=multiprocessing, False=threading
             backend: Backend joblib ('loky', 'multiprocessing', 'threading'). Défaut='loky' (optimal)
-            chunk_size: Taille des batches pour gestion mémoire
+            chunk_size: Taille des batches (100-200 recommandé pour DDR5)
             memory_limit_gb: Limite mémoire (None = pas de limite)
             max_in_flight: Limite de tâches simultanées soumises (None = auto)
             share_fixed_kwargs: Partager les kwargs fixes via initializer (processes)
@@ -285,7 +307,8 @@ class ParallelRunner:
         self.max_workers = max_workers or self._calculate_optimal_workers()
         self.use_processes = use_processes
         self.backend = backend
-        self.chunk_size = chunk_size
+        # 🚀 Chunk size adaptatif selon RAM disponible
+        self.chunk_size = self._optimize_chunk_size(chunk_size)
         self.memory_limit_gb = memory_limit_gb
         self.max_in_flight = max_in_flight
         self.share_fixed_kwargs = share_fixed_kwargs
@@ -306,16 +329,35 @@ class ParallelRunner:
         logger.info(
             f"ParallelRunner initialisé: {self.max_workers} workers, "
             f"backend={'joblib-' + backend if self._use_joblib else ('processes' if use_processes else 'threads')}, "
-            f"chunk_size={chunk_size}, max_in_flight={self.max_in_flight or 'auto'}"
+            f"chunk_size={self.chunk_size}, max_in_flight={self.max_in_flight or 'auto'}"
         )
+
+    def _optimize_chunk_size(self, default: int) -> int:
+        """
+        Optimise la taille des chunks selon la RAM disponible.
+
+        🚀 DDR5 60GB: chunks plus gros pour réduire l'overhead
+        """
+        available_gb = _get_available_memory_gb()
+
+        if available_gb >= 32:
+            # Beaucoup de RAM: chunks de 200
+            return max(default, 200)
+        elif available_gb >= 16:
+            # RAM correcte: chunks de 100
+            return max(default, 100)
+        else:
+            # RAM limitée: garder défaut
+            return default
 
     def _calculate_optimal_workers(self) -> int:
         """Calcule le nombre optimal de workers."""
         cpu_count = _get_cpu_count()
         available_ram = _get_available_memory_gb()
 
-        # Estimation: ~500MB par worker de backtest
-        ram_limited_workers = int(available_ram / 0.5)
+        # 🚀 Pour DDR5 60GB: estimation plus agressive (300MB/worker au lieu de 500MB)
+        ram_per_worker = 0.3 if available_ram >= 32 else 0.5
+        ram_limited_workers = int(available_ram / ram_per_worker)
 
         optimal = min(cpu_count, ram_limited_workers)
         return max(1, optimal)
@@ -444,11 +486,17 @@ class ParallelRunner:
                 batch_end = min(batch_start + batch_size, self._total_tasks)
                 batch_params = param_grid[batch_start:batch_end]
 
-                # Exécuter un batch
+                # 🚀 OPTIMISATION DDR5: max_nbytes élevé pour éviter le memory mapping inutile
+                # DDR5 @ 50GB/s -> copies en RAM ultra-rapides
+                max_nbytes = os.environ.get("JOBLIB_MAX_NBYTES", "500M")
+
+                # Exécuter un batch avec configuration optimisée DDR5
                 batch_results = Parallel(
                     n_jobs=self.max_workers,
                     backend=self.backend,
                     verbose=verbose_level,
+                    max_nbytes=max_nbytes,  # 🚀 DDR5: copies directes en RAM
+                    batch_size="auto",  # Laisser joblib optimiser
                 )(
                     delayed(_safe_run_with_progress)(batch_start + i, params)
                     for i, params in enumerate(batch_params)

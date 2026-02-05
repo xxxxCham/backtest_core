@@ -339,6 +339,8 @@ def render_sidebar() -> SidebarState:
 
     # === NETTOYAGE SESSION STATE ===
     # Nettoyer les clés de session obsolètes ou invalides
+    # IMPORTANT: Ne supprimer QUE les tokens/timeframes vraiment invalides
+    # Ne PAS réinitialiser si certains sont encore valides
     session_keys_to_clean = [
         "symbols_select", "timeframes_select", "symbol_select", "timeframe_select"
     ]
@@ -346,18 +348,26 @@ def render_sidebar() -> SidebarState:
         if key in st.session_state:
             if "symbol" in key:
                 if isinstance(st.session_state[key], list):
-                    # Multi-select : filtrer valeurs invalides
+                    # Multi-select : garder uniquement les valeurs valides
                     valid_symbols = [s for s in st.session_state[key] if s in available_tokens]
-                    if not valid_symbols or len(valid_symbols) != len(st.session_state[key]):
-                        st.session_state[key] = valid_symbols if valid_symbols else available_tokens[:1]
+                    # Ne mettre à jour QUE si des symboles invalides ont été retirés
+                    if valid_symbols and valid_symbols != st.session_state[key]:
+                        st.session_state[key] = valid_symbols
+                    elif not valid_symbols:
+                        # Aucun symbole valide - réinitialiser
+                        st.session_state[key] = available_tokens[:1] if available_tokens else []
                 elif st.session_state[key] not in available_tokens:
                     del st.session_state[key]
             elif "timeframe" in key:
                 if isinstance(st.session_state[key], list):
-                    # Multi-select : filtrer valeurs invalides
+                    # Multi-select : garder uniquement les valeurs valides
                     valid_timeframes = [tf for tf in st.session_state[key] if tf in available_timeframes]
-                    if not valid_timeframes or len(valid_timeframes) != len(st.session_state[key]):
-                        st.session_state[key] = valid_timeframes if valid_timeframes else available_timeframes[:1]
+                    # Ne mettre à jour QUE si des timeframes invalides ont été retirés
+                    if valid_timeframes and valid_timeframes != st.session_state[key]:
+                        st.session_state[key] = valid_timeframes
+                    elif not valid_timeframes:
+                        # Aucun timeframe valide - réinitialiser
+                        st.session_state[key] = available_timeframes[:1] if available_timeframes else []
                 elif st.session_state[key] not in available_timeframes:
                     del st.session_state[key]
 
@@ -388,25 +398,28 @@ def render_sidebar() -> SidebarState:
         st.session_state["symbols_select"] = merged_symbols or default_symbols
         del st.session_state["_apply_potential_tokens"]
 
+    # IMPORTANT: S'assurer que symbols_select n'est jamais vide dans session_state
+    # Si vide ou absent, initialiser avec default_symbols
+    if "symbols_select" not in st.session_state or not st.session_state.get("symbols_select"):
+        st.session_state["symbols_select"] = default_symbols
+
     # Layout: multiselect + bouton côte à côte
     col1, col2 = st.sidebar.columns([3, 1])
     with col1:
-        multiselect_kwargs = {
-            "label": "Symbole(s)",
-            "options": available_tokens,
-            "key": "symbols_select",
-            "help": "Sélectionnez un ou plusieurs tokens à analyser",
-        }
-        if "symbols_select" not in st.session_state:
-            multiselect_kwargs["default"] = default_symbols
-        symbols = st.multiselect(**multiselect_kwargs)
+        # Ne PAS utiliser default= car on utilise key= avec session_state pré-initialisé
+        symbols = st.multiselect(
+            label="Symbole(s)",
+            options=available_tokens,
+            key="symbols_select",
+            help="Sélectionnez un ou plusieurs tokens à analyser",
+        )
     with col2:
         st.write("")  # Espacement pour aligner avec le multiselect
         if st.button("🎯", key="select_potential_tokens", help="Sélectionner tokens à potentiel"):
             st.session_state["_apply_potential_tokens"] = True
             st.rerun()
 
-    # Fallback si aucune sélection
+    # Fallback si aucune sélection (double sécurité)
     if not symbols:
         symbols = default_symbols
         st.sidebar.warning("⚠️ Au moins un symbole requis. BTCUSDC sélectionné par défaut.")
@@ -414,14 +427,18 @@ def render_sidebar() -> SidebarState:
 
     # === MULTI-SÉLECTION TIMEFRAMES (multiselect) ===
     default_timeframes = ["30m"] if "30m" in available_timeframes else available_timeframes[:1]
+    # IMPORTANT: S'assurer que timeframes_select n'est jamais vide
+    if "timeframes_select" not in st.session_state or not st.session_state.get("timeframes_select"):
+        st.session_state["timeframes_select"] = default_timeframes
+
+    # Ne PAS utiliser default= car on utilise key= avec session_state pré-initialisé
     timeframes = st.sidebar.multiselect(
         "Timeframe(s)",
         available_timeframes,
-        default=default_timeframes,
         key="timeframes_select",
         help="Sélectionnez un ou plusieurs timeframes",
     )
-    # Fallback si aucune sélection
+    # Fallback si aucune sélection (double sécurité)
     if not timeframes:
         timeframes = default_timeframes
         st.sidebar.warning("⚠️ Au moins un timeframe requis. 30m sélectionné par défaut.")
@@ -817,7 +834,7 @@ def render_sidebar() -> SidebarState:
 
     if "default_preset_applied" not in st.session_state:
         cpu_count = os.cpu_count() or 1
-        optimal_workers = min(cpu_count, 32)
+        optimal_workers = min(cpu_count, 64)  # ✅ max 64 pour gros CPU
         st.session_state["grid_n_workers"] = optimal_workers
         st.session_state["grid_worker_threads"] = 1
         st.session_state["gpu_n_workers"] = 1
@@ -923,7 +940,7 @@ def render_sidebar() -> SidebarState:
             n_workers = st.sidebar.slider(
                 "Workers parallèles (CPU)",
                 min_value=1,
-                max_value=32,
+                max_value=64,  # ✅ Augmenté pour gros CPU
                 value=8,
                 help="Nombre de trials évalués en parallèle",
             )
@@ -935,26 +952,26 @@ def render_sidebar() -> SidebarState:
             max_combos = unlimited_max_combos
             st.sidebar.caption("Limite de combinaisons: illimitée")
 
-            grid_workers_default = max(1, min(default_workers_gpu, 32))  # ✅ min=1
+            grid_workers_default = max(1, min(default_workers_gpu, 64))  # ✅ max 64
             if "grid_n_workers" not in st.session_state:
                 st.session_state["grid_n_workers"] = grid_workers_default
             else:
                 try:
                     st.session_state["grid_n_workers"] = max(
-                        1,  # ✅ min=1
-                        min(int(st.session_state["grid_n_workers"]), 32),
+                        1,
+                        min(int(st.session_state["grid_n_workers"]), 64),  # ✅ max 64
                     )
                 except (TypeError, ValueError):
                     st.session_state["grid_n_workers"] = grid_workers_default
 
-            grid_threads_default = max(1, min(default_worker_threads, 32))  # ✅ min=1
+            grid_threads_default = max(1, min(default_worker_threads, 16))  # ✅ max 16 (pas besoin de plus)
             if "grid_worker_threads" not in st.session_state:
                 st.session_state["grid_worker_threads"] = grid_threads_default
             else:
                 try:
                     st.session_state["grid_worker_threads"] = max(
-                        1,  # ✅ min=1
-                        min(int(st.session_state["grid_worker_threads"]), 32),
+                        1,
+                        min(int(st.session_state["grid_worker_threads"]), 16),  # ✅ max 16
                     )
                 except (TypeError, ValueError):
                     st.session_state["grid_worker_threads"] = grid_threads_default
@@ -964,27 +981,33 @@ def render_sidebar() -> SidebarState:
                 if st.button("Preset 32 cœurs", key="preset_32_cores"):
                     st.session_state["grid_n_workers"] = 32
                     st.session_state["grid_worker_threads"] = 1
-                    st.sidebar.success("Preset 32 cœurs appliqué")
                     st.rerun()
             with col_preset_2:
-                if st.button("Preset 24 cœurs", key="preset_24_cores"):
-                    st.session_state["grid_n_workers"] = 24
+                if st.button("Preset 64 cœurs", key="preset_64_cores"):
+                    st.session_state["grid_n_workers"] = 64
                     st.session_state["grid_worker_threads"] = 1
-                    st.sidebar.success("Preset 24 cœurs appliqué")
                     st.rerun()
+
+            # Initialisation session_state si nécessaire
+            if "grid_n_workers" not in st.session_state:
+                st.session_state["grid_n_workers"] = 32
 
             n_workers = st.sidebar.slider(
                 "Workers parallèles (CPU)",
-                min_value=1,  # ✅ Corrigé: minimum 1 worker requis
-                max_value=32,
+                min_value=1,
+                max_value=64,  # ✅ Augmenté pour supporter les gros CPU (Threadripper, EPYC)
                 help="24-32 recommandé pour 9950X. Données pré-chargées = initialisation rapide",
                 key="grid_n_workers",
             )
 
+            # Initialisation session_state si nécessaire
+            if "grid_worker_threads" not in st.session_state:
+                st.session_state["grid_worker_threads"] = 1
+
             worker_threads = st.sidebar.slider(
                 "Threads par worker (CPU/BLAS)",
-                min_value=1,  # ✅ Corrigé: minimum 1 thread requis
-                max_value=32,
+                min_value=1,
+                max_value=16,
                 step=1,
                 key="grid_worker_threads",
                 help=(
@@ -1027,11 +1050,11 @@ def render_sidebar() -> SidebarState:
         max_combos = unlimited_max_combos
         st.sidebar.caption("Limite de combinaisons LLM: illimitée")
 
-        llm_workers_default = max(1, min(default_workers_gpu, 61))
+        llm_workers_default = max(1, min(default_workers_gpu, 64))  # ✅ max 64
         n_workers = st.sidebar.slider(
             "Workers parallèles (CPU)",
             min_value=1,
-            max_value=61,
+            max_value=64,  # ✅ Augmenté pour gros CPU
             value=llm_workers_default,
             help="Nombre de backtests exécutés en parallèle (40 recommandé)",
             key="llm_n_workers",
