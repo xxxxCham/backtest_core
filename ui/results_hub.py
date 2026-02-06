@@ -23,7 +23,7 @@ Skip-if: Vous utilisez seulement ui.results.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -37,7 +37,6 @@ except ImportError:
 from backtest.storage import ResultStorage
 from ui.helpers import compute_period_days, format_pnl_with_daily
 from utils.run_tracker import RunTracker
-
 
 RESULTS_DIR = Path("backtest_results")
 RUNS_DIR = Path("runs")

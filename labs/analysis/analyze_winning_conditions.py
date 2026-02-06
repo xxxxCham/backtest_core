@@ -3,10 +3,10 @@ Analyse des conditions gagnantes vs perdantes d'une stratégie.
 
 Objectif : Identifier QUAND la stratégie fonctionne pour construire des filtres.
 """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import pandas as pd
+
 
 def analyze_winning_conditions(
     trades_df: pd.DataFrame,
@@ -74,8 +74,8 @@ def analyze_winning_conditions(
             trades_df.loc[idx, 'above_sma'] = market_data.loc[entry_time, 'above_sma']
 
     # Comparer win rate selon position vs SMA
-    above_sma = trades_df[trades_df['above_sma'] == True]
-    below_sma = trades_df[trades_df['above_sma'] == False]
+    above_sma = trades_df[trades_df["above_sma"]]
+    below_sma = trades_df[~trades_df["above_sma"]]
 
     wr_above = above_sma['is_winner'].mean() * 100 if len(above_sma) > 0 else 0
     wr_below = below_sma['is_winner'].mean() * 100 if len(below_sma) > 0 else 0

@@ -3,10 +3,11 @@
 Diagnostic complet du crash Numba sweep.
 Teste chaque étape isolément pour identifier le point de blocage.
 """
-import sys
 import os
+import sys
 import time
 import traceback
+
 import psutil
 
 # Configurer l'environnement AVANT les imports Numba
@@ -58,7 +59,6 @@ except Exception as e:
 print_status("Étape 3", "Import Numba")
 try:
     import numba
-    from numba import njit, prange
     print(f"  Numba version: {numba.__version__}")
     print(f"  NUMBA_NUM_THREADS: {os.environ.get('NUMBA_NUM_THREADS', 'non défini')}")
     print_status("Étape 3", "✅ Numba importé")
@@ -133,7 +133,7 @@ print_status("Étape 6", "Import sweep_numba")
 print("  ⚠️ Cette étape peut prendre 30-60 secondes à la première exécution (JIT)...")
 try:
     start = time.perf_counter()
-    from backtest.sweep_numba import run_numba_sweep, is_numba_supported
+    from backtest.sweep_numba import run_numba_sweep
     elapsed = time.perf_counter() - start
     print(f"  Import terminé en {elapsed:.2f}s")
     print_status("Étape 6", "✅ sweep_numba importé")

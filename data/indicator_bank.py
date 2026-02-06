@@ -36,6 +36,38 @@ from utils.log import get_logger
 
 logger = get_logger(__name__)
 
+# Helpers env (configuration cache)
+def _env_bool(name: str, default: Optional[bool] = None) -> Optional[bool]:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off"):
+        return False
+    return default
+
+
+def _env_int(name: str, default: Optional[int] = None) -> Optional[int]:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(float(raw))
+    except (TypeError, ValueError):
+        return default
+
+
+def _env_float(name: str, default: Optional[float] = None) -> Optional[float]:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
 # Support optionnel pour file locking (concurrence multiprocess)
 try:
     import fcntl
@@ -393,10 +425,8 @@ class IndicatorBank:
         """
         # Inclure le backend dans la clé de cache pour éviter collisions CPU/GPU
         if "_backend" not in params:
-            # Détecter si GPU sera utilisé (cohérent avec logic du registry)
-            from performance.gpu import gpu_available
-            will_use_gpu = gpu_available() and len(df) >= 5000
-            params = {**params, "_backend": "gpu" if will_use_gpu else "cpu"}
+            # Mode CPU-only: backend forcé à CPU
+            params = {**params, "_backend": "cpu"}
 
         # Hash des paramètres
         params_str = json.dumps(params, sort_keys=True, default=str)
@@ -771,10 +801,31 @@ def get_indicator_bank(
     """
     global _default_bank
 
+    # Config via variables d'environnement (priorité à INDICATOR_CACHE_*)
+    env_enabled = _env_bool("INDICATOR_CACHE_ENABLED")
+    env_disk_enabled = _env_bool("INDICATOR_CACHE_DISK_ENABLED")
+    env_ttl = _env_int("INDICATOR_CACHE_TTL")
+    env_max_entries = _env_int("INDICATOR_CACHE_MAX_ENTRIES")
+    env_max_size_mb = _env_float("INDICATOR_CACHE_MAX_SIZE_MB")
+    env_cache_dir = os.getenv("INDICATOR_CACHE_DIR")
+
     if disk_enabled is None:
-        env_value = os.getenv("BACKTEST_INDICATOR_DISK_CACHE")
-        if env_value is not None:
-            disk_enabled = env_value.strip().lower() not in ("0", "false", "no", "off")
+        if env_disk_enabled is not None:
+            disk_enabled = env_disk_enabled
+        else:
+            env_value = os.getenv("BACKTEST_INDICATOR_DISK_CACHE")
+            if env_value is not None:
+                disk_enabled = env_value.strip().lower() not in ("0", "false", "no", "off")
+    if env_cache_dir:
+        cache_dir = env_cache_dir
+    if env_enabled is not None and "enabled" not in kwargs:
+        kwargs["enabled"] = env_enabled
+    if env_ttl is not None and "ttl" not in kwargs:
+        kwargs["ttl"] = env_ttl
+    if env_max_entries is not None and "memory_max_entries" not in kwargs:
+        kwargs["memory_max_entries"] = env_max_entries
+    if env_max_size_mb is not None and "max_size_mb" not in kwargs:
+        kwargs["max_size_mb"] = env_max_size_mb
 
     if _default_bank is None:
         _default_bank = IndicatorBank(
@@ -783,8 +834,25 @@ def get_indicator_bank(
             **kwargs
         )
     else:
+        # Appliquer les overrides dynamiquement (si variables env changent)
+        if env_cache_dir:
+            new_path = Path(cache_dir)
+            if _default_bank.cache_dir != new_path:
+                _default_bank.cache_dir = new_path
+                _default_bank._index_path = new_path / "index.json"
+                if _default_bank.disk_enabled:
+                    _default_bank._init_cache_dir()
+                    _default_bank._load_index()
         if disk_enabled is not None:
             _default_bank.disk_enabled = disk_enabled
+        if "enabled" in kwargs:
+            _default_bank.enabled = bool(kwargs["enabled"])
+        if "ttl" in kwargs:
+            _default_bank.ttl = int(kwargs["ttl"])
+        if "memory_max_entries" in kwargs:
+            _default_bank.memory_max_entries = int(kwargs["memory_max_entries"])
+        if "max_size_mb" in kwargs:
+            _default_bank.max_size_mb = float(kwargs["max_size_mb"])
 
     return _default_bank
 

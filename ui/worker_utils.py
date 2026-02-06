@@ -6,11 +6,9 @@ et la configuration des threads dans les processus workers.
 """
 from __future__ import annotations
 
-import os
 import logging
-from typing import Any, Dict, Tuple
-
-import pandas as pd
+import os
+from typing import Any, Dict
 
 from ui.helpers import compute_period_days_from_df, safe_run_backtest
 

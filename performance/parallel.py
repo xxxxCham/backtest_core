@@ -26,11 +26,11 @@ import logging
 import os
 import time
 from concurrent.futures import (
+    FIRST_COMPLETED,
     ProcessPoolExecutor,
     ThreadPoolExecutor,
     as_completed,
     wait,
-    FIRST_COMPLETED,
 )
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterator, List, Optional
@@ -117,6 +117,22 @@ def _get_cpu_count() -> int:
         logical_cores = psutil.cpu_count(logical=True) or os.cpu_count() or 4
         physical_cores = psutil.cpu_count(logical=False) or logical_cores
 
+        # Override explicite (prioritaire) via BACKTEST_MAX_WORKERS
+        env_override = os.environ.get("BACKTEST_MAX_WORKERS")
+        if env_override:
+            try:
+                override = int(float(env_override))
+            except (TypeError, ValueError):
+                override = None
+            if override and override > 0:
+                max_workers = min(override, logical_cores)
+                logger.debug(
+                    "CPU Config override: BACKTEST_MAX_WORKERS=%s -> %s workers",
+                    env_override,
+                    max_workers,
+                )
+                return max(1, max_workers)
+
         # 🚀 OPTIMISATION CPU-ONLY: 2.5x pour saturer les 32 threads (Ryzen 9950X)
         # Configurable via BACKTEST_CPU_MULTIPLIER (défaut: 2.0 pour stabilité)
         cpu_multiplier = float(os.environ.get("BACKTEST_CPU_MULTIPLIER", "2.0"))
@@ -133,6 +149,15 @@ def _get_cpu_count() -> int:
         )
 
         return max(physical_cores, max_workers)
+    # Fallback sans psutil
+    env_override = os.environ.get("BACKTEST_MAX_WORKERS")
+    if env_override:
+        try:
+            override = int(float(env_override))
+        except (TypeError, ValueError):
+            override = None
+        if override and override > 0:
+            return max(1, min(override, os.cpu_count() or override))
     return os.cpu_count() or 4
 
 
@@ -401,8 +426,6 @@ class ParallelRunner:
 
         if progress_callback:
             self._progress_callback = progress_callback
-
-        start_time = time.time()
 
         logger.info(
             f"Démarrage sweep: {self._total_tasks} tâches, "

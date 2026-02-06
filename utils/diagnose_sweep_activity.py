@@ -11,7 +11,6 @@ Vérifie:
 - Vitesse d'écriture dans les fichiers de résultats (si actifs)
 """
 
-import os
 import sys
 import time
 from pathlib import Path
@@ -76,7 +75,7 @@ def check_log_activity():
             print(f"   Taille: {size_mb:.2f} MB")
             print(f"   Modifié: il y a {modified_ago:.0f}s")
             if modified_ago < 60:
-                print(f"   ✅ Activité récente détectée")
+                print("   ✅ Activité récente détectée")
             elif modified_ago < 300:
                 print(f"   ⚠️  Pas d'activité depuis {modified_ago/60:.0f} minutes")
             else:
@@ -115,7 +114,7 @@ def main():
     # Stats système globales
     stats = get_system_stats()
     if stats:
-        print(f"\n🖥️  Système:")
+        print("\n🖥️  Système:")
         print(f"   CPU: {stats['cpu_percent']:.1f}%")
         print(f"   RAM: {stats['ram_used_gb']:.1f}/{stats['ram_total_gb']:.1f} GB ({stats['ram_percent']:.1f}%)")
 
@@ -139,9 +138,9 @@ def main():
         print(f"\n   Total: CPU {total_cpu:.1f}% | RAM {total_mem:.1f}%")
 
         if total_cpu > 5:
-            print(f"   ✅ Activité CPU détectée - Le sweep est probablement actif")
+            print("   ✅ Activité CPU détectée - Le sweep est probablement actif")
         else:
-            print(f"   ⚠️  CPU faible - Le sweep pourrait être bloqué ou en attente")
+            print("   ⚠️  CPU faible - Le sweep pourrait être bloqué ou en attente")
     else:
         print("\n❌ Aucun processus Python backtest trouvé")
 

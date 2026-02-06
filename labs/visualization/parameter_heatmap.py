@@ -3,11 +3,12 @@ Visualisation heatmap des performances par paramètres.
 
 Objectif : Voir visuellement quelles plages de paramètres sont rentables.
 """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
+
 
 def create_parameter_heatmap(
     results_csv: str,
@@ -37,7 +38,7 @@ def create_parameter_heatmap(
             params = json.loads(row['params_dict'])
             params[metric] = row[metric]
             params_data.append(params)
-        except:
+        except Exception:
             pass
 
     df_params = pd.DataFrame(params_data)

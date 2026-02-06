@@ -28,14 +28,14 @@ Usage:
 Créé le 23/01/2026 - Phase 3 refactoring charts.py
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
+from plotly.subplots import make_subplots
 
 # Import du système de thème centralisé
 try:

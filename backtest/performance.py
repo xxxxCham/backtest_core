@@ -6,12 +6,10 @@ Calcul des métriques de performance standard et avancées.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import pandas as pd
-
-from utils.log import get_logger
 
 # Import des métriques Tier S
 from backtest.metrics_tier_s import (
@@ -25,6 +23,7 @@ from backtest.performance_numba import (
     _drawdown_series_numba,
     _max_drawdown_numba,
 )
+from utils.log import get_logger
 
 logger = get_logger(__name__)
 

@@ -56,7 +56,7 @@ save_versioned_preset = None
 try:
     from backtest.engine import BacktestEngine, RunResult  # noqa: F401
     from backtest.storage import get_storage  # noqa: F401
-    from data.loader import discover_available_data, load_ohlcv, get_data_date_range  # noqa: F401
+    from data.loader import discover_available_data, get_data_date_range, load_ohlcv  # noqa: F401
     from indicators.registry import calculate_indicator  # noqa: F401
     from strategies.base import get_strategy, list_strategies  # noqa: F401
     from strategies.indicators_mapping import get_strategy_info  # noqa: F401

@@ -253,6 +253,67 @@ def render_progress_monitor(monitor: ProgressMonitor, placeholder) -> None:
         pass
 
 
+def render_live_metrics(
+    placeholder,
+    completed: int,
+    total: int,
+    start_time: float,
+    best_pnl: float = 0.0,
+    best_dd: float = 0.0,
+    equity: Optional[float] = None,
+) -> None:
+    """
+    Affichage live ultra-simple : un seul placeholder.markdown().
+    Pas de container(), pas de widgets, pas de columns.
+    Garantit un affichage fiable pendant les sweeps.
+    """
+    now = time.perf_counter()
+    elapsed = now - start_time
+    rate = completed / elapsed if elapsed > 0 and completed > 0 else 0.0
+    pct = int(100 * completed / total) if total > 0 else 0
+    remaining = (total - completed) / rate if rate > 0 else 0.0
+
+    def _fmt(s: float) -> str:
+        if s <= 0:
+            return "—"
+        m, sec = divmod(int(s), 60)
+        h, m = divmod(m, 60)
+        if h:
+            return f"{h}h{m:02d}m{sec:02d}s"
+        if m:
+            return f"{m}m{sec:02d}s"
+        return f"{sec}s"
+
+    # ━━━ Tout en un seul bloc markdown ━━━
+    if completed >= total and total > 0:
+        line1 = f"### ✅ Terminé en {_fmt(elapsed)} · ⚡ {rate:,.0f} bt/s"
+    elif rate > 0:
+        line1 = f"### ⏱️ {_fmt(elapsed)} écoulé · ⏳ ~{_fmt(remaining)} restant · ⚡ {rate:,.0f} bt/s"
+    else:
+        line1 = f"### ⏱️ {_fmt(elapsed)} écoulé · ⏳ démarrage..."
+
+    bar_len = 30
+    filled = int(bar_len * pct / 100) if pct > 0 else 0
+    bar = "█" * filled + "░" * (bar_len - filled)
+    line2 = f"`{bar}` **{completed:,}** / {total:,} ({pct}%)"
+
+    parts = [line1, line2]
+    if completed > 0 and (best_pnl != 0 or best_dd != 0):
+        pnl_str = f"💰 **${best_pnl:+,.0f}**"
+        dd_str = f"📉 DD {abs(best_dd):.1f}%"
+        if equity is not None:
+            eq_str = f"💹 Equity ${equity:,.0f}"
+            parts.append(f"{pnl_str} · {dd_str} · {eq_str}")
+        else:
+            parts.append(f"{pnl_str} · {dd_str}")
+
+    try:
+        placeholder.markdown("\n\n".join(parts))
+    except Exception as exc:
+        # Ne PAS avaler silencieusement — logger pour debug
+        print(f"[render_live_metrics ERROR] {exc}", flush=True)
+
+
 def show_status(status_type: str, message: str, details: Optional[str] = None):
     if status_type == "success":
         st.success(f"✅ {message}")
@@ -491,7 +552,7 @@ def safe_load_data(
         quality_msg = f"NaN: {nan_pct:.1f}%" if nan_pct > 0 else "✓ Propre"
         return df, f"✅ {len(df)} barres ({start_fmt} → {end_fmt}) - {quality_msg}"
 
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         from data.loader import _get_data_dir
         data_dir = _get_data_dir()
         return None, f"📁 Fichier non trouvé: {symbol}_{timeframe} dans {data_dir}"
@@ -524,7 +585,7 @@ def load_selected_data(
     start_date: Optional[object],
     end_date: Optional[object],
 ) -> Tuple[Optional[pd.DataFrame], str]:
-    from .cache_manager import get_cached_data, cache_data
+    from .cache_manager import cache_data, get_cached_data
 
     # Vérifier cache d'abord
     cached_df = get_cached_data(symbol, timeframe, start_date, end_date)
@@ -1127,34 +1188,8 @@ def build_indicator_overlays(
 
 
 def safe_copy_cleanup(logger=None) -> None:
-    try:
-        import cupy as cp  # noqa: F401
-    except Exception as exc:
-        if logger:
-            logger.debug("CuPy import failed (ignored): %s", exc)
-        return
-
-    has_pool = hasattr(cp, "get_default_memory_pool") and hasattr(
-        cp, "get_default_pinned_memory_pool"
-    )
-    if not has_pool:
-        if logger:
-            logger.warning(
-                "CuPy cleanup skipped: missing memory pool API. cupy_file=%s",
-                getattr(cp, "__file__", None),
-            )
-        return
-
-    try:
-        mempool = cp.get_default_memory_pool()
-        pinned_mempool = cp.get_default_pinned_memory_pool()
-        mempool.free_all_blocks()
-        pinned_mempool.free_all_blocks()
-        if logger:
-            logger.debug("CuPy cleanup done: freed default pools.")
-    except Exception as exc:
-        if logger:
-            logger.warning("CuPy cleanup failed (ignored): %s", exc)
+    # Mode CPU-only: aucun cleanup GPU requis
+    return None
 
 
 # LEGACY CODE - SUPPRIMÉ: Remplacé par version SweepEngine moderne (ligne ~1306)
@@ -1175,27 +1210,6 @@ def _legacy_run_sweep_parallel_with_callback_UNUSED(
     callback=None
 ):
     """[LEGACY - NON UTILISÉ] Version du sweep parallèle avec callback pour affichage temps réel."""
-    from performance.parallel import ParallelRunner
-    import os
-
-    # Configuration parallélisation
-    config_dict = {
-        "n_workers": n_workers,
-        "max_in_flight": n_workers * 3,
-        "timeout_per_task": 300.0,
-        "continue_on_timeout": True,
-        "shared_kwargs": {
-            "strategy_name": strategy_name,
-            "symbol": symbol,
-            "timeframe": timeframe,
-            "initial_capital": initial_capital,
-            "period_days": period_days,
-            "fast_metrics": fast_metrics,
-            "silent_mode": silent_mode
-        }
-    }
-
-    runner = ParallelRunner(config_dict)
 
     # Préparer les tâches
     tasks = []
@@ -1241,7 +1255,7 @@ def _legacy_run_sweep_parallel_with_callback_UNUSED(
     return results
 
 
-def run_sweep_sequential_with_callback(
+def run_sweep_sequential_with_callback_legacy(
     df,
     strategy_name,
     param_combinations,
@@ -1255,10 +1269,10 @@ def run_sweep_sequential_with_callback(
     silent_mode=True,
     callback=None
 ):
-    """Version du sweep séquentiel avec callback pour affichage temps réel."""
-    from ui.context import get_strategy
+    """[LEGACY - NON UTILISÉ] Version du sweep séquentiel avec callback pour affichage temps réel."""
+
     from backtest.engine import BacktestEngine
-    import time
+    from ui.context import get_strategy
 
     results = []
     total = len(param_combinations)
@@ -1329,8 +1343,9 @@ def run_sweep_parallel_with_callback(
 
     Note: GPU désactivé pour sweeps (CPU + cache RAM plus efficace, économise 10 Go VRAM).
     """
-    from backtest.sweep import SweepEngine
     import os
+
+    from backtest.sweep import SweepEngine
 
     # Désactiver GPU pour sweeps (inutile en multiprocess, économise 10 Go VRAM + évite yoyo 2060)
     os.environ["BACKTEST_USE_GPU"] = "0"
@@ -1345,27 +1360,13 @@ def run_sweep_parallel_with_callback(
         n_workers = max(1, os.cpu_count() // 2)
 
     # Initialiser SweepEngine avec cache RAM optimisé si disponible
-    try:
-        from config.gpu_config_30gb_ram import get_indicator_cache_config
-        indicator_cache_config = get_indicator_cache_config()
-    except Exception:
-        # Fallback: config cache par défaut
-        indicator_cache_config = None
+    indicator_cache_config = None
 
     engine = SweepEngine(
         max_workers=n_workers,
         initial_capital=initial_capital,
         auto_save=True
     )
-
-    # Callback wrapper pour mettre à jour la progression
-    class ProgressTracker:
-        def __init__(self):
-            self.completed = 0
-            self.best_result = None
-            self.results = []
-
-    tracker = ProgressTracker()
 
     # Lancer le sweep avec SweepEngine (plus stable que ProcessPoolExecutor)
     try:
@@ -1425,8 +1426,8 @@ def run_sweep_sequential_with_callback(
     silent_mode=True, fast_metrics=False
 ):
     """Exécute un sweep en séquentiel avec callback de progression."""
-    from utils.config import Config
     from backtest.engine import BacktestEngine
+    from utils.config import Config
 
     config = Config(initial_capital=initial_capital)
     engine = BacktestEngine(config=config)

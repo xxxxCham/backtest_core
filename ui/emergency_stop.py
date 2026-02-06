@@ -11,7 +11,7 @@ Inputs: Session state, logger
 
 Outputs: RAM/VRAM libérée, processus arrêtés
 
-Dependencies: gc, psutil, torch, cupy, MemoryManager, GPUMemoryManager
+Dependencies: gc, psutil, torch, MemoryManager
 
 Conventions: Nettoyage agressif tous composants; logs détaillés; fallback sur erreurs.
 
@@ -86,23 +86,20 @@ class EmergencyStopHandler:
         # 3. Nettoyer le cache d'indicateurs
         self._cleanup_indicator_cache(stats)
 
-        # 4. Nettoyer CuPy (GPU arrays)
-        self._cleanup_cupy(stats)
-
-        # 5. Nettoyer PyTorch (si utilisé)
+        # 4. Nettoyer PyTorch (si utilisé)
         self._cleanup_pytorch(stats)
 
-        # 6. Nettoyer le MemoryManager
+        # 5. Nettoyer le MemoryManager
         self._cleanup_memory_manager(stats)
 
-        # 7. Garbage collection agressif
+        # 6. Garbage collection agressif
         self._aggressive_gc(stats)
 
-        # 8. Réinitialiser les états Streamlit
+        # 7. Réinitialiser les états Streamlit
         if session_state is not None:
             self._reset_session_state(session_state, stats)
 
-        # 9. Mesurer la mémoire libérée
+        # 8. Mesurer la mémoire libérée
         self._measure_freed_memory(stats)
 
         self._cleanup_stats = stats
@@ -228,36 +225,6 @@ class EmergencyStopHandler:
 
         except Exception as e:
             stats["errors"].append(f"indicator_cache: {e}")
-
-    def _cleanup_cupy(self, stats: Dict[str, Any]) -> None:
-        """Libère toute la mémoire CuPy."""
-        try:
-            import cupy as cp
-
-            # Vider tous les memory pools
-            if hasattr(cp, "get_default_memory_pool"):
-                mempool = cp.get_default_memory_pool()
-                mempool.free_all_blocks()
-                stats["components_cleaned"].append("cupy_memory_pool")
-
-            if hasattr(cp, "get_default_pinned_memory_pool"):
-                pinned = cp.get_default_pinned_memory_pool()
-                pinned.free_all_blocks()
-                stats["components_cleaned"].append("cupy_pinned_pool")
-
-            # Synchroniser tous les devices
-            if hasattr(cp.cuda, "Device"):
-                n_devices = cp.cuda.runtime.getDeviceCount()
-                for i in range(n_devices):
-                    with cp.cuda.Device(i):
-                        cp.cuda.Stream.null.synchronize()
-
-            logger.info("🗑️ CuPy VRAM vidée")
-
-        except ImportError:
-            pass  # CuPy non installé
-        except Exception as e:
-            stats["errors"].append(f"cupy: {e}")
 
     def _cleanup_pytorch(self, stats: Dict[str, Any]) -> None:
         """Libère le cache PyTorch CUDA."""

@@ -20,12 +20,12 @@ Read-if: Organisation ou archivage des résultats.
 Skip-if: Structure flat convient à votre usage.
 """
 
-import sys
 import json
 import shutil
-from pathlib import Path
-from typing import Dict, List, Optional
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, Optional
 
 # Ajouter le répertoire racine au PYTHONPATH
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

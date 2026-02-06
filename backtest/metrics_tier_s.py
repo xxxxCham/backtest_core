@@ -36,9 +36,9 @@ except ImportError:
 # Import des optimisations Numba
 from backtest.performance_numba import (
     _expanding_max_numba,
-    _ulcer_index_numba,
     _recovery_factor_numba,
     _sortino_downside_deviation_numba,
+    _ulcer_index_numba,
 )
 
 

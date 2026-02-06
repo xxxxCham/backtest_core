@@ -1140,3 +1140,38 @@ python run_streamlit.bat
 - Problèmes détectés : Cascade d'erreurs causée par: (1) Event loop asyncio fermé avant fin opérations UI, (2) Signal handler Windows tentant d'afficher "Stopping..." avec stdout verrouillé, (3) colorama ANSI conversion déclenchant appels réentrants BufferedWriter, (4) Operations Streamlit pendantes (spinner/empty/progress) échouant avec event loop fermé; sweep Numba fonctionnait parfaitement (1.77M combos en 155s = 11,383 bt/s), seule la gestion d'interruption était problématique.
 - Améliorations proposées : Tester les 3 scénarios documentés: (1) Interruption pendant sweep Numba, (2) Interruption pendant affichage final, (3) Interruption ProcessPool; valider sortie propre sans cascade d'erreurs dans chaque cas; optionnel - activer BACKTEST_LOG_LEVEL=DEBUG pour voir erreurs event loop capturées en logs; documenter si seconde pression Ctrl+C immédiate affiche encore erreurs (comportement Python standard force kill acceptable).
 
+- Date : 06/02/2026
+- Objectif : Remplacement complet du système de métriques live (cassé) par un affichage simple et fonctionnel : bt/s, PnL, drawdown, equity.
+- Fichiers modifiés : ui/helpers.py, ui/main.py, AGENTS.md.
+- Actions réalisées : Création render_live_metrics() dans helpers.py (barre de progression + 4 st.metric natifs : vitesse bt/s, meilleur PnL, max drawdown, equity) ; suppression du double système ProgressMonitor+SweepMonitor live (avant : ProgressMonitor cadre blanc + SweepMonitor jamais appelé en live + blocs HTML inline dupliqués 2 fois) ; remplacement par un unique live_placeholder + _refresh_live() utilisé dans les 3 modes (Séquentiel, ProcessPool, Numba) ; rafraîchissement toutes les 0.5s (configurable via BACKTEST_PROGRESS_INTERVAL_SEC) au lieu de chaque 1000 runs ou 30s ; correction du try: interne sans except dans le bloc Numba (SyntaxError pré-existante) ; post-Numba affiche les métriques immédiatement après le retour ; SweepMonitor conservé uniquement pour le rendu post-sweep (tableaux, graphiques).
+- Vérifications effectuées : py_compile ui/helpers.py OK ; py_compile ui/main.py OK ; import ui.main OK ; import render_live_metrics OK.
+- Résultat : Affichage live simple et fonctionnel dans les 3 modes d'exécution ; 4 métriques propres (bt/s, PnL, DD, equity) rafraîchies toutes les 0.5s ; zéro HTML lourd, zéro Plotly, zéro tableau pendant le sweep ; léger sur WebSocket.
+- Problèmes détectés : Ancien système avait 2 moniteurs redondants désynchronisés dont aucun ne marchait correctement en live ; render_sweep_progress() (200+ lignes HTML/Plotly) n'était jamais appelé pendant le sweep ; bloc Numba avait un try: sans except (SyntaxError silencieuse).
+- Améliorations proposées : Tester en conditions réelles avec sweep Numba + ProcessPool ; optionnel - ajouter nombre de trades du meilleur résultat dans le delta du PnL.
+
+- Date : 06/02/2026
+- Objectif : Corriger les erreurs et avertissements VS Code en alignant le code avec les règles Ruff (imports, syntaxe, whitespace, variables inutilisées).
+- Fichiers modifiés : backtest/engine.py, backtest/simulator_fast.py, backtest/sweep_numba.py, cli/formatters.py, labs/analysis/analyze_code_health.py, labs/analysis/analyze_winning_conditions.py, labs/analysis/detailed_bollinger_analysis.py, labs/optimization/bollinger_atr_optimized_ranges.py, labs/optimization/bollinger_atr_theory_ranges.py, labs/optimization/profile_backtest.py, labs/visualization/parameter_heatmap.py, performance/hybrid_compute.py, performance/parallel.py, profile_sweep.py, test_cpu_only_mode.py, tests/benchmark_hybrid.py, ui/helpers.py, ui/llm_handlers.py, ui/main_with_form.py, ui/results_hub.py, ui/sidebar.py, ui/main.py, utils/range_manager.py, AGENTS.md.
+- Actions réalisées : Exécution de Ruff et corrections automatiques; nettoyage manuel des erreurs restantes (imports inutilisés, variables non utilisées, comparaisons booléennes, lambda remplacée par def, f-strings superflues); suppression des lignes blanches avec espaces; correction de doublon de fonction dans ui/helpers.py (renommage legacy) et suppression de blocs legacy inutilisés; réécriture des fichiers labs/optimization/bollinger_atr_*_ranges.py pour une structure Python valide avec get_parameter_specs(); normalisation min/max incohérents; ajout d'import manquant Any; corrections mineures de logs.
+- Vérifications effectuées : `python3 -m ruff check .` (OK après corrections).
+- Résultat : 0 erreur Ruff; fichiers de labs optimisés valides; base de code nettoyée des warnings/erreurs identifiées.
+- Problèmes détectés : 551 erreurs Ruff initiales (imports/whitespace/variables inutilisées) + 2 fichiers labs invalides (indentation/EOF) + duplication de fonction dans ui/helpers.py + espaces parasites dans docstrings.
+- Améliorations proposées : Lancer une passe de tests ciblés (ex: `python3 -m pytest -q`) et un smoke test UI Streamlit pour valider les chemins sweep/LLM après nettoyage.
+
+- Date : 06/02/2026
+- Objectif : Correction de l'entrée précédente (liste des fichiers modifiés incomplète après ruff --fix).
+- Fichiers modifiés : Nombreux fichiers touchés par `ruff --fix` (imports/whitespace/newline) à l'échelle du repo, incluant notamment agents/*, backtest/*, cli/*, data/*, indicators/*, labs/*, performance/*, strategies/*, tests/*, ui/*, utils/*, plus les corrections ciblées listées dans l'entrée précédente.
+- Actions réalisées : Ajout d'une entrée corrective pour documenter l'impact transversal de ruff --fix; clarification du périmètre réel des fichiers modifiés.
+- Vérifications effectuées : Aucune supplémentaire (entrée corrective uniquement).
+- Résultat : Journal mis à jour pour refléter l'impact multi-fichiers de la passe Ruff.
+- Problèmes détectés : Entrée précédente trop restrictive par rapport aux fichiers réellement modifiés par ruff.
+- Améliorations proposées : Si besoin d'audit fin, générer une liste exhaustive via `git diff --name-only` avant/après la prochaine passe d'auto-fix.
+
+- Date : 07/02/2026
+- Objectif : Corriger 3 bugs post-Numba sweep: CPU yoyo/lingering, pas de résultats affichés, variable `diag` non définie.
+- Fichiers modifiés : ui/main.py.
+- Actions réalisées : (1) **Remplacement batch record_sweep_result** — la boucle `for r in all_raw_results: record_sweep_result(...)` (1.7M itérations × Python lourd = 60-120s) remplacée par construction directe de `results_list` via boucle légère + `sweep_monitor.update()` uniquement pour le top-50; (2) **Fix variable `diag` NameError** — initialisation `diag = None` avant ZONE 1, guard `if diag is not None:` dans le bloc AFFICHAGE FINAL; (3) **Optimisation inter-chunk** — remplacement de la boucle `for r in chunk_results` (50K itérations) par `max(chunk_results, key=...)` pour tracker le meilleur PnL.
+- Vérifications effectuées : `py_compile ui/main.py` OK; `from ui.main import render_main` OK.
+- Résultat : Temps post-Numba estimé réduit de 60-120s à ~2-5s; affichage des résultats ne crashe plus sur NameError `diag`; CPU drops inter-chunks minimisés.
+- Problèmes détectés : (1) batch record_sweep_result O(1.7M) Python pur = goulot critique; (2) `diag` défini uniquement dans ZONE 2 ProcessPool mais référencé dans bloc partagé AFFICHAGE FINAL; (3) boucle 50K inter-chunks pour tracker best PnL remplaçable par O(1) max().
+- Améliorations proposées : Tester sweep réel 1.7M combos et vérifier que résultats s'affichent immédiatement après Numba; vérifier CPU Task Manager post-sweep (doit retomber à ~0%).

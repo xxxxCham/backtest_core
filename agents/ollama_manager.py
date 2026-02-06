@@ -13,7 +13,7 @@ Outputs: État Ollama, modèles disponibles, gestion mémoire GPU (unload/reload
 
 Dependencies: subprocess, httpx, utils.log, contextlib
 
-Conventions: Ollama lancé via subprocess `ollama serve`; retries avec backoff exponentiel; gpu_compute_context décharge LLM avant calculs NumPy/CuPy; recharge auto après.
+Conventions: Ollama lancé via subprocess `ollama serve`; retries avec backoff exponentiel; gpu_compute_context décharge LLM avant calculs NumPy; recharge auto après.
 
 Read-if: Configuration Ollama, gestion GPU memory, ou troubleshooting service.
 
@@ -58,7 +58,7 @@ class GPUMemoryManager:
     Gestionnaire de mémoire GPU pour les LLM.
 
     Permet de décharger temporairement les LLM du GPU pendant les phases
-    de calcul intensif (backtests avec CuPy/NumPy) puis de les recharger
+    de calcul intensif (backtests NumPy) puis de les recharger
     avec leur contexte préservé.
 
     Features:
@@ -265,7 +265,7 @@ def gpu_compute_context(
 
     Example:
         >>> with gpu_compute_context("deepseek-r1:32b") as manager:
-        ...     # GPU libre pour calculs numpy/cupy
+        ...     # GPU libre pour calculs numpy
         ...     results = heavy_backtest_computation()
         >>> # LLM automatiquement rechargé
         >>> print(manager.get_stats())

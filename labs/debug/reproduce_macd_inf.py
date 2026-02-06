@@ -3,12 +3,14 @@
 Test pour reproduire exactement le bug PnL = -inf du sweep MACD
 """
 
-import pandas as pd
+import itertools
+
 import numpy as np
+
+from backtest.engine import BacktestEngine
 from data.loader import load_ohlcv
 from strategies.macd_cross import MACDCrossStrategy
-from backtest.engine import BacktestEngine
-import itertools
+
 
 def reproduce_macd_inf_bug():
     """Reproduire le bug PnL = -inf en testant des combinaisons problématiques."""

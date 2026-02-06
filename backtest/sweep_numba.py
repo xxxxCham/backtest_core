@@ -15,10 +15,11 @@ Stratégies supportées:
 - rsi_reversal
 """
 
-from typing import Any, Dict, List, Tuple, Optional, Callable
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
-import time
 
 try:
     from numba import njit, prange
@@ -34,6 +35,9 @@ NUMBA_SUPPORTED_STRATEGIES = {
     'bollinger_atr', 'bollinger_atr_v2', 'bollinger_atr_v3',
     'ema_cross',
     'rsi_reversal',
+    'macd_cross',
+    'bollinger_best_longe_3i',
+    'bollinger_best_short_3i',
 }
 
 
@@ -43,7 +47,7 @@ def is_numba_supported(strategy_key: str) -> bool:
 
 
 if HAS_NUMBA:
-    @njit(cache=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def _calc_bollinger_signals(
         closes: np.ndarray,
         bb_period: int,
@@ -54,7 +58,7 @@ if HAS_NUMBA:
         n = len(closes)
         signals = np.zeros(n, dtype=np.float64)
 
-        for i in range(bb_period, n):
+        for i in prange(bb_period, n):
             window = closes[i-bb_period+1:i+1]
             sma = 0.0
             for j in range(bb_period):
@@ -76,7 +80,7 @@ if HAS_NUMBA:
 
         return signals
 
-    @njit(cache=True, fastmath=True, parallel=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def _sweep_bollinger_full(
         closes: np.ndarray,
         highs: np.ndarray,
@@ -111,7 +115,7 @@ if HAS_NUMBA:
         # ⚡ PARALLÉLISATION sur les combinaisons
         for combo_idx in prange(n_combos):
             bb_period = int(bb_periods[combo_idx])
-            bb_std = bb_stds[combo_idx]
+            _bb_std = bb_stds[combo_idx]
             entry_z = entry_zs[combo_idx]
             leverage = leverages[combo_idx]
             k_sl = k_sls[combo_idx]
@@ -232,7 +236,7 @@ if HAS_NUMBA:
         return total_pnls, sharpes, max_dds, win_rates, n_trades_out
 
 
-    @njit(cache=True, fastmath=True, parallel=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def _sweep_backtest_core(
         closes: np.ndarray,
         highs: np.ndarray,
@@ -454,7 +458,7 @@ def run_sweep_numba(
 # Générateurs de signaux optimisés Numba
 # ============================================================================
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _ema_numba(data: np.ndarray, period: int) -> np.ndarray:
     """EMA optimisée Numba."""
     n = len(data)
@@ -473,7 +477,7 @@ def _ema_numba(data: np.ndarray, period: int) -> np.ndarray:
     return result
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
 def _bollinger_signals_numba(
     closes: np.ndarray,
     bb_period: int,
@@ -484,7 +488,7 @@ def _bollinger_signals_numba(
     n = len(closes)
     signals = np.zeros(n, dtype=np.float64)
 
-    for i in range(bb_period, n):
+    for i in prange(bb_period, n):
         window = closes[i-bb_period+1:i+1]
         sma = window.mean()
         std = window.std()
@@ -502,7 +506,7 @@ def _bollinger_signals_numba(
     return signals
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
 def _ema_cross_signals_numba(
     closes: np.ndarray,
     fast_period: int,
@@ -515,7 +519,7 @@ def _ema_cross_signals_numba(
     fast_ema = _ema_numba(closes, fast_period)
     slow_ema = _ema_numba(closes, slow_period)
 
-    for i in range(slow_period, n):
+    for i in prange(slow_period, n):
         # Crossover haussier
         if fast_ema[i] > slow_ema[i] and fast_ema[i-1] <= slow_ema[i-1]:
             signals[i] = 1.0
@@ -625,16 +629,16 @@ def benchmark_sweep_numba(n_combos: int = 1000, n_bars: int = 10000):
     total_time = time.perf_counter() - start
 
     print(f"\n{'='*60}")
-    print(f"RÉSULTATS")
+    print("RÉSULTATS")
     print(f"{'='*60}")
     print(f"  Temps total: {total_time:.3f}s")
-    print(f"")
+    print("")
     print(f"  ⚡ Throughput: {actual_combos/total_time:,.0f} backtests/seconde")
     print(f"  ⚡ Temps/bt:   {total_time/actual_combos*1000:.3f} ms")
     print(f"{'='*60}")
 
     # Stats résultats
-    print(f"\nStats résultats:")
+    print("\nStats résultats:")
     print(f"  Best PnL:    ${np.max(total_pnls):,.2f}")
     print(f"  Worst PnL:   ${np.min(total_pnls):,.2f}")
     print(f"  Best Sharpe: {np.max(sharpes):.2f}")
@@ -652,7 +656,7 @@ def benchmark_sweep_numba(n_combos: int = 1000, n_bars: int = 10000):
 # ============================================================================
 
 if HAS_NUMBA:
-    @njit(cache=True, fastmath=True, parallel=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def _sweep_ema_cross_full(
         closes: np.ndarray,
         highs: np.ndarray,
@@ -789,7 +793,7 @@ if HAS_NUMBA:
         return total_pnls, sharpes, max_dds, win_rates, n_trades_out
 
 
-    @njit(cache=True, fastmath=True, parallel=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def _sweep_rsi_reversal_full(
         closes: np.ndarray,
         highs: np.ndarray,
@@ -947,6 +951,451 @@ if HAS_NUMBA:
         return total_pnls, sharpes, max_dds, win_rates, n_trades_out
 
 
+    # ================================================================
+    # MACD CROSS — croisement MACD / Signal line
+    # ================================================================
+
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
+    def _sweep_macd_cross_full(
+        closes: np.ndarray,
+        highs: np.ndarray,
+        lows: np.ndarray,
+        fast_periods: np.ndarray,
+        slow_periods: np.ndarray,
+        signal_periods: np.ndarray,
+        leverages: np.ndarray,
+        k_sls: np.ndarray,
+        initial_capital: float,
+        fees_bps: float,
+        slippage_bps: float,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Sweep MACD Cross en Numba parallèle."""
+        n_combos = len(fast_periods)
+        n_bars = len(closes)
+
+        total_pnls = np.zeros(n_combos, dtype=np.float64)
+        sharpes = np.zeros(n_combos, dtype=np.float64)
+        max_dds = np.zeros(n_combos, dtype=np.float64)
+        win_rates = np.zeros(n_combos, dtype=np.float64)
+        n_trades_out = np.zeros(n_combos, dtype=np.int64)
+
+        slippage_factor = slippage_bps * 0.0001
+        fees_factor = fees_bps * 2 * 0.0001
+
+        for combo_idx in prange(n_combos):
+            fast_p = int(fast_periods[combo_idx])
+            slow_p = int(slow_periods[combo_idx])
+            sig_p = int(signal_periods[combo_idx])
+            leverage = leverages[combo_idx]
+            k_sl = k_sls[combo_idx]
+            sl_pct = k_sl * 0.01
+
+            # --- Calcul EMA rapide ---
+            ema_fast = np.zeros(n_bars, dtype=np.float64)
+            alpha_f = 2.0 / (fast_p + 1)
+            ema_fast[0] = closes[0]
+            for i in range(1, n_bars):
+                ema_fast[i] = alpha_f * closes[i] + (1.0 - alpha_f) * ema_fast[i - 1]
+
+            # --- Calcul EMA lente ---
+            ema_slow = np.zeros(n_bars, dtype=np.float64)
+            alpha_s = 2.0 / (slow_p + 1)
+            ema_slow[0] = closes[0]
+            for i in range(1, n_bars):
+                ema_slow[i] = alpha_s * closes[i] + (1.0 - alpha_s) * ema_slow[i - 1]
+
+            # --- MACD line ---
+            macd_line = np.zeros(n_bars, dtype=np.float64)
+            for i in range(n_bars):
+                macd_line[i] = ema_fast[i] - ema_slow[i]
+
+            # --- Signal line (EMA du MACD) ---
+            signal_line = np.zeros(n_bars, dtype=np.float64)
+            alpha_sig = 2.0 / (sig_p + 1)
+            signal_line[0] = macd_line[0]
+            for i in range(1, n_bars):
+                signal_line[i] = alpha_sig * macd_line[i] + (1.0 - alpha_sig) * signal_line[i - 1]
+
+            # --- Signaux crossover ---
+            warmup = slow_p + sig_p
+            signals = np.zeros(n_bars, dtype=np.float64)
+            for i in range(warmup, n_bars):
+                prev_above = macd_line[i - 1] > signal_line[i - 1]
+                curr_above = macd_line[i] > signal_line[i]
+                if curr_above and not prev_above:
+                    signals[i] = 1.0   # golden cross
+                elif not curr_above and prev_above:
+                    signals[i] = -1.0  # death cross
+
+            # --- Simulation ---
+            position = 0
+            entry_price = 0.0
+            equity = initial_capital
+            peak_equity = initial_capital
+            max_dd = 0.0
+            trade_count = 0
+            winning_trades = 0
+            returns_sum = 0.0
+            returns_sq_sum = 0.0
+
+            for i in range(n_bars):
+                close_price = closes[i]
+                signal = signals[i]
+
+                if position == 0 and signal != 0:
+                    position = int(signal)
+                    entry_price = close_price * (1.0 + slippage_factor * position)
+                elif position != 0:
+                    exit_now = False
+                    if signal != 0 and signal != position:
+                        exit_now = True
+                    elif position == 1 and lows[i] <= entry_price * (1.0 - sl_pct):
+                        exit_now = True
+                    elif position == -1 and highs[i] >= entry_price * (1.0 + sl_pct):
+                        exit_now = True
+
+                    if exit_now:
+                        exit_price = close_price * (1.0 - slippage_factor * position)
+                        if position == 1:
+                            raw_return = (exit_price - entry_price) / entry_price
+                        else:
+                            raw_return = (entry_price - exit_price) / entry_price
+                        net_return = raw_return - fees_factor
+                        pnl = net_return * leverage * initial_capital
+                        equity += pnl
+                        trade_count += 1
+                        if pnl > 0:
+                            winning_trades += 1
+                        returns_sum += net_return
+                        returns_sq_sum += net_return * net_return
+                        if equity > peak_equity:
+                            peak_equity = equity
+                        dd = (peak_equity - equity) / peak_equity * 100.0
+                        if dd > max_dd:
+                            max_dd = dd
+                        position = 0
+                        entry_price = 0.0
+                        if signal != 0:
+                            position = int(signal)
+                            entry_price = close_price * (1.0 + slippage_factor * position)
+
+            # Clôture finale
+            if position != 0:
+                exit_price = closes[-1] * (1.0 - slippage_factor * position)
+                if position == 1:
+                    raw_return = (exit_price - entry_price) / entry_price
+                else:
+                    raw_return = (entry_price - exit_price) / entry_price
+                net_return = raw_return - fees_factor
+                pnl = net_return * leverage * initial_capital
+                equity += pnl
+                trade_count += 1
+                if pnl > 0:
+                    winning_trades += 1
+                returns_sum += net_return
+                returns_sq_sum += net_return * net_return
+
+            total_pnls[combo_idx] = equity - initial_capital
+            n_trades_out[combo_idx] = trade_count
+            if trade_count > 0:
+                win_rates[combo_idx] = (winning_trades / trade_count) * 100.0
+                mean_ret = returns_sum / trade_count
+                if trade_count > 1:
+                    variance = (returns_sq_sum / trade_count) - (mean_ret * mean_ret)
+                    if variance > 0:
+                        sharpes[combo_idx] = (mean_ret / np.sqrt(variance)) * np.sqrt(252)
+            max_dds[combo_idx] = max_dd
+
+        return total_pnls, sharpes, max_dds, win_rates, n_trades_out
+
+
+    # ================================================================
+    # BOLLINGER BEST LONG 3i — entry/SL/TP sur échelle Bollinger
+    # ================================================================
+
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
+    def _sweep_boll_level_long(
+        closes: np.ndarray,
+        highs: np.ndarray,
+        lows: np.ndarray,
+        bb_periods: np.ndarray,
+        bb_stds: np.ndarray,
+        entry_levels: np.ndarray,
+        sl_levels: np.ndarray,
+        tp_levels: np.ndarray,
+        leverages: np.ndarray,
+        initial_capital: float,
+        fees_bps: float,
+        slippage_bps: float,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Sweep Bollinger level-based LONG en Numba parallèle."""
+        n_combos = len(bb_periods)
+        n_bars = len(closes)
+
+        total_pnls = np.zeros(n_combos, dtype=np.float64)
+        sharpes = np.zeros(n_combos, dtype=np.float64)
+        max_dds = np.zeros(n_combos, dtype=np.float64)
+        win_rates = np.zeros(n_combos, dtype=np.float64)
+        n_trades_out = np.zeros(n_combos, dtype=np.int64)
+
+        slippage_factor = slippage_bps * 0.0001
+        fees_factor = fees_bps * 2 * 0.0001
+
+        for combo_idx in prange(n_combos):
+            bb_p = int(bb_periods[combo_idx])
+            bb_s = bb_stds[combo_idx]
+            entry_lv = entry_levels[combo_idx]
+            sl_lv = sl_levels[combo_idx]
+            tp_lv = tp_levels[combo_idx]
+            leverage = leverages[combo_idx]
+
+            # --- Simulation avec Bollinger inline ---
+            position = 0
+            entry_price = 0.0
+            stop_price = 0.0
+            tp_price = 0.0
+            equity = initial_capital
+            peak_equity = initial_capital
+            max_dd = 0.0
+            trade_count = 0
+            winning_trades = 0
+            returns_sum = 0.0
+            returns_sq_sum = 0.0
+            prev_signal = 0.0
+
+            for i in range(bb_p, n_bars):
+                # Calcul Bollinger inline
+                sma = 0.0
+                for j in range(bb_p):
+                    sma += closes[i - bb_p + 1 + j]
+                sma /= bb_p
+                var = 0.0
+                for j in range(bb_p):
+                    diff = closes[i - bb_p + 1 + j] - sma
+                    var += diff * diff
+                std = np.sqrt(var / bb_p)
+                upper = sma + bb_s * std
+                lower = sma - bb_s * std
+                total_dist = upper - lower
+
+                if total_dist < 1e-10:
+                    continue
+
+                # Price levels
+                entry_pl = lower + entry_lv * total_dist
+                sl_pl = lower + sl_lv * total_dist
+                tp_pl = lower + tp_lv * total_dist
+
+                close_price = closes[i]
+
+                # Signal : LONG quand close <= entry_price_level (et pas déjà en position)
+                signal = 1.0 if close_price <= entry_pl else 0.0
+                # Déduplique (seulement sur changement)
+                if signal == prev_signal:
+                    signal = 0.0
+                else:
+                    prev_signal = signal if signal != 0.0 else prev_signal
+
+                if position == 0 and signal == 1.0:
+                    position = 1
+                    entry_price = close_price * (1.0 + slippage_factor)
+                    stop_price = sl_pl
+                    tp_price = tp_pl
+                elif position == 1:
+                    exit_now = False
+                    if lows[i] <= stop_price:
+                        exit_now = True
+                    elif highs[i] >= tp_price:
+                        exit_now = True
+
+                    if exit_now:
+                        exit_price = close_price * (1.0 - slippage_factor)
+                        raw_return = (exit_price - entry_price) / entry_price
+                        net_return = raw_return - fees_factor
+                        pnl = net_return * leverage * initial_capital
+                        equity += pnl
+                        trade_count += 1
+                        if pnl > 0:
+                            winning_trades += 1
+                        returns_sum += net_return
+                        returns_sq_sum += net_return * net_return
+                        if equity > peak_equity:
+                            peak_equity = equity
+                        dd = (peak_equity - equity) / peak_equity * 100.0
+                        if dd > max_dd:
+                            max_dd = dd
+                        position = 0
+                        entry_price = 0.0
+
+            # Clôture finale
+            if position == 1:
+                exit_price = closes[-1] * (1.0 - slippage_factor)
+                raw_return = (exit_price - entry_price) / entry_price
+                net_return = raw_return - fees_factor
+                pnl = net_return * leverage * initial_capital
+                equity += pnl
+                trade_count += 1
+                if pnl > 0:
+                    winning_trades += 1
+                returns_sum += net_return
+                returns_sq_sum += net_return * net_return
+
+            total_pnls[combo_idx] = equity - initial_capital
+            n_trades_out[combo_idx] = trade_count
+            if trade_count > 0:
+                win_rates[combo_idx] = (winning_trades / trade_count) * 100.0
+                mean_ret = returns_sum / trade_count
+                if trade_count > 1:
+                    variance = (returns_sq_sum / trade_count) - (mean_ret * mean_ret)
+                    if variance > 0:
+                        sharpes[combo_idx] = (mean_ret / np.sqrt(variance)) * np.sqrt(252)
+            max_dds[combo_idx] = max_dd
+
+        return total_pnls, sharpes, max_dds, win_rates, n_trades_out
+
+
+    # ================================================================
+    # BOLLINGER BEST SHORT 3i — miroir SHORT
+    # ================================================================
+
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
+    def _sweep_boll_level_short(
+        closes: np.ndarray,
+        highs: np.ndarray,
+        lows: np.ndarray,
+        bb_periods: np.ndarray,
+        bb_stds: np.ndarray,
+        entry_levels: np.ndarray,
+        sl_levels: np.ndarray,
+        tp_levels: np.ndarray,
+        leverages: np.ndarray,
+        initial_capital: float,
+        fees_bps: float,
+        slippage_bps: float,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Sweep Bollinger level-based SHORT en Numba parallèle."""
+        n_combos = len(bb_periods)
+        n_bars = len(closes)
+
+        total_pnls = np.zeros(n_combos, dtype=np.float64)
+        sharpes = np.zeros(n_combos, dtype=np.float64)
+        max_dds = np.zeros(n_combos, dtype=np.float64)
+        win_rates = np.zeros(n_combos, dtype=np.float64)
+        n_trades_out = np.zeros(n_combos, dtype=np.int64)
+
+        slippage_factor = slippage_bps * 0.0001
+        fees_factor = fees_bps * 2 * 0.0001
+
+        for combo_idx in prange(n_combos):
+            bb_p = int(bb_periods[combo_idx])
+            bb_s = bb_stds[combo_idx]
+            entry_lv = entry_levels[combo_idx]
+            sl_lv = sl_levels[combo_idx]
+            tp_lv = tp_levels[combo_idx]
+            leverage = leverages[combo_idx]
+
+            position = 0
+            entry_price = 0.0
+            stop_price = 0.0
+            tp_price = 0.0
+            equity = initial_capital
+            peak_equity = initial_capital
+            max_dd = 0.0
+            trade_count = 0
+            winning_trades = 0
+            returns_sum = 0.0
+            returns_sq_sum = 0.0
+            prev_signal = 0.0
+
+            for i in range(bb_p, n_bars):
+                # Calcul Bollinger inline
+                sma = 0.0
+                for j in range(bb_p):
+                    sma += closes[i - bb_p + 1 + j]
+                sma /= bb_p
+                var = 0.0
+                for j in range(bb_p):
+                    diff = closes[i - bb_p + 1 + j] - sma
+                    var += diff * diff
+                std = np.sqrt(var / bb_p)
+                upper = sma + bb_s * std
+                lower = sma - bb_s * std
+                total_dist = upper - lower
+
+                if total_dist < 1e-10:
+                    continue
+
+                entry_pl = lower + entry_lv * total_dist   # ~upper band
+                sl_pl = lower + sl_lv * total_dist         # au-dessus upper
+                tp_pl = lower + tp_lv * total_dist         # vers lower
+
+                close_price = closes[i]
+
+                # Signal : SHORT quand close >= entry_price_level
+                signal = -1.0 if close_price >= entry_pl else 0.0
+                if signal == prev_signal:
+                    signal = 0.0
+                else:
+                    prev_signal = signal if signal != 0.0 else prev_signal
+
+                if position == 0 and signal == -1.0:
+                    position = -1
+                    entry_price = close_price * (1.0 - slippage_factor)
+                    stop_price = sl_pl
+                    tp_price = tp_pl
+                elif position == -1:
+                    exit_now = False
+                    if highs[i] >= stop_price:
+                        exit_now = True
+                    elif lows[i] <= tp_price:
+                        exit_now = True
+
+                    if exit_now:
+                        exit_price = close_price * (1.0 + slippage_factor)
+                        raw_return = (entry_price - exit_price) / entry_price
+                        net_return = raw_return - fees_factor
+                        pnl = net_return * leverage * initial_capital
+                        equity += pnl
+                        trade_count += 1
+                        if pnl > 0:
+                            winning_trades += 1
+                        returns_sum += net_return
+                        returns_sq_sum += net_return * net_return
+                        if equity > peak_equity:
+                            peak_equity = equity
+                        dd = (peak_equity - equity) / peak_equity * 100.0
+                        if dd > max_dd:
+                            max_dd = dd
+                        position = 0
+                        entry_price = 0.0
+
+            # Clôture finale
+            if position == -1:
+                exit_price = closes[-1] * (1.0 + slippage_factor)
+                raw_return = (entry_price - exit_price) / entry_price
+                net_return = raw_return - fees_factor
+                pnl = net_return * leverage * initial_capital
+                equity += pnl
+                trade_count += 1
+                if pnl > 0:
+                    winning_trades += 1
+                returns_sum += net_return
+                returns_sq_sum += net_return * net_return
+
+            total_pnls[combo_idx] = equity - initial_capital
+            n_trades_out[combo_idx] = trade_count
+            if trade_count > 0:
+                win_rates[combo_idx] = (winning_trades / trade_count) * 100.0
+                mean_ret = returns_sum / trade_count
+                if trade_count > 1:
+                    variance = (returns_sq_sum / trade_count) - (mean_ret * mean_ret)
+                    if variance > 0:
+                        sharpes[combo_idx] = (mean_ret / np.sqrt(variance)) * np.sqrt(252)
+            max_dds[combo_idx] = max_dd
+
+        return total_pnls, sharpes, max_dds, win_rates, n_trades_out
+
+
 # ============================================================================
 # FONCTION D'INTÉGRATION UI
 # ============================================================================
@@ -1001,9 +1450,49 @@ def run_numba_sweep(
 
     start_time = time.perf_counter()
 
-    if 'bollinger' in strategy_lower:
-        # Bollinger variants
-        print(f"[NUMBA] Stratégie Bollinger détectée, extraction paramètres...", flush=True)
+    if strategy_lower == 'bollinger_best_longe_3i':
+        # Bollinger Best Long 3i — DOIT être AVANT le check générique 'bollinger'
+        print("[NUMBA] Stratégie Bollinger Best Long 3i détectée...", flush=True)
+        bb_periods = np.array([float(p.get('bb_period', 20)) for p in param_grid], dtype=np.float64)
+        bb_stds = np.array([float(p.get('bb_std', 2.1)) for p in param_grid], dtype=np.float64)
+        entry_levels = np.array([float(p.get('entry_level', 0.0)) for p in param_grid], dtype=np.float64)
+        sl_levels = np.array([float(p.get('sl_level', -0.5)) for p in param_grid], dtype=np.float64)
+        tp_levels = np.array([float(p.get('tp_level', 0.85)) for p in param_grid], dtype=np.float64)
+        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
+
+        print("[NUMBA] Lancement kernel Bollinger Best Long 3i...", flush=True)
+        sys.stdout.flush()
+        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_boll_level_long(
+            closes, highs, lows,
+            bb_periods, bb_stds, entry_levels, sl_levels, tp_levels,
+            leverages,
+            initial_capital, fees_bps, slippage_bps
+        )
+        print("[NUMBA] Kernel Bollinger Best Long 3i terminé!", flush=True)
+
+    elif strategy_lower == 'bollinger_best_short_3i':
+        # Bollinger Best Short 3i — DOIT être AVANT le check générique 'bollinger'
+        print("[NUMBA] Stratégie Bollinger Best Short 3i détectée...", flush=True)
+        bb_periods = np.array([float(p.get('bb_period', 20)) for p in param_grid], dtype=np.float64)
+        bb_stds = np.array([float(p.get('bb_std', 2.1)) for p in param_grid], dtype=np.float64)
+        entry_levels = np.array([float(p.get('entry_level', 1.0)) for p in param_grid], dtype=np.float64)
+        sl_levels = np.array([float(p.get('sl_level', 1.5)) for p in param_grid], dtype=np.float64)
+        tp_levels = np.array([float(p.get('tp_level', 0.15)) for p in param_grid], dtype=np.float64)
+        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
+
+        print("[NUMBA] Lancement kernel Bollinger Best Short 3i...", flush=True)
+        sys.stdout.flush()
+        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_boll_level_short(
+            closes, highs, lows,
+            bb_periods, bb_stds, entry_levels, sl_levels, tp_levels,
+            leverages,
+            initial_capital, fees_bps, slippage_bps
+        )
+        print("[NUMBA] Kernel Bollinger Best Short 3i terminé!", flush=True)
+
+    elif 'bollinger' in strategy_lower:
+        # Bollinger variants (ATR, V2, V3) — check GÉNÉRIQUE
+        print("[NUMBA] Stratégie Bollinger détectée, extraction paramètres...", flush=True)
 
         # Optimisation: Pré-allouer arrays (plus rapide que list comprehension)
         bb_periods = np.empty(n_combos, dtype=np.float64)
@@ -1025,7 +1514,7 @@ def run_numba_sweep(
                 pct = (i + 1) / n_combos * 100
                 print(f"  Extraction: {i+1:,}/{n_combos:,} ({pct:.1f}%)", flush=True)
 
-        print(f"[NUMBA] Paramètres extraits, lancement kernel Bollinger (JIT compile si 1ère fois)...", flush=True)
+        print("[NUMBA] Paramètres extraits, lancement kernel Bollinger (JIT compile si 1ère fois)...", flush=True)
         sys.stdout.flush()
         pnls, sharpes, max_dds, win_rates, n_trades = _sweep_bollinger_full(
             closes, highs, lows,
@@ -1033,17 +1522,17 @@ def run_numba_sweep(
             leverages, k_sls,
             initial_capital, fees_bps, slippage_bps
         )
-        print(f"[NUMBA] Kernel Bollinger terminé!", flush=True)
+        print("[NUMBA] Kernel Bollinger terminé!", flush=True)
 
     elif 'ema' in strategy_lower and 'cross' in strategy_lower:
         # EMA Cross
-        print(f"[NUMBA] Stratégie EMA Cross détectée, extraction paramètres...", flush=True)
+        print("[NUMBA] Stratégie EMA Cross détectée, extraction paramètres...", flush=True)
         fast_periods = np.array([float(p.get('fast_period', 12)) for p in param_grid], dtype=np.float64)
         slow_periods = np.array([float(p.get('slow_period', 26)) for p in param_grid], dtype=np.float64)
         leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
         k_sls = np.array([float(p.get('k_sl', 1.5)) for p in param_grid], dtype=np.float64)
 
-        print(f"[NUMBA] Lancement kernel EMA Cross (JIT compile si 1ère fois)...", flush=True)
+        print("[NUMBA] Lancement kernel EMA Cross (JIT compile si 1ère fois)...", flush=True)
         sys.stdout.flush()
         pnls, sharpes, max_dds, win_rates, n_trades = _sweep_ema_cross_full(
             closes, highs, lows,
@@ -1051,18 +1540,18 @@ def run_numba_sweep(
             leverages, k_sls,
             initial_capital, fees_bps, slippage_bps
         )
-        print(f"[NUMBA] Kernel EMA Cross terminé!", flush=True)
+        print("[NUMBA] Kernel EMA Cross terminé!", flush=True)
 
     elif 'rsi' in strategy_lower:
         # RSI Reversal
-        print(f"[NUMBA] Stratégie RSI Reversal détectée, extraction paramètres...", flush=True)
+        print("[NUMBA] Stratégie RSI Reversal détectée, extraction paramètres...", flush=True)
         rsi_periods = np.array([float(p.get('rsi_period', 14)) for p in param_grid], dtype=np.float64)
         overboughts = np.array([float(p.get('overbought', 70)) for p in param_grid], dtype=np.float64)
         oversolds = np.array([float(p.get('oversold', 30)) for p in param_grid], dtype=np.float64)
         leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
         k_sls = np.array([float(p.get('k_sl', 1.5)) for p in param_grid], dtype=np.float64)
 
-        print(f"[NUMBA] Lancement kernel RSI Reversal (JIT compile si 1ère fois)...", flush=True)
+        print("[NUMBA] Lancement kernel RSI Reversal (JIT compile si 1ère fois)...", flush=True)
         sys.stdout.flush()
 
         pnls, sharpes, max_dds, win_rates, n_trades = _sweep_rsi_reversal_full(
@@ -1071,7 +1560,26 @@ def run_numba_sweep(
             leverages, k_sls,
             initial_capital, fees_bps, slippage_bps
         )
-        print(f"[NUMBA] Kernel RSI Reversal terminé!", flush=True)
+        print("[NUMBA] Kernel RSI Reversal terminé!", flush=True)
+
+    elif 'macd' in strategy_lower:
+        # MACD Cross
+        print("[NUMBA] Stratégie MACD Cross détectée, extraction paramètres...", flush=True)
+        fast_periods = np.array([float(p.get('fast_period', 12)) for p in param_grid], dtype=np.float64)
+        slow_periods = np.array([float(p.get('slow_period', 26)) for p in param_grid], dtype=np.float64)
+        signal_periods = np.array([float(p.get('signal_period', 9)) for p in param_grid], dtype=np.float64)
+        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
+        k_sls = np.array([float(p.get('k_sl', 1.5)) for p in param_grid], dtype=np.float64)
+
+        print("[NUMBA] Lancement kernel MACD Cross (JIT compile si 1ère fois)...", flush=True)
+        sys.stdout.flush()
+        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_macd_cross_full(
+            closes, highs, lows,
+            fast_periods, slow_periods, signal_periods,
+            leverages, k_sls,
+            initial_capital, fees_bps, slippage_bps
+        )
+        print("[NUMBA] Kernel MACD Cross terminé!", flush=True)
 
     else:
         raise ValueError(f"Stratégie '{strategy_key}' non supportée par Numba sweep")

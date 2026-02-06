@@ -26,8 +26,7 @@ from typing import Any, Dict, Optional
 
 import plotly.graph_objects as go
 
-from .colors import get_color, get_colors, get_palette, ColorPalette
-
+from .colors import ColorPalette, get_color, get_colors
 
 # ============================================================================
 # CONFIGURATION GLOBALE PLOTLY

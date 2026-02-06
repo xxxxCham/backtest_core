@@ -3,10 +3,11 @@ Test ultra-ciblé pour identifier le bottleneck restant (360→450 bt/s)
 """
 
 import time
+
 import pandas as pd
-import numpy as np
-from strategies import get_strategy
+
 from backtest.engine import BacktestEngine
+from strategies import get_strategy
 from utils.config import Config
 
 # Données
@@ -126,5 +127,5 @@ print("\n" + "=" * 80)
 print("📊 CONCLUSION")
 print("=" * 80)
 print(f"Performance actuelle:  {100/elapsed_fast:.1f} bt/s")
-print(f"Objectif:             450 bt/s")
+print("Objectif:             450 bt/s")
 print(f"Gap restant:          {450 - 100/elapsed_fast:.1f} bt/s ({(450/(100/elapsed_fast)-1)*100:.1f}%)")

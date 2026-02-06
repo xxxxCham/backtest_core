@@ -291,29 +291,7 @@ class SweepEngine:
         silent_mode = self.silent_mode if silent_mode is None else silent_mode
         fast_metrics = self.fast_metrics if fast_metrics is None else fast_metrics
 
-        # ═══════════════════════════════════════════════════════════════════════════
-        # GPU CONTEXT - Initialiser GPU queue pour calcul parallèle indicateurs
-        # ═══════════════════════════════════════════════════════════════════════════
-        gpu_context_initialized = False
-        try:
-            from backtest.gpu_context import init_gpu_context, cleanup_gpu_context
-
-            # Initialiser GPU context (queue + worker process)
-            gpu_context_initialized = init_gpu_context(
-                max_batch_size=50,  # Batch 50 requêtes GPU
-                max_wait_ms=50.0,   # Max 50ms wait time
-                use_cache=True,     # Utiliser IndicatorBank cache
-                indicator_cache_config=indicator_cache_config  # Config cache RAM si fournie
-            )
-
-            if gpu_context_initialized:
-                logger.info("✓ GPU context initialisé - calcul parallèle activé")
-            else:
-                logger.info("GPU context désactivé - utilisation CPU standard")
-
-        except Exception as e:
-            logger.warning(f"GPU context init failed: {e}")
-            gpu_context_initialized = False
+        # Mode CPU-only: pas d'initialisation GPU
 
         # Calculer les statistiques d'espace de recherche
         try:
@@ -440,35 +418,7 @@ class SweepEngine:
                 if self.enable_profiling:
                     profiler.print_stats(top_n=10)
 
-            # ═════════════════════════════════════════════════════════════════════
-            # GPU CONTEXT CLEANUP - Arrêter GPU worker process + log stats détaillés
-            # ═════════════════════════════════════════════════════════════════════
-            if gpu_context_initialized:
-                try:
-                    from backtest.gpu_context import get_gpu_context_stats, cleanup_gpu_context
-                    from backtest.gpu_queue import format_gpu_stats
-
-                    # Récupérer et afficher stats GPU détaillés
-                    gpu_stats = get_gpu_context_stats()
-                    if gpu_stats.get("enabled"):
-                        # Log summary compact
-                        logger.info(
-                            f"GPU Summary: {gpu_stats.get('total_requests', 0):,} requests, "
-                            f"cache rate: {gpu_stats.get('cache_hit_rate_pct', 0):.1f}%, "
-                            f"avg batch: {gpu_stats.get('avg_batch_size', 0):.1f}, "
-                            f"throughput: {gpu_stats.get('requests_per_second', 0):.0f} req/s"
-                        )
-
-                        # Log stats détaillés si en mode debug
-                        if logger.isEnabledFor(logging.DEBUG):
-                            stats_formatted = format_gpu_stats(gpu_stats)
-                            logger.debug(f"\n{stats_formatted}")
-
-                    cleanup_gpu_context()
-                    logger.info("✓ GPU context nettoyé")
-
-                except Exception as e:
-                    logger.warning(f"GPU context cleanup error: {e}")
+            # Mode CPU-only: pas de cleanup GPU
 
         total_time = time.time() - start_time
         n_completed = sum(1 for r in results if r.success)

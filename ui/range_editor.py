@@ -20,11 +20,11 @@ Read-if: Modification de l'interface d'édition des plages.
 Skip-if: Utilisation CLI ou programmatique.
 """
 
-from typing import Dict, List, Optional, Tuple
-import streamlit as st
 from pathlib import Path
 
-from utils.range_manager import RangeManager, RangeConfig
+import streamlit as st
+
+from utils.range_manager import RangeManager
 
 
 class RangeEditorState:
@@ -132,8 +132,11 @@ def render_range_editor():
         col_save, col_reload = st.columns(2)
 
         with col_save:
-            if st.button("💾 Sauvegarder", use_container_width=True,
-                        disabled=not st.session_state.range_editor_modified):
+            if st.button(
+                "💾 Sauvegarder",
+                width="stretch",
+                disabled=not st.session_state.range_editor_modified,
+            ):
                 try:
                     manager.save_ranges(backup=True)
                     st.session_state.range_editor_modified = False
@@ -143,13 +146,13 @@ def render_range_editor():
                     st.error(f"❌ Erreur: {e}")
 
         with col_reload:
-            if st.button("🔄 Recharger", use_container_width=True):
+            if st.button("🔄 Recharger", width="stretch"):
                 manager._load_ranges()
                 st.session_state.range_editor_modified = False
                 st.success("✅ Plages rechargées !")
                 st.rerun()
 
-        if st.button("📥 Exporter JSON", use_container_width=True):
+        if st.button("📥 Exporter JSON", width="stretch"):
             export_path = Path("config/indicator_ranges_export.json")
             data = manager.export_to_dict()
             import json
@@ -205,7 +208,7 @@ Default: {range_cfg.default}
 
                     # Options ou valeurs numériques
                     if range_cfg.options:
-                        st.info(f"Type: Options prédéfinies")
+                        st.info("Type: Options prédéfinies")
                         st.write("Options:", ", ".join(range_cfg.options))
 
                         new_default = st.selectbox(
@@ -217,7 +220,7 @@ Default: {range_cfg.default}
                         )
 
                         if new_default != range_cfg.default:
-                            if st.button(f"✅ Appliquer", key=f"apply_{selected_category}_{param}"):
+                            if st.button("✅ Appliquer", key=f"apply_{selected_category}_{param}"):
                                 manager.update_range(selected_category, param, default=new_default)
                                 st.session_state.range_editor_modified = True
                                 st.success("Modifié !")
@@ -278,7 +281,7 @@ Default: {range_cfg.default}
                             )
 
                             if changed:
-                                if st.button(f"✅ Appliquer les modifications",
+                                if st.button("✅ Appliquer les modifications",
                                            key=f"apply_{selected_category}_{param}"):
                                     manager.update_range(
                                         selected_category, param,

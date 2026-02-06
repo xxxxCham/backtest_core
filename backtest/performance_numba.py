@@ -11,7 +11,7 @@ import numpy as np
 from numba import njit
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _expanding_max_numba(arr: np.ndarray) -> np.ndarray:
     """
     Calcul vectorisé du maximum cumulatif (running maximum).
@@ -45,7 +45,7 @@ def _expanding_max_numba(arr: np.ndarray) -> np.ndarray:
     return result
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _drawdown_series_numba(equity_values: np.ndarray) -> np.ndarray:
     """
     Calcul ultra-rapide de la série de drawdown.
@@ -86,7 +86,7 @@ def _drawdown_series_numba(equity_values: np.ndarray) -> np.ndarray:
     return drawdown
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _max_drawdown_numba(equity_values: np.ndarray) -> float:
     """
     Calcul ultra-rapide du drawdown maximum.
@@ -106,7 +106,7 @@ def _max_drawdown_numba(equity_values: np.ndarray) -> float:
     return np.min(drawdown)
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _ulcer_index_numba(equity_values: np.ndarray) -> float:
     """
     Ulcer Index optimisé: mesure du stress lié aux drawdowns.
@@ -151,7 +151,7 @@ def _ulcer_index_numba(equity_values: np.ndarray) -> float:
     return ulcer
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _recovery_factor_numba(equity_values: np.ndarray, initial_capital: float) -> float:
     """
     Recovery Factor optimisé: Net Profit / Max Drawdown absolu.
@@ -208,7 +208,7 @@ def _recovery_factor_numba(equity_values: np.ndarray, initial_capital: float) ->
         return recovery
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _sortino_downside_deviation_numba(
     returns: np.ndarray,
     target_return: float = 0.0
@@ -254,7 +254,7 @@ def _sortino_downside_deviation_numba(
     return downside_dev
 
 
-@njit(cache=True, fastmath=True)
+@njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
 def _max_drawdown_duration_numba(
     equity_values: np.ndarray,
     timestamps_days: np.ndarray

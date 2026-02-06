@@ -19,12 +19,10 @@ Skip-if: Utilisation des commandes existantes.
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import pandas as pd
-
 
 # =============================================================================
 # DATACLASSES RÉSULTATS
@@ -361,7 +359,7 @@ def validate_date_range(start: Optional[str], end: Optional[str]) -> ValidationR
     if start:
         try:
             start_ts = pd.Timestamp(start, tz="UTC")
-        except Exception as e:
+        except Exception:
             return ValidationResult(
                 success=False,
                 error=f"Date de début invalide: {start}. Format attendu: YYYY-MM-DD"
@@ -370,7 +368,7 @@ def validate_date_range(start: Optional[str], end: Optional[str]) -> ValidationR
     if end:
         try:
             end_ts = pd.Timestamp(end, tz="UTC")
-        except Exception as e:
+        except Exception:
             return ValidationResult(
                 success=False,
                 error=f"Date de fin invalide: {end}. Format attendu: YYYY-MM-DD"

@@ -5,8 +5,8 @@ basées sur les meilleures pratiques de l'analyse technique.
 """
 
 import pandas as pd
-import numpy as np
 from analyze_bollinger_atr_results import load_bollinger_atr_results
+
 
 def analyze_performance_issues(df: pd.DataFrame):
     """Analyse les problèmes de performance de la stratégie"""
@@ -21,9 +21,9 @@ def analyze_performance_issues(df: pd.DataFrame):
     # Statistiques générales
     total_runs = len(df)
     profitable = df[df["total_pnl"] > 0]
-    ruined = df[df["account_ruined"] == True]
+    ruined = df[df["account_ruined"]]
 
-    print(f"📊 STATISTIQUES GÉNÉRALES :")
+    print("📊 STATISTIQUES GÉNÉRALES :")
     print(f"   • Total runs        : {total_runs}")
     print(f"   • Runs profitables  : {len(profitable)} ({len(profitable)/total_runs*100:.1f}%)")
     print(f"   • Comptes ruinés    : {len(ruined)} ({len(ruined)/total_runs*100:.1f}%)")
@@ -34,13 +34,13 @@ def analyze_performance_issues(df: pd.DataFrame):
     # Distribution des pertes
     negative_pnl = df[df["total_pnl"] < 0]["total_pnl"]
     if len(negative_pnl) > 0:
-        print(f"\n📉 DISTRIBUTION DES PERTES :")
+        print("\n📉 DISTRIBUTION DES PERTES :")
         print(f"   • Perte moyenne     : ${negative_pnl.mean():.2f}")
         print(f"   • Pire perte        : ${negative_pnl.min():.2f}")
         print(f"   • P75 des pertes    : ${negative_pnl.quantile(0.75):.2f}")
 
     # Analyse des paramètres problématiques
-    print(f"\n🎯 PARAMÈTRES PROBLÉMATIQUES IDENTIFIÉS :")
+    print("\n🎯 PARAMÈTRES PROBLÉMATIQUES IDENTIFIÉS :")
 
     # entry_z problématique
     weird_entry_z = df[(df["entry_z"] < 0.5) | (df["entry_z"] > 4.0)]
@@ -62,10 +62,10 @@ def analyze_performance_issues(df: pd.DataFrame):
 def suggest_theory_based_ranges():
     """Propose des plages basées sur la théorie de l'analyse technique"""
 
-    print(f"\n🎓 PLAGES SUGGÉRÉES BASÉES SUR LA THÉORIE FINANCIÈRE")
+    print("\n🎓 PLAGES SUGGÉRÉES BASÉES SUR LA THÉORIE FINANCIÈRE")
     print("=" * 60)
-    print(f"📖 Plutôt que de suivre les 4.9% de résultats 'profitables' douteux,")
-    print(f"   utilisons les meilleures pratiques de l'analyse technique :")
+    print("📖 Plutôt que de suivre les 4.9% de résultats 'profitables' douteux,")
+    print("   utilisons les meilleures pratiques de l'analyse technique :")
     print()
 
     ranges = {
@@ -132,7 +132,7 @@ def suggest_theory_based_ranges():
         time_str = f"{time_hours:.1f} heures"
 
     print(f"⏱️ TEMPS ESTIMÉ    : {time_str}")
-    print(f"🧠 RATIONALE      : Basé sur les standards de l'industrie, pas sur des données biaisées")
+    print("🧠 RATIONALE      : Basé sur les standards de l'industrie, pas sur des données biaisées")
 
     return ranges
 
@@ -237,7 +237,7 @@ def main():
         return
 
     # Analyser les problèmes de performance
-    profitable_df = analyze_performance_issues(df)
+    analyze_performance_issues(df)
 
     # Proposer des plages théoriques
     theory_ranges = suggest_theory_based_ranges()
@@ -245,7 +245,7 @@ def main():
     # Générer le code optimisé
     theory_code = generate_theory_based_code(theory_ranges)
 
-    print(f"\n💾 CODE THÉORIQUE GÉNÉRÉ :")
+    print("\n💾 CODE THÉORIQUE GÉNÉRÉ :")
     print("=" * 50)
     print(theory_code)
 
@@ -258,12 +258,12 @@ def main():
 
     print(f"\n✅ Code théorique sauvegardé dans: {output_file}")
 
-    print(f"\n🎯 RECOMMANDATIONS FINALES :")
-    print(f"1. 🔧 **RÉVISER LA LOGIQUE** de la stratégie (95.1% d'échecs)")
-    print(f"2. 🧪 **TESTER** les plages théoriques sur un petit échantillon")
-    print(f"3. 🎯 **ANALYSER** pourquoi entry_z et k_sl produisent des valeurs aberrantes")
-    print(f"4. 📊 **COMPARER** les nouvelles plages vs anciennes sur mêmes données")
-    print(f"5. 🔍 **INVESTIGUER** les 4 seuls résultats 'profitables' pour comprendre")
+    print("\n🎯 RECOMMANDATIONS FINALES :")
+    print("1. 🔧 **RÉVISER LA LOGIQUE** de la stratégie (95.1% d'échecs)")
+    print("2. 🧪 **TESTER** les plages théoriques sur un petit échantillon")
+    print("3. 🎯 **ANALYSER** pourquoi entry_z et k_sl produisent des valeurs aberrantes")
+    print("4. 📊 **COMPARER** les nouvelles plages vs anciennes sur mêmes données")
+    print("5. 🔍 **INVESTIGUER** les 4 seuls résultats 'profitables' pour comprendre")
 
 if __name__ == "__main__":
     main()

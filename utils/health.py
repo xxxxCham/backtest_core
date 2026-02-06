@@ -190,20 +190,8 @@ class HealthMonitor:
             return False
 
     def _check_gpu(self) -> bool:
-        """Vérifie si le monitoring GPU est disponible."""
-        try:
-            import pynvml
-            pynvml.nvmlInit()
-            pynvml.nvmlShutdown()
-            return True
-        except (ImportError, Exception):
-            try:
-                # Fallback: essayer via CuPy
-                import cupy
-                cupy.cuda.runtime.getDeviceCount()
-                return True
-            except (ImportError, Exception):
-                return False
+        """Monitoring GPU désactivé (CPU-only)."""
+        return False
 
     def get_cpu_metrics(self) -> ResourceMetrics:
         """Récupère les métriques CPU."""
@@ -290,76 +278,14 @@ class HealthMonitor:
 
     def get_gpu_metrics(self) -> ResourceMetrics:
         """Récupère les métriques GPU."""
-        if not self._has_gpu:
-            return ResourceMetrics(
-                resource_type=ResourceType.GPU,
-                usage_percent=0,
-                available=0,
-                total=0,
-                status=HealthStatus.UNKNOWN,
-                details={"available": False},
-            )
-
-        try:
-            import pynvml
-            pynvml.nvmlInit()
-
-            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-            memory = pynvml.nvmlDeviceGetMemoryInfo(handle)
-            utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
-            name = pynvml.nvmlDeviceGetName(handle)
-
-            pynvml.nvmlShutdown()
-
-            mem_usage = (memory.used / memory.total) * 100
-
-            details = {
-                "name": name if isinstance(name, str) else name.decode(),
-                "memory_used_gb": round(memory.used / (1024**3), 2),
-                "memory_total_gb": round(memory.total / (1024**3), 2),
-                "gpu_utilization": utilization.gpu,
-                "memory_utilization": utilization.memory,
-            }
-
-            status = self.thresholds.get_status(ResourceType.GPU, mem_usage)
-
-            return ResourceMetrics(
-                resource_type=ResourceType.GPU,
-                usage_percent=mem_usage,
-                available=memory.free,
-                total=memory.total,
-                status=status,
-                details=details,
-            )
-        except Exception as e:
-            logger.debug(f"GPU metrics via pynvml échoué: {e}")
-
-            # Fallback CuPy
-            try:
-                import cupy as cp
-
-                mempool = cp.get_default_memory_pool()
-                mem_used = mempool.used_bytes()
-                mem_total = mempool.total_bytes() or (8 * 1024**3)  # Défaut 8GB
-
-                usage = (mem_used / mem_total) * 100 if mem_total > 0 else 0
-
-                return ResourceMetrics(
-                    resource_type=ResourceType.GPU,
-                    usage_percent=usage,
-                    available=mem_total - mem_used,
-                    total=mem_total,
-                    status=self.thresholds.get_status(ResourceType.GPU, usage),
-                    details={"via": "cupy"},
-                )
-            except Exception:
-                return ResourceMetrics(
-                    resource_type=ResourceType.GPU,
-                    usage_percent=0,
-                    available=0,
-                    total=0,
-                    status=HealthStatus.UNKNOWN,
-                )
+        return ResourceMetrics(
+            resource_type=ResourceType.GPU,
+            usage_percent=0,
+            available=0,
+            total=0,
+            status=HealthStatus.UNKNOWN,
+            details={"available": False},
+        )
 
     def get_disk_metrics(self, path: str = ".") -> ResourceMetrics:
         """Récupère les métriques disque."""

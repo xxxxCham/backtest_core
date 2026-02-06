@@ -15,24 +15,22 @@ Pipeline:
 
 from __future__ import annotations
 
-import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from strategies.base import StrategyBase
-
 from backtest.performance import calculate_metrics
+from strategies.base import StrategyBase
 
 # Import simulateur rapide (Numba) avec fallback
 try:
     from backtest.simulator_fast import (
-        simulate_trades_fast,
+        HAS_NUMBA,
         calculate_equity_fast,
         calculate_returns_fast,
-        HAS_NUMBA,
+        simulate_trades_fast,
     )
     USE_FAST_SIMULATOR = True
 except ImportError:
@@ -48,12 +46,10 @@ from backtest.simulator import (
 from indicators.registry import calculate_indicator
 from utils.config import Config
 from utils.observability import (
-    get_obs_logger,
-    generate_run_id,
-    trace_span,
-    safe_stats_df,
     PerfCounters,
-    build_diagnostic_summary,
+    generate_run_id,
+    get_obs_logger,
+    trace_span,
 )
 
 # Logger par défaut (sans run_id)
@@ -441,18 +437,7 @@ class BacktestEngine:
     ) -> Dict[str, Any]:
         """Calcule les indicateurs requis par la stratégie."""
         indicators = {}
-
-        # Récupérer les GPU queues si disponibles (pour workers multiprocess)
         gpu_queues = None
-        try:
-            from backtest.gpu_context import get_gpu_context
-            ctx = get_gpu_context()
-            if ctx._enabled and ctx._request_queue is not None:
-                gpu_queues = (ctx._request_queue, ctx._response_queue)
-        except (ImportError, AttributeError) as e:
-            self.logger.debug(f"GPU context indisponible: {e}")
-
-        data_len = len(df)
 
         for indicator_name in strategy.required_indicators:
             # Extraire les paramètres spécifiques à l'indicateur
@@ -615,6 +600,147 @@ class BacktestEngine:
         }
 
         return timeframe_periods.get(timeframe, 365 * 24 * 60)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MODE SWEEP ULTRA-RAPIDE - Élimine 80% de l'overhead Python par run
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def prepare_sweep(
+        self,
+        df: pd.DataFrame,
+        strategy_name: str,
+        timeframe: str = "1h",
+    ) -> None:
+        """
+        Pré-initialise le moteur pour un sweep massif.
+
+        Élimine les coûts récurrents: lookup stratégie, validation,
+        logger, PerfCounters. Appelé UNE SEULE FOIS avant la boucle.
+
+        Args:
+            df: DataFrame OHLCV (constant pendant le sweep)
+            strategy_name: Nom de la stratégie
+            timeframe: Timeframe des données
+        """
+        # Cache la stratégie instanciée
+        self._sweep_strategy = self._get_strategy_by_name(strategy_name)
+        self._sweep_strategy_name = strategy_name
+
+        # Pré-extraire les arrays NumPy des colonnes OHLCV (évite Pandas overhead)
+        self._sweep_close = df["close"].values.astype(np.float64)
+        self._sweep_high = df["high"].values.astype(np.float64)
+        self._sweep_low = df["low"].values.astype(np.float64)
+        self._sweep_open = df["open"].values.astype(np.float64)
+        self._sweep_volume = df["volume"].values.astype(np.float64) if "volume" in df.columns else None
+        self._sweep_df = df
+        self._sweep_n_bars = len(df)
+
+        # Pré-calcul des constantes
+        self._sweep_periods_per_year = self._get_periods_per_year(timeframe)
+        self._sweep_base_params = {
+            "initial_capital": self.initial_capital,
+            "fees_bps": self.config.fees_bps,
+            "slippage_bps": self.config.slippage_bps,
+            **self._sweep_strategy.default_params,
+        }
+
+        # Cache d'indicateurs local (clé = (nom, params_tuple) → résultat)
+        self._indicator_cache = {}
+        self._indicator_cache_hits = 0
+        self._indicator_cache_misses = 0
+
+    def run_sweep_iteration(
+        self,
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Exécute UN backtest en mode sweep ultra-rapide.
+
+        Pas de: validation, logger, PerfCounters, strategy lookup,
+        RunResult object, safe_run_backtest wrapper.
+
+        Args:
+            params: Paramètres de la stratégie à tester
+
+        Returns:
+            Dict minimal avec métriques essentielles
+        """
+        strategy = self._sweep_strategy
+        df = self._sweep_df
+
+        # Fusionner paramètres (base + override)
+        final_params = {**self._sweep_base_params, **(params or {})}
+
+        try:
+            # 1. Calculer indicateurs (avec cache local ultra-rapide)
+            indicators = {}
+            for ind_name in strategy.required_indicators:
+                ind_params = strategy.get_indicator_params(ind_name, final_params)
+                if not isinstance(ind_params, dict):
+                    ind_params = self._extract_indicator_params(ind_name, final_params)
+
+                # Cache local: clé = (nom, params triés en tuple)
+                cache_key = (ind_name, tuple(sorted(ind_params.items())))
+                cached = self._indicator_cache.get(cache_key)
+                if cached is not None:
+                    indicators[ind_name] = cached
+                    self._indicator_cache_hits += 1
+                else:
+                    result = calculate_indicator(ind_name, df, ind_params)
+                    indicators[ind_name] = result
+                    self._indicator_cache[cache_key] = result
+                    self._indicator_cache_misses += 1
+
+            # 2. Signaux
+            signals = strategy.generate_signals(df, indicators, final_params)
+
+            # 3. Simulation
+            if USE_FAST_SIMULATOR:
+                trades_df = simulate_trades_fast(df, signals, final_params)
+            else:
+                trades_df = simulate_trades(df, signals, final_params)
+
+            # 4. Equity + Returns
+            if USE_FAST_SIMULATOR:
+                equity = calculate_equity_fast(df, trades_df, self.initial_capital)
+                returns = calculate_returns_fast(equity)
+            else:
+                equity = calculate_equity_curve(df, trades_df, self.initial_capital)
+                returns = calculate_returns(equity)
+
+            # 5. Métriques rapides
+            metrics = self._calculate_fast_metrics(
+                equity=equity,
+                returns=returns,
+                trades_df=trades_df,
+                initial_capital=self.initial_capital,
+                periods_per_year=self._sweep_periods_per_year,
+            )
+
+            # 6. Correction si compte ruiné
+            if not equity.empty and equity.iloc[-1] <= 0:
+                total_return = metrics.get("total_return_pct", 0)
+                metrics["sharpe_ratio"] = max(-20.0, total_return / 10.0)
+                metrics["account_ruined"] = True
+            else:
+                metrics["account_ruined"] = False
+
+            return metrics
+
+        except Exception as e:
+            return {
+                "total_pnl": 0.0,
+                "total_return_pct": 0.0,
+                "sharpe_ratio": -20.0,
+                "max_drawdown_pct": -100.0,
+                "max_drawdown": -100.0,
+                "total_trades": 0,
+                "win_rate": 0.0,
+                "win_rate_pct": 0.0,
+                "profit_factor": 0.0,
+                "account_ruined": True,
+                "_error": str(e),
+            }
 
 
 # Fonction utilitaire pour usage simplifié

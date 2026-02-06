@@ -23,13 +23,13 @@ Skip-if: Backtests ponctuels sans sauvegarde.
 from __future__ import annotations
 
 import json
-import shutil
-from dataclasses import asdict, dataclass
-from datetime import datetime
 import os
-from pathlib import Path
+import shutil
 import tempfile
 import uuid
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
@@ -1043,7 +1043,7 @@ class ResultStorage:
         # 5. Sauvegarder l'index si des corrections ont été apportées
         if fixed and auto_fix:
             self._save_index()
-            logger.info(f"✅ Index mis à jour après réparation")
+            logger.info("✅ Index mis à jour après réparation")
 
         # Rapport final
         logger.info(

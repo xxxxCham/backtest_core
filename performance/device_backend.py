@@ -1,19 +1,19 @@
 """
 Module-ID: performance.device_backend
 
-Purpose: Backend abstrait NumPy↔CuPy - basculement transparent CPU/GPU.
+Purpose: Backend abstrait NumPy (CPU-only) pour calculs vectorisés.
 
 Role in pipeline: performance optimization
 
-Key components: ArrayBackend, DeviceType enum, DeviceInfo, gpu_context()
+Key components: ArrayBackend, DeviceType enum, DeviceInfo, cpu_context()
 
-Inputs: NumPy/CuPy array, device_type (CPU/GPU/AUTO)
+Inputs: NumPy array, device_type (CPU uniquement)
 
-Outputs: Operations via unified API (solve, dot, reduce, etc.)
+Outputs: Operations via API unifiée (solve, dot, reduce, etc.)
 
-Dependencies: numpy, cupy (optionnel), contextmanager
+Dependencies: numpy, contextmanager
 
-Conventions: AUTO détecte GPU; fallback CPU; memory pooling GPU.
+Conventions: Mode CPU-only strict, aucun basculement GPU.
 
 Read-if: Modification device switching ou operation dispatch.
 
@@ -23,7 +23,6 @@ Skip-if: Vous appelez backend = ArrayBackend.create() → backend.dot().
 from __future__ import annotations
 
 import logging
-import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
@@ -61,7 +60,7 @@ class ArrayBackend:
     """
     Backend abstrait pour calculs sur arrays.
 
-    Fournit une API unifiée compatible NumPy/CuPy.
+    Fournit une API unifiée compatible NumPy.
     """
 
     _instance: Optional["ArrayBackend"] = None
@@ -79,59 +78,22 @@ class ArrayBackend:
             return
 
         self._device_type = DeviceType.CPU
-        self._np = np  # Module numpy ou cupy
+        self._np = np  # NumPy uniquement (CPU-only)
         self._gpu_available = False
         self._device_info: Optional[DeviceInfo] = None
 
-        # Tenter d'initialiser CuPy
-        self._try_init_gpu()
+        # CPU-only strict: initialiser le backend CPU uniquement
+        self._setup_cpu()
+
         self._initialized = True
-
-    def _try_init_gpu(self) -> bool:
-        """Tente d'initialiser le support GPU."""
-        # Vérifier si désactivé par env var
-        if os.environ.get("BACKTEST_DISABLE_GPU", "").lower() in ("1", "true", "yes"):
-            logger.info("GPU désactivé par BACKTEST_DISABLE_GPU")
-            self._setup_cpu()
-            return False
-
-        try:
-            import cupy as cp
-
-            # Vérifier qu'un GPU est disponible
-            device = cp.cuda.Device(0)
-            device.use()
-
-            # Récupérer infos
-            props = cp.cuda.runtime.getDeviceProperties(0)
-            mem_info = device.mem_info
-
-            self._gpu_available = True
-            self._device_info = DeviceInfo(
-                device_type=DeviceType.GPU,
-                name=props["name"].decode() if isinstance(props["name"], bytes) else str(props["name"]),
-                memory_total=mem_info[1],
-                memory_free=mem_info[0],
-                compute_capability=(props["major"], props["minor"]),
-            )
-
-            logger.info(f"GPU disponible: {self._device_info}")
-            return True
-
-        except ImportError:
-            logger.debug("CuPy non installé, utilisation CPU")
-            self._setup_cpu()
-            return False
-
-        except Exception as e:
-            logger.warning(f"Impossible d'initialiser GPU: {e}")
-            self._setup_cpu()
-            return False
 
     def _setup_cpu(self):
         """Configure le backend CPU."""
         import platform
 
+        self._device_type = DeviceType.CPU
+        self._np = np
+        self._gpu_available = False
         self._device_info = DeviceInfo(
             device_type=DeviceType.CPU,
             name=platform.processor() or "Unknown CPU",
@@ -150,12 +112,12 @@ class ArrayBackend:
     @property
     def gpu_available(self) -> bool:
         """Indique si un GPU est disponible."""
-        return self._gpu_available
+        return False
 
     @property
     def xp(self):
         """
-        Retourne le module array (numpy ou cupy).
+        Retourne le module array (NumPy).
 
         Utilisez comme: backend.xp.array([1,2,3])
         """
@@ -172,17 +134,11 @@ class ArrayBackend:
             True si le changement a réussi
         """
         if device == DeviceType.AUTO:
-            device = DeviceType.GPU if self._gpu_available else DeviceType.CPU
+            device = DeviceType.CPU
 
         if device == DeviceType.GPU:
-            if not self._gpu_available:
-                logger.warning("GPU non disponible, utilisation CPU")
-                device = DeviceType.CPU
-            else:
-                import cupy as cp
-                self._np = cp
-                self._device_type = DeviceType.GPU
-                return True
+            logger.warning("GPU désactivé (mode CPU-only), utilisation CPU")
+            device = DeviceType.CPU
 
         self._np = np
         self._device_type = DeviceType.CPU
@@ -378,34 +334,17 @@ class ArrayBackend:
     # === Conversion ===
 
     def to_numpy(self, arr) -> np.ndarray:
-        """Convertit en numpy array (depuis GPU si nécessaire)."""
-        if self._device_type == DeviceType.GPU:
-            import cupy as cp
-            if isinstance(arr, cp.ndarray):
-                return cp.asnumpy(arr)
+        """Convertit en numpy array (CPU-only)."""
         return np.asarray(arr)
 
     def from_numpy(self, arr: np.ndarray) -> Any:
-        """Convertit numpy vers device actif."""
-        if self._device_type == DeviceType.GPU:
-            import cupy as cp
-            return cp.asarray(arr)
+        """Convertit numpy vers device actif (CPU-only)."""
         return arr
 
     # === Memory Management ===
 
     def memory_info(self) -> dict:
         """Retourne les infos mémoire du device."""
-        if self._device_type == DeviceType.GPU:
-            import cupy as cp
-            mem = cp.cuda.Device(0).mem_info
-            return {
-                "device": "GPU",
-                "free": mem[0],
-                "total": mem[1],
-                "used": mem[1] - mem[0],
-            }
-
         import psutil
         mem = psutil.virtual_memory()
         return {
@@ -416,11 +355,8 @@ class ArrayBackend:
         }
 
     def clear_memory(self):
-        """Libère la mémoire GPU (si applicable)."""
-        if self._device_type == DeviceType.GPU:
-            import cupy as cp
-            cp.get_default_memory_pool().free_all_blocks()
-            cp.get_default_pinned_memory_pool().free_all_blocks()
+        """Libère la mémoire (CPU-only)."""
+        return None
 
 
 # Singleton global
@@ -467,9 +403,9 @@ def get_device_info() -> DeviceInfo:
 
 @contextmanager
 def gpu_context():
-    """Context manager pour utiliser temporairement le GPU."""
+    """Context manager CPU-only (GPU désactivé)."""
     backend = get_backend()
-    with backend.device_context(DeviceType.GPU):
+    with backend.device_context(DeviceType.CPU):
         yield backend
 
 

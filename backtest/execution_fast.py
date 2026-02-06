@@ -23,14 +23,15 @@ Skip-if: Performances acceptables avec execution.py pur Python.
 import numpy as np
 
 try:
-    from numba import njit
+    from numba import njit, prange
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
+    prange = range
 
 
 if HAS_NUMBA:
-    @njit(cache=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def roll_spread_numba(
         closes: np.ndarray,
         returns: np.ndarray,
@@ -45,7 +46,7 @@ if HAS_NUMBA:
         n = len(closes)
         spreads = np.zeros(n)
 
-        for i in range(window + 1, n):
+        for i in prange(window + 1, n):
             # Fenêtre de returns
             r_window = returns[i-window:i]
             r_lag = returns[i-window-1:i-1]
@@ -66,7 +67,7 @@ if HAS_NUMBA:
 
         return spreads
 
-    @njit(cache=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def high_low_spread_numba(
         highs: np.ndarray,
         lows: np.ndarray
@@ -80,7 +81,7 @@ if HAS_NUMBA:
         spreads = np.zeros(n)
         sqrt_2 = np.sqrt(2.0)
 
-        for i in range(2, n):
+        for i in prange(2, n):
             # Beta
             log_hl_t = np.log(highs[i] / lows[i])
             log_hl_t1 = np.log(highs[i-1] / lows[i-1])
@@ -106,7 +107,7 @@ if HAS_NUMBA:
 
         return spreads
 
-    @njit(cache=True, parallel=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def calculate_volatility_fast(
         returns: np.ndarray,
         window: int
@@ -119,7 +120,7 @@ if HAS_NUMBA:
         n = len(returns)
         volatility = np.zeros(n)
 
-        for i in range(window, n):
+        for i in prange(window, n):
             volatility[i] = np.std(returns[i-window:i])
 
         # Remplir le début
@@ -128,7 +129,7 @@ if HAS_NUMBA:
 
         return volatility
 
-    @njit(cache=True, parallel=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False, parallel=True)
     def calculate_volume_ratio_fast(
         volumes: np.ndarray,
         window: int
@@ -142,7 +143,7 @@ if HAS_NUMBA:
         n = len(volumes)
         volume_ratio = np.ones(n)
 
-        for i in range(window, n):
+        for i in prange(window, n):
             avg_vol = np.mean(volumes[i-window:i])
             if avg_vol > 0 and volumes[i] > 0:
                 ratio = volumes[i] / avg_vol

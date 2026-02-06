@@ -22,39 +22,39 @@ Skip-if: Vous importez directement depuis ui.components.charts.
 
 # Agent timeline
 from .agent_timeline import (
+    ActivityType,
     AgentActivity,
     AgentActivityTimeline,
+    AgentDecision,
     AgentType,
-    ActivityType,
     DecisionType,
     MetricsSnapshot,
-    AgentDecision,
     render_agent_timeline,
     render_mini_timeline,
 )
 
 # Charts
 from .charts import (
+    render_comparison_chart,
     render_equity_and_drawdown,
     render_equity_curve,
-    render_ohlcv_with_trades,
-    render_ohlcv_with_trades_and_indicators,
-    render_ohlcv_with_indicators,
-    render_comparison_chart,
-    render_strategy_param_diagram,
-    render_trade_pnl_distribution,
-    render_returns_distribution,
     render_multi_sweep_heatmap,
     render_multi_sweep_ranking,
+    render_ohlcv_with_indicators,
+    render_ohlcv_with_trades,
+    render_ohlcv_with_trades_and_indicators,
+    render_returns_distribution,
+    render_strategy_param_diagram,
+    render_trade_pnl_distribution,
 )
 
 # Diagram factory
 from .diagram_factory import (
+    create_atr_channel_diagram,
     create_bollinger_atr_diagram,
     create_ema_cross_diagram,
     create_macd_cross_diagram,
     create_rsi_reversal_diagram,
-    create_atr_channel_diagram,
     render_strategy_diagram,
 )
 
@@ -72,24 +72,24 @@ from .monitor import (
     ResourceReading,
     SystemMonitor,
     SystemMonitorConfig,
-    render_system_monitor,
     render_mini_monitor,
+    render_system_monitor,
 )
 
 # Sweep monitor
 from .sweep_monitor import (
+    SweepMonitor,
     SweepResult,
     SweepStats,
-    SweepMonitor,
     render_sweep_progress,
     render_sweep_summary,
 )
 
 # Validation viewer
 from .validation_viewer import (
+    ValidationReport,
     ValidationStatus,
     WindowResult,
-    ValidationReport,
     render_validation_report,
     render_validation_summary_card,
 )

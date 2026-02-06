@@ -6,8 +6,8 @@ Script de lancement rapide pour les outils du laboratoire
 """
 
 import os
-import sys
 from pathlib import Path
+
 
 def main():
     """Menu principal du laboratoire"""

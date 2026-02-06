@@ -1,6 +1,4 @@
 """Analyse du trade #6 qui a duré 4.5 mois."""
-import pandas as pd
-import numpy as np
 from data.loader import load_ohlcv
 
 # Charger les donnees
@@ -45,7 +43,7 @@ print()
 bb_high_min = in_trade['bb_pos_high'].min()
 bb_high_max = in_trade['bb_pos_high'].max()
 bb_high_mean = in_trade['bb_pos_high'].mean()
-print(f'=== Stats bb_pos_high pendant le trade ===')
+print('=== Stats bb_pos_high pendant le trade ===')
 print(f'Min: {bb_high_min:.3f}')
 print(f'Max: {bb_high_max:.3f}')
 print(f'Mean: {bb_high_mean:.3f}')

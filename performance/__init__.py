@@ -20,14 +20,6 @@ Read-if: Modification exports ou module structure.
 Skip-if: Vous importez directement depuis performance.profiler.
 """
 
-from performance.gpu import (
-    GPUIndicatorCalculator,
-    benchmark_gpu_cpu,
-    get_gpu_info,
-    gpu_available,
-    to_cpu,
-    to_gpu,
-)
 from performance.memory import (
     ChunkedProcessor,
     DataFrameCache,
@@ -98,11 +90,4 @@ __all__ = [
     "optimize_dataframe",
     "estimate_memory_needed",
     "memory_efficient_mode",
-    # GPU
-    "GPUIndicatorCalculator",
-    "gpu_available",
-    "get_gpu_info",
-    "to_gpu",
-    "to_cpu",
-    "benchmark_gpu_cpu",
 ]

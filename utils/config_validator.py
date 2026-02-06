@@ -277,13 +277,13 @@ if __name__ == "__main__":
     }
     is_valid, errors = validate_preset(preset)
     assert is_valid, f"Devrait être valide: {errors}"
-    print(f"✅ PASS: Preset rsi_reversal -> valide\n")
+    print("✅ PASS: Preset rsi_reversal -> valide\n")
 
     # Test 8: Catégorie sans contraintes
     print("Test 8: Catégorie sans contraintes (bollinger)")
     params = {"period": 20, "std_dev": 2.0}
     is_valid, errors = validate_params("bollinger", params)
     assert is_valid, "Devrait être valide (aucune contrainte)"
-    print(f"✅ PASS: bollinger sans contraintes -> valide\n")
+    print("✅ PASS: bollinger sans contraintes -> valide\n")
 
     print("=== 🎉 Tous les tests passent! ===")

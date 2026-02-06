@@ -866,12 +866,16 @@ def render_sidebar() -> SidebarState:
 
     # default_max_combos non utilisé - supprimé pour éviter warning
     unlimited_max_combos = 1_000_000_000_000
-    default_workers_gpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 40)
+    default_workers_cpu = _env_int("BACKTEST_MAX_WORKERS", None)
+    if default_workers_cpu is None:
+        default_workers_cpu = _env_int("BACKTEST_WORKERS_CPU_OPTIMIZED", None)
+    if default_workers_cpu is None:
+        default_workers_cpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 40)
     default_llm_unload = _env_bool("UNLOAD_LLM_DURING_BACKTEST", True)
     default_worker_threads = _env_int("BACKTEST_WORKER_THREADS", 1)
 
     max_combos = unlimited_max_combos
-    n_workers = default_workers_gpu
+    n_workers = default_workers_cpu
 
     # Configuration Optuna (intégrée dans Grille de Paramètres)
     use_optuna = False
@@ -947,7 +951,7 @@ def render_sidebar() -> SidebarState:
             max_combos = unlimited_max_combos
             st.sidebar.caption("Limite de combinaisons: illimitée")
 
-            grid_workers_default = max(1, min(default_workers_gpu, 64))  # ✅ max 64
+            grid_workers_default = max(1, min(default_workers_cpu, 64))  # ✅ max 64
             if "grid_n_workers" not in st.session_state:
                 st.session_state["grid_n_workers"] = grid_workers_default
             else:
@@ -1045,7 +1049,7 @@ def render_sidebar() -> SidebarState:
         max_combos = unlimited_max_combos
         st.sidebar.caption("Limite de combinaisons LLM: illimitée")
 
-        llm_workers_default = max(1, min(default_workers_gpu, 64))  # ✅ max 64
+        llm_workers_default = max(1, min(default_workers_cpu, 64))  # ✅ max 64
         n_workers = st.sidebar.slider(
             "Workers parallèles (CPU)",
             min_value=1,
@@ -1685,9 +1689,8 @@ def render_sidebar() -> SidebarState:
                 "Décharger LLM du GPU",
                 value=default_llm_unload,
                 help=(
-                    "Libère la VRAM GPU pendant les backtests pour améliorer les performances. "
-                    "Recommandé si vous utilisez CuPy/GPU pour les indicateurs. "
-                    "Peut être désactivé pour compatibilité CPU-only."
+                    "Libère la VRAM pendant les backtests pour améliorer les performances. "
+                    "Peut être désactivé en mode CPU-only."
                 ),
             )
 
@@ -1804,210 +1807,13 @@ def render_sidebar() -> SidebarState:
     # ======================== GPU ACCELERATION ========================
     st.sidebar.markdown("---")
     st.sidebar.subheader("⚡ Accélération GPU")
-
-    # GPU désactivé pour sweeps (CPU + cache RAM plus efficace en multiprocess)
-    # VRAM libérée pour LLM agents (Ollama, etc.)
     st.sidebar.info(
-        "🔵 **GPU désactivé pour sweeps**\n\n"
-        "• CPU + Cache RAM = optimal (350-450 runs/sec)\n"
-        "• GPU queue incompatible multiprocess\n"
-        "• VRAM libre pour LLM agents 🤖"
+        "Mode CPU-only: GPU désactivé.\n\n"
+        "• Numba JIT + cache RAM utilisés\n"
+        "• VRAM libérée pour autres usages"
     )
-
-    # Forcer désactivation GPU pour éviter chargement VRAM inutile
     os.environ["BACKTEST_USE_GPU"] = "0"
     os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
-    use_gpu = False
-
-    # ===== SECTION GPU MASQUÉE (inutile pour sweeps) =====
-    # gpu_enabled_default = _env_bool("BACKTEST_USE_GPU", False)
-    # use_gpu = st.sidebar.checkbox(
-    #     "Utiliser GPU pour les indicateurs (CuPy)",
-    #     value=gpu_enabled_default,
-    #     key="use_gpu_indicators",
-    #     help=(
-    #         "Active les indicateurs GPU (SMA/EMA/RSI/Bollinger/ATR/MACD). "
-    #         "Nécessite CuPy + CUDA."
-    #     ),
-    # )
-    # os.environ["BACKTEST_USE_GPU"] = "1" if use_gpu else "0"
-
-    if use_gpu:
-        try:
-            default_min_samples = _env_int("BACKTEST_GPU_MIN_SAMPLES", 5000)
-        except Exception:
-            default_min_samples = 5000
-
-        min_samples = st.sidebar.number_input(
-            "Seuil min barres (GPU)",
-            min_value=1000,
-            max_value=2000000,
-            value=default_min_samples,
-            step=1000,
-            key="gpu_min_samples",
-            help="En-dessous de ce seuil, le calcul reste sur CPU (évite overhead GPU).",
-        )
-        os.environ["BACKTEST_GPU_MIN_SAMPLES"] = str(int(min_samples))
-
-        st.sidebar.markdown("---")
-        st.sidebar.caption("⚙️ Réglages GPU (workers/threads)")
-
-        gpu_override_default = _env_bool("BACKTEST_GPU_WORKERS_OVERRIDE", False)
-        gpu_workers_override = st.sidebar.checkbox(
-            "Utiliser réglages GPU pour workers/threads",
-            value=gpu_override_default,
-            key="gpu_workers_override",
-            help=(
-                "Applique ces réglages quand le GPU est actif. "
-                "Recommandé: 1-2 workers pour éviter la contention GPU."
-            ),
-        )
-        os.environ["BACKTEST_GPU_WORKERS_OVERRIDE"] = "1" if gpu_workers_override else "0"
-
-        if gpu_workers_override:
-            gpu_workers_default = max(1, min(_env_int("BACKTEST_GPU_N_WORKERS", 1), 32))  # ✅ min=1
-            gpu_threads_default = max(
-                1,  # ✅ min=1
-                min(_env_int("BACKTEST_GPU_WORKER_THREADS", default_worker_threads), 32),
-            )
-            # ✅ Initialiser session_state AVANT le widget (pattern correct)
-            if "gpu_n_workers" not in st.session_state:
-                st.session_state["gpu_n_workers"] = gpu_workers_default
-            else:
-                try:
-                    st.session_state["gpu_n_workers"] = max(
-                        1,  # ✅ min=1
-                        min(int(st.session_state["gpu_n_workers"]), 32),
-                    )
-                except (TypeError, ValueError):
-                    st.session_state["gpu_n_workers"] = gpu_workers_default
-
-            if "gpu_worker_threads" not in st.session_state:
-                st.session_state["gpu_worker_threads"] = gpu_threads_default
-            else:
-                try:
-                    st.session_state["gpu_worker_threads"] = max(
-                        1,  # ✅ min=1
-                        min(int(st.session_state["gpu_worker_threads"]), 32),
-                    )
-                except (TypeError, ValueError):
-                    st.session_state["gpu_worker_threads"] = gpu_threads_default
-
-            # ✅ Pas de paramètre 'value' - laisse Streamlit utiliser session_state
-            gpu_n_workers = st.sidebar.slider(
-                "Workers parallèles (GPU)",
-                min_value=1,  # ✅ Corrigé: 0 invalide, minimum 1 worker requis
-                max_value=32,
-                help="Nombre de process CPU quand GPU actif (1-2 recommandé).",
-                key="gpu_n_workers",
-            )
-            gpu_worker_threads = st.sidebar.slider(
-                "Threads par worker (GPU)",
-                min_value=1,  # ✅ Corrigé: 0 invalide, minimum 1 thread requis
-                max_value=32,
-                step=1,
-                key="gpu_worker_threads",
-                help="Limite threads CPU par worker en mode GPU.",
-            )
-            os.environ["BACKTEST_GPU_N_WORKERS"] = str(int(gpu_n_workers))
-            os.environ["BACKTEST_GPU_WORKER_THREADS"] = str(int(gpu_worker_threads))
-
-            st.sidebar.caption(
-                f"GPU: {gpu_n_workers} workers × {gpu_worker_threads} threads"
-            )
-
-        try:
-            from performance.gpu import get_gpu_info, get_gpu_manager
-            info = get_gpu_info()
-            if info.get("gpu_available"):
-                mgr = get_gpu_manager()
-                devices = mgr.available_devices
-                if devices:
-                    options = {}
-                    for dev in devices:
-                        label = f"GPU {dev['id']} - {dev['name']} ({dev['total_memory_gb']:.1f} GB)"
-                        options[label] = dev["id"]
-                    labels = list(options.keys())
-                    selected_label = st.sidebar.selectbox(
-                        "GPU actif",
-                        labels,
-                        index=0,
-                        key="gpu_device_select",
-                    )
-                    os.environ["BACKTEST_GPU_ID"] = str(options[selected_label])
-
-                st.sidebar.caption(
-                    f"GPU: {info.get('cupy_device_name', 'n/a')} "
-                    f"| VRAM libre: {info.get('cupy_memory_free_gb', 0):.1f} GB"
-                )
-            else:
-                st.sidebar.warning("GPU non détecté (CuPy/CUDA manquant ?)")
-        except Exception as exc:
-            st.sidebar.warning(f"GPU non disponible: {exc}")
-
-        st.sidebar.markdown("---")
-        st.sidebar.caption("🧪 Benchmark GPU/CPU (indicateurs)")
-
-        bench_size = st.sidebar.selectbox(
-            "Taille benchmark (barres)",
-            [5000, 20000, 50000, 100000, 200000],
-            index=2,
-            key="gpu_bench_size",
-        )
-
-        if st.sidebar.button("Lancer benchmark GPU/CPU", key="gpu_bench_run"):
-            with st.spinner("Benchmark GPU/CPU en cours..."):
-                try:
-                    from performance.gpu import benchmark_gpu_cpu
-                    bench = benchmark_gpu_cpu(n_samples=int(bench_size), n_runs=3)
-                    st.sidebar.success(
-                        f"CPU {bench.get('cpu_avg_time', 0):.3f}s | "
-                        f"GPU {bench.get('gpu_avg_time', 0):.3f}s | "
-                        f"Speedup ×{bench.get('speedup', 0):.2f}"
-                    )
-                    st.sidebar.json(bench)
-                except Exception as exc:
-                    st.sidebar.error(f"Benchmark échoué: {exc}")
-
-        if st.sidebar.button("Benchmark sur données chargées", key="gpu_bench_loaded"):
-            df_loaded = st.session_state.get("ohlcv_df")
-            if df_loaded is None or df_loaded.empty:
-                st.sidebar.warning("Charge d'abord des données OHLCV.")
-            else:
-                max_rows = min(len(df_loaded), 100000)
-                df_bench = df_loaded.tail(max_rows)
-                try:
-                    from performance.gpu import GPUIndicatorCalculator, gpu_available
-                    import time as _time
-                    calc_cpu = GPUIndicatorCalculator(use_gpu=False)
-                    calc_gpu = GPUIndicatorCalculator(use_gpu=True, min_samples=0) if gpu_available() else None
-
-                    # CPU
-                    t0 = _time.time()
-                    calc_cpu.sma(df_bench["close"], 20)
-                    calc_cpu.ema(df_bench["close"], 12)
-                    calc_cpu.rsi(df_bench["close"], 14)
-                    calc_cpu.bollinger_bands(df_bench["close"], 20, 2.0)
-                    calc_cpu.atr(df_bench["high"], df_bench["low"], df_bench["close"], 14)
-                    cpu_time = _time.time() - t0
-
-                    if calc_gpu is None:
-                        st.sidebar.warning("GPU indisponible pour benchmark.")
-                    else:
-                        t1 = _time.time()
-                        calc_gpu.sma(df_bench["close"], 20)
-                        calc_gpu.ema(df_bench["close"], 12)
-                        calc_gpu.rsi(df_bench["close"], 14)
-                        calc_gpu.bollinger_bands(df_bench["close"], 20, 2.0)
-                        calc_gpu.atr(df_bench["high"], df_bench["low"], df_bench["close"], 14)
-                        gpu_time = _time.time() - t1
-                        speedup = cpu_time / gpu_time if gpu_time > 0 else 0.0
-                        st.sidebar.success(
-                            f"Données chargées: CPU {cpu_time:.3f}s | "
-                            f"GPU {gpu_time:.3f}s | Speedup ×{speedup:.2f}"
-                        )
-                except Exception as exc:
-                    st.sidebar.error(f"Benchmark chargé échoué: {exc}")
 
     st.sidebar.subheader("🔧 Paramètres")
 
@@ -2385,7 +2191,7 @@ def render_sidebar() -> SidebarState:
                 "⬇️ Charger données",
                 key="load_ohlcv_action",
                 disabled=st.session_state.is_running,
-                use_container_width=True,
+                width="stretch",
             ):
                 if pending:
                     _apply_pending_config()
@@ -2403,7 +2209,7 @@ def render_sidebar() -> SidebarState:
                 key="run_sidebar_action",
                 type="primary",
                 disabled=st.session_state.is_running,
-                use_container_width=True,
+                width="stretch",
             ):
                 if pending:
                     _apply_pending_config()

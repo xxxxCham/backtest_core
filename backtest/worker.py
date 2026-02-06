@@ -14,8 +14,7 @@ Avec 24 workers: ~7s de latence initiale (coût fixe unique).
 from __future__ import annotations
 
 import os
-import traceback
-from typing import Any, Dict, Tuple
+from typing import Any, Dict
 
 # Ces imports sont faits au niveau du module pour être disponibles dans les workers
 # ⚠️ FIX #3: Import coûteux mais inévitable avec Windows spawn mode
@@ -83,6 +82,7 @@ def init_worker_with_dataframe(
     global _worker_timeframe, _worker_initial_capital, _worker_debug_enabled
     global _worker_fast_metrics, _worker_period_days, _worker_engine
     global _worker_gpu_request_queue, _worker_gpu_response_queue
+    global _worker_sweep_ready
 
     # Charger le DataFrame depuis le fichier ou utiliser celui fourni
     if is_path:
@@ -105,34 +105,7 @@ def init_worker_with_dataframe(
     global _worker_indicator_cache
     _worker_indicator_cache = {}
 
-    # Initialiser GPU queues - récupérer depuis contexte global
-    # NOTE: Le contexte GPU est initialisé par SweepEngine.run_sweep() avant les workers
-    try:
-        from backtest.gpu_context import get_gpu_queues
-        queues = get_gpu_queues()
-
-        if queues is not None:
-            _worker_gpu_request_queue, _worker_gpu_response_queue = queues
-
-            # Configurer les queues globalement dans le registry d'indicateurs
-            from indicators.registry import set_gpu_queues
-            set_gpu_queues(_worker_gpu_request_queue, _worker_gpu_response_queue)
-
-            if debug_enabled:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.info(f"Worker {os.getpid()}: GPU queues configurées pour calcul parallèle")
-
-        elif debug_enabled:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.debug(f"Worker {os.getpid()}: GPU queues non disponibles (utilisation CPU)")
-
-    except Exception as e:
-        if debug_enabled:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Worker {os.getpid()}: Erreur configuration GPU queues - {e}")
+    # Mode CPU-only: pas de queues GPU
 
     # Pré-calcul du nombre de jours (évite coût répété)
     _worker_period_days = None
@@ -223,17 +196,34 @@ def init_worker_with_dataframe(
             "pip install threadpoolctl"
         )
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 5️⃣ PRÉ-INITIALISATION ENGINE + MODE SWEEP RAPIDE
+    # ═══════════════════════════════════════════════════════════════════════════
+    _worker_sweep_ready = False
+    try:
+        if BacktestEngine is not None:
+            _worker_engine = BacktestEngine(initial_capital=initial_capital)
+            _worker_engine.prepare_sweep(
+                _worker_dataframe,
+                strategy_key,
+                timeframe,
+            )
+            _worker_sweep_ready = True
+    except Exception:
+        _worker_sweep_ready = False
+        _worker_engine = None
+
+
+# Flag pour le mode sweep rapide (initialisé dans init_worker_with_dataframe)
+_worker_sweep_ready = False
+
 
 def run_backtest_worker(param_combo: Dict[str, Any]) -> Dict[str, Any]:
     """
     Worker function pour ProcessPoolExecutor - isolé du hot-reload Streamlit.
 
-    Cette fonction est définie dans un module séparé (backtest/worker.py) pour
-    éviter les erreurs de pickling quand Streamlit recharge ui/main.py.
-
-    IMPORTANT: Le DataFrame et la configuration sont chargés depuis les variables
-    globales initialisées par init_worker_with_dataframe(). Seul param_combo
-    est passé en argument, ce qui évite la sérialisation pickle répétée du DataFrame.
+    Utilise automatiquement le mode sweep ultra-rapide si prepare_sweep()
+    a été appelé dans l'init. Sinon, fallback vers le chemin legacy.
 
     Args:
         param_combo: Dictionnaire des paramètres de la stratégie à tester
@@ -241,8 +231,44 @@ def run_backtest_worker(param_combo: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict avec résultats du backtest ou erreur
     """
-    # Récupérer les données depuis les variables globales du worker
     global _worker_engine
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # ⚡ MODE SWEEP ULTRA-RAPIDE (élimine ~80% overhead Python)
+    # Pas de: safe_run_backtest, logger, PerfCounters, strategy lookup,
+    #         validation, RunResult, 20+ champs pickle
+    # ═══════════════════════════════════════════════════════════════════════
+    if _worker_sweep_ready and _worker_engine is not None:
+        try:
+            metrics = _worker_engine.run_sweep_iteration(param_combo)
+
+            total_trades = metrics.get("total_trades", 0)
+            return {
+                "params_dict": param_combo,
+                "total_pnl": metrics.get("total_pnl", 0.0),
+                "sharpe": metrics.get("sharpe_ratio", 0.0),
+                "win_rate": metrics.get("win_rate_pct", metrics.get("win_rate", 0.0)),
+                "max_dd": metrics.get("max_drawdown_pct", metrics.get("max_drawdown", 0.0)),
+                "account_ruined": metrics.get("account_ruined", False),
+                "total_trades": total_trades,
+                "trades": total_trades,
+                "profit_factor": metrics.get("profit_factor", 0.0),
+                "period_days": _worker_period_days,
+            }
+        except Exception as e:
+            if _worker_debug_enabled:
+                import traceback as tb
+                err = tb.format_exc()
+            else:
+                err = str(e)
+            return {
+                "params_dict": param_combo,
+                "error": f"[sweep_fast] {err}",
+            }
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # 🔄 CHEMIN LEGACY (fallback si prepare_sweep a échoué)
+    # ═══════════════════════════════════════════════════════════════════════
 
     df = _worker_dataframe
     strategy_key = _worker_strategy_key

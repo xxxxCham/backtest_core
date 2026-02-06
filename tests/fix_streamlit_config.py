@@ -1,7 +1,7 @@
-import os
-import sys
-import toml
 from pathlib import Path
+
+import toml
+
 
 def fix_global_config():
     """

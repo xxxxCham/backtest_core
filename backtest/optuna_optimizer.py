@@ -647,9 +647,10 @@ class OptunaOptimizer:
         # Sauvegarde automatique si activée
         if self.auto_save:
             try:
-                from backtest.storage import get_storage
-                from backtest.engine import RunResult
                 import pandas as pd
+
+                from backtest.engine import RunResult
+                from backtest.storage import get_storage
 
                 storage = get_storage()
 

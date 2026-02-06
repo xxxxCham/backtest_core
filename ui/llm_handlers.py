@@ -17,7 +17,22 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 import streamlit as st
 
-from ui.cache_manager import get_cached_data
+from agents.integration import create_comparison_context
+from backtest.storage import get_storage
+from ui.components.charts import (
+    render_multi_sweep_heatmap,
+    render_multi_sweep_ranking,
+)
+from ui.context import (
+    LLM_AVAILABLE,
+    LLM_IMPORT_ERROR,
+    BacktestEngine,
+    OrchestrationLogger,
+    create_llm_client,
+    create_optimizer_from_engine,
+    create_orchestrator_with_backtest,
+    generate_session_id,
+)
 from ui.helpers import (
     compute_period_days_from_df,
     format_pnl_with_daily,
@@ -25,26 +40,7 @@ from ui.helpers import (
     show_status,
 )
 from ui.state import SidebarState
-from ui.components.charts import (
-    render_multi_sweep_heatmap,
-    render_multi_sweep_ranking,
-)
 from utils.run_tracker import RunSignature, get_global_tracker
-from agents.integration import create_comparison_context
-from backtest.storage import get_storage
-from ui.context import (
-    LLM_AVAILABLE,
-    LLM_IMPORT_ERROR,
-    OrchestrationLogger,
-    BacktestEngine,
-    create_llm_client,
-    create_optimizer_from_engine,
-    create_orchestrator_with_backtest,
-    generate_session_id,
-    render_deep_trace_viewer,
-    render_full_orchestration_viewer,
-    LiveOrchestrationViewer,
-)
 
 
 def handle_llm_optimization(
@@ -93,7 +89,7 @@ def handle_llm_optimization(
         comparison_context = None
 
     try:
-        llm_client = create_llm_client(state.llm_config)
+        _ = create_llm_client(state.llm_config)
     except Exception:
         comparison_context = None
 
@@ -492,7 +488,7 @@ def run_single_llm_optimization(
 
     with st.spinner("🔌 Connexion au LLM..."):
         try:
-            llm_client = create_llm_client(state.llm_config)
+            _ = create_llm_client(state.llm_config)
             st.success("✅ LLM connecté")
         except Exception as exc:
             with status_container:

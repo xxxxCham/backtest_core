@@ -161,6 +161,7 @@ class SweepMonitor:
         top_k: int = 10,
         max_results: Optional[int] = 100,  # ✅ FIX: Limite par défaut pour éviter OOM
         max_history: Optional[int] = 1000,  # ✅ FIX: Limite par défaut pour graphiques
+        initial_capital: Optional[float] = None,
     ):
         """
         Args:
@@ -173,10 +174,11 @@ class SweepMonitor:
         self.total = total_combinations
         # Note: Utiliser les clés correctes retournées par calculate_metrics
         # Ajout de 'total_pnl' pour tracking visible du meilleur gain
-        self.objectives = objectives or ['total_pnl', 'sharpe_ratio', 'total_return_pct', 'max_drawdown']
+        self.objectives = objectives or ['total_pnl', 'sharpe_ratio', 'total_return_pct', 'max_drawdown_pct']
         self.top_k = top_k
         self.max_results = max_results if max_results != 0 else None  # 0 = illimité
         self.max_history = max_history if max_history != 0 else None  # 0 = illimité
+        self.initial_capital = initial_capital
 
         # ✅ FIX: Toujours utiliser deque avec maxlen pour éviter OOM
         self._results: deque = deque(maxlen=self.max_results)
@@ -196,6 +198,43 @@ class SweepMonitor:
     def start(self):
         """Démarre le monitoring."""
         self._stats.start_time = datetime.now()
+
+    @staticmethod
+    def _normalize_metrics(metrics: Dict[str, Any]) -> Dict[str, float]:
+        """Normalise les métriques pour affichage cohérent multi-stratégies."""
+        if not metrics:
+            return {}
+        normalized: Dict[str, float] = {}
+        for key, value in metrics.items():
+            try:
+                normalized[key] = float(value)
+            except Exception:
+                continue
+
+        # Harmoniser drawdown (toujours positif, en %)
+        if "max_drawdown_pct" in normalized:
+            normalized["max_drawdown_pct"] = abs(normalized["max_drawdown_pct"])
+        if "max_drawdown" in normalized:
+            normalized["max_drawdown"] = abs(normalized["max_drawdown"])
+        if "max_drawdown_pct" not in normalized and "max_drawdown" in normalized:
+            normalized["max_drawdown_pct"] = normalized["max_drawdown"]
+        if "max_drawdown" not in normalized and "max_drawdown_pct" in normalized:
+            normalized["max_drawdown"] = normalized["max_drawdown_pct"]
+
+        # Harmoniser win_rate (en %)
+        if "win_rate" in normalized:
+            win_rate = normalized["win_rate"]
+            if 0 <= win_rate <= 1.0:
+                normalized["win_rate"] = win_rate * 100.0
+                normalized["win_rate_pct"] = normalized["win_rate"]
+        if "win_rate_pct" in normalized and "win_rate" not in normalized:
+            normalized["win_rate"] = normalized["win_rate_pct"]
+
+        # Harmoniser total_trades
+        if "total_trades" not in normalized and "trades" in normalized:
+            normalized["total_trades"] = normalized["trades"]
+
+        return normalized
 
     def update(
         self,
@@ -230,6 +269,8 @@ class SweepMonitor:
 
         self._stats.evaluated += 1
         self._update_count += 1
+
+        metrics = self._normalize_metrics(metrics)
 
         result = SweepResult(
             params=params,
@@ -511,97 +552,39 @@ def render_sweep_progress(
             unsafe_allow_html=True
         )
 
-    # Afficher le meilleur PnL et le PnL moyen de manière TRÈS VISIBLE (avec gestion d'erreur robuste)
+    # Afficher UNIQUEMENT la meilleure config (PnL, equity, trades, drawdown)
     try:
-        # Calculer le PnL moyen et le meilleur PnL pour éviter les sommes trompeuses
-        cumulative_pnl = 0.0
-        pnl_values = []
-        period_days_sum = 0.0
-        period_days_count = 0
+        best_result = monitor.get_best_result("total_pnl")
+        if best_result and best_result.metrics:
+            best_pnl = float(best_result.metrics.get("total_pnl", 0.0))
+            best_trades = int(best_result.metrics.get("total_trades", best_result.metrics.get("trades", 0)) or 0)
+            best_dd = float(best_result.metrics.get("max_drawdown_pct", best_result.metrics.get("max_drawdown", 0.0)) or 0.0)
+            equity = None
+            if monitor.initial_capital is not None:
+                equity = float(monitor.initial_capital) + best_pnl
 
-        for result in monitor.results:
-            if result.metrics and 'total_pnl' in result.metrics:
-                pnl_value = result.metrics.get('total_pnl', 0)
-                cumulative_pnl += pnl_value
-                pnl_values.append(pnl_value)
-                if 'period_days' in result.metrics:
-                    period_days_sum += result.metrics.get('period_days', 0)
-                    period_days_count += 1
-
-        # Moyenne des period_days pour calcul PnL/jour
-        if period_days_count > 0:
-            period_days_avg = period_days_sum / period_days_count
-        else:
-            period_days_avg = None
-
-        if pnl_values:
-            avg_pnl = cumulative_pnl / len(pnl_values)
-            best_pnl = max(pnl_values)
-            worst_pnl = min(pnl_values)  # PnL le plus négatif pour identifier le risque de liquidation
-            pnl_color = "#28a745" if best_pnl > 0 else "#dc3545"  # Bootstrap colors
+            pnl_color = "#28a745" if best_pnl > 0 else "#dc3545"
             pnl_icon = "📈" if best_pnl > 0 else "📉"
-            # Correction : afficher explicitement le signe négatif
             best_sign = "+" if best_pnl > 0 else ("-" if best_pnl < 0 else "")
-            avg_sign = "+" if avg_pnl > 0 else ("-" if avg_pnl < 0 else "")
-            worst_sign = "+" if worst_pnl > 0 else ("-" if worst_pnl < 0 else "")
-            best_per_day = _pnl_per_day(best_pnl, period_days_avg)
-            avg_per_day = _pnl_per_day(avg_pnl, period_days_avg)
-            worst_per_day = _pnl_per_day(worst_pnl, period_days_avg)
-            if best_per_day is not None:
-                best_day_text = f" ({best_sign}${abs(best_per_day):,.2f}/jour)"
-            else:
-                best_day_text = ""
-            if avg_per_day is not None:
-                avg_day_text = f" ({avg_sign}${abs(avg_per_day):,.2f}/jour)"
-            else:
-                avg_day_text = ""
-            if worst_per_day is not None:
-                worst_day_text = f" ({worst_sign}${abs(worst_per_day):,.2f}/jour)"
-            else:
-                worst_day_text = ""
 
-            # Indicateur de liquidation si worst PnL est très négatif
-            liquidation_warning = ""
-            if worst_pnl < -5000:  # Seuil de warning liquidation
-                liquidation_warning = " ⚠️ RISQUE LIQUIDATION"
-            elif worst_pnl < 0:
-                liquidation_warning = " ⚠️"
-
-            # PnL cumulé (somme de tous les PnL)
-            cumul_sign = "+" if cumulative_pnl > 0 else ("-" if cumulative_pnl < 0 else "")
-            cumul_per_day = _pnl_per_day(cumulative_pnl, period_days_avg)
-            if cumul_per_day is not None:
-                cumul_day_text = f" ({cumul_sign}${abs(cumul_per_day):,.2f}/jour)"
-            else:
-                cumul_day_text = ""
-
-            # Calcul distribution profitable/non-profitable
-            profitable_count = sum(1 for pnl in pnl_values if pnl > 0)
-            losing_count = sum(1 for pnl in pnl_values if pnl < 0)
-            breakeven_count = sum(1 for pnl in pnl_values if pnl == 0)
-            total_configs = len(pnl_values)
-            profitable_pct = (profitable_count / total_configs * 100) if total_configs > 0 else 0
+            equity_line = ""
+            if equity is not None:
+                equity_sign = "+" if equity - float(monitor.initial_capital or 0) > 0 else ""
+                equity_line = f"<div style='color: #f8f9fa; font-size: 1.05em; margin-top: 8px;'>💹 Equity: <b>{equity_sign}${equity:,.2f}</b></div>"
 
             st.markdown(
                 f"""<div style='background: linear-gradient(135deg, {pnl_color} 0%, {pnl_color}dd 100%);
-                padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 15px;
+                padding: 18px; border-radius: 10px; text-align: center; margin-bottom: 12px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
-                <h2 style='color: white; margin: 0; font-size: 1.8em;'>
-                {pnl_icon} Meilleure Config: <b>{best_sign}${abs(best_pnl):,.2f}{best_day_text}</b> {pnl_icon}
+                <h2 style='color: white; margin: 0; font-size: 1.7em;'>
+                {pnl_icon} Meilleure Config: <b>{best_sign}${abs(best_pnl):,.2f}</b> {pnl_icon}
                 </h2>
-                <div style='color: #f8f9fa; font-size: 0.95em; margin-top: 4px; opacity: 0.9;'>
-                (PnL de la configuration optimale parmi {total_configs:,} testées)
+                <div style='color: #f8f9fa; font-size: 1.05em; margin-top: 8px;'>
+                🔁 Trades: <b>{best_trades:,}</b> • 📉 Max DD: <b>{abs(best_dd):.2f}%</b>
                 </div>
-                <div style='color: #f8f9fa; font-size: 1.05em; margin-top: 12px;'>
-                📊 PnL Moyen/Config: <b>{avg_sign}${abs(avg_pnl):,.2f}{avg_day_text}</b>
-                </div>
-                <div style='color: #f8f9fa; font-size: 0.95em; margin-top: 4px; opacity: 0.9;'>
-                ✅ {profitable_count:,} profitables ({profitable_pct:.1f}%) • ❌ {losing_count:,} pertes • ⚖️ {breakeven_count:,} neutres
-                </div>
-                <div style='color: #ffe6e6; font-size: 1.05em; margin-top: 8px;'>
-                📉 Pire Config: <b>{worst_sign}${abs(worst_pnl):,.2f}{worst_day_text}</b>{liquidation_warning}
-                </div></div>""",
-                unsafe_allow_html=True
+                {equity_line}
+                </div>""",
+                unsafe_allow_html=True,
             )
     except Exception:
         pass  # Ne pas bloquer l'affichage si erreur

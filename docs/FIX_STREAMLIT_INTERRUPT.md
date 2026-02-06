@@ -1,7 +1,7 @@
 # Fix: Gestion Propre des Interruptions Streamlit (Ctrl+C)
 
-**Date**: 07/02/2026  
-**Problème**: Cascade d'erreurs colorama/asyncio lors de Ctrl+C pendant un sweep Numba  
+**Date**: 07/02/2026
+**Problème**: Cascade d'erreurs colorama/asyncio lors de Ctrl+C pendant un sweep Numba
 **Status**: ✅ Corrigé
 
 ---
@@ -202,7 +202,7 @@ python -m streamlit run ui/main.py
 
 ### Fichiers Modifiés
 
-- `ui/main.py`: 
+- `ui/main.py`:
   - Ligne ~24: Ajout `import asyncio`
   - Ligne ~90: Fonction `_safe_streamlit_call()`
   - Ligne ~1236: Capture `KeyboardInterrupt` dans Numba sweep

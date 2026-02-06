@@ -2,13 +2,12 @@
 Script de profiling pour identifier les goulots d'étranglement dans les sweeps.
 """
 import cProfile
-import pstats
 import io
+import pstats
 from pstats import SortKey
 
-from data.loader import load_ohlcv
 from backtest.engine import BacktestEngine
-from strategies import get_strategy
+from data.loader import load_ohlcv
 
 
 def profile_sweep():
@@ -24,7 +23,6 @@ def profile_sweep():
 
     # Préparer stratégie
     strategy_key = "bollinger_atr"
-    strategy_class = get_strategy(strategy_key)
 
     # Générer 20 combinaisons de paramètres
     print(f"\n[2/3] Préparation sweep {strategy_key}...")

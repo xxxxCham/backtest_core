@@ -2,10 +2,11 @@
 Script de profiling simple et direct pour identifier la régression 450→60 bt/s
 """
 
-import time
 import cProfile
 import pstats
+import time
 from io import StringIO
+
 import pandas as pd
 
 from backtest.engine import BacktestEngine
@@ -72,7 +73,7 @@ elapsed = time.perf_counter() - start
 bt_per_sec = n_tests / elapsed
 bars_per_sec = (n_tests * len(df)) / elapsed
 
-print(f"\n📊 RÉSULTATS:")
+print("\n📊 RÉSULTATS:")
 print(f"   Temps total: {elapsed:.2f}s")
 print(f"   Temps moyen/backtest: {elapsed/n_tests*1000:.1f}ms")
 print(f"   Backtests/sec: {bt_per_sec:.1f}")
@@ -86,7 +87,7 @@ print(f"\n🎯 OBJECTIF: {target_bt_per_sec} bt/s")
 if bt_per_sec < target_bt_per_sec:
     print(f"❌ DÉGRADATION: -{degradation_pct:.1f}%")
 else:
-    print(f"✅ OBJECTIF ATTEINT!")
+    print("✅ OBJECTIF ATTEINT!")
 
 # Test 3: PROFILING DÉTAILLÉ
 print("\n" + "=" * 80)

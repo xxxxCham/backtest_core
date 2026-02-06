@@ -31,50 +31,48 @@ Conventions:
 """
 
 from .colors import (
+    # Constantes
+    PALETTES,
+    # Dataclass
+    ChartColorConfig,
+    ColorPalette,
     # Enums
     ThemeMode,
-    ColorPalette,
+    get_agent_color,
     # Fonctions principales
     get_color,
     get_colors,
     get_palette,
-    set_palette,
     get_palette_names,
-    set_theme_mode,
-    get_theme_mode,
     # Helpers
     get_profit_color,
+    get_theme_mode,
     get_trade_color,
-    get_agent_color,
-    # Dataclass
-    ChartColorConfig,
-    # Constantes
-    PALETTES,
+    set_palette,
+    set_theme_mode,
 )
-
 from .plotly_config import (
     # Config globale
     PLOTLY_CHART_CONFIG,
     RESAMPLER_THRESHOLD,
-    # Layout
-    get_layout_config,
-    get_axis_config,
-    get_colorscale_diverging,
-    get_colorscale_sequential,
+    apply_axis_interaction,
+    apply_chart_layout,
     # Application
     apply_dark_theme,
-    apply_chart_layout,
-    apply_axis_interaction,
+    get_axis_config,
     # Candlesticks
     get_candlestick_colors,
-    get_volume_colors,
+    get_colorscale_diverging,
+    get_colorscale_sequential,
     # Trade markers
     get_entry_marker_config,
     get_exit_marker_config,
     # Indicators
     get_indicator_line_config,
+    # Layout
+    get_layout_config,
+    get_volume_colors,
 )
-
 
 __all__ = [
     # === colors.py ===

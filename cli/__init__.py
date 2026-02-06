@@ -548,7 +548,7 @@ Exemples:
         "check-gpu",
         parents=[common_parser],
         help="Diagnostic GPU et benchmark",
-        description="Vérifie CuPy, CUDA, GPUs disponibles et benchmark CPU vs GPU"
+        description="Diagnostic GPU désactivé (mode CPU-only)"
     )
     check_gpu_parser.add_argument(
         "--benchmark",
@@ -561,7 +561,7 @@ Exemples:
         "benchmark",
         parents=[common_parser],
         help="Benchmarks de performance",
-        description="Exécute des benchmarks synthétiques (indicateurs, simulateur, GPU)"
+        description="Exécute des benchmarks synthétiques (indicateurs, simulateur)"
     )
     benchmark_parser.add_argument(
         "--category",

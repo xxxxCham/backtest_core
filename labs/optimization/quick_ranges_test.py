@@ -3,11 +3,13 @@
 Test rapide des nouvelles plages théoriques bollinger_atr
 """
 
+import time
+
 import pandas as pd
+
 from backtest.engine import BacktestEngine
 from strategies.bollinger_atr import BollingerATRStrategy
-from utils.config import Config
-import time
+
 
 def load_sample_data():
     """Charge les données d'exemple"""
@@ -19,7 +21,7 @@ def load_sample_data():
 def test_new_ranges():
     """Test des nouvelles plages théoriques"""
 
-    print(f"🎯 TEST DES NOUVELLES PLAGES THÉORIQUES")
+    print("🎯 TEST DES NOUVELLES PLAGES THÉORIQUES")
     print("=" * 50)
 
     # Test configurations
@@ -130,7 +132,7 @@ def test_new_ranges():
             })
 
     # Résumé comparatif
-    print(f"\n🔍 RÉSUMÉ COMPARATIF:")
+    print("\n🔍 RÉSUMÉ COMPARATIF:")
     print("=" * 70)
     print(f"{'Config':<20} {'PnL':<12} {'Sharpe':<8} {'Trades':<7} {'Win%':<6} {'DD%':<6} {'Ruined'}")
     print("-" * 70)
@@ -152,23 +154,23 @@ def test_new_ranges():
     negative_count = sum(1 for r in results if r['pnl'] < 0)
     ruined_count = sum(1 for r in results if r['ruined'])
 
-    print(f"\n💡 ANALYSE:")
+    print("\n💡 ANALYSE:")
     print(f"   • Meilleur résultat  : {best_config} (${best_pnl:.2f})")
     print(f"   • Résultats négatifs : {negative_count}/{len(results)} ({negative_count/len(results)*100:.1f}%)")
     print(f"   • Comptes ruinés     : {ruined_count}/{len(results)} ({ruined_count/len(results)*100:.1f}%)")
 
     if negative_count == len(results):
-        print(f"   ⚠️ PROBLÈME: Toutes les configurations sont négatives")
-        print(f"   🔧 RECOMMANDATION: Réviser la logique de la stratégie")
+        print("   ⚠️ PROBLÈME: Toutes les configurations sont négatives")
+        print("   🔧 RECOMMANDATION: Réviser la logique de la stratégie")
     elif ruined_count > len(results) / 2:
-        print(f"   ⚠️ PROBLÈME: Trop de comptes ruinés")
-        print(f"   🔧 RECOMMANDATION: Réviser la gestion du risque")
+        print("   ⚠️ PROBLÈME: Trop de comptes ruinés")
+        print("   🔧 RECOMMANDATION: Réviser la gestion du risque")
     elif best_pnl > 0:
-        print(f"   ✅ POSITIF: Au moins une configuration profitable")
-        print(f"   🎯 RECOMMANDATION: Focus sur les paramètres du meilleur résultat")
+        print("   ✅ POSITIF: Au moins une configuration profitable")
+        print("   🎯 RECOMMANDATION: Focus sur les paramètres du meilleur résultat")
     else:
-        print(f"   ⚠️ NEUTRE: Aucun résultat vraiment positif")
-        print(f"   🔧 RECOMMANDATION: Ajuster les plages ou revoir la stratégie")
+        print("   ⚠️ NEUTRE: Aucun résultat vraiment positif")
+        print("   🔧 RECOMMANDATION: Ajuster les plages ou revoir la stratégie")
 
 if __name__ == "__main__":
     test_new_ranges()

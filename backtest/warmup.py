@@ -175,5 +175,6 @@ def reset_warmup_flag():
 # Auto-warmup au premier import si variable d'environnement définie
 # Désactivé par défaut pour éviter surprises
 import os
+
 if os.environ.get('NUMBA_WARMUP_ON_IMPORT', '').lower() in ('1', 'true', 'yes'):
     warmup_numba(silent=True)

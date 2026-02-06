@@ -109,8 +109,8 @@ def profile_indicators(df: pd.DataFrame, iterations: int = 10) -> dict:
 
 def profile_simulator(df: pd.DataFrame, iterations: int = 5) -> dict:
     """Profile le simulateur de trades."""
-    from backtest.simulator_fast import simulate_trades_fast, HAS_NUMBA
     from backtest.simulator import simulate_trades
+    from backtest.simulator_fast import HAS_NUMBA, simulate_trades_fast
 
     results = {}
 
@@ -274,7 +274,7 @@ def profile_sweep_simulation(df: pd.DataFrame, n_combinations: int = 100) -> dic
 
     for params in combinations:
         engine = BacktestEngine(initial_capital=10000.0, config=config)
-        result = engine.run(df, strategy, params, fast_metrics=True)
+        engine.run(df, strategy, params, fast_metrics=True)
         completed += 1
 
         if completed % 10 == 0:
@@ -286,13 +286,13 @@ def profile_sweep_simulation(df: pd.DataFrame, n_combinations: int = 100) -> dic
     total_time = time.perf_counter() - start
     bt_per_sec = len(combinations) / total_time
 
-    print(f"\n📊 Résultat:")
+    print("\n📊 Résultat:")
     print(f"   Combinaisons: {len(combinations)}")
     print(f"   Temps total: {total_time:.2f}s")
     print(f"   Vitesse: {bt_per_sec:.1f} bt/s")
 
     # Extrapolation
-    print(f"\n📈 Extrapolation:")
+    print("\n📈 Extrapolation:")
     for target in [1000, 10000, 100000, 1000000]:
         est_time = target / bt_per_sec
         if est_time < 60:
@@ -465,7 +465,7 @@ def identify_bottlenecks(indicators_results: dict, simulator_results: dict, engi
     # Performance globale
     avg_bt_per_sec = np.mean([data.get("bt_per_sec", 0) for data in engine_results.values() if data.get("bt_per_sec", 0) > 0])
 
-    print(f"\n📊 PERFORMANCE GLOBALE:")
+    print("\n📊 PERFORMANCE GLOBALE:")
     print(f"   Vitesse moyenne: {avg_bt_per_sec:.1f} bt/s")
 
     if avg_bt_per_sec < 10:
@@ -509,7 +509,7 @@ def main():
     engine_results = profile_engine(df)
 
     # Simulation de sweep
-    sweep_results = profile_sweep_simulation(df, n_combinations=50)
+    profile_sweep_simulation(df, n_combinations=50)
 
     # Profiling sweep grille réel
     if args.grid:

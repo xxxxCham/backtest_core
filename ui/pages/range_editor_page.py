@@ -9,9 +9,10 @@ Usage:
     streamlit run ui/pages/range_editor_page.py
 """
 
-import streamlit as st
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import streamlit as st
 
 # Ajouter le répertoire parent au path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))

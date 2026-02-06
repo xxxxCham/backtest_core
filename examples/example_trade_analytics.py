@@ -11,20 +11,16 @@ Usage:
     python examples/example_trade_analytics.py
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 # Ajouter le répertoire parent au path pour imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backtest.engine import BacktestEngine
-from backtest.trade_analytics import enrich_trade_metrics
-from backtest.report_generator import (
-    export_trade_analytics_json,
-    generate_llm_prompt
-)
-from strategies.bollinger_atr_v3 import BollingerATRStrategyV3
+from backtest.report_generator import export_trade_analytics_json, generate_llm_prompt
 from data.loader import load_ohlcv
+from strategies.bollinger_atr_v3 import BollingerATRStrategyV3
 
 
 def main():
@@ -87,7 +83,7 @@ def main():
 
         # Ré-enrichir pour obtenir l'objet TradeAnalytics
         # (normalement déjà fait dans engine, mais on le refait pour l'exemple)
-        from backtest.trade_analytics import TradeAnalytics, TradeExcursions, PnLDistribution, TPSLBoundsAnalysis
+        from backtest.trade_analytics import PnLDistribution, TPSLBoundsAnalysis, TradeAnalytics, TradeExcursions
 
         analytics_dict = metrics["trade_analytics"]
 

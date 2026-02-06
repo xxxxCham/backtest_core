@@ -3,13 +3,13 @@
 Outil d'analyse de la santé du code et détection de code mort
 Utilise plusieurs méthodes pour identifier les problèmes potentiels
 """
-import os
 import ast
-import sys
-from pathlib import Path
 import re
+import sys
 from collections import defaultdict
-from typing import Dict, List, Set, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple
+
 
 class CodeHealthAnalyzer:
     def __init__(self, root_path: str):
@@ -85,7 +85,7 @@ class CodeHealthAnalyzer:
 
                 if lines >= min_lines:
                     large_files.append((py_file, lines, size_kb))
-            except:
+            except Exception:
                 continue
 
         return sorted(large_files, key=lambda x: x[1], reverse=True)
@@ -148,7 +148,7 @@ class CodeHealthAnalyzer:
                         current_function = None
                         function_complexity = 0
 
-            except:
+            except Exception:
                 continue
 
         return sorted(complex_funcs, key=lambda x: x[1], reverse=True)
@@ -173,7 +173,7 @@ class CodeHealthAnalyzer:
                     if len(block_clean) > 50:  # Ignorer les petits blocs
                         code_blocks[block_clean].append((str(py_file), i+1))
 
-            except:
+            except Exception:
                 continue
 
         duplicates = []
@@ -233,14 +233,14 @@ class CodeHealthAnalyzer:
             top_file = large_files[0]
             print(f"  1. Refactoriser {top_file[0].name} ({top_file[1]} lignes)")
             if 'ui' in str(top_file[0]) and 'sidebar' in str(top_file[0]):
-                print(f"     → Séparer logique métier / affichage UI")
+                print("     → Séparer logique métier / affichage UI")
             elif 'cli' in str(top_file[0]):
-                print(f"     → Extraire handlers de commandes")
+                print("     → Extraire handlers de commandes")
             elif 'agent' in str(top_file[0]):
-                print(f"     → Séparer agents par responsabilité")
+                print("     → Séparer agents par responsabilité")
 
         if complex_funcs:
-            print(f"  2. Simplifier fonctions complexes (complexité > 8)")
+            print("  2. Simplifier fonctions complexes (complexité > 8)")
 
         if unused:
             total_unused = sum(len(imports) for imports in unused.values())

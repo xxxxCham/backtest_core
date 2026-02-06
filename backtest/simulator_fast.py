@@ -18,7 +18,7 @@ import pandas as pd
 
 # Numba pour JIT compilation
 try:
-    from numba import njit, prange
+    from numba import njit
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
@@ -33,7 +33,7 @@ logger = get_logger(__name__)
 # =============================================================================
 
 if HAS_NUMBA:
-    @njit(cache=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
     def _simulate_trades_numba(
         closes: np.ndarray,
         highs: np.ndarray,
@@ -181,7 +181,7 @@ if HAS_NUMBA:
             trade_count
         )
 
-    @njit(cache=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
     def _calculate_equity_numba(
         n_bars: int,
         exit_indices: np.ndarray,
@@ -211,7 +211,7 @@ if HAS_NUMBA:
 
         return equity
 
-    @njit(cache=True, fastmath=True)
+    @njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
     def _simulate_trades_numba_bb_levels(
         closes: np.ndarray,
         highs: np.ndarray,

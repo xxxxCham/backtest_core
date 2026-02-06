@@ -34,8 +34,8 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from utils.log import get_logger
 from ui.components.diagram_factory import create_bollinger_atr_diagram
+from utils.log import get_logger
 
 # Import optionnel de seaborn pour distributions statistiques
 try:

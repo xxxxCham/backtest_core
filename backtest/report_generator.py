@@ -20,10 +20,10 @@ Read-if: Génération de rapports ou analyse comparative de résultats.
 Skip-if: Vous n'avez besoin que des résultats bruts sans rapport.
 """
 
+import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime
-import json
 
 import pandas as pd
 
@@ -260,7 +260,7 @@ def generate_summary_report(
     if excellent_count > 0:
         top_strategy = top10.iloc[0]
         report_lines.extend([
-            f"### ✅ Production Immédiate",
+            "### ✅ Production Immédiate",
             "",
             f"**{top_strategy['strategy']}** sur **{top_strategy['symbol']}** ({top_strategy['timeframe']}) :",
             f"- Return: **{top_strategy['total_return_pct']:.2f}%**",

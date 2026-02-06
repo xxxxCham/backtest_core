@@ -323,13 +323,6 @@ class RecoveryStrategy:
             import gc
             gc.collect()
 
-            # Tenter de libérer la mémoire GPU
-            try:
-                import cupy as cp
-                cp.get_default_memory_pool().free_all_blocks()
-            except ImportError:
-                pass
-
             logger.info("Memory cleared for recovery")
             return True
 
@@ -430,11 +423,6 @@ def retry_on_memory_error(func: Callable) -> Callable:
     def on_retry(error: ErrorInfo):
         import gc
         gc.collect()
-        try:
-            import cupy as cp
-            cp.get_default_memory_pool().free_all_blocks()
-        except ImportError:
-            pass
 
     handler = RetryHandler(config=config, on_retry=on_retry)
     return handler.retry(func)

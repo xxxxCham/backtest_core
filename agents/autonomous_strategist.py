@@ -167,7 +167,7 @@ class AutonomousStrategist(BaseAgent):
 
     GPU Memory Optimization:
     - Le LLM est déchargé du GPU avant chaque backtest
-    - La VRAM est ainsi disponible pour les calculs NumPy/CuPy
+    - La VRAM est ainsi disponible pour les calculs NumPy
     - Le LLM est rechargé après le backtest pour l'analyse
 
     Example:
@@ -373,7 +373,7 @@ Actions:
         state = manager.unload(self._conversation_context)
 
         try:
-            # Calculs GPU intensifs (NumPy/CuPy)
+            # Calculs GPU intensifs (NumPy)
             result = executor.run(request)
         finally:
             # Recharger le LLM (toujours, même en cas d'erreur)

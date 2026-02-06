@@ -4,14 +4,13 @@ Analyse des résultats Bollinger ATR pour identifier les plages optimales des pa
 et proposer des ranges resserrés vers les zones profitables.
 """
 
-import os
 import json
-import pandas as pd
-import numpy as np
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
-import matplotlib.pyplot as plt
-import seaborn as sns
+from typing import Dict, Tuple
+
+import numpy as np
+import pandas as pd
+
 
 def load_bollinger_atr_results() -> pd.DataFrame:
     """Charge tous les résultats bollinger_atr depuis backtest_results"""
@@ -153,7 +152,7 @@ def analyze_profitable_ranges(df: pd.DataFrame) -> Dict[str, Tuple[float, float]
     param_ranges = {}
     parameters = ["bb_period", "bb_std", "entry_z", "atr_period", "atr_percentile", "k_sl"]
 
-    print(f"\n📊 Statistiques des paramètres (top 25% des résultats):")
+    print("\n📊 Statistiques des paramètres (top 25% des résultats):")
     print("=" * 80)
 
     for param in parameters:
@@ -420,7 +419,7 @@ def main():
     # Générer le code optimisé
     optimized_code = generate_optimized_parameter_specs(suggested_ranges)
 
-    print(f"\n💾 CODE OPTIMISÉ GÉNÉRÉ:")
+    print("\n💾 CODE OPTIMISÉ GÉNÉRÉ:")
     print("=" * 50)
     print(optimized_code)
 

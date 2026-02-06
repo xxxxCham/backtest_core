@@ -326,13 +326,8 @@ def benchmark_gpu_vs_cpu(
     data_size: int = 100000
 ) -> BenchmarkComparison:
     """
-    Benchmark calculs GPU vs CPU.
-
-    Requiert CuPy pour GPU.
+    Benchmark CPU-only (GPU désactivé).
     """
-    from performance.device_backend import ArrayBackend
-
-    backend = ArrayBackend()
     results = []
 
     # Données de test
@@ -351,30 +346,6 @@ def benchmark_gpu_vs_cpu(
         name="NumPy (CPU)",
         n_items=data_size
     ))
-
-    # 2. GPU (CuPy) si disponible
-    if backend.gpu_available:
-        try:
-            import cupy as cp
-
-            # Transférer données vers GPU
-            data_gpu = cp.array(data)
-
-            def cupy_operations():
-                x = data_gpu
-                y = cp.sqrt(cp.abs(x))
-                z = cp.exp(-y ** 2)
-                result = cp.sum(z)
-                cp.cuda.Device().synchronize()
-                return float(result)
-
-            results.append(benchmark_function(
-                cupy_operations,
-                name="CuPy (GPU)",
-                n_items=data_size
-            ))
-        except ImportError:
-            logger.warning("CuPy non disponible")
 
     return BenchmarkComparison(results, baseline_name="NumPy (CPU)")
 

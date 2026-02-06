@@ -20,11 +20,20 @@ Read-if: Ajout indicateur, modification API registre.
 Skip-if: Vous appelez juste calculate_indicator().
 """
 
+import os
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Tuple
-import os
 
 import pandas as pd
+
+# Cache du flag INDICATOR_CACHE_ENABLED au niveau module
+# Évite os.getenv() à chaque appel calculate_indicator() (~10µs/appel sur Windows)
+_CACHE_ENABLED = os.getenv("INDICATOR_CACHE_ENABLED", "1").strip() in (
+    "1", "true", "yes", "on"
+)
+
+# Cache disque pour éviter recalculs répétés
+from data.indicator_bank import get_indicator_bank
 
 from .adx import adx, calculate_adx
 from .aroon import AroonSettings, aroon
@@ -49,64 +58,45 @@ from .supertrend import SuperTrendSettings, supertrend
 from .vwap import VWAPSettings, vwap
 from .williams_r import WilliamsRSettings, williams_r
 
-# Cache disque pour éviter recalculs répétés
-from data.indicator_bank import get_indicator_bank
-
 _GPU_CALC = None
-_GPU_QUEUES = None  # Tuple (request_queue, response_queue) pour GPU batching
+_GPU_QUEUES = None  # Conservé pour compatibilité (CPU-only)
 
 
 def set_gpu_queues(request_queue, response_queue):
     """
-    Configure les GPU queues pour calcul parallèle (appelé par worker init).
+    Configure les queues (compatibilité, GPU désactivé).
 
     Args:
-        request_queue: multiprocessing.Queue pour requêtes GPU
-        response_queue: multiprocessing.Queue pour réponses GPU
+        request_queue: multiprocessing.Queue
+        response_queue: multiprocessing.Queue
     """
     global _GPU_QUEUES
     _GPU_QUEUES = (request_queue, response_queue)
 
 
 def get_gpu_queues():
-    """Retourne les GPU queues configurées ou None."""
+    """Retourne les queues configurées ou None."""
     return _GPU_QUEUES
 
 
 def _gpu_enabled() -> bool:
-    value = os.getenv("BACKTEST_USE_GPU", "0").strip().lower()
-    return value in ("1", "true", "yes", "on")
+    """
+    Mode CPU-only: GPU toujours désactivé.
+    """
+    return False
 
 
 def _get_gpu_calc():
+    """
+    Mode CPU-only: pas de calculateur GPU.
+    """
     global _GPU_CALC
-    if _GPU_CALC is not None:
-        return _GPU_CALC
-
-    if not _gpu_enabled():
-        return None
-
-    try:
-        from performance.gpu import GPUIndicatorCalculator, gpu_available
-    except Exception:
-        return None
-
-    if not gpu_available():
-        return None
-
-    try:
-        min_samples = int(os.getenv("BACKTEST_GPU_MIN_SAMPLES", "5000"))
-    except (TypeError, ValueError):
-        min_samples = 5000
-
-    _GPU_CALC = GPUIndicatorCalculator(use_gpu=True, min_samples=min_samples)
-    return _GPU_CALC
+    _GPU_CALC = None
+    return None
 
 
 def _should_use_gpu(calc, n_samples: int) -> bool:
-    if calc is None:
-        return False
-    return bool(getattr(calc, "use_gpu", False)) and n_samples >= getattr(calc, "min_samples", 5000)
+    return False
 
 
 @dataclass
@@ -158,17 +148,13 @@ def calculate_indicator(
     gpu_queues: Optional[tuple] = None
 ) -> Any:
     """
-    Calcule un indicateur par son nom avec cache intelligent et support GPU queue.
-
-    Le cache IndicatorBank est utilisé si activé (via INDICATOR_CACHE_ENABLED=1).
-    Si GPU queue disponible et cache miss, envoi à GPU worker pour calcul parallèle.
-    Gain de performance: ~33x sur sweeps avec paramètres répétés (cache) + batching GPU.
+    Calcule un indicateur par son nom avec cache intelligent (CPU-only).
 
     Args:
         name: Nom de l'indicateur (bollinger, atr, rsi, ema, sma)
         df: DataFrame OHLCV
         params: Paramètres de l'indicateur
-        gpu_queues: Tuple (request_queue, response_queue) pour GPU batching (optionnel)
+        gpu_queues: Ignoré en mode CPU-only
 
     Returns:
         Résultat du calcul (array ou tuple selon indicateur)
@@ -194,69 +180,37 @@ def calculate_indicator(
     # ═══════════════════════════════════════════════════════════════════════════
     # CACHE INTELLIGENT - Évite recalculs répétés (100→3 runs/sec FIX)
     # ═══════════════════════════════════════════════════════════════════════════
-    # Vérifier si cache activé (défaut: oui en production, non en dev/debug)
-    cache_enabled = os.getenv("INDICATOR_CACHE_ENABLED", "1").strip() in ("1", "true", "yes", "on")
+    # Vérifier si cache activé (résultat caché au niveau module pour éviter
+    # os.getenv() à chaque appel — coûteux sur Windows: ~10µs/appel)
+    cache_enabled = _CACHE_ENABLED
 
-    gpu_calc = _get_gpu_calc()
-    use_gpu_backend = _should_use_gpu(gpu_calc, len(df))
-    backend = "gpu" if use_gpu_backend else "cpu"
+    backend = "cpu"
 
+    data_hash = None
     if cache_enabled:
         try:
             bank = get_indicator_bank()
 
-            # Déterminer le backend (CPU/GPU) pour clé de cache correcte
+            # Réutiliser un hash de données stable (évite recalcul O(n) à chaque indicateur)
+            try:
+                data_hash = df.attrs.get("_indicator_data_hash")
+            except Exception:
+                data_hash = None
+            if not data_hash:
+                data_hash = bank.get_data_hash(df)
+                try:
+                    df.attrs["_indicator_data_hash"] = data_hash
+                except Exception:
+                    pass
+
+            # Déterminer le backend (CPU) pour clé de cache correcte
             # Vérifier cache
-            cached_result = bank.get(name, params, df, backend=backend)
+            cached_result = bank.get(name, params, df, data_hash=data_hash, backend=backend)
             if cached_result is not None:
                 return cached_result
         except Exception:
             # Si cache fail, continuer sans (degraded mode)
             pass
-
-    # ═══════════════════════════════════════════════════════════════════════════
-    # GPU QUEUE - Calcul parallèle via GPU worker process (batching intelligent)
-    # ═══════════════════════════════════════════════════════════════════════════
-    # Si GPU queue disponible ET indicateur supporté → envoyer au GPU worker
-    gpu_queue_enabled = os.getenv("BACKTEST_GPU_QUEUE_ENABLED", "1").strip() in ("1", "true", "yes", "on")
-
-    # Utiliser queues globales si non fournies explicitement
-    if gpu_queues is None:
-        gpu_queues = get_gpu_queues()
-
-    if gpu_queue_enabled and gpu_queues is not None:
-        # Liste des indicateurs supportés par GPU queue
-        gpu_supported = {"bollinger", "atr", "rsi", "ema", "sma", "macd"}
-
-        if name in gpu_supported:
-            try:
-                from backtest.gpu_queue import calculate_indicator_gpu
-
-                request_queue, response_queue = gpu_queues
-                result = calculate_indicator_gpu(
-                    indicator_name=name,
-                    df=df,
-                    params=params,
-                    request_queue=request_queue,
-                    response_queue=response_queue,
-                    timeout=10.0
-                )
-
-                if result is not None:
-                    # Mettre en cache le résultat GPU
-                    if cache_enabled:
-                        try:
-                            bank = get_indicator_bank()
-                            bank.put(name, params, df, result, backend="gpu")
-                        except Exception:
-                            pass
-                    return result
-
-            except Exception as e:
-                # Fallback sur CPU si GPU queue échoue
-                import logging
-                logging.getLogger(__name__).debug(f"GPU queue fallback pour {name}: {e}")
-                pass
 
     # ═══════════════════════════════════════════════════════════════════════════
     # CALCUL DE L'INDICATEUR (ou récupération depuis cache ci-dessus)
@@ -267,76 +221,53 @@ def calculate_indicator(
     if name == "bollinger":
         period = int(params.get("period", 20))
         std_dev = float(params.get("std_dev", 2.0))
-        if use_gpu_backend and gpu_calc is not None:
-            result = gpu_calc.bollinger_bands(df["close"], period=period, std_dev=std_dev)
-        else:
-            result = bollinger_bands(
-                df["close"],
-                period=period,
-                std_dev=std_dev
-            )
+        result = bollinger_bands(
+            df["close"],
+            period=period,
+            std_dev=std_dev
+        )
 
     elif name == "atr":
         period = int(params.get("period", 14))
-        if use_gpu_backend and gpu_calc is not None:
-            result = gpu_calc.atr(df["high"], df["low"], df["close"], period=period)
-        else:
-            result = atr(
-                df["high"],
-                df["low"],
-                df["close"],
-                period=period,
-                method=params.get("method", "ema")
-            )
+        result = atr(
+            df["high"],
+            df["low"],
+            df["close"],
+            period=period,
+            method=params.get("method", "ema")
+        )
 
     elif name == "rsi":
         period = int(params.get("period", 14))
-        if use_gpu_backend and gpu_calc is not None:
-            result = gpu_calc.rsi(df["close"], period=period)
-        else:
-            result = rsi(
-                df["close"],
-                period=period
-            )
+        result = rsi(
+            df["close"],
+            period=period
+        )
 
     elif name == "ema":
         period = int(params.get("period", 20))
-        if use_gpu_backend and gpu_calc is not None:
-            result = gpu_calc.ema(df["close"], period=period)
-        else:
-            result = ema(
-                df["close"],
-                period=period
-            )
+        result = ema(
+            df["close"],
+            period=period
+        )
 
     elif name == "sma":
         period = int(params.get("period", 20))
-        if use_gpu_backend and gpu_calc is not None:
-            result = gpu_calc.sma(df["close"], period=period)
-        else:
-            result = sma(
-                df["close"],
-                period=period
-            )
+        result = sma(
+            df["close"],
+            period=period
+        )
 
     elif name == "macd":
         fast_period = int(params.get("fast_period", 12))
         slow_period = int(params.get("slow_period", 26))
         signal_period = int(params.get("signal_period", 9))
-        if use_gpu_backend and gpu_calc is not None:
-            macd_line, signal_line, histogram = gpu_calc.macd(
-                df["close"],
-                fast_period=fast_period,
-                slow_period=slow_period,
-                signal_period=signal_period
-            )
-        else:
-            macd_line, signal_line, histogram = macd(
-                df["close"],
-                fast_period=fast_period,
-                slow_period=slow_period,
-                signal_period=signal_period
-            )
+        macd_line, signal_line, histogram = macd(
+            df["close"],
+            fast_period=fast_period,
+            slow_period=slow_period,
+            signal_period=signal_period
+        )
         result = {"macd": macd_line, "signal": signal_line, "histogram": histogram}
 
     elif name == "adx":
@@ -439,7 +370,18 @@ def calculate_indicator(
     if cache_enabled and result is not None:
         try:
             bank = get_indicator_bank()
-            bank.put(name, params, df, result, backend=backend)
+            if not data_hash:
+                try:
+                    data_hash = df.attrs.get("_indicator_data_hash")
+                except Exception:
+                    data_hash = None
+            if not data_hash:
+                data_hash = bank.get_data_hash(df)
+                try:
+                    df.attrs["_indicator_data_hash"] = data_hash
+                except Exception:
+                    pass
+            bank.put(name, params, df, result, data_hash=data_hash, backend=backend)
         except Exception:
             # Erreur cache non bloquante (degraded mode)
             pass

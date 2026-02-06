@@ -23,7 +23,8 @@ from typing import List, Optional
 # =============================================================================
 
 try:
-    from colorama import Fore, Style, init as colorama_init
+    from colorama import Fore, Style
+    from colorama import init as colorama_init
     colorama_init(autoreset=True)
     COLORAMA_AVAILABLE = True
 except ImportError:
@@ -45,7 +46,8 @@ try:
     TQDM_AVAILABLE = True
 except ImportError:
     TQDM_AVAILABLE = False
-    tqdm = lambda x, **kwargs: x
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 
 # =============================================================================

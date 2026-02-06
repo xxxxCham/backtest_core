@@ -4,14 +4,14 @@ CLI pour analyser rapidement les résultats de backtests
 Usage: python analyze.py [options]
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 # Ajouter le répertoire parent au PYTHONPATH
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tools.analyze_results import analyze_backtest_results, extract_all_results
+from tools.analyze_results import extract_all_results
 from tools.generate_html_report import generate_html_report
 
 
@@ -97,7 +97,6 @@ Exemples:
 
     # Export CSV uniquement
     if args.csv:
-        from tools.analyze_results import export_top_configs
         output = f'analysis_filtered_{len(filtered)}_configs.csv'
 
         # Créer export data
@@ -162,7 +161,7 @@ Exemples:
     avg_pnl = total_pnl / len(filtered)
 
     print(f"\n{'='*120}")
-    print(f"📊 STATISTIQUES")
+    print("📊 STATISTIQUES")
     print(f"{'='*120}")
     print(f"Total configs: {len(filtered)}")
     print(f"Profitables: {profitable} ({100*profitable/len(filtered):.1f}%)")
@@ -171,8 +170,8 @@ Exemples:
     print(f"Meilleur: ${max(r['pnl'] for r in filtered):,.2f}")
     print(f"Pire: ${min(r['pnl'] for r in filtered):,.2f}")
 
-    print(f"\n💡 Astuce: Utilisez --html pour un rapport interactif")
-    print(f"💡 Astuce: Utilisez --csv pour export Excel")
+    print("\n💡 Astuce: Utilisez --html pour un rapport interactif")
+    print("💡 Astuce: Utilisez --csv pour export Excel")
 
     return 0
 

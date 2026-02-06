@@ -21,25 +21,22 @@ Avantages:
 
 from __future__ import annotations
 
-import copy
 import time
 from typing import Any, Dict, Optional
 
 import streamlit as st
-import pandas as pd
 
 # Import du nouveau module de configuration
 from ui.config_form import (
-    render_minimal_config_form,
     get_frozen_config,
-    reset_validation,
+    render_minimal_config_form,
 )
+from ui.context import BacktestEngine
 from ui.helpers import (
     load_selected_data,
     safe_run_backtest,
     show_status,
 )
-from ui.context import BacktestEngine
 
 
 def render_run_button() -> bool:
@@ -62,7 +59,7 @@ def render_run_button() -> bool:
         run_clicked = st.button(
             "🚀 Lancer le Backtest",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=not cfg_validated
         )
 
@@ -150,7 +147,6 @@ def render_backtest_results(backtest_output: Dict[str, Any]) -> None:
         backtest_output: Sortie de execute_backtest_with_frozen_config
     """
     result = backtest_output["result"]
-    df = backtest_output["df"]
     config = backtest_output["config"]
 
     st.header("📊 Résultats du Backtest")
@@ -223,7 +219,7 @@ def main():
             show_status("error", "Configuration non validée")
             st.stop()
 
-        st.info(f"🔒 Configuration figée pour exécution")
+        st.info("🔒 Configuration figée pour exécution")
 
         # Exécuter backtest
         backtest_output = execute_backtest_with_frozen_config(cfg_frozen)

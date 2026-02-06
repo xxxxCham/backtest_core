@@ -30,21 +30,14 @@ Skip-if: Logique backend pure
 from __future__ import annotations
 
 import copy
-from dataclasses import asdict
-from datetime import date
-from itertools import product
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import streamlit as st
 
-from ui.state import SidebarState
 from ui.context import (
-    compute_search_space_stats,
     discover_available_data,
-    get_strategy_param_bounds,
     list_strategies,
 )
-from ui.constants import PARAM_CONSTRAINTS
 
 
 def compute_nb_combos(param_ranges: Dict[str, Dict[str, float]]) -> int:
@@ -313,7 +306,7 @@ def render_minimal_config_form() -> bool:
             submitted = st.form_submit_button(
                 "✅ Valider Configuration",
                 type="primary",
-                use_container_width=True
+                width="stretch",
             )
 
             if submitted:

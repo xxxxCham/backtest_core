@@ -24,16 +24,16 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from functools import lru_cache
-from typing import Any, Dict, List, Optional, Tuple, NamedTuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 from utils.log import get_logger
 
 logger = get_logger(__name__)
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 # ============================================================================
 # CONSTANTS
@@ -172,7 +172,7 @@ class PeriodValidationResult:
 
 def _load_ohlcv_silent(symbol: str, timeframe: str) -> Optional[pd.DataFrame]:
     """Charge OHLCV sans logs (utilisé pour analyse des gaps/metadata)."""
-    from data.loader import _find_data_file, _read_file, _normalize_ohlcv
+    from data.loader import _find_data_file, _normalize_ohlcv, _read_file
 
     file_path = _find_data_file(symbol, timeframe)
     if file_path is None:
@@ -459,7 +459,7 @@ def find_optimal_periods(
 
         # 5. Si aucun segment sans gros gaps, prendre toute la plage avec tolérance
         if not segments:
-            logger.info(f"   Aucun segment sans gaps majeurs, utilisation plage complète avec tolérance")
+            logger.info("   Aucun segment sans gaps majeurs, utilisation plage complète avec tolérance")
             segments = [(global_start, global_end, total_days)]
 
         # 6. Évaluer la qualité de chaque segment

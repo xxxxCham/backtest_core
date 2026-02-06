@@ -16,17 +16,14 @@ Read-if: Modification de la logique d'exécution des optimisations.
 Skip-if: Utilisation des commandes sans modifier le comportement.
 """
 
-import gc
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import product
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
 import pandas as pd
-
 
 # =============================================================================
 # DATACLASSES
