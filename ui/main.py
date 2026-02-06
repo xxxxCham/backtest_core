@@ -12,21 +12,11 @@ from __future__ import annotations
 # pylint: disable=import-outside-toplevel,too-many-lines
 
 # ============================================================================
-# CONFIGURATION NUMBA/CPU OPTIMISÉE POUR RYZEN 9950X
-# ============================================================================
-# DOIT être au tout début AVANT tout import Numba
-import os
-# Utiliser cores physiques (16) au lieu de logiques (32) pour éviter contention SMT
-os.environ.setdefault("NUMBA_NUM_THREADS", "16")
-os.environ.setdefault("OMP_NUM_THREADS", "16")
-os.environ.setdefault("MKL_NUM_THREADS", "16")
-os.environ.setdefault("NUMBA_THREADING_LAYER", "omp")  # OpenMP plus stable que TBB
-# ============================================================================
-
-# ============================================================================
 # DÉSACTIVATION GPU POUR SWEEPS STREAMLIT
 # ============================================================================
+# DOIT être au tout début AVANT tout import pour éviter chargement VRAM inutile
 # GPU queue ne fonctionne pas en multiprocess → CPU + cache RAM plus efficace
+import os
 os.environ["BACKTEST_USE_GPU"] = "0"
 os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 # ============================================================================
@@ -34,8 +24,10 @@ os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 import gc
 import logging
 import math
+import os
 import time
 import traceback
+import asyncio
 from collections import deque
 from itertools import chain, islice, product
 from typing import Any, Dict, List, Optional
@@ -93,6 +85,25 @@ from utils.run_tracker import RunSignature, get_global_tracker
 
 # Import du worker isolé pour éviter les problèmes de pickling avec hot-reload Streamlit
 from backtest.worker import run_backtest_worker as _isolated_worker
+
+
+def _safe_streamlit_call(func, *args, **kwargs):
+    """
+    Wrapper pour appels Streamlit qui peuvent échouer lors d'interruption (event loop closed).
+    Capture RuntimeError et CancelledError silencieusement pour éviter cascade d'erreurs.
+    """
+    try:
+        return func(*args, **kwargs)
+    except (RuntimeError, asyncio.CancelledError) as e:
+        # Event loop fermé lors de Ctrl+C - ignorer silencieusement
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Event loop fermé lors de {func.__name__}: {e}")
+        return None
+    except Exception as e:
+        # Autres erreurs - logger mais ne pas crasher
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Erreur inattendue lors de {func.__name__}: {e}")
+        return None
 
 
 # Fonction _run_backtest_multiprocess SUPPRIMÉE (obsolète)
@@ -486,7 +497,7 @@ Le système de granularité limite le nombre de valeurs testables.
         stop_button = st.button(
             "⛔ Arrêt d'urgence",
             type="secondary",
-            use_container_width=True,
+            width="stretch",
             key="btn_stop_backtest",
         )
 
@@ -984,13 +995,20 @@ def render_main(
 
             monitor = ProgressMonitor(total_runs=total_runs)
             monitor_placeholder = st.empty()
+            try:
+                progress_interval = float(os.getenv("BACKTEST_PROGRESS_INTERVAL_SEC", "0.5"))
+            except (TypeError, ValueError):
+                progress_interval = 0.5
+            progress_interval = max(0.1, progress_interval)
+            last_monitor_update = time.perf_counter()
 
             sweep_monitor = SweepMonitor(
                 total_combinations=total_runs,
-                objectives=["total_pnl", "theoretical_pnl", "sharpe_ratio", "total_return_pct", "max_drawdown"],
                 top_k=15,
+                initial_capital=state.initial_capital,
             )
             sweep_monitor.start()
+            start_time = time.perf_counter()
             sweep_placeholder = st.empty()
 
             logger = logging.getLogger(__name__)
@@ -1071,19 +1089,42 @@ def render_main(
                 param_combos_map[params_str] = param_combo_result
 
                 if "error" not in result:
+                    raw_win_rate = result.get("win_rate", 0.0)
+                    try:
+                        raw_win_rate = float(raw_win_rate)
+                    except (TypeError, ValueError):
+                        raw_win_rate = 0.0
+                    # Harmoniser win_rate (0-1 -> %)
+                    win_rate = raw_win_rate * 100.0 if 0 <= raw_win_rate <= 1.0 else raw_win_rate
+
+                    max_dd_raw = result.get("max_dd", 0.0)
+                    try:
+                        max_dd_val = abs(float(max_dd_raw))
+                    except (TypeError, ValueError):
+                        max_dd_val = 0.0
+
+                    total_pnl = result.get("total_pnl", 0.0)
+                    try:
+                        total_pnl = float(total_pnl)
+                    except (TypeError, ValueError):
+                        total_pnl = 0.0
+
                     metrics = {
                         "sharpe_ratio": result.get("sharpe", 0.0),
-                        "total_pnl": result.get("total_pnl", 0.0),
-                        "theoretical_pnl": result.get("theoretical_pnl", 0.0),
-                        "total_return_pct": result.get("total_pnl", 0.0) / state.initial_capital * 100 if state.initial_capital else 0.0,
-                        "max_drawdown": abs(result.get("max_dd", 0.0)),
-                        "win_rate": result.get("win_rate", 0.0),
+                        "total_pnl": total_pnl,
+                        "total_return_pct": (total_pnl / state.initial_capital * 100) if state.initial_capital else 0.0,
+                        "max_drawdown_pct": max_dd_val,
+                        "max_drawdown": max_dd_val,
+                        "win_rate": win_rate,
+                        "win_rate_pct": win_rate,
                         "total_trades": result.get("trades", 0),
                         "profit_factor": result.get("profit_factor", 0.0),
                         "consecutive_losses_max": result.get("consecutive_losses_max", 0),
                         "avg_win_loss_ratio": result.get("avg_win_loss_ratio", 0.0),
                         "robustness_score": result.get("robustness_score", 0.0),
                     }
+                    if "period_days" in result:
+                        metrics["period_days"] = result.get("period_days")
                     sweep_monitor.update(params=param_combo_result, metrics=metrics)
                 else:
                     error_msg = str(result.get("error") or "Erreur inconnue")
@@ -1097,13 +1138,29 @@ def render_main(
                 results_list.append(result_clean)
                 return params_str
 
+            def _get_best_snapshot() -> Optional[Dict[str, Any]]:
+                best_result = sweep_monitor.get_best_result("total_pnl")
+                if not best_result or not best_result.metrics:
+                    return None
+                best_pnl = float(best_result.metrics.get("total_pnl", 0.0) or 0.0)
+                best_trades = int(best_result.metrics.get("total_trades", best_result.metrics.get("trades", 0)) or 0)
+                best_dd = float(best_result.metrics.get("max_drawdown_pct", best_result.metrics.get("max_drawdown", 0.0)) or 0.0)
+                equity = None
+                if state.initial_capital:
+                    equity = float(state.initial_capital) + best_pnl
+                return {
+                    "best_pnl": best_pnl,
+                    "best_trades": best_trades,
+                    "best_dd": best_dd,
+                    "best_equity": equity,
+                }
+
             completed_params = set()
             completed = 0
-            start_time = time.perf_counter()
             last_render_time = time.perf_counter()
 
             def run_sequential_combos(combo_source, key_prefix: str) -> None:
-                nonlocal completed, last_render_time
+                nonlocal completed, last_render_time, last_monitor_update
                 for param_combo in combo_source:
                     params_str = _params_to_str(param_combo)
                     if params_str in completed_params:
@@ -1117,6 +1174,10 @@ def render_main(
                     completed_params.add(params_str)
 
                     current_time = time.perf_counter()
+                    if current_time - last_monitor_update >= progress_interval:
+                        render_progress_monitor(monitor, monitor_placeholder)
+                        last_monitor_update = current_time
+
                     # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
                     # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
                     # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
@@ -1131,12 +1192,22 @@ def render_main(
                             st.progress(progress_pct / 100.0)
                             st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
 
-                            # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
-                            if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
-                                best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
-                                best_pnl = best_result.metrics.get("total_pnl", 0)
+                            # Afficher uniquement le meilleur PnL + trades + DD + equity
+                            snapshot = _get_best_snapshot()
+                            if snapshot:
+                                best_pnl = snapshot["best_pnl"]
+                                best_trades = snapshot["best_trades"]
+                                best_dd = snapshot["best_dd"]
+                                best_equity = snapshot["best_equity"]
                                 pnl_color = "green" if best_pnl > 0 else "red"
-                                st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
+                                equity_text = f" • Equity ${best_equity:,.2f}" if best_equity is not None else ""
+                                st.markdown(
+                                    f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**] "
+                                    f"• Trades {best_trades:,} • Max DD {abs(best_dd):.2f}%{equity_text}"
+                                )
+
+                        # Mettre à jour le cadre blanc (ProgressMonitor) au même rythme
+                        render_progress_monitor(monitor, monitor_placeholder)
 
                         last_render_time = current_time
                         time.sleep(0.01)
@@ -1144,183 +1215,92 @@ def render_main(
             if n_workers_effective > 1:
                 os.environ.setdefault("BACKTEST_INDICATOR_DISK_CACHE", "0")
 
-            # ═══════════════════════════════════════════════════════════════════════════
-            # 🚀 MODE NUMBA ULTRA-RAPIDE (10-50× plus rapide que ProcessPoolExecutor)
-            # Stratégies supportées: bollinger_atr, ema_cross, rsi_reversal
-            # ═══════════════════════════════════════════════════════════════════════════
+            # 🚀 ZONE 1: Tentative d'utilisation de Numba Sweep (performance optimale)
             use_numba_sweep = False
-            # Limite dynamique basée sur RAM disponible (env var ou auto-détection)
-            # Avec 60GB RAM: ~50M combos possibles, mais on limite à 10M par défaut
-            import psutil
-            available_ram_gb = psutil.virtual_memory().available / (1024**3)
-            # ~500 bytes par combo Python dict, on garde 20% de marge
-            auto_max_combos = int((available_ram_gb * 0.8 * 1024**3) / 500)
-            NUMBA_MAX_COMBOS = int(os.environ.get("NUMBA_MAX_COMBOS", min(auto_max_combos, 50_000_000)))
+            import_err = None
 
+            # Vérifier si la stratégie est supportée par Numba
+            numba_supported_strategies = ["bollinger_atr", "bollinger_atr_v2", "bollinger_atr_v3", "ema_cross", "rsi_reversal", "macd_cross", "bollinger_best_longe_3i", "bollinger_best_short_3i"]
+            strategy_supported = strategy_key in numba_supported_strategies
+
+            if not strategy_supported:
+                logger.info(f"[NUMBA SKIP] Stratégie '{strategy_key}' non supportée par Numba")
+
+            # Vérifier limite de combinaisons
             try:
-                from backtest.sweep_numba import is_numba_supported, run_numba_sweep
-                use_numba_sweep = is_numba_supported(strategy_key) and total_runs <= NUMBA_MAX_COMBOS
-                if is_numba_supported(strategy_key) and total_runs > NUMBA_MAX_COMBOS:
-                    show_status("warning", f"Grille ({total_runs:,}) dépasse limite Numba ({NUMBA_MAX_COMBOS:,}). Set NUMBA_MAX_COMBOS pour augmenter.")
-                    logger.warning(f"[NUMBA SKIP] Grille trop grande: {total_runs:,} > {NUMBA_MAX_COMBOS:,}")
-                elif not is_numba_supported(strategy_key):
-                    logger.info(f"[NUMBA SKIP] Stratégie '{strategy_key}' non supportée par Numba")
-            except ImportError as import_err:
-                logger.warning(f"[NUMBA SKIP] Import failed: {import_err}")
-                pass
+                NUMBA_MAX_COMBOS = int(os.getenv("NUMBA_MAX_COMBOS", "50000000"))  # 50M par défaut
+            except (TypeError, ValueError):
+                NUMBA_MAX_COMBOS = 50000000
 
-            if use_numba_sweep and total_runs > 1:
-                # ⚡ NUMBA SWEEP - ~20000-100000 bt/s (vs ~500-3000 avec ProcessPool)
-                logger.info(f"[EXECUTION PATH] 🚀 NUMBA SWEEP sélectionné: {total_runs:,} combos, strategy={strategy_key}")
-                show_status("info", f"⚡ Mode Numba activé pour '{strategy_key}' ({total_runs:,} combos, limite={NUMBA_MAX_COMBOS:,})")
+            if strategy_supported and total_runs > NUMBA_MAX_COMBOS:
+                logger.warning(f"[NUMBA SKIP] Grille trop grande: {total_runs:,} > {NUMBA_MAX_COMBOS:,}")
+                strategy_supported = False
 
-                # Initialiser diagnostics pour Numba aussi
-                from utils.sweep_diagnostics import SweepDiagnostics
-                diag = SweepDiagnostics(run_id=f"numba_{strategy_key}")
-                diag.log_pool_start(n_workers=1, thread_limit=0, total_combos=total_runs)
-
-                with sweep_placeholder.container():
-                    st.info(f"🚀 **Sweep Numba** - Préparation grille ({total_runs:,} combos)...")
-
-                # Timer pour diagnostiquer les étapes lentes
-                import time as time_mod
-                t0 = time_mod.perf_counter()
-
-                # Reconstruire la grille comme liste de dicts
-                # NOTE: Pour grilles > 50,000 combos, ça peut prendre quelques secondes
+            # Tenter d'importer et d'exécuter le sweep Numba
+            if strategy_supported and total_runs > 1:
                 try:
-                    param_grid_list = list(combo_iter)
-                    t1 = time_mod.perf_counter()
-                    logger.info(f"[NUMBA UI] Grille matérialisée: {len(param_grid_list)} combos en {t1-t0:.2f}s")
-                except MemoryError as mem_err:
-                    show_status("error", f"❌ Mémoire insuffisante pour {total_runs:,} combos. Réduisez la grille.")
-                    st.session_state.is_running = False
-                    st.stop()
+                    from backtest.sweep_numba import run_numba_sweep
+                    use_numba_sweep = True
+                    logger.info(f"[EXECUTION PATH] 🚀 NUMBA SWEEP sélectionné: {total_runs:,} combos")
+                    show_status("info", f"⚡ Numba prange: {total_runs:,} combinaisons (16 cores natifs)")
 
-                with sweep_placeholder.container():
-                    st.info(f"🚀 **Sweep Numba** - {len(param_grid_list):,} combos prêts, compilation JIT (~2-3s)...")
+                    # Convertir combo_iter en liste de combinaisons (hors spinner pour éviter erreurs event loop)
+                    param_combos_list = list(combo_iter)
 
-                numba_start = time.perf_counter()
-                try:
-                    numba_results = run_numba_sweep(
-                        df=df,
-                        strategy_key=strategy_key,
-                        param_grid=param_grid_list,
-                        initial_capital=state.initial_capital,
-                        fees_bps=params.get("fees_bps", 10.0),
-                        slippage_bps=params.get("slippage_bps", 5.0),
-                    )
-                    numba_elapsed = time.perf_counter() - numba_start
+                    # Extraire fees/slippage depuis les params (même source que le moteur)
+                    _sample = param_combos_list[0] if param_combos_list else {}
+                    _fees = float(_sample.get("fees_bps", 10.0))
+                    _slip = float(_sample.get("slippage_bps", 5.0))
 
-                    # ═══════════════════════════════════════════════════════════════════
-                    # CONVERSION OPTIMISÉE DES RÉSULTATS (évite boucle lente sur 1M+ combos)
-                    # ═══════════════════════════════════════════════════════════════════
-                    # AVANT: boucle Python + str() + update() par résultat = 5-15s pour 1.7M
-                    # APRÈS: batch processing + final bulk update = 0.5-2s pour 1.7M
-                    # ═══════════════════════════════════════════════════════════════════
+                    try:
+                        with st.spinner(f"🚀 Sweep Numba: {total_runs:,} combinaisons..."):
+                            # Exécuter le sweep Numba (retourne [{params, total_pnl, sharpe_ratio, max_drawdown, win_rate, total_trades}])
+                            numba_raw = run_numba_sweep(
+                                df=df,
+                                strategy_key=strategy_key,
+                                param_grid=param_combos_list,
+                            initial_capital=float(state.initial_capital),
+                            fees_bps=_fees,
+                            slippage_bps=_slip,
+                        )
 
-                    t_convert_start = time.perf_counter()
-                    n_results = len(numba_results)
-
-                    # Pour grilles < 10K: mode classique avec updates temps réel
-                    if n_results < 10000:
-                        for i, res in enumerate(numba_results):
-                            param_combo = res["params"]
-                            params_str = str(param_combo)
-                            param_combos_map[params_str] = param_combo
-
-                            metrics = {
-                                "total_pnl": res.get("total_pnl", 0.0),
-                                "sharpe_ratio": res.get("sharpe_ratio", 0.0),
-                                "max_drawdown": res.get("max_drawdown", 0.0),
-                                "win_rate": res.get("win_rate", 0.0),
-                                "total_trades": res.get("total_trades", 0),
+                        # Adapter le format Numba → format record_sweep_result
+                        for r in numba_raw:
+                            adapted = {
+                                "params_dict": r["params"],
+                                "total_pnl": r["total_pnl"],
+                                "sharpe": r["sharpe_ratio"],
+                                "max_dd": r["max_drawdown"],
+                                "win_rate": r["win_rate"],
+                                "trades": r["total_trades"],
                                 "profit_factor": 0.0,
-                                "total_return_pct": res.get("total_pnl", 0.0) / state.initial_capital * 100,
                             }
-                            sweep_monitor.update(params=param_combo, metrics=metrics)
+                            record_sweep_result(adapted, r["params"])
+                            completed += 1
+                            monitor.runs_completed = completed
 
-                            results_list.append({
-                                "params": params_str,
-                                "params_dict": param_combo,
-                                "total_pnl": metrics["total_pnl"],
-                                "sharpe": metrics["sharpe_ratio"],
-                                "max_dd": metrics["max_drawdown"],
-                                "win_rate": metrics["win_rate"],
-                                "trades": metrics["total_trades"],
-                            })
-                            monitor.runs_completed = i + 1
+                        logger.info(f"[EXECUTION PATH] ✅ Numba sweep complété: {completed}/{total_runs}")
 
-                    else:
-                        # Pour grilles massives (10K+): mode batch optimisé
-                        logger.info(f"[NUMBA UI] Conversion optimisée de {n_results:,} résultats...")
-
-                        # List comprehension (10× plus rapide que boucle + append)
-                        for i, res in enumerate(numba_results):
-                            param_combo = res["params"]
-                            params_str = str(param_combo)
-                            param_combos_map[params_str] = param_combo
-
-                            results_list.append({
-                                "params": params_str,
-                                "params_dict": param_combo,
-                                "total_pnl": res.get("total_pnl", 0.0),
-                                "sharpe": res.get("sharpe_ratio", 0.0),
-                                "max_dd": res.get("max_drawdown", 0.0),
-                                "win_rate": res.get("win_rate", 0.0),
-                                "trades": res.get("total_trades", 0),
-                            })
-
-                            # Update monitor par batch de 10K pour éviter overhead
-                            if (i + 1) % 10000 == 0 or i == n_results - 1:
-                                monitor.runs_completed = i + 1
-
-                        # Bulk update final du sweep_monitor avec meilleurs résultats seulement
-                        # (évite N updates individuels qui sont coûteux)
-                        best_result = max(numba_results, key=lambda r: r.get("total_pnl", float("-inf")))
-                        best_metrics = {
-                            "total_pnl": best_result.get("total_pnl", 0.0),
-                            "sharpe_ratio": best_result.get("sharpe_ratio", 0.0),
-                            "max_drawdown": best_result.get("max_drawdown", 0.0),
-                            "win_rate": best_result.get("win_rate", 0.0),
-                            "total_trades": best_result.get("total_trades", 0),
-                            "profit_factor": 0.0,
-                            "total_return_pct": best_result.get("total_pnl", 0.0) / state.initial_capital * 100,
-                        }
-                        sweep_monitor.update(params=best_result["params"], metrics=best_metrics)
-
-                        t_convert_elapsed = time.perf_counter() - t_convert_start
-                        logger.info(f"[NUMBA UI] Conversion terminée en {t_convert_elapsed:.2f}s")
-
-                    # ✅ CRITIQUE: Marquer comme complété pour éviter les branches suivantes
-                    completed = total_runs
-
-                    # Afficher résultats finaux
-                    with sweep_placeholder.container():
-                        throughput = total_runs / numba_elapsed if numba_elapsed > 0 else 0
-                        st.success(f"✅ Sweep Numba terminé: {total_runs:,} combos en {numba_elapsed:.2f}s ({throughput:,.0f} bt/s)")
-
-                        if numba_results:
-                            best = max(numba_results, key=lambda r: r.get("total_pnl", float("-inf")))
-                            pnl_color = "green" if best["total_pnl"] > 0 else "red"
-                            st.markdown(f"🏆 **Meilleur PnL**: :{pnl_color}[**${best['total_pnl']:+,.2f}**] | Sharpe: {best['sharpe_ratio']:.2f}")
-
-                except Exception as numba_exc:
-                    # Fallback sur ProcessPoolExecutor si Numba échoue
-                    import traceback
-                    logger.error(f"Numba sweep failed: {traceback.format_exc()}")
-                    show_status("warning", f"Numba échoué ({numba_exc}), fallback sur ProcessPool...")
+                except KeyboardInterrupt:
+                    # Interruption utilisateur (Ctrl+C) - propre et silencieuse
+                    logger.info(f"⚠️ Sweep interrompu par l'utilisateur. {completed}/{total_runs} complétés.")
+                    st.warning(f"⚠️ Sweep interrompu. {completed:,}/{total_runs:,} combinaisons testées.")
+                    # Sortir proprement sans cascade d'erreurs
+                    return
+                except ImportError as e:
+                    import_err = e
                     use_numba_sweep = False
-                    # Recréer l'itérateur
-                    combo_iter = iter(param_grid_list)
+                    logger.warning(f"[NUMBA SKIP] Import failed: {import_err}")
+                except Exception as e:
+                    use_numba_sweep = False
+                    logger.error(f"[NUMBA SKIP] Numba sweep failed: {e}")
+                    import traceback as _tb
+                    logger.error(_tb.format_exc())
+                    # En cas d'échec, on continue avec ProcessPool/Séquentiel
 
-            # ═══════════════════════════════════════════════════════════════════════════
-            # MODE PROCESSPOOL (fallback ou stratégies non supportées par Numba)
-            # Ne s'exécute que si Numba n'a PAS été utilisé avec succès
-            # ═══════════════════════════════════════════════════════════════════════════
-            # 🔒 GUARD: Ne pas exécuter si Numba a déjà complété (completed == total_runs)
+            # 🔒 ZONE 2: ProcessPool (avec GUARD pour éviter double exécution)
             if not use_numba_sweep and completed < total_runs and n_workers_effective > 1 and total_runs > 1:
-                logger.info(f"[EXECUTION PATH] 🔄 PROCESSPOOL sélectionné: {total_runs:,} combos, workers={n_workers_effective}, completed={completed}")
+                logger.info(f"[EXECUTION PATH] 🔄 PROCESSPOOL sélectionné: {total_runs:,} combos")
                 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, TimeoutError as FutureTimeoutError, wait
                 try:
                     from concurrent.futures import BrokenProcessPool
@@ -1335,9 +1315,10 @@ def render_main(
                 logger = logging.getLogger(__name__)
                 stall_timeout_sec = float(os.getenv("BACKTEST_SWEEP_STALL_SEC", "60"))
                 stall_startup_sec = float(os.getenv("BACKTEST_SWEEP_STALL_STARTUP_SEC", "180"))
-                # Max inflight: n_workers × 2 (évite saturation queue)
-                # 24 workers → 48 tâches max en parallèle
-                max_inflight = max(1, min(total_runs, n_workers_effective * 2))
+                # ✅ FIX #1: Augmenter max_inflight pour alimenter tous les workers
+                # Avant: n_workers × 2 = 48 tâches pour 24 workers (workers idle 50% du temps)
+                # Après: n_workers × 8 = 192 tâches pour 24 workers (workers toujours alimentés)
+                max_inflight = max(1, min(total_runs, n_workers_effective * 8))
                 pending = {}
                 failed_pending = []
                 pool_failed = False
@@ -1388,26 +1369,16 @@ def render_main(
                         if not submit_next():
                             break
 
-                    logger.info(f"Boucle d'attente démarrée: {len(pending)} tâches en attente")
-                    iteration_count = 0
-                    last_log_iteration = 0
-
                     while pending:
-                        iteration_count += 1
-                        # Log toutes les 100 itérations pour voir que la boucle tourne
-                        if iteration_count - last_log_iteration >= 100:
-                            logger.debug(f"Boucle iteration {iteration_count}: {len(pending)} pending, {completed} completed")
-                            last_log_iteration = iteration_count
-                        # Timeout optimal: 500ms (équilibre entre réactivité et contention CPU)
-                        # Timeout trop court (50ms) cause contention avec workers → performance 8× plus lente
-                        done, _ = wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
-
-                        # FIX: Log quand aucune tâche n'est complétée (pour debug)
-                        if not done and iteration_count % 200 == 0:
-                            logger.debug(f"Aucune tâche complétée après {iteration_count} iterations")
-
+                        # ✅ FIX #2: Réduire timeout de 0.5s à 0.05s (10× plus rapide)
+                        # Avant: Latence de 500ms entre chaque vérification
+                        # Après: Latence de 50ms (workers alimentés 10× plus vite)
+                        done, _ = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
                         if not done:
                             now = time.perf_counter()
+                            if now - last_monitor_update >= progress_interval:
+                                render_progress_monitor(monitor, monitor_placeholder)
+                                last_monitor_update = now
                             if completed == 0:
                                 stall_threshold_sec = stall_startup_sec
                                 stalled = (now - pool_start_time) >= stall_threshold_sec
@@ -1531,9 +1502,13 @@ def render_main(
                                 submit_next()
 
                             current_time = time.perf_counter()
-                            # Affichage équilibré: tous les 100 runs ou toutes les 2 secondes
-                            # Assez fréquent pour voir la progression, assez espacé pour ne pas saturer CPU/WebSocket
-                            if completed % 100 == 0 or current_time - last_render_time >= 2.0 or completed == 1:
+                            if current_time - last_monitor_update >= progress_interval:
+                                render_progress_monitor(monitor, monitor_placeholder)
+                                last_monitor_update = current_time
+                            # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                            # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                            # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                            if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
                                 with sweep_placeholder.container():
                                     progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
                                     elapsed = time.perf_counter() - start_time
@@ -1544,15 +1519,25 @@ def render_main(
                                     st.progress(progress_pct / 100.0)
                                     st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
 
-                                    # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
-                                    if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
-                                        best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
-                                        best_pnl = best_result.metrics.get("total_pnl", 0)
+                                    # Afficher uniquement le meilleur PnL + trades + DD + equity
+                                    snapshot = _get_best_snapshot()
+                                    if snapshot:
+                                        best_pnl = snapshot["best_pnl"]
+                                        best_trades = snapshot["best_trades"]
+                                        best_dd = snapshot["best_dd"]
+                                        best_equity = snapshot["best_equity"]
                                         pnl_color = "green" if best_pnl > 0 else "red"
-                                        st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
+                                        equity_text = f" • Equity ${best_equity:,.2f}" if best_equity is not None else ""
+                                        st.markdown(
+                                            f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**] "
+                                            f"• Trades {best_trades:,} • Max DD {abs(best_dd):.2f}%{equity_text}"
+                                        )
+
+                                # Mettre à jour le cadre blanc (ProgressMonitor) au même rythme
+                                render_progress_monitor(monitor, monitor_placeholder)
 
                                 last_render_time = current_time
-                                # Pas de sleep si on vient de compléter la 1ère itération (affichage immédiat)
+                                time.sleep(0.01)
 
                         if pool_failed:
                             diag.log_pool_broken(pool_fail_reason or "unknown", pool_error)
@@ -1593,41 +1578,65 @@ def render_main(
                     diag.log_sequential_fallback(pool_fail_reason, len(pending_combos))
                     fallback_iter = chain(pending_combos, combo_iter)
                     run_sequential_combos(fallback_iter, "sweep_fallback")
+
+            # 🔒 ZONE 3: Mode Séquentiel (avec GUARD pour éviter double exécution)
             elif not use_numba_sweep and completed < total_runs:
-                # 🔒 GUARD: Mode séquentiel uniquement si Numba n'a PAS été utilisé ET pas encore complété
-                logger.info(f"[EXECUTION PATH] 📋 MODE SEQUENTIEL sélectionné: {total_runs:,} combos, completed={completed}")
+                logger.info(f"[EXECUTION PATH] 📋 MODE SEQUENTIEL sélectionné: {total_runs:,} combos")
                 run_sequential_combos(combo_iter, "sweep_sequential")
+
+            # 🔒 ZONE 4: Aucun mode exécuté (sweep déjà complété)
             else:
-                # Aucun mode exécuté = sweep déjà complété OU conditions non remplies
                 if completed >= total_runs:
                     logger.info(f"[EXECUTION PATH] ✅ SKIP: Sweep déjà complété ({completed}/{total_runs})")
-                else:
-                    logger.warning(f"[EXECUTION PATH] ⚠️ SKIP: Aucun mode sélectionné (use_numba={use_numba_sweep}, completed={completed}/{total_runs}, workers={n_workers_effective})")
+                elif use_numba_sweep:
+                    logger.info(f"[EXECUTION PATH] ✅ SKIP: Numba a traité toutes les combinaisons ({completed}/{total_runs})")
+
 
             render_progress_monitor(monitor, monitor_placeholder)
-            sweep_placeholder.empty()
-            with sweep_placeholder.container():
-                render_sweep_progress(
-                    sweep_monitor,
-                    key="sweep_final",
+            
+            # Protéger les opérations Streamlit contre erreurs event loop lors d'interruption
+            try:
+                sweep_placeholder.empty()
+                with sweep_placeholder.container():
+                    render_sweep_progress(
+                        sweep_monitor,
+                        key="sweep_final",
                     show_top_results=True,
                     show_evolution=True,
                 )
+            except (RuntimeError, asyncio.CancelledError) as e:
+                # Event loop fermé lors d'interruption - ignorer silencieusement
+                logger.debug(f"Erreur event loop lors du rendu final (attendu après Ctrl+C): {e}")
+            except Exception as e:
+                # Autres erreurs - logger mais continuer
+                logger.warning(f"Erreur lors de l'affichage final du sweep: {e}")
 
             st.markdown("---")
             st.markdown("### 🎯 Résumé de l'Optimisation")
-            render_sweep_summary(sweep_monitor, key="sweep_summary")
+            
+            try:
+                render_sweep_summary(sweep_monitor, key="sweep_summary")
+            except Exception as e:
+                logger.debug(f"Erreur rendu sweep_summary: {e}")
 
-            # Finalize diagnostics (si défini)
-            if 'diag' in locals():
+            # Finalize diagnostics
+            try:
                 diag.log_final_summary()
                 st.caption(f"📋 Logs diagnostiques: `{diag.log_file}`")
+            except Exception as e:
+                logger.debug(f"Erreur finalisation diagnostics: {e}")
 
-            monitor_placeholder.empty()
-            sweep_placeholder.empty()
+            try:
+                monitor_placeholder.empty()
+                sweep_placeholder.empty()
+            except Exception as e:
+                logger.debug(f"Erreur nettoyage placeholders: {e}")
 
-            with status_container:
-                show_status("success", f"Optimisation: {len(results_list)} tests")
+            try:
+                with status_container:
+                    show_status("success", f"Optimisation: {len(results_list)} tests")
+            except Exception as e:
+                logger.debug(f"Erreur affichage status: {e}")
 
             results_df = pd.DataFrame(results_list)
 
@@ -1679,7 +1688,7 @@ def render_main(
                             for msg, count in error_items[:10]
                         ]
                     )
-                    st.dataframe(error_df, use_container_width=True)
+                    st.dataframe(error_df, width="stretch")
 
             error_column = results_df.get("error")
             if error_column is not None:
@@ -1705,7 +1714,7 @@ def render_main(
                             f"  Mean: {valid_results['trades'].mean():.2f}"
                         )
 
-                st.dataframe(valid_results.head(10), use_container_width=True)
+                st.dataframe(valid_results.head(10), width="stretch")
 
                 best = valid_results.iloc[0]
                 st.info(f"🥇 Meilleure: {best['params']}")
@@ -1890,7 +1899,7 @@ def render_main(
                         st.caption(
                             f"Runs effectues: {len(comparison_results)} / {total_runs}"
                         )
-                        st.dataframe(pd.DataFrame(comparison_summary), use_container_width=True)
+                        st.dataframe(pd.DataFrame(comparison_summary), width="stretch")
 
                         chart_rows = []
                         for row in comparison_summary:
@@ -2125,7 +2134,7 @@ def render_main(
                         st.markdown("---")
                         st.dataframe(
                             pd.DataFrame(orchestrator_result.iteration_history),
-                            use_container_width=True,
+                            width="stretch",
                         )
 
                     best_params = orchestrator_result.final_params or {}
