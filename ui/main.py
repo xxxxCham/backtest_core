@@ -70,6 +70,7 @@ from ui.context import (
 from ui.helpers import (
     ProgressMonitor,
     _maybe_auto_save_run,
+    build_param_values,
     build_indicator_overlays,
     build_strategy_params_for_comparison,
     load_selected_data,
@@ -177,6 +178,18 @@ def _timeframe_to_minutes(timeframe: str) -> int:
     return amount * multipliers.get(unit, 60)
 
 
+def _dedupe_preserve_order(items: List[str]) -> List[str]:
+    """Supprime les doublons en conservant l'ordre d'origine."""
+    seen = set()
+    output: List[str] = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        output.append(item)
+    return output
+
+
 def _build_multi_sweep_plan(symbols: List[str], timeframes: List[str]) -> List[tuple[str, str]]:
     """Construit un plan multi-sweep avec un ordre stable et léger."""
     combos = [(symbol, tf) for symbol in symbols for tf in timeframes]
@@ -192,15 +205,9 @@ def _estimate_grid_size(param_ranges: Dict[str, Any]) -> int:
     for r in param_ranges.values():
         try:
             pmin, pmax, step = r["min"], r["max"], r["step"]
-            if isinstance(pmin, int) and isinstance(step, int):
-                count = max(1, ((int(pmax) - int(pmin)) // max(1, int(step))) + 1)
-            else:
-                if float(step) <= 0:
-                    count = 1
-                else:
-                    span = float(pmax) - float(pmin)
-                    count = int(math.floor(span / float(step))) + 1
-            total *= max(1, int(count))
+            is_int = isinstance(pmin, int) and isinstance(step, int)
+            values = build_param_values(pmin, pmax, step, is_int=is_int)
+            total *= max(1, len(values))
         except Exception:
             total *= 1
     return max(1, int(total))
@@ -230,13 +237,8 @@ def _build_param_combo_iter(
             r = param_ranges[pname]
             pmin, pmax, step = r["min"], r["max"], r["step"]
 
-            if isinstance(pmin, int) and isinstance(step, int):
-                values = list(range(int(pmin), int(pmax) + 1, max(1, int(step))))
-            else:
-                values = list(
-                    np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
-                )
-                values = [round(v, 2) for v in values if v <= pmax]
+            is_int = isinstance(pmin, int) and isinstance(step, int)
+            values = build_param_values(pmin, pmax, step, is_int=is_int)
 
             if not values:
                 values = [pmin]
@@ -655,25 +657,40 @@ def render_main(
             st.session_state.is_running = False
             st.stop()
 
-        is_multi_sweep = (len(state.symbols) > 1 or len(state.timeframes) > 1)
+        selected_strategies = _dedupe_preserve_order(state.strategy_keys or [strategy_key])
+        is_multi_sweep = (
+            len(state.symbols) > 1
+            or len(state.timeframes) > 1
+            or len(selected_strategies) > 1
+        )
         if is_multi_sweep and optimization_mode in ("Backtest Simple", "Grille de Paramètres"):
             sweep_plan = _build_multi_sweep_plan(state.symbols, state.timeframes)
-            total_sweeps = len(sweep_plan)
-            st.session_state["multi_sweep_plan"] = sweep_plan
+            total_runs = len(sweep_plan) * len(selected_strategies)
+
+            multi_plan_rows = [
+                {"strategy": strat, "symbol": sym, "timeframe": tf}
+                for sym, tf in sweep_plan
+                for strat in selected_strategies
+            ]
+            st.session_state["multi_sweep_plan"] = multi_plan_rows
 
             st.info(
                 f"🔄 **Mode multi-sweep séquentiel**\n\n"
+                f"- {len(selected_strategies)} stratégie(s)\n"
                 f"- {len(state.symbols)} token(s)\n"
                 f"- {len(state.timeframes)} timeframe(s)\n"
-                f"- {total_sweeps} sweep(s) au total\n\n"
+                f"- {total_runs} backtest(s) au total\n\n"
                 "Exécution **un par un** pour éviter la saturation mémoire."
             )
 
             with st.expander("📋 Plan des sweeps", expanded=False):
-                plan_df = pd.DataFrame(
-                    [{"symbol": sym, "timeframe": tf} for sym, tf in sweep_plan]
-                )
-                st.dataframe(plan_df, width="stretch")
+                plan_df = pd.DataFrame(multi_plan_rows)
+                max_plan_rows = 200
+                if len(plan_df) > max_plan_rows:
+                    st.dataframe(plan_df.head(max_plan_rows), width="stretch")
+                    st.caption(f"Plan tronqué: {max_plan_rows} / {len(plan_df)} lignes affichées.")
+                else:
+                    st.dataframe(plan_df, width="stretch")
 
             if optimization_mode == "Grille de Paramètres":
                 n_workers_effective = _resolve_workers(n_workers)
@@ -694,8 +711,11 @@ def render_main(
 
             overall_progress = st.progress(0.0)
             status_placeholder = st.empty()
+            results_placeholder = st.empty()
             sweep_results: List[Dict[str, Any]] = []
             logger = logging.getLogger(__name__)
+            last_results_render = time.perf_counter()
+            render_interval = 0.5
 
             start_str = None
             end_str = None
@@ -703,124 +723,11 @@ def render_main(
                 start_str = state.start_date.strftime("%Y-%m-%d")
                 end_str = state.end_date.strftime("%Y-%m-%d")
 
-            for idx, (sym, tf) in enumerate(sweep_plan, start=1):
-                if st.session_state.get("stop_requested", False):
-                    st.warning("🛑 Arrêt demandé par l'utilisateur")
-                    break
-
-                status_placeholder.info(
-                    f"⏳ Sweep {idx}/{total_sweeps}: {strategy_key} × {sym} × {tf}"
-                )
-
-                df, msg = safe_load_data(sym, tf, start=start_str, end=end_str)
-                if df is None:
-                    sweep_results.append({
-                        "strategy": strategy_key,
-                        "symbol": sym,
-                        "timeframe": tf,
-                        "status": "error",
-                        "error": msg,
-                    })
-                    overall_progress.progress(idx / total_sweeps)
-                    continue
-
-                combo_engine = BacktestEngine(initial_capital=state.initial_capital)
-
-                if optimization_mode == "Backtest Simple":
-                    result, result_msg = safe_run_backtest(
-                        combo_engine,
-                        df,
-                        strategy_key,
-                        params,
-                        sym,
-                        tf,
-                        silent_mode=not debug_enabled,
-                    )
-
-                    if result is None:
-                        sweep_results.append({
-                            "strategy": strategy_key,
-                            "symbol": sym,
-                            "timeframe": tf,
-                            "status": "error",
-                            "error": result_msg,
-                        })
-                    else:
-                        sweep_results.append({
-                            "strategy": strategy_key,
-                            "symbol": sym,
-                            "timeframe": tf,
-                            "status": "ok",
-                            "best_params": result.meta.get("params", params),
-                            "metrics": result.metrics or {},
-                        })
-                        _maybe_auto_save_run(result)
-                else:
-                    progress_placeholder = st.empty()
-                    stats_placeholder = st.empty()
-                    if n_workers_effective > 1 and max_runs_per_sweep != 1:
-                        sweep_summary = _run_grid_parallel_basic(
-                            df=df,
-                            strategy_key=strategy_key,
-                            symbol=sym,
-                            timeframe=tf,
-                            params=params,
-                            param_ranges=param_ranges,
-                            max_runs=max_runs_per_sweep,
-                            initial_capital=state.initial_capital,
-                            n_workers=n_workers_effective,
-                            worker_thread_limit=worker_thread_limit,
-                            debug_enabled=debug_enabled,
-                            progress_placeholder=progress_placeholder,
-                            stats_placeholder=stats_placeholder,
-                        )
-                    else:
-                        sweep_summary = _run_grid_sequential(
-                            df=df,
-                            engine=combo_engine,
-                            strategy_key=strategy_key,
-                            symbol=sym,
-                            timeframe=tf,
-                            params=params,
-                            param_ranges=param_ranges,
-                            max_runs=max_runs_per_sweep,
-                            debug_enabled=debug_enabled,
-                            progress_placeholder=progress_placeholder,
-                        )
-                    progress_placeholder.empty()
-                    stats_placeholder.empty()
-
-                    sweep_results.append({
-                        "strategy": strategy_key,
-                        "symbol": sym,
-                        "timeframe": tf,
-                        "status": "ok",
-                        "best_params": sweep_summary.get("best_params", {}),
-                        "metrics": sweep_summary.get("best_metrics", {}),
-                        "completed": sweep_summary.get("completed", 0),
-                        "failed": sweep_summary.get("failed", 0),
-                        "total_runs": sweep_summary.get("total_runs", 0),
-                    })
-
-                # Nettoyage mémoire entre sweeps
-                try:
-                    del df
-                except Exception:
-                    pass
-                clear_data_cache()
-                safe_copy_cleanup(logger)
-                gc.collect()
-
-                overall_progress.progress(idx / total_sweeps)
-
-            status_placeholder.empty()
-            st.session_state["multi_sweep_results"] = sweep_results
-
-            if sweep_results:
-                summary_rows = []
-                for item in sweep_results:
+            def _build_summary_rows(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+                rows: List[Dict[str, Any]] = []
+                for item in items:
                     metrics = item.get("metrics", {}) or {}
-                    summary_rows.append({
+                    rows.append({
                         "strategy": item.get("strategy"),
                         "symbol": item.get("symbol"),
                         "timeframe": item.get("timeframe"),
@@ -834,7 +741,161 @@ def render_main(
                         "failed": item.get("failed"),
                         "error": item.get("error"),
                     })
+                return rows
 
+            def _render_partial_results(force: bool = False) -> None:
+                nonlocal last_results_render
+                if not sweep_results:
+                    return
+                now = time.perf_counter()
+                if not force and now - last_results_render < render_interval:
+                    return
+                last_results_render = now
+                rows = _build_summary_rows(sweep_results)
+                results_placeholder.dataframe(pd.DataFrame(rows), width="stretch")
+
+            completed_runs = 0
+            stop_all = False
+
+            for sym, tf in sweep_plan:
+                if st.session_state.get("stop_requested", False):
+                    st.warning("🛑 Arrêt demandé par l'utilisateur")
+                    break
+
+                df, msg = safe_load_data(sym, tf, start=start_str, end=end_str)
+                if df is None:
+                    for strat in selected_strategies:
+                        sweep_results.append({
+                            "strategy": strat,
+                            "symbol": sym,
+                            "timeframe": tf,
+                            "status": "error",
+                            "error": msg,
+                        })
+                        completed_runs += 1
+                        overall_progress.progress(min(1.0, completed_runs / max(1, total_runs)))
+                    _render_partial_results(force=True)
+                    continue
+
+                combo_engine = BacktestEngine(initial_capital=state.initial_capital)
+
+                for strat in selected_strategies:
+                    if st.session_state.get("stop_requested", False):
+                        st.warning("🛑 Arrêt demandé par l'utilisateur")
+                        stop_all = True
+                        break
+
+                    strategy_params = state.all_params.get(strat)
+                    if strategy_params is None:
+                        strategy_params = build_strategy_params_for_comparison(
+                            strat, use_preset=True
+                        )
+
+                    strategy_ranges = state.all_param_ranges.get(strat) or {}
+                    run_index = completed_runs + 1
+                    status_msg = f"⏳ Backtest {run_index}/{total_runs}: {strat} × {sym} × {tf}"
+                    if optimization_mode == "Grille de Paramètres":
+                        expected_combos = _estimate_grid_size(strategy_ranges)
+                        status_msg += f" | ~{expected_combos:,} combinaisons"
+                    status_placeholder.info(status_msg)
+
+                    if optimization_mode == "Backtest Simple":
+                        result, result_msg = safe_run_backtest(
+                            combo_engine,
+                            df,
+                            strat,
+                            strategy_params,
+                            sym,
+                            tf,
+                            silent_mode=not debug_enabled,
+                        )
+
+                        if result is None:
+                            sweep_results.append({
+                                "strategy": strat,
+                                "symbol": sym,
+                                "timeframe": tf,
+                                "status": "error",
+                                "error": result_msg,
+                            })
+                        else:
+                            sweep_results.append({
+                                "strategy": strat,
+                                "symbol": sym,
+                                "timeframe": tf,
+                                "status": "ok",
+                                "best_params": result.meta.get("params", strategy_params),
+                                "metrics": result.metrics or {},
+                            })
+                            _maybe_auto_save_run(result)
+                    else:
+                        progress_placeholder = st.empty()
+                        stats_placeholder = st.empty()
+                        if n_workers_effective > 1 and max_runs_per_sweep != 1:
+                            sweep_summary = _run_grid_parallel_basic(
+                                df=df,
+                                strategy_key=strat,
+                                symbol=sym,
+                                timeframe=tf,
+                                params=strategy_params,
+                                param_ranges=strategy_ranges,
+                                max_runs=max_runs_per_sweep,
+                                initial_capital=state.initial_capital,
+                                n_workers=n_workers_effective,
+                                worker_thread_limit=worker_thread_limit,
+                                debug_enabled=debug_enabled,
+                                progress_placeholder=progress_placeholder,
+                                stats_placeholder=stats_placeholder,
+                            )
+                        else:
+                            sweep_summary = _run_grid_sequential(
+                                df=df,
+                                engine=combo_engine,
+                                strategy_key=strat,
+                                symbol=sym,
+                                timeframe=tf,
+                                params=strategy_params,
+                                param_ranges=strategy_ranges,
+                                max_runs=max_runs_per_sweep,
+                                debug_enabled=debug_enabled,
+                                progress_placeholder=progress_placeholder,
+                            )
+                        progress_placeholder.empty()
+                        stats_placeholder.empty()
+
+                        sweep_results.append({
+                            "strategy": strat,
+                            "symbol": sym,
+                            "timeframe": tf,
+                            "status": "ok",
+                            "best_params": sweep_summary.get("best_params", {}),
+                            "metrics": sweep_summary.get("best_metrics", {}),
+                            "completed": sweep_summary.get("completed", 0),
+                            "failed": sweep_summary.get("failed", 0),
+                            "total_runs": sweep_summary.get("total_runs", 0),
+                        })
+
+                    completed_runs += 1
+                    overall_progress.progress(min(1.0, completed_runs / max(1, total_runs)))
+                    _render_partial_results()
+
+                # Nettoyage mémoire après chaque paire symbol/timeframe
+                try:
+                    del df
+                except Exception:
+                    pass
+                clear_data_cache()
+                safe_copy_cleanup(logger)
+                gc.collect()
+
+                if stop_all:
+                    break
+
+            status_placeholder.empty()
+            st.session_state["multi_sweep_results"] = sweep_results
+
+            if sweep_results:
+                summary_rows = _build_summary_rows(sweep_results)
                 results_df = pd.DataFrame(summary_rows)
                 st.markdown("### ✅ Résumé Multi-Sweep")
                 st.dataframe(results_df, width="stretch")
@@ -843,7 +904,8 @@ def render_main(
                 if not ok_df.empty:
                     best_row = ok_df.loc[ok_df["total_pnl"].idxmax()]
                     st.success(
-                        f"🏆 Meilleur résultat: {best_row['symbol']} {best_row['timeframe']} "
+                        f"🏆 Meilleur résultat: {best_row['strategy']} | "
+                        f"{best_row['symbol']} {best_row['timeframe']} "
                         f"| PnL ${best_row['total_pnl']:,.2f} | Sharpe {best_row['sharpe_ratio']:.2f}"
                     )
 
@@ -943,14 +1005,8 @@ def render_main(
                         for pname in param_names:
                             r = param_ranges[pname]
                             pmin, pmax, step = r["min"], r["max"], r["step"]
-
-                            if isinstance(pmin, int) and isinstance(step, int):
-                                values = list(range(int(pmin), int(pmax) + 1, int(step)))
-                            else:
-                                values = list(
-                                    np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
-                                )
-                                values = [round(v, 2) for v in values if v <= pmax]
+                            is_int = isinstance(pmin, int) and isinstance(step, int)
+                            values = build_param_values(pmin, pmax, step, is_int=is_int)
 
                             if not values:
                                 values = [pmin]
@@ -1243,32 +1299,33 @@ def render_main(
                     _fees = float(_sample.get("fees_bps", 10.0))
                     _slip = float(_sample.get("slippage_bps", 5.0))
 
-                    # ━━━ SWEEP NUMBA PAR CHUNKS (live updates entre chaque chunk) ━━━
-                    # Au lieu d'un appel bloquant unique (150s sans feedback UI),
-                    # on découpe en chunks de ~50K combos (~3-5s chacun).
-                    # Entre chaque chunk : rafraîchissement chronomètre + ETA + bt/s.
-                    # Overhead du chunking : < 0.5% (négligeable).
+                    # ━━━ SWEEP NUMBA ARRAYS : zéro dict Python pendant le sweep ━━━
+                    # Retourne 5 arrays numpy bruts par chunk au lieu de 50K dicts.
+                    # Mémoire: 5 × 1.7M × 8 bytes = 68 MB (vs 700 MB de dicts)
+                    # CPU: pas de pression GC = bt/s stable à 100%
+                    import numpy as _np
+
                     try:
                         NUMBA_CHUNK = int(os.getenv("NUMBA_CHUNK_SIZE", "50000"))
                     except (TypeError, ValueError):
                         NUMBA_CHUNK = 50000
-                    NUMBA_CHUNK = max(1000, NUMBA_CHUNK)  # minimum 1K par chunk
+                    NUMBA_CHUNK = max(1000, NUMBA_CHUNK)
 
                     n_chunks = math.ceil(total_runs / NUMBA_CHUNK)
-                    logger.info(
-                        f"[NUMBA] Sweep chunké: {total_runs:,} combos en {n_chunks} chunks de ~{NUMBA_CHUNK:,}"
-                    )
+                    logger.info(f"[NUMBA] Sweep arrays: {total_runs:,} combos en {n_chunks} chunks de ~{NUMBA_CHUNK:,}")
 
-                    # ━━━ ACCUMULATION RÉSULTATS : différer record_sweep_result à la fin ━━━
-                    # Entre les chunks, on ne fait QUE compter + trouver le best PnL.
-                    # Ça supprime les zigzags CPU (plus de boucle Python 50K entre chunks).
-                    all_raw_results = []  # accumule les dicts bruts Numba
+                    # Pré-allocation 5 arrays numpy (68 MB pour 1.7M combos)
+                    _pnls = _np.empty(total_runs, dtype=_np.float64)
+                    _sharpes = _np.empty(total_runs, dtype=_np.float64)
+                    _max_dds = _np.empty(total_runs, dtype=_np.float64)
+                    _win_rates = _np.empty(total_runs, dtype=_np.float64)
+                    _n_trades = _np.empty(total_runs, dtype=_np.float64)
+
                     _local_best_pnl = 0.0
                     _local_best_dd = 0.0
 
-                    # Affichage initial (0 bt/s, chronomètre démarre)
                     _refresh_live()
-                    print(f"[NUMBA UI] Démarrage {n_chunks} chunks de ~{NUMBA_CHUNK:,}", flush=True)
+                    print(f"[NUMBA UI] Démarrage {n_chunks} chunks de ~{NUMBA_CHUNK:,} (mode arrays)", flush=True)
 
                     try:
                         for chunk_idx in range(n_chunks):
@@ -1276,29 +1333,36 @@ def render_main(
                             chunk_end = min(chunk_begin + NUMBA_CHUNK, total_runs)
                             chunk_grid = param_combos_list[chunk_begin:chunk_end]
 
-                            # Exécuter ce chunk (bloquant ~3-5s, tous cores à 100%)
-                            chunk_results = run_numba_sweep(
+                            # Kernel Numba → retourne 5 arrays bruts (zéro dict Python)
+                            c_pnls, c_sharpes, c_dds, c_wrs, c_trades = run_numba_sweep(
                                 df=df,
                                 strategy_key=strategy_key,
                                 param_grid=chunk_grid,
                                 initial_capital=float(state.initial_capital),
                                 fees_bps=_fees,
                                 slippage_bps=_slip,
+                                return_arrays=True,
                             )
 
-                            # ━━━ LÉGER : juste compter + tracker best (pas de record_sweep_result) ━━━
-                            completed += len(chunk_results)
+                            # Copie directe dans les arrays pré-alloués (zéro allocation)
+                            n_chunk = chunk_end - chunk_begin
+                            _pnls[chunk_begin:chunk_end] = c_pnls[:n_chunk]
+                            _sharpes[chunk_begin:chunk_end] = c_sharpes[:n_chunk]
+                            _max_dds[chunk_begin:chunk_end] = c_dds[:n_chunk]
+                            _win_rates[chunk_begin:chunk_end] = c_wrs[:n_chunk]
+                            _n_trades[chunk_begin:chunk_end] = c_trades[:n_chunk]
+
+                            completed += n_chunk
                             monitor.runs_completed = completed
-                            all_raw_results.extend(chunk_results)
 
-                            if chunk_results:
-                                best_in_chunk = max(chunk_results, key=lambda r: r.get("total_pnl", 0.0))
-                                pnl = best_in_chunk.get("total_pnl", 0.0)
-                                if pnl > _local_best_pnl:
-                                    _local_best_pnl = pnl
-                                    _local_best_dd = best_in_chunk.get("max_drawdown", 0.0)
+                            # Best PnL tracking (numpy vectorisé, O(1) overhead)
+                            chunk_best_idx = int(_np.argmax(c_pnls[:n_chunk]))
+                            chunk_best_pnl = float(c_pnls[chunk_best_idx])
+                            if chunk_best_pnl > _local_best_pnl:
+                                _local_best_pnl = chunk_best_pnl
+                                _local_best_dd = float(c_dds[chunk_best_idx])
 
-                            # ━━━ RAFRAÎCHIR UI (ultra-rapide: 1 seul placeholder.markdown) ━━━
+                            # Rafraîchir UI
                             _equity = float(state.initial_capital) + _local_best_pnl if state.initial_capital else None
                             render_live_metrics(
                                 live_placeholder,
@@ -1311,72 +1375,61 @@ def render_main(
                             )
 
                     except KeyboardInterrupt:
-                        logger.info(f"⚠️ Sweep Numba interrompu par l'utilisateur. {completed}/{total_runs} complétés.")
+                        logger.info(f"⚠️ Sweep Numba interrompu. {completed}/{total_runs} complétés.")
                         _safe_streamlit_call(st.warning, f"⚠️ Sweep interrompu. {completed:,}/{total_runs:,} combinaisons testées.")
-                        # Enregistrer ce qu'on a avant de quitter
-                        for r in all_raw_results:
-                            adapted = {
-                                "params_dict": r["params"], "total_pnl": r["total_pnl"],
-                                "sharpe": r["sharpe_ratio"], "max_dd": r["max_drawdown"],
-                                "win_rate": r["win_rate"], "trades": r["total_trades"],
-                                "profit_factor": 0.0,
-                            }
-                            record_sweep_result(adapted, r["params"])
-                        return
+                        # Construire results_list depuis les arrays déjà remplis
+                        total_runs = completed  # tronquer
 
-                    # ━━━ BATCH VECTORISÉ: construire results_list directement (pas de boucle record_sweep_result) ━━━
-                    # record_sweep_result × 1.7M = 60-120s de Python pur → remplacé par list comprehension ~2s
-                    t_batch = time.perf_counter()
-                    print(f"[NUMBA UI] Construction rapide de {len(all_raw_results):,} résultats...", flush=True)
+                    # ━━━ CONSTRUCTION FINALE: arrays → results_list (une seule passe) ━━━
+                    _t_batch = time.perf_counter()
+                    _capital = float(state.initial_capital) if state.initial_capital else 10000.0
+                    print(f"[NUMBA UI] Construction {completed:,} résultats depuis arrays...", flush=True)
 
-                    for r in all_raw_results:
-                        raw_wr = r.get("win_rate", 0.0)
+                    for i in range(completed):
+                        pnl_val = float(_pnls[i])
+                        raw_wr = float(_win_rates[i])
                         wr = raw_wr * 100.0 if 0 <= raw_wr <= 1.0 else raw_wr
-                        dd_val = abs(r.get("max_drawdown", 0.0))
-                        pnl = r.get("total_pnl", 0.0)
-                        params_str = str(r["params"])
-                        # Peupler param_combos_map pour TOUS les résultats (dict insert = O(1), ~27MB pour 1.7M)
-                        # Nécessaire car le "best" affiché est trié par sharpe, pas par PnL
-                        param_combos_map[params_str] = r["params"]
+                        dd = abs(float(_max_dds[i]))
+                        p = param_combos_list[i]
+                        params_str = _params_to_str(p)
+                        param_combos_map[params_str] = p
                         results_list.append({
                             "params": params_str,
-                            "total_pnl": pnl,
-                            "sharpe": r.get("sharpe_ratio", 0.0),
-                            "max_dd": dd_val,
+                            "total_pnl": pnl_val,
+                            # Clés abrégées alignées sur format ProcessPool
+                            "sharpe": float(_sharpes[i]),
+                            "max_dd": dd,
                             "win_rate": wr,
-                            "trades": r.get("total_trades", 0),
+                            "trades": int(_n_trades[i]),
+                            "total_return_pct": (pnl_val / _capital * 100.0),
                             "profit_factor": 0.0,
                         })
 
-                    # Peupler sweep_monitor UNIQUEMENT pour le top-50
-                    # (éviter 1.7M × sweep_monitor.update qui est O(K) chacun)
-                    # param_combos_map est déjà peuplé pour TOUS les résultats ci-dessus
-                    top_indices = sorted(
-                        range(len(all_raw_results)),
-                        key=lambda i: all_raw_results[i].get("total_pnl", 0.0),
-                        reverse=True,
-                    )[:50]
-                    for idx in top_indices:
-                        r = all_raw_results[idx]
-                        raw_wr = r.get("win_rate", 0.0)
+                    # Monitor: top-50 via numpy argsort (vectorisé)
+                    _top_indices = _np.argsort(_pnls[:completed])[-50:][::-1]
+                    for idx in _top_indices:
+                        raw_wr = float(_win_rates[idx])
                         wr = raw_wr * 100.0 if 0 <= raw_wr <= 1.0 else raw_wr
-                        dd_val = abs(r.get("max_drawdown", 0.0))
-                        pnl = r.get("total_pnl", 0.0)
-                        metrics = {
-                            "sharpe_ratio": r.get("sharpe_ratio", 0.0),
-                            "total_pnl": pnl,
-                            "total_return_pct": (pnl / state.initial_capital * 100) if state.initial_capital else 0.0,
-                            "max_drawdown_pct": dd_val,
-                            "max_drawdown": dd_val,
-                            "win_rate": wr,
-                            "win_rate_pct": wr,
-                            "total_trades": r.get("total_trades", 0),
-                            "profit_factor": 0.0,
-                        }
-                        sweep_monitor.update(params=r["params"], metrics=metrics)
+                        dd = abs(float(_max_dds[idx]))
+                        sweep_monitor.update(
+                            params=param_combos_list[int(idx)],
+                            metrics={
+                                "sharpe_ratio": float(_sharpes[idx]),
+                                "total_pnl": float(_pnls[idx]),
+                                "total_return_pct": (float(_pnls[idx]) / _capital * 100.0),
+                                "max_drawdown_pct": dd, "max_drawdown": dd,
+                                "win_rate": wr, "win_rate_pct": wr,
+                                "total_trades": int(_n_trades[idx]),
+                                "profit_factor": 0.0,
+                            },
+                        )
+                    sweep_monitor._stats.evaluated = completed
 
-                    dt_batch = time.perf_counter() - t_batch
-                    print(f"[NUMBA UI] Enregistrement terminé en {dt_batch:.1f}s (top-50 dans sweep_monitor).", flush=True)
+                    _t_batch_elapsed = time.perf_counter() - _t_batch
+                    print(f"[NUMBA UI] Construction terminée en {_t_batch_elapsed:.1f}s", flush=True)
+
+                    # Libérer les arrays (68 MB)
+                    del _pnls, _sharpes, _max_dds, _win_rates, _n_trades
 
                     logger.info(f"[EXECUTION PATH] ✅ Numba sweep complété: {completed}/{total_runs}")
                     _safe_streamlit_call(_refresh_live)  # Afficher les métriques finales Numba

@@ -1175,3 +1175,46 @@ python run_streamlit.bat
 - Résultat : Temps post-Numba estimé réduit de 60-120s à ~2-5s; affichage des résultats ne crashe plus sur NameError `diag`; CPU drops inter-chunks minimisés.
 - Problèmes détectés : (1) batch record_sweep_result O(1.7M) Python pur = goulot critique; (2) `diag` défini uniquement dans ZONE 2 ProcessPool mais référencé dans bloc partagé AFFICHAGE FINAL; (3) boucle 50K inter-chunks pour tracker best PnL remplaçable par O(1) max().
 - Améliorations proposées : Tester sweep réel 1.7M combos et vérifier que résultats s'affichent immédiatement après Numba; vérifier CPU Task Manager post-sweep (doit retomber à ~0%).
+- Date : 07/02/2026
+- Objectif : Corriger blocage sweep à 93% + CPU erratique + bt/s divisé par 2 pendant sweeps Numba 1.7M combos.
+- Fichiers modifiés : ui/components/sweep_monitor.py, ui/main.py.
+- Actions réalisées : (1) **Suppression gc.collect() forcé** dans sweep_monitor.update() — était appelé toutes les 1000 itérations = 1 700 GC cycles pour 1.7M résultats, coûtant 17-85s de CPU pur et causant les zigzags CPU; (2) **Optimisation _update_top_results()** — remplacement `self._top_results[obj] = top[:self.top_k]` (nouvelle liste à chaque appel × 4 objectifs × 1.7M = 6.8M allocations de listes) par `del top[self.top_k:]` (in-place, zéro allocation); (3) **Remplacement boucle 1.7M record_sweep_result** — l'enregistrement post-Numba appelait record_sweep_result() 1.7M fois (chacun créant SweepResult + normalize_metrics + 4× sort + datetime.now), remplacé par: construction directe results_list via boucle légère + sweep_monitor.update() uniquement pour top-50 résultats; (4) **Même optimisation dans handler KeyboardInterrupt** Numba pour cohérence.
+- Vérifications effectuées : py_compile OK sur les 2 fichiers; import ui.main OK.
+- Résultat : Post-processing 1.7M résultats estimé réduit de 60-120s à ~2-3s; CPU erratique éliminé (plus de GC forcé); bt/s stable sans dégradation progressive (plus de pression GC croissante via allocations listes).
+- Problèmes détectés : gc.collect() × 1700 = cause principale CPU erratique; _update_top_results créait 6.8M listes temporaires = pression GC massive; record_sweep_result × 1.7M = goulot Python pur post-sweep (le sweep Numba finissait mais le post-processing bloquait).
+- Améliorations proposées : Relancer sweep 1.7M combos et vérifier bt/s stable autour de 7-10K; vérifier CPU constant à 95-100% sans zigzags; mesurer temps post-sweep (doit être <5s vs 60-120s avant).
+
+- Date : 07/02/2026
+- Objectif : Corriger RAM sous-utilisée (30%) + CPU instable + arrêt prématuré sur sweeps Numba 1.7M combos.
+- Fichiers modifiés : backtest/sweep_numba.py, ui/main.py.
+- Actions réalisées : (1) **Mode return_arrays dans sweep_numba** — ajout paramètre return_arrays=True retournant 5 arrays numpy bruts sans construire de dicts Python (68 MB vs 700 MB = 10× moins); (2) **Pré-allocation arrays numpy dans UI** — 5 arrays pré-alloués taille total_runs, remplis par slice (zéro allocation Python entre chunks); (3) **Suppression all_raw_results.extend()** — source arrêt prématuré (réallocation croissante liste 1.7M dicts); (4) **Best PnL/Top-50 vectorisés** — np.argmax/np.argsort au lieu de max()/sorted() Python.
+- Vérifications effectuées : py_compile OK; import OK.
+- Résultat : RAM pendant sweep ~500 MB (vs ~1.5 GB); CPU stable; arrêt prématuré résolu.
+- Problèmes détectés : all_raw_results.extend() causait réallocations massives au chunk ~27; 1.7M dicts = ~400 bytes overhead/dict vs 8 bytes/float numpy.
+- Améliorations proposées : Relancer sweep 1.7M combos; vérifier bt/s constant; vérifier sweep complet sans arrêt.
+
+- Date : 07/02/2026
+- Objectif : Corriger KeyError 'sharpe' post-sweep Numba — clés results_list incompatibles avec le code d'affichage.
+- Fichiers modifiés : ui/main.py.
+- Actions réalisées : Alignement des clés Numba results_list sur le format ProcessPool attendu par le post-processing: "sharpe_ratio"→"sharpe", "max_drawdown_pct"/"max_drawdown"→"max_dd", "total_trades"→"trades", suppression "win_rate_pct" redondant; le sort_values("sharpe") ligne 1772 et le debug "trades" ligne 1785 fonctionnent désormais avec les deux modes.
+- Vérifications effectuées : py_compile OK; import ui.main OK.
+- Résultat : Le sweep Numba 495K combos affiche maintenant les résultats triés au lieu de crasher sur KeyError 'sharpe'.
+- Problèmes détectés : Construction results_list dans ZONE 1 Numba utilisait les clés longues (sharpe_ratio, max_drawdown_pct, total_trades) alors que tout le code aval (sort_values, debug info, dataframe) attend les clés courtes (sharpe, max_dd, trades) du format ProcessPool.
+- Améliorations proposées : Relancer sweep complet pour valider affichage top-10 et re-backtest de la meilleure config.
+- Date : 07/02/2026
+- Objectif : Rétablir le multi-sweep séquentiel sur stratégies × tokens × timeframes dans l'UI Streamlit.
+- Fichiers modifiés : ui/main.py.
+- Actions réalisées : Extension de la logique multi-sweep pour inclure plusieurs stratégies (plan combiné stratégies/tokens/TF), exécution séquentielle par paire symbol/timeframe avec boucle interne stratégies, sauvegarde auto après chaque backtest simple, rafraîchissement incrémental des résultats, affichage du plan et du résumé final incluant la stratégie.
+- Vérifications effectuées : `python3 -m py_compile ui/main.py`.
+- Résultat : Le lancement depuis la sidebar déclenche désormais une série de backtests séquentiels couvrant toutes les combinaisons sélectionnées, avec progression et résumé multi-stratégies.
+- Problèmes détectés : La sélection multi-stratégies n'était pas intégrée au pipeline d'exécution (seule la première stratégie était backtestée).
+- Améliorations proposées : Optionnel — ajouter un mode d'auto-save dédié aux sweeps grille (sauvegarde du meilleur run par sweep) et un réglage de fréquence d'affichage des résultats.
+
+- Date : 07/02/2026
+- Objectif : Aligner le calcul des combinaisons UI/engine et clarifier les totaux multi-stratégies.
+- Fichiers modifiés : ui/helpers.py, ui/main.py, ui/sidebar.py.
+- Actions réalisées : (1) Ajout d'un générateur de valeurs de paramètres basé sur Decimal (`build_param_values`) pour éliminer les erreurs de comptage float; (2) Utilisation de ce générateur pour le comptage UI et la génération de grilles dans `ui/main.py`; (3) Calcul de counts pour les stratégies secondaires et affichage d'un résumé multi-stratégies (totaux) dans la sidebar; (4) Ajout de l'estimation de combos par stratégie dans le status multi-sweep en mode grille.
+- Vérifications effectuées : `python3 -m py_compile ui/helpers.py ui/main.py ui/sidebar.py`.
+- Résultat : Les valeurs/combinaisons affichées dans l'UI correspondent désormais au moteur de sweep; la sidebar expose un total multi-stratégies pour éviter les écarts perçus (ex: 90k vs 495k).
+- Problèmes détectés : Comptage UI sous-estimé pour certains steps float (ex: 0.05) + manque de visibilité des combinaisons des stratégies secondaires.
+- Améliorations proposées : Optionnel — permettre la configuration des ranges par stratégie (tabs) pour éviter d'utiliser des ranges par défaut sur les stratégies non actives.

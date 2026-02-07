@@ -290,10 +290,9 @@ class SweepMonitor:
         self._update_top_results(result)
         self._last_update = datetime.now()
 
-        # ✅ FIX: Nettoyage mémoire périodique (tous les 1000 updates)
-        if self._update_count % 1000 == 0:
-            import gc
-            gc.collect()
+        # GC désactivé — le GC forcé toutes les 1000 itérations coûtait
+        # 17-85s sur 1.7M résultats (1700 cycles GC). Python gère la
+        # mémoire automatiquement via GC générationnel.
 
     def _update_top_results(self, result: SweepResult):
         """Met à jour les meilleurs résultats."""
@@ -310,7 +309,7 @@ class SweepMonitor:
             # Minimiser uniquement le drawdown, maximiser tout le reste (PnL, Sharpe, Return)
             reverse = obj not in ['max_drawdown', 'max_drawdown_pct']
             top.sort(key=lambda r: r.metrics.get(obj, 0), reverse=reverse)
-            self._top_results[obj] = top[:self.top_k]
+            del top[self.top_k:]  # in-place, zéro allocation (vs slice = nouvelle liste)
 
     @property
     def stats(self) -> SweepStats:

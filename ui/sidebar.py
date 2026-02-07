@@ -68,6 +68,7 @@ from ui.helpers import (
     _find_saved_run_meta,
     _parse_run_timestamp,
     apply_versioned_preset,
+    build_param_values,
     create_param_range_selector,
     load_selected_data,
     render_saved_runs_panel,
@@ -2094,15 +2095,52 @@ def render_sidebar() -> SidebarState:
                 other_params[param_name] = spec.default
                 if param_mode == "range":
                     # Créer un range basique pour l'optimisation
+                    step_val = spec.step
+                    if step_val is None:
+                        range_size = float(spec.max_val) - float(spec.min_val)
+                        if spec.param_type == "int":
+                            step_val = max(1, int(range_size / 10)) if range_size > 0 else 1
+                        else:
+                            step_val = range_size / 10 if range_size > 0 else 0.1
+                    if spec.param_type == "int":
+                        step_val = max(1, int(round(step_val)))
+                    values = build_param_values(
+                        spec.min_val,
+                        spec.max_val,
+                        step_val,
+                        is_int=spec.param_type == "int",
+                    )
                     other_ranges[param_name] = {
                         "min": spec.min_val,
                         "max": spec.max_val,
-                        "step": spec.step,
+                        "step": step_val,
+                        "count": len(values),
                     }
 
             all_params[other_strategy_key] = other_params
             all_param_ranges[other_strategy_key] = other_ranges
             all_param_specs[other_strategy_key] = other_specs
+
+    if param_mode == "range" and len(strategy_names) > 1:
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("📌 Combinaisons multi-stratégies")
+        total_per_sweep = 0
+        for strat_key in strategy_keys:
+            ranges = all_param_ranges.get(strat_key) or {}
+            stats = compute_search_space_stats(
+                ranges,
+                max_combinations=max_combos,
+            )
+            if stats.is_continuous:
+                st.sidebar.caption(f"• {strat_key}: continu")
+            else:
+                total_per_sweep += stats.total_combinations
+                st.sidebar.caption(f"• {strat_key}: {stats.total_combinations:,} combinaisons")
+
+        total_runs = total_per_sweep * max(1, len(symbols)) * max(1, len(timeframes))
+        st.sidebar.info(
+            f"Total estimé (somme stratégies × tokens × TF): {total_runs:,} runs"
+        )
 
     draft_state = SidebarState(
         debug_enabled=debug_enabled,

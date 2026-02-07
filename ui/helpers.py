@@ -27,6 +27,7 @@ import math
 import statistics
 import time
 import traceback
+from decimal import Decimal, ROUND_FLOOR
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -371,6 +372,53 @@ def apply_versioned_preset(preset: Any, strategy_key: str) -> None:
         st.session_state["trading_leverage"] = values["leverage"]
 
 
+def _infer_step_decimals(step: float) -> int:
+    step_str = f"{step:.12f}".rstrip("0").rstrip(".")
+    if "." in step_str:
+        return len(step_str.split(".")[1])
+    return 0
+
+
+def build_param_values(
+    min_v: float,
+    max_v: float,
+    step: float,
+    is_int: bool,
+) -> List[float]:
+    if step is None or step <= 0 or max_v < min_v:
+        return [float(min_v)]
+
+    if is_int:
+        step_int = max(1, int(round(step)))
+        return list(range(int(min_v), int(max_v) + 1, step_int))
+
+    step_dec = Decimal(str(step))
+    min_dec = Decimal(str(min_v))
+    max_dec = Decimal(str(max_v))
+    if step_dec <= 0:
+        return [float(min_v)]
+
+    count = int(((max_dec - min_dec) / step_dec).to_integral_value(rounding=ROUND_FLOOR)) + 1
+    decimals = _infer_step_decimals(step)
+    quant = Decimal(1).scaleb(-decimals) if decimals > 0 else None
+
+    values: List[float] = []
+    for i in range(count):
+        v = min_dec + step_dec * i
+        if v > max_dec:
+            break
+        if quant is not None:
+            v = v.quantize(quant)
+        val = float(v)
+        if not values or val != values[-1]:
+            values.append(val)
+
+    if not values:
+        values = [float(min_v)]
+
+    return values
+
+
 def create_param_range_selector(
     name: str,
     key_prefix: str = "",
@@ -491,8 +539,9 @@ def create_param_range_selector(
                 key=f"{unique_key}_step",
             )
 
-        if param_max > param_min and param_step > 0:
-            nb_values = int((param_max - param_min) / param_step) + 1
+        if param_max >= param_min and param_step > 0:
+            values = build_param_values(param_min, param_max, param_step, is_int=is_int)
+            nb_values = max(1, len(values))
             st.caption(f"→ {nb_values} valeurs à tester")
         else:
             nb_values = 1

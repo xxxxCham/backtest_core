@@ -1408,7 +1408,8 @@ def run_numba_sweep(
     fees_bps: float = 10.0,
     slippage_bps: float = 5.0,
     progress_callback: Optional[Callable[[int, int, Dict], None]] = None,
-) -> List[Dict[str, Any]]:
+    return_arrays: bool = False,
+) -> "Union[List[Dict[str, Any]], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]":
     """
     Exécute un sweep Numba depuis l'UI.
 
@@ -1420,9 +1421,12 @@ def run_numba_sweep(
         fees_bps: Frais en basis points
         slippage_bps: Slippage en basis points
         progress_callback: Optionnel, (completed, total, best_result) -> None
+        return_arrays: Si True, retourne (pnls, sharpes, max_dds, win_rates, n_trades)
+                       sans construire de dicts Python (10× moins de RAM).
 
     Returns:
-        Liste de résultats [{params, total_pnl, sharpe_ratio, max_drawdown, win_rate, total_trades}, ...]
+        Si return_arrays=False: Liste de résultats [{params, total_pnl, ...}, ...]
+        Si return_arrays=True: Tuple (pnls, sharpes, max_dds, win_rates, n_trades) np.ndarray
     """
     import logging
     import sys
@@ -1586,6 +1590,12 @@ def run_numba_sweep(
 
     elapsed = time.perf_counter() - start_time
     print(f"[NUMBA] Sweep terminé en {elapsed:.2f}s", flush=True)
+
+    # ━━━ Mode arrays bruts : retour immédiat sans construire de dicts ━━━
+    if return_arrays:
+        total_time = time.perf_counter() - start_time
+        print(f"⚡ Numba sweep ARRAYS: {n_combos:,} combos en {total_time:.2f}s ({n_combos/total_time:,.0f} bt/s)", flush=True)
+        return (pnls, sharpes, max_dds, win_rates, n_trades)
 
     # ═══════════════════════════════════════════════════════════════════════
     # CONSTRUCTION VECTORISÉE DES RÉSULTATS (OPTIMISÉE pour millions de combos)
