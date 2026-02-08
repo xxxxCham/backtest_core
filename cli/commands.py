@@ -1815,6 +1815,7 @@ def cmd_grid_backtest(args) -> int:
     from data.loader import load_ohlcv
     from strategies import get_strategy
     from utils.config import Config
+    from utils.parameters import normalize_param_grid_values
 
     if not args.quiet:
         print_header("Backtest Mode Grille")
@@ -1845,6 +1846,16 @@ def cmd_grid_backtest(args) -> int:
         print(f"   Période réelle: {df.index[0]} → {df.index[-1]}")
         print()
 
+    strategy_class = get_strategy(args.strategy)
+    if not strategy_class:
+        print_error(f"Stratégie '{args.strategy}' non trouvée")
+        return 1
+
+    strategy_instance = strategy_class()
+
+    if getattr(args, "include_optional_params", False):
+        strategy_instance._include_optional_params = True
+
     # Parser la grille de paramètres depuis JSON
     if args.param_grid:
         try:
@@ -1854,16 +1865,6 @@ def cmd_grid_backtest(args) -> int:
             return 1
     else:
         # Utiliser une grille par défaut basée sur la stratégie
-        strategy_class = get_strategy(args.strategy)
-        if not strategy_class:
-            print_error(f"Stratégie '{args.strategy}' non trouvée")
-            return 1
-
-        strategy_instance = strategy_class()
-
-        if getattr(args, "include_optional_params", False):
-            strategy_instance._include_optional_params = True
-
         optional_skipped: List[str] = []
         if hasattr(strategy_instance, "parameter_specs") and strategy_instance.parameter_specs:
             optional_skipped = [
@@ -1895,6 +1896,18 @@ def cmd_grid_backtest(args) -> int:
                     (min_val + max_val) / 2,
                     max_val
                 ]
+
+    if hasattr(strategy_instance, "parameter_specs") and strategy_instance.parameter_specs:
+        try:
+            param_grid, grid_warnings = normalize_param_grid_values(
+                strategy_instance.parameter_specs,
+                param_grid,
+            )
+        except ValueError as exc:
+            print_error(str(exc))
+            return 1
+        for warning in grid_warnings:
+            print_warning(warning)
 
     # Générer toutes les combinaisons
     param_names = list(param_grid.keys())

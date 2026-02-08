@@ -42,9 +42,9 @@ class BollingerBestShort3iStrategy(StrategyBase):
         1.0 = upper_band
 
     Parameters:
-        entry_level: 0.8 to 1.0 (near upper band)
-        sl_level: 1.3 to 1.8 (above upper band)
-        tp_level: 0.0 to 0.3 (toward lower band)
+        entry_level: 0.8 to 1.2 (near upper band)
+        sl_level: 1.3 to 2.5 (above upper band)
+        tp_level: 0.0 to 0.6 (toward lower band)
     """
 
     def __init__(self) -> None:
@@ -72,31 +72,31 @@ class BollingerBestShort3iStrategy(StrategyBase):
         return {
             "bb_period": ParameterSpec(
                 name="bb_period",
-                min_val=10, max_val=50, default=20,
+                min_val=10, max_val=100, default=20,
                 param_type="int",
                 description="Bollinger period",
             ),
             "bb_std": ParameterSpec(
                 name="bb_std",
-                min_val=1.0, max_val=4.0, step=0.1, default=2.1,
+                min_val=1.0, max_val=5.0, step=0.1, default=2.1,
                 param_type="float",
                 description="Bollinger std dev",
             ),
             "entry_level": ParameterSpec(
                 name="entry_level",
-                min_val=0.8, max_val=1.0, step=0.05, default=1.0,
+                min_val=0.8, max_val=1.2, step=0.05, default=1.0,
                 param_type="float",
-                description="Entry level near upper band (0.8 to 1.0)",
+                description="Entry level near upper band (0.8 to 1.2)",
             ),
             "sl_level": ParameterSpec(
                 name="sl_level",
-                min_val=1.3, max_val=1.8, step=0.05, default=1.5,
+                min_val=1.3, max_val=2.5, step=0.05, default=1.5,
                 param_type="float",
                 description="Stop-loss level above upper band",
             ),
             "tp_level": ParameterSpec(
                 name="tp_level",
-                min_val=0.0, max_val=0.3, step=0.05, default=0.15,
+                min_val=0.0, max_val=0.6, step=0.05, default=0.15,
                 param_type="float",
                 description="Take-profit level toward lower band",
             ),

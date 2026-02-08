@@ -1032,13 +1032,19 @@ def run_llm_sweep(
 
     # Normaliser ranges (clamp + validate)
     try:
-        param_grid = normalize_param_ranges(param_specs, range_proposal.ranges)
+        normalized_ranges, range_warnings = normalize_param_ranges(
+            param_specs, range_proposal.ranges
+        )
     except ValueError as e:
         _logger.error(f"llm_sweep_validation_failed error='{e}'")
         raise
 
+    if range_warnings:
+        for warning in range_warnings:
+            _logger.warning("llm_sweep_range_warning: %s", warning)
+
     # Log search space stats
-    stats = compute_search_space_stats(param_grid)
+    stats = compute_search_space_stats(normalized_ranges)
     _logger.info(
         f"llm_sweep_space total_combos={stats.total_combinations} "
         f"estimated_memory_mb={getattr(stats, 'estimated_memory_mb', 'N/A')}"
@@ -1054,6 +1060,12 @@ def run_llm_sweep(
             f"Trop de combinaisons ({stats.total_combinations} > "
             f"{range_proposal.max_combinations}). Réduire les ranges ou augmenter max_combinations."
         )
+
+    # Construire la grille depuis les ranges normalisées
+    param_grid = {
+        name: range_def.get("values", [])
+        for name, range_def in normalized_ranges.items()
+    }
 
     # Créer SweepEngine
     engine = SweepEngine(

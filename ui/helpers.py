@@ -450,11 +450,13 @@ def create_param_range_selector(
             "description": spec.description,
             "type": "int" if is_int else "float",
         }
+
     else:
+        from ui.constants import PARAM_CONSTRAINTS
         if name not in PARAM_CONSTRAINTS:
             st.sidebar.warning(f"Paramètre {name} sans contraintes définies")
             return None
-        constraints = PARAM_CONSTRAINTS[name]
+        constraints = dict(PARAM_CONSTRAINTS[name])
         step = constraints.get("step", 1)
         is_int = constraints.get("type") == "int"
         if not is_int:
@@ -1499,9 +1501,9 @@ def run_sweep_sequential_with_callback(
                 pnl = result.metrics.get("total_pnl", 0.0)
                 if best_result is None or pnl > best_result.get("best_pnl", float("-inf")):
                     best_result = {"result": result, "best_pnl": pnl}
+
             else:
                 results.append(None)
-
         except Exception:
             results.append(None)
 
@@ -1514,3 +1516,4 @@ def run_sweep_sequential_with_callback(
                 pass
 
     return results
+

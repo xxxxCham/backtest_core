@@ -76,6 +76,7 @@ from ui.helpers import (
 )
 from ui.state import SidebarState
 from utils.observability import is_debug_enabled, set_log_level
+from utils.parameters import normalize_param_ranges
 
 
 def _is_valid_timeframe_format(tf: str) -> bool:
@@ -1875,7 +1876,7 @@ def render_sidebar() -> SidebarState:
                         if spec is not None:
                             params[param_name] = spec.default
                         else:
-                            params[param_name] = PARAM_CONSTRAINTS[param_name]["default"]
+                            params[param_name] = getattr(spec, "default", params.get(param_name))
                         # DEBUG: Afficher les ranges générés
                         print(f"[DEBUG] param_ranges[{param_name}] = {range_data}")
 
@@ -1886,6 +1887,23 @@ def render_sidebar() -> SidebarState:
             # DEBUG: Afficher le résumé des param_ranges
             print(f"[DEBUG] param_ranges final = {list(param_ranges.keys())}")
             print(f"[DEBUG] Total paramètres optimisables: {sum(1 for s in param_specs.values() if getattr(s, 'optimize', True))}")
+
+            normalized_ranges = param_ranges
+            range_warnings: List[str] = []
+
+            if param_mode == "range" and param_ranges:
+                try:
+                    normalized_ranges, range_warnings = normalize_param_ranges(
+                        param_specs,
+                        param_ranges,
+                    )
+                    param_ranges = normalized_ranges
+                except ValueError as exc:
+                    st.sidebar.error(f"Plage invalide: {exc}")
+
+            if range_warnings:
+                for warning in range_warnings:
+                    st.sidebar.warning(f"⚠️ {warning}")
 
             if param_mode == "range" and param_ranges:
                 st.sidebar.markdown("---")
@@ -2262,3 +2280,4 @@ def render_sidebar() -> SidebarState:
             st.caption("✅ Configuration prête.")
 
     return applied_state
+

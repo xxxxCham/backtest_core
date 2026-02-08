@@ -10,21 +10,21 @@ Protection: Tout code Streamlit est dans main() appelé uniquement par __main__.
 from __future__ import annotations
 
 # pylint: disable=import-outside-toplevel,too-many-lines
+
 # ============================================================================
 # DÉSACTIVATION GPU POUR SWEEPS STREAMLIT
 # ============================================================================
 # DOIT être au tout début AVANT tout import pour éviter chargement VRAM inutile
 # GPU queue ne fonctionne pas en multiprocess → CPU + cache RAM plus efficace
 import os
-
 os.environ["BACKTEST_USE_GPU"] = "0"
 os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 # ============================================================================
 
-import asyncio
 import gc
 import logging
 import math
+import os
 import time
 import traceback
 from collections import deque
@@ -35,75 +35,55 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-# Import du worker isolé pour éviter les problèmes de pickling avec hot-reload Streamlit
-from backtest.worker import run_backtest_worker as _isolated_worker
+from ui.constants import PARAM_CONSTRAINTS
+from ui.context import (
+    LLM_AVAILABLE,
+    LLM_IMPORT_ERROR,
+    OrchestrationLogger,
+    BacktestEngine,
+    compute_search_space_stats,
+    create_llm_client,
+    create_optimizer_from_engine,
+    create_orchestrator_with_backtest,
+    get_strategy_param_bounds,
+    get_strategy_param_space,
+    generate_session_id,
+    render_deep_trace_viewer,
+    render_full_orchestration_viewer,
+    LiveOrchestrationViewer,
+)
+from ui.helpers import (
+    ProgressMonitor,
+    build_strategy_params_for_comparison,
+    render_progress_monitor,
+    safe_load_data,
+    load_selected_data,
+    safe_run_backtest,
+    safe_copy_cleanup,
+    show_status,
+    summarize_comparison_results,
+    validate_all_params,
+    _maybe_auto_save_run,
+)
 from ui.cache_manager import clear_data_cache
+from ui.state import SidebarState
 from ui.components.charts import (
     render_comparison_chart,
     render_multi_sweep_heatmap,
     render_multi_sweep_ranking,
-    render_ohlcv_with_trades_and_indicators,
     render_strategy_param_diagram,
+    render_ohlcv_with_trades_and_indicators,
 )
 from ui.components.sweep_monitor import (
     SweepMonitor,
     render_sweep_progress,
     render_sweep_summary,
 )
-from ui.constants import PARAM_CONSTRAINTS
-from ui.context import (
-    LLM_AVAILABLE,
-    LLM_IMPORT_ERROR,
-    BacktestEngine,
-    LiveOrchestrationViewer,
-    OrchestrationLogger,
-    compute_search_space_stats,
-    create_llm_client,
-    create_optimizer_from_engine,
-    create_orchestrator_with_backtest,
-    generate_session_id,
-    get_strategy_param_bounds,
-    get_strategy_param_space,
-    render_deep_trace_viewer,
-    render_full_orchestration_viewer,
-)
-from ui.helpers import (
-    ProgressMonitor,
-    _maybe_auto_save_run,
-    build_param_values,
-    build_indicator_overlays,
-    build_strategy_params_for_comparison,
-    load_selected_data,
-    render_live_metrics,
-    render_progress_monitor,
-    safe_copy_cleanup,
-    safe_load_data,
-    safe_run_backtest,
-    show_status,
-    summarize_comparison_results,
-    validate_all_params,
-)
-from ui.state import SidebarState
+from ui.helpers import build_indicator_overlays
 from utils.run_tracker import RunSignature, get_global_tracker
 
-
-def _safe_streamlit_call(func, *args, **kwargs):
-    """
-    Wrapper pour appels Streamlit qui peuvent échouer lors d'interruption (event loop closed).
-    Capture RuntimeError et CancelledError silencieusement pour éviter cascade d'erreurs.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (RuntimeError, asyncio.CancelledError) as e:
-        # Event loop fermé lors de Ctrl+C - ignorer silencieusement
-        logger = logging.getLogger(__name__)
-        logger.debug(f"Event loop fermé lors de {func.__name__}: {e}")
-        return None
-    except Exception as e:
-        # Autres erreurs - logger mais ne pas crasher
-        logger = logging.getLogger(__name__)
-        logger.warning(f"Erreur inattendue lors de {func.__name__}: {e}")
-        return None
+# Import du worker isolé pour éviter les problèmes de pickling avec hot-reload Streamlit
+from backtest.worker import run_backtest_worker as _isolated_worker
 
 
 # Fonction _run_backtest_multiprocess SUPPRIMÉE (obsolète)
@@ -157,10 +137,11 @@ def _init_sweep_worker(thread_limit: int) -> None:
         info_after = threadpoolctl.threadpool_info()
 
         # Log pour debug
-        logger_local = logging.getLogger(__name__)
+        import logging
+        logger = logging.getLogger(__name__)
         num_threads_before = sum(pool.get("num_threads", 0) for pool in info_before)
         num_threads_after = sum(pool.get("num_threads", 0) for pool in info_after)
-        logger_local.debug("Worker threads BLAS: %d → %d", num_threads_before, num_threads_after)
+        logger.debug(f"Worker threads BLAS: {num_threads_before} → {num_threads_after}")
     except ImportError:
         pass  # threadpoolctl non installé - les env vars suffiront
 
@@ -178,18 +159,6 @@ def _timeframe_to_minutes(timeframe: str) -> int:
     return amount * multipliers.get(unit, 60)
 
 
-def _dedupe_preserve_order(items: List[str]) -> List[str]:
-    """Supprime les doublons en conservant l'ordre d'origine."""
-    seen = set()
-    output: List[str] = []
-    for item in items:
-        if item in seen:
-            continue
-        seen.add(item)
-        output.append(item)
-    return output
-
-
 def _build_multi_sweep_plan(symbols: List[str], timeframes: List[str]) -> List[tuple[str, str]]:
     """Construit un plan multi-sweep avec un ordre stable et léger."""
     combos = [(symbol, tf) for symbol in symbols for tf in timeframes]
@@ -204,10 +173,24 @@ def _estimate_grid_size(param_ranges: Dict[str, Any]) -> int:
     total = 1
     for r in param_ranges.values():
         try:
+            if isinstance(r, dict):
+                if "count" in r:
+                    total *= max(1, int(r["count"]))
+                    continue
+                values = r.get("values")
+                if isinstance(values, (list, tuple)):
+                    total *= max(1, len(values))
+                    continue
             pmin, pmax, step = r["min"], r["max"], r["step"]
-            is_int = isinstance(pmin, int) and isinstance(step, int)
-            values = build_param_values(pmin, pmax, step, is_int=is_int)
-            total *= max(1, len(values))
+            if isinstance(pmin, int) and isinstance(step, int):
+                count = max(1, ((int(pmax) - int(pmin)) // max(1, int(step))) + 1)
+            else:
+                if float(step) <= 0:
+                    count = 1
+                else:
+                    span = float(pmax) - float(pmin)
+                    count = int(math.floor(span / float(step))) + 1
+            total *= max(1, int(count))
         except Exception:
             total *= 1
     return max(1, int(total))
@@ -235,10 +218,18 @@ def _build_param_combo_iter(
     if param_names:
         for pname in param_names:
             r = param_ranges[pname]
-            pmin, pmax, step = r["min"], r["max"], r["step"]
+            pmin = r.get("min") if isinstance(r, dict) else None
+            values = r.get("values") if isinstance(r, dict) else None
+            if values is None:
+                pmin, pmax, step = r["min"], r["max"], r["step"]
 
-            is_int = isinstance(pmin, int) and isinstance(step, int)
-            values = build_param_values(pmin, pmax, step, is_int=is_int)
+                if isinstance(pmin, int) and isinstance(step, int):
+                    values = list(range(int(pmin), int(pmax) + 1, max(1, int(step))))
+                else:
+                    values = list(
+                        np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
+                    )
+                    values = [round(v, 2) for v in values if v <= pmax]
 
             if not values:
                 values = [pmin]
@@ -360,7 +351,6 @@ def _run_grid_parallel_basic(
 ) -> Dict[str, Any]:
     """Exécute une grille en parallèle (pool par sweep) avec progress live."""
     from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
-
     from backtest.worker import init_worker_with_dataframe
 
     combo_iter, total_runs, total_combinations = _build_param_combo_iter(
@@ -498,7 +488,7 @@ Le système de granularité limite le nombre de valeurs testables.
         stop_button = st.button(
             "⛔ Arrêt d'urgence",
             type="secondary",
-            width="stretch",
+            use_container_width=True,
             key="btn_stop_backtest",
         )
 
@@ -657,40 +647,25 @@ def render_main(
             st.session_state.is_running = False
             st.stop()
 
-        selected_strategies = _dedupe_preserve_order(state.strategy_keys or [strategy_key])
-        is_multi_sweep = (
-            len(state.symbols) > 1
-            or len(state.timeframes) > 1
-            or len(selected_strategies) > 1
-        )
+        is_multi_sweep = (len(state.symbols) > 1 or len(state.timeframes) > 1)
         if is_multi_sweep and optimization_mode in ("Backtest Simple", "Grille de Paramètres"):
             sweep_plan = _build_multi_sweep_plan(state.symbols, state.timeframes)
-            total_runs = len(sweep_plan) * len(selected_strategies)
-
-            multi_plan_rows = [
-                {"strategy": strat, "symbol": sym, "timeframe": tf}
-                for sym, tf in sweep_plan
-                for strat in selected_strategies
-            ]
-            st.session_state["multi_sweep_plan"] = multi_plan_rows
+            total_sweeps = len(sweep_plan)
+            st.session_state["multi_sweep_plan"] = sweep_plan
 
             st.info(
                 f"🔄 **Mode multi-sweep séquentiel**\n\n"
-                f"- {len(selected_strategies)} stratégie(s)\n"
                 f"- {len(state.symbols)} token(s)\n"
                 f"- {len(state.timeframes)} timeframe(s)\n"
-                f"- {total_runs} backtest(s) au total\n\n"
+                f"- {total_sweeps} sweep(s) au total\n\n"
                 "Exécution **un par un** pour éviter la saturation mémoire."
             )
 
             with st.expander("📋 Plan des sweeps", expanded=False):
-                plan_df = pd.DataFrame(multi_plan_rows)
-                max_plan_rows = 200
-                if len(plan_df) > max_plan_rows:
-                    st.dataframe(plan_df.head(max_plan_rows), width="stretch")
-                    st.caption(f"Plan tronqué: {max_plan_rows} / {len(plan_df)} lignes affichées.")
-                else:
-                    st.dataframe(plan_df, width="stretch")
+                plan_df = pd.DataFrame(
+                    [{"symbol": sym, "timeframe": tf} for sym, tf in sweep_plan]
+                )
+                st.dataframe(plan_df, width="stretch")
 
             if optimization_mode == "Grille de Paramètres":
                 n_workers_effective = _resolve_workers(n_workers)
@@ -711,11 +686,8 @@ def render_main(
 
             overall_progress = st.progress(0.0)
             status_placeholder = st.empty()
-            results_placeholder = st.empty()
             sweep_results: List[Dict[str, Any]] = []
             logger = logging.getLogger(__name__)
-            last_results_render = time.perf_counter()
-            render_interval = 0.5
 
             start_str = None
             end_str = None
@@ -723,11 +695,124 @@ def render_main(
                 start_str = state.start_date.strftime("%Y-%m-%d")
                 end_str = state.end_date.strftime("%Y-%m-%d")
 
-            def _build_summary_rows(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-                rows: List[Dict[str, Any]] = []
-                for item in items:
+            for idx, (sym, tf) in enumerate(sweep_plan, start=1):
+                if st.session_state.get("stop_requested", False):
+                    st.warning("🛑 Arrêt demandé par l'utilisateur")
+                    break
+
+                status_placeholder.info(
+                    f"⏳ Sweep {idx}/{total_sweeps}: {strategy_key} × {sym} × {tf}"
+                )
+
+                df, msg = safe_load_data(sym, tf, start=start_str, end=end_str)
+                if df is None:
+                    sweep_results.append({
+                        "strategy": strategy_key,
+                        "symbol": sym,
+                        "timeframe": tf,
+                        "status": "error",
+                        "error": msg,
+                    })
+                    overall_progress.progress(idx / total_sweeps)
+                    continue
+
+                combo_engine = BacktestEngine(initial_capital=state.initial_capital)
+
+                if optimization_mode == "Backtest Simple":
+                    result, result_msg = safe_run_backtest(
+                        combo_engine,
+                        df,
+                        strategy_key,
+                        params,
+                        sym,
+                        tf,
+                        silent_mode=not debug_enabled,
+                    )
+
+                    if result is None:
+                        sweep_results.append({
+                            "strategy": strategy_key,
+                            "symbol": sym,
+                            "timeframe": tf,
+                            "status": "error",
+                            "error": result_msg,
+                        })
+                    else:
+                        sweep_results.append({
+                            "strategy": strategy_key,
+                            "symbol": sym,
+                            "timeframe": tf,
+                            "status": "ok",
+                            "best_params": result.meta.get("params", params),
+                            "metrics": result.metrics or {},
+                        })
+                        _maybe_auto_save_run(result)
+                else:
+                    progress_placeholder = st.empty()
+                    stats_placeholder = st.empty()
+                    if n_workers_effective > 1 and max_runs_per_sweep != 1:
+                        sweep_summary = _run_grid_parallel_basic(
+                            df=df,
+                            strategy_key=strategy_key,
+                            symbol=sym,
+                            timeframe=tf,
+                            params=params,
+                            param_ranges=param_ranges,
+                            max_runs=max_runs_per_sweep,
+                            initial_capital=state.initial_capital,
+                            n_workers=n_workers_effective,
+                            worker_thread_limit=worker_thread_limit,
+                            debug_enabled=debug_enabled,
+                            progress_placeholder=progress_placeholder,
+                            stats_placeholder=stats_placeholder,
+                        )
+                    else:
+                        sweep_summary = _run_grid_sequential(
+                            df=df,
+                            engine=combo_engine,
+                            strategy_key=strategy_key,
+                            symbol=sym,
+                            timeframe=tf,
+                            params=params,
+                            param_ranges=param_ranges,
+                            max_runs=max_runs_per_sweep,
+                            debug_enabled=debug_enabled,
+                            progress_placeholder=progress_placeholder,
+                        )
+                    progress_placeholder.empty()
+                    stats_placeholder.empty()
+
+                    sweep_results.append({
+                        "strategy": strategy_key,
+                        "symbol": sym,
+                        "timeframe": tf,
+                        "status": "ok",
+                        "best_params": sweep_summary.get("best_params", {}),
+                        "metrics": sweep_summary.get("best_metrics", {}),
+                        "completed": sweep_summary.get("completed", 0),
+                        "failed": sweep_summary.get("failed", 0),
+                        "total_runs": sweep_summary.get("total_runs", 0),
+                    })
+
+                # Nettoyage mémoire entre sweeps
+                try:
+                    del df
+                except Exception:
+                    pass
+                clear_data_cache()
+                safe_copy_cleanup(logger)
+                gc.collect()
+
+                overall_progress.progress(idx / total_sweeps)
+
+            status_placeholder.empty()
+            st.session_state["multi_sweep_results"] = sweep_results
+
+            if sweep_results:
+                summary_rows = []
+                for item in sweep_results:
                     metrics = item.get("metrics", {}) or {}
-                    rows.append({
+                    summary_rows.append({
                         "strategy": item.get("strategy"),
                         "symbol": item.get("symbol"),
                         "timeframe": item.get("timeframe"),
@@ -741,161 +826,7 @@ def render_main(
                         "failed": item.get("failed"),
                         "error": item.get("error"),
                     })
-                return rows
 
-            def _render_partial_results(force: bool = False) -> None:
-                nonlocal last_results_render
-                if not sweep_results:
-                    return
-                now = time.perf_counter()
-                if not force and now - last_results_render < render_interval:
-                    return
-                last_results_render = now
-                rows = _build_summary_rows(sweep_results)
-                results_placeholder.dataframe(pd.DataFrame(rows), width="stretch")
-
-            completed_runs = 0
-            stop_all = False
-
-            for sym, tf in sweep_plan:
-                if st.session_state.get("stop_requested", False):
-                    st.warning("🛑 Arrêt demandé par l'utilisateur")
-                    break
-
-                df, msg = safe_load_data(sym, tf, start=start_str, end=end_str)
-                if df is None:
-                    for strat in selected_strategies:
-                        sweep_results.append({
-                            "strategy": strat,
-                            "symbol": sym,
-                            "timeframe": tf,
-                            "status": "error",
-                            "error": msg,
-                        })
-                        completed_runs += 1
-                        overall_progress.progress(min(1.0, completed_runs / max(1, total_runs)))
-                    _render_partial_results(force=True)
-                    continue
-
-                combo_engine = BacktestEngine(initial_capital=state.initial_capital)
-
-                for strat in selected_strategies:
-                    if st.session_state.get("stop_requested", False):
-                        st.warning("🛑 Arrêt demandé par l'utilisateur")
-                        stop_all = True
-                        break
-
-                    strategy_params = state.all_params.get(strat)
-                    if strategy_params is None:
-                        strategy_params = build_strategy_params_for_comparison(
-                            strat, use_preset=True
-                        )
-
-                    strategy_ranges = state.all_param_ranges.get(strat) or {}
-                    run_index = completed_runs + 1
-                    status_msg = f"⏳ Backtest {run_index}/{total_runs}: {strat} × {sym} × {tf}"
-                    if optimization_mode == "Grille de Paramètres":
-                        expected_combos = _estimate_grid_size(strategy_ranges)
-                        status_msg += f" | ~{expected_combos:,} combinaisons"
-                    status_placeholder.info(status_msg)
-
-                    if optimization_mode == "Backtest Simple":
-                        result, result_msg = safe_run_backtest(
-                            combo_engine,
-                            df,
-                            strat,
-                            strategy_params,
-                            sym,
-                            tf,
-                            silent_mode=not debug_enabled,
-                        )
-
-                        if result is None:
-                            sweep_results.append({
-                                "strategy": strat,
-                                "symbol": sym,
-                                "timeframe": tf,
-                                "status": "error",
-                                "error": result_msg,
-                            })
-                        else:
-                            sweep_results.append({
-                                "strategy": strat,
-                                "symbol": sym,
-                                "timeframe": tf,
-                                "status": "ok",
-                                "best_params": result.meta.get("params", strategy_params),
-                                "metrics": result.metrics or {},
-                            })
-                            _maybe_auto_save_run(result)
-                    else:
-                        progress_placeholder = st.empty()
-                        stats_placeholder = st.empty()
-                        if n_workers_effective > 1 and max_runs_per_sweep != 1:
-                            sweep_summary = _run_grid_parallel_basic(
-                                df=df,
-                                strategy_key=strat,
-                                symbol=sym,
-                                timeframe=tf,
-                                params=strategy_params,
-                                param_ranges=strategy_ranges,
-                                max_runs=max_runs_per_sweep,
-                                initial_capital=state.initial_capital,
-                                n_workers=n_workers_effective,
-                                worker_thread_limit=worker_thread_limit,
-                                debug_enabled=debug_enabled,
-                                progress_placeholder=progress_placeholder,
-                                stats_placeholder=stats_placeholder,
-                            )
-                        else:
-                            sweep_summary = _run_grid_sequential(
-                                df=df,
-                                engine=combo_engine,
-                                strategy_key=strat,
-                                symbol=sym,
-                                timeframe=tf,
-                                params=strategy_params,
-                                param_ranges=strategy_ranges,
-                                max_runs=max_runs_per_sweep,
-                                debug_enabled=debug_enabled,
-                                progress_placeholder=progress_placeholder,
-                            )
-                        progress_placeholder.empty()
-                        stats_placeholder.empty()
-
-                        sweep_results.append({
-                            "strategy": strat,
-                            "symbol": sym,
-                            "timeframe": tf,
-                            "status": "ok",
-                            "best_params": sweep_summary.get("best_params", {}),
-                            "metrics": sweep_summary.get("best_metrics", {}),
-                            "completed": sweep_summary.get("completed", 0),
-                            "failed": sweep_summary.get("failed", 0),
-                            "total_runs": sweep_summary.get("total_runs", 0),
-                        })
-
-                    completed_runs += 1
-                    overall_progress.progress(min(1.0, completed_runs / max(1, total_runs)))
-                    _render_partial_results()
-
-                # Nettoyage mémoire après chaque paire symbol/timeframe
-                try:
-                    del df
-                except Exception:
-                    pass
-                clear_data_cache()
-                safe_copy_cleanup(logger)
-                gc.collect()
-
-                if stop_all:
-                    break
-
-            status_placeholder.empty()
-            st.session_state["multi_sweep_results"] = sweep_results
-
-            if sweep_results:
-                summary_rows = _build_summary_rows(sweep_results)
                 results_df = pd.DataFrame(summary_rows)
                 st.markdown("### ✅ Résumé Multi-Sweep")
                 st.dataframe(results_df, width="stretch")
@@ -904,8 +835,7 @@ def render_main(
                 if not ok_df.empty:
                     best_row = ok_df.loc[ok_df["total_pnl"].idxmax()]
                     st.success(
-                        f"🏆 Meilleur résultat: {best_row['strategy']} | "
-                        f"{best_row['symbol']} {best_row['timeframe']} "
+                        f"🏆 Meilleur résultat: {best_row['symbol']} {best_row['timeframe']} "
                         f"| PnL ${best_row['total_pnl']:,.2f} | Sharpe {best_row['sharpe_ratio']:.2f}"
                     )
 
@@ -987,10 +917,8 @@ def render_main(
             n_workers_effective = _resolve_workers(n_workers)
             # Lire threads depuis UI ou fallback env
             try:
-                worker_thread_limit = int(st.session_state.get(
-                    "grid_worker_threads",
-                    int(os.environ.get("BACKTEST_WORKER_THREADS", "1"))
-                ))
+                worker_thread_limit = int(st.session_state.get("grid_worker_threads",
+                                                                 int(os.environ.get("BACKTEST_WORKER_THREADS", "1"))))
             except (TypeError, ValueError):
                 worker_thread_limit = 1
             worker_thread_limit = _resolve_threads(worker_thread_limit)
@@ -1004,9 +932,18 @@ def render_main(
                     if param_names:
                         for pname in param_names:
                             r = param_ranges[pname]
-                            pmin, pmax, step = r["min"], r["max"], r["step"]
-                            is_int = isinstance(pmin, int) and isinstance(step, int)
-                            values = build_param_values(pmin, pmax, step, is_int=is_int)
+                            pmin = r.get("min") if isinstance(r, dict) else None
+                            values = r.get("values") if isinstance(r, dict) else None
+                            if values is None:
+                                pmin, pmax, step = r["min"], r["max"], r["step"]
+
+                                if isinstance(pmin, int) and isinstance(step, int):
+                                    values = list(range(int(pmin), int(pmax) + 1, int(step)))
+                                else:
+                                    values = list(
+                                        np.arange(float(pmin), float(pmax) + float(step) / 2, float(step))
+                                    )
+                                    values = [round(v, 2) for v in values if v <= pmax]
 
                             if not values:
                                 values = [pmin]
@@ -1051,25 +988,15 @@ def render_main(
             param_combos_map = {}
 
             monitor = ProgressMonitor(total_runs=total_runs)
-            monitor_placeholder = st.empty()  # legacy, kept for compatibility
-            try:
-                progress_interval = float(os.getenv("BACKTEST_PROGRESS_INTERVAL_SEC", "0.5"))
-            except (TypeError, ValueError):
-                progress_interval = 0.5
-            progress_interval = max(0.1, progress_interval)
-            last_monitor_update = time.perf_counter()
+            monitor_placeholder = st.empty()
 
             sweep_monitor = SweepMonitor(
                 total_combinations=total_runs,
+                objectives=["total_pnl", "theoretical_pnl", "sharpe_ratio", "total_return_pct", "max_drawdown"],
                 top_k=15,
-                initial_capital=state.initial_capital,
             )
             sweep_monitor.start()
-            start_time = time.perf_counter()
-            sweep_placeholder = st.empty()  # legacy, kept for post-sweep render
-
-            # ━━━ LIVE METRICS: un seul placeholder, rafraîchi toutes les 0.5s ━━━
-            live_placeholder = st.empty()
+            sweep_placeholder = st.empty()
 
             logger = logging.getLogger(__name__)
             error_counts: Dict[str, int] = {}
@@ -1079,36 +1006,9 @@ def render_main(
             except (TypeError, ValueError):
                 error_log_limit = 3
 
-            def _get_best_snapshot() -> Optional[Dict[str, Any]]:
-                """Retourne un snapshot des meilleures métriques depuis le sweep_monitor."""
-                best_result = sweep_monitor.get_best_result("total_pnl")
-                if not best_result or not best_result.metrics:
-                    return None
-                best_pnl = float(best_result.metrics.get("total_pnl", 0.0) or 0.0)
-                best_trades = int(best_result.metrics.get("total_trades", best_result.metrics.get("trades", 0)) or 0)
-                best_dd = float(best_result.metrics.get("max_drawdown_pct", best_result.metrics.get("max_drawdown", 0.0)) or 0.0)
-                equity = None
-                if state.initial_capital:
-                    equity = float(state.initial_capital) + best_pnl
-                return {
-                    "best_pnl": best_pnl,
-                    "best_trades": best_trades,
-                    "best_dd": best_dd,
-                    "best_equity": equity,
-                }
+            st.markdown("### 📊 Progression en temps réel")
+            render_progress_monitor(monitor, monitor_placeholder)
 
-            def _refresh_live() -> None:
-                """Rafraîchit l'affichage live (bt/s, PnL, DD, equity)."""
-                snap = _get_best_snapshot()
-                render_live_metrics(
-                    live_placeholder,
-                    completed=completed,
-                    total=total_runs,
-                    start_time=start_time,
-                    best_pnl=snap["best_pnl"] if snap else 0.0,
-                    best_dd=snap["best_dd"] if snap else 0.0,
-                    equity=snap["best_equity"] if snap else None,
-                )
 
             def _normalize_param_combo(param_combo: Dict[str, Any]) -> Dict[str, Any]:
                 return {
@@ -1176,42 +1076,19 @@ def render_main(
                 param_combos_map[params_str] = param_combo_result
 
                 if "error" not in result:
-                    raw_win_rate = result.get("win_rate", 0.0)
-                    try:
-                        raw_win_rate = float(raw_win_rate)
-                    except (TypeError, ValueError):
-                        raw_win_rate = 0.0
-                    # Harmoniser win_rate (0-1 -> %)
-                    win_rate = raw_win_rate * 100.0 if 0 <= raw_win_rate <= 1.0 else raw_win_rate
-
-                    max_dd_raw = result.get("max_dd", 0.0)
-                    try:
-                        max_dd_val = abs(float(max_dd_raw))
-                    except (TypeError, ValueError):
-                        max_dd_val = 0.0
-
-                    total_pnl = result.get("total_pnl", 0.0)
-                    try:
-                        total_pnl = float(total_pnl)
-                    except (TypeError, ValueError):
-                        total_pnl = 0.0
-
                     metrics = {
                         "sharpe_ratio": result.get("sharpe", 0.0),
-                        "total_pnl": total_pnl,
-                        "total_return_pct": (total_pnl / state.initial_capital * 100) if state.initial_capital else 0.0,
-                        "max_drawdown_pct": max_dd_val,
-                        "max_drawdown": max_dd_val,
-                        "win_rate": win_rate,
-                        "win_rate_pct": win_rate,
+                        "total_pnl": result.get("total_pnl", 0.0),
+                        "theoretical_pnl": result.get("theoretical_pnl", 0.0),
+                        "total_return_pct": result.get("total_pnl", 0.0) / state.initial_capital * 100 if state.initial_capital else 0.0,
+                        "max_drawdown": abs(result.get("max_dd", 0.0)),
+                        "win_rate": result.get("win_rate", 0.0),
                         "total_trades": result.get("trades", 0),
                         "profit_factor": result.get("profit_factor", 0.0),
                         "consecutive_losses_max": result.get("consecutive_losses_max", 0),
                         "avg_win_loss_ratio": result.get("avg_win_loss_ratio", 0.0),
                         "robustness_score": result.get("robustness_score", 0.0),
                     }
-                    if "period_days" in result:
-                        metrics["period_days"] = result.get("period_days")
                     sweep_monitor.update(params=param_combo_result, metrics=metrics)
                 else:
                     error_msg = str(result.get("error") or "Erreur inconnue")
@@ -1229,10 +1106,8 @@ def render_main(
             completed = 0
             last_render_time = time.perf_counter()
 
-            _refresh_live()  # affichage initial (0 bt/s)
-
             def run_sequential_combos(combo_source, key_prefix: str) -> None:
-                nonlocal completed, last_render_time, last_monitor_update
+                nonlocal completed, last_render_time
                 for param_combo in combo_source:
                     params_str = _params_to_str(param_combo)
                     if params_str in completed_params:
@@ -1245,216 +1120,36 @@ def render_main(
                     params_str = record_sweep_result(result, param_combo)
                     completed_params.add(params_str)
 
-                    # ━━━ LIVE: rafraîchir toutes les 0.5s (progress_interval) ━━━
                     current_time = time.perf_counter()
-                    if current_time - last_render_time >= progress_interval:
-                        _refresh_live()
+                    # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                    # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                    # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                    if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
+                        with sweep_placeholder.container():
+                            progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
+                            elapsed = time.perf_counter() - start_time
+                            rate = completed / elapsed if elapsed > 0 else 0
+                            remaining = (total_runs - completed) / rate if rate > 0 else 0
+
+                            # Barre de progression simple (pas d'HTML custom lourd)
+                            st.progress(progress_pct / 100.0)
+                            st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
+
+                            # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
+                            if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
+                                best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
+                                best_pnl = best_result.metrics.get("total_pnl", 0)
+                                pnl_color = "green" if best_pnl > 0 else "red"
+                                st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
+
                         last_render_time = current_time
+                        time.sleep(0.01)
 
             if n_workers_effective > 1:
                 os.environ.setdefault("BACKTEST_INDICATOR_DISK_CACHE", "0")
 
-            # Initialiser diag (SweepDiagnostics) avant les zones pour éviter NameError
-            diag = None
-
-            # 🚀 ZONE 1: Tentative d'utilisation de Numba Sweep (performance optimale)
-            use_numba_sweep = False
-            import_err = None
-
-            # Vérifier si la stratégie est supportée par Numba
-            numba_supported_strategies = ["bollinger_atr", "bollinger_atr_v2", "bollinger_atr_v3", "ema_cross", "rsi_reversal", "macd_cross", "bollinger_best_longe_3i", "bollinger_best_short_3i"]
-            strategy_supported = strategy_key in numba_supported_strategies
-
-            if not strategy_supported:
-                logger.info(f"[NUMBA SKIP] Stratégie '{strategy_key}' non supportée par Numba")
-
-            # Vérifier limite de combinaisons
-            try:
-                NUMBA_MAX_COMBOS = int(os.getenv("NUMBA_MAX_COMBOS", "50000000"))  # 50M par défaut
-            except (TypeError, ValueError):
-                NUMBA_MAX_COMBOS = 50000000
-
-            if strategy_supported and total_runs > NUMBA_MAX_COMBOS:
-                logger.warning(f"[NUMBA SKIP] Grille trop grande: {total_runs:,} > {NUMBA_MAX_COMBOS:,}")
-                strategy_supported = False
-
-            # Tenter d'importer et d'exécuter le sweep Numba
-            if strategy_supported and total_runs > 1:
-                try:
-                    from backtest.sweep_numba import run_numba_sweep
-                    use_numba_sweep = True
-                    logger.info(f"[EXECUTION PATH] 🚀 NUMBA SWEEP sélectionné: {total_runs:,} combos")
-                    show_status("info", f"⚡ Numba prange: {total_runs:,} combinaisons (16 cores natifs)")
-
-                    # Convertir combo_iter en liste de combinaisons (hors spinner pour éviter erreurs event loop)
-                    try:
-                        param_combos_list = list(combo_iter)
-                    except KeyboardInterrupt:
-                        logger.info("⚠️ Conversion paramètres interrompue par l'utilisateur.")
-                        _safe_streamlit_call(st.warning, "⚠️ Préparation interrompue.")
-                        return
-
-                    # Extraire fees/slippage depuis les params (même source que le moteur)
-                    _sample = param_combos_list[0] if param_combos_list else {}
-                    _fees = float(_sample.get("fees_bps", 10.0))
-                    _slip = float(_sample.get("slippage_bps", 5.0))
-
-                    # ━━━ SWEEP NUMBA ARRAYS : zéro dict Python pendant le sweep ━━━
-                    # Retourne 5 arrays numpy bruts par chunk au lieu de 50K dicts.
-                    # Mémoire: 5 × 1.7M × 8 bytes = 68 MB (vs 700 MB de dicts)
-                    # CPU: pas de pression GC = bt/s stable à 100%
-                    import numpy as _np
-
-                    try:
-                        NUMBA_CHUNK = int(os.getenv("NUMBA_CHUNK_SIZE", "50000"))
-                    except (TypeError, ValueError):
-                        NUMBA_CHUNK = 50000
-                    NUMBA_CHUNK = max(1000, NUMBA_CHUNK)
-
-                    n_chunks = math.ceil(total_runs / NUMBA_CHUNK)
-                    logger.info(f"[NUMBA] Sweep arrays: {total_runs:,} combos en {n_chunks} chunks de ~{NUMBA_CHUNK:,}")
-
-                    # Pré-allocation 5 arrays numpy (68 MB pour 1.7M combos)
-                    _pnls = _np.empty(total_runs, dtype=_np.float64)
-                    _sharpes = _np.empty(total_runs, dtype=_np.float64)
-                    _max_dds = _np.empty(total_runs, dtype=_np.float64)
-                    _win_rates = _np.empty(total_runs, dtype=_np.float64)
-                    _n_trades = _np.empty(total_runs, dtype=_np.float64)
-
-                    _local_best_pnl = 0.0
-                    _local_best_dd = 0.0
-
-                    _refresh_live()
-                    print(f"[NUMBA UI] Démarrage {n_chunks} chunks de ~{NUMBA_CHUNK:,} (mode arrays)", flush=True)
-
-                    try:
-                        for chunk_idx in range(n_chunks):
-                            chunk_begin = chunk_idx * NUMBA_CHUNK
-                            chunk_end = min(chunk_begin + NUMBA_CHUNK, total_runs)
-                            chunk_grid = param_combos_list[chunk_begin:chunk_end]
-
-                            # Kernel Numba → retourne 5 arrays bruts (zéro dict Python)
-                            c_pnls, c_sharpes, c_dds, c_wrs, c_trades = run_numba_sweep(
-                                df=df,
-                                strategy_key=strategy_key,
-                                param_grid=chunk_grid,
-                                initial_capital=float(state.initial_capital),
-                                fees_bps=_fees,
-                                slippage_bps=_slip,
-                                return_arrays=True,
-                            )
-
-                            # Copie directe dans les arrays pré-alloués (zéro allocation)
-                            n_chunk = chunk_end - chunk_begin
-                            _pnls[chunk_begin:chunk_end] = c_pnls[:n_chunk]
-                            _sharpes[chunk_begin:chunk_end] = c_sharpes[:n_chunk]
-                            _max_dds[chunk_begin:chunk_end] = c_dds[:n_chunk]
-                            _win_rates[chunk_begin:chunk_end] = c_wrs[:n_chunk]
-                            _n_trades[chunk_begin:chunk_end] = c_trades[:n_chunk]
-
-                            completed += n_chunk
-                            monitor.runs_completed = completed
-
-                            # Best PnL tracking (numpy vectorisé, O(1) overhead)
-                            chunk_best_idx = int(_np.argmax(c_pnls[:n_chunk]))
-                            chunk_best_pnl = float(c_pnls[chunk_best_idx])
-                            if chunk_best_pnl > _local_best_pnl:
-                                _local_best_pnl = chunk_best_pnl
-                                _local_best_dd = float(c_dds[chunk_best_idx])
-
-                            # Rafraîchir UI
-                            _equity = float(state.initial_capital) + _local_best_pnl if state.initial_capital else None
-                            render_live_metrics(
-                                live_placeholder,
-                                completed=completed,
-                                total=total_runs,
-                                start_time=start_time,
-                                best_pnl=_local_best_pnl,
-                                best_dd=_local_best_dd,
-                                equity=_equity,
-                            )
-
-                    except KeyboardInterrupt:
-                        logger.info(f"⚠️ Sweep Numba interrompu. {completed}/{total_runs} complétés.")
-                        _safe_streamlit_call(st.warning, f"⚠️ Sweep interrompu. {completed:,}/{total_runs:,} combinaisons testées.")
-                        # Construire results_list depuis les arrays déjà remplis
-                        total_runs = completed  # tronquer
-
-                    # ━━━ CONSTRUCTION FINALE: arrays → results_list (une seule passe) ━━━
-                    _t_batch = time.perf_counter()
-                    _capital = float(state.initial_capital) if state.initial_capital else 10000.0
-                    print(f"[NUMBA UI] Construction {completed:,} résultats depuis arrays...", flush=True)
-
-                    for i in range(completed):
-                        pnl_val = float(_pnls[i])
-                        raw_wr = float(_win_rates[i])
-                        wr = raw_wr * 100.0 if 0 <= raw_wr <= 1.0 else raw_wr
-                        dd = abs(float(_max_dds[i]))
-                        p = param_combos_list[i]
-                        params_str = _params_to_str(p)
-                        param_combos_map[params_str] = p
-                        results_list.append({
-                            "params": params_str,
-                            "total_pnl": pnl_val,
-                            # Clés abrégées alignées sur format ProcessPool
-                            "sharpe": float(_sharpes[i]),
-                            "max_dd": dd,
-                            "win_rate": wr,
-                            "trades": int(_n_trades[i]),
-                            "total_return_pct": (pnl_val / _capital * 100.0),
-                            "profit_factor": 0.0,
-                        })
-
-                    # Monitor: top-50 via numpy argsort (vectorisé)
-                    _top_indices = _np.argsort(_pnls[:completed])[-50:][::-1]
-                    for idx in _top_indices:
-                        raw_wr = float(_win_rates[idx])
-                        wr = raw_wr * 100.0 if 0 <= raw_wr <= 1.0 else raw_wr
-                        dd = abs(float(_max_dds[idx]))
-                        sweep_monitor.update(
-                            params=param_combos_list[int(idx)],
-                            metrics={
-                                "sharpe_ratio": float(_sharpes[idx]),
-                                "total_pnl": float(_pnls[idx]),
-                                "total_return_pct": (float(_pnls[idx]) / _capital * 100.0),
-                                "max_drawdown_pct": dd, "max_drawdown": dd,
-                                "win_rate": wr, "win_rate_pct": wr,
-                                "total_trades": int(_n_trades[idx]),
-                                "profit_factor": 0.0,
-                            },
-                        )
-                    sweep_monitor._stats.evaluated = completed
-
-                    _t_batch_elapsed = time.perf_counter() - _t_batch
-                    print(f"[NUMBA UI] Construction terminée en {_t_batch_elapsed:.1f}s", flush=True)
-
-                    # Libérer les arrays (68 MB)
-                    del _pnls, _sharpes, _max_dds, _win_rates, _n_trades
-
-                    logger.info(f"[EXECUTION PATH] ✅ Numba sweep complété: {completed}/{total_runs}")
-                    _safe_streamlit_call(_refresh_live)  # Afficher les métriques finales Numba
-
-                except KeyboardInterrupt:
-                    # Interruption utilisateur (Ctrl+C) - propre et silencieuse
-                    logger.info(f"⚠️ Sweep Numba interrompu par l'utilisateur. {completed}/{total_runs} complétés.")
-                    _safe_streamlit_call(st.warning, f"⚠️ Sweep Numba interrompu. {completed:,}/{total_runs:,} combinaisons testées.")
-                    # Sortir proprement sans cascade d'erreurs
-                    return
-                except ImportError as e:
-                    import_err = e
-                    use_numba_sweep = False
-                    logger.warning(f"[NUMBA SKIP] Import failed: {import_err}")
-                except Exception as e:
-                    use_numba_sweep = False
-                    logger.error(f"[NUMBA SKIP] Numba sweep failed: {e}")
-                    logger.error(traceback.format_exc())
-                    # En cas d'échec, on continue avec ProcessPool/Séquentiel
-
-            # 🔒 ZONE 2: ProcessPool (avec GUARD pour éviter double exécution)
-            if not use_numba_sweep and completed < total_runs and n_workers_effective > 1 and total_runs > 1:
-                logger.info(f"[EXECUTION PATH] 🔄 PROCESSPOOL sélectionné: {total_runs:,} combos")
-                from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
-                from concurrent.futures import TimeoutError as FutureTimeoutError
+            if n_workers_effective > 1 and total_runs > 1:
+                from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, TimeoutError as FutureTimeoutError, wait
                 try:
                     from concurrent.futures import BrokenProcessPool
                 except ImportError:  # pragma: no cover - fallback for older runtimes
@@ -1529,10 +1224,6 @@ def render_main(
                         done, _ = wait(pending, timeout=0.05, return_when=FIRST_COMPLETED)
                         if not done:
                             now = time.perf_counter()
-                            if now - last_render_time >= progress_interval:
-                                _refresh_live()
-                                last_render_time = now
-                                last_monitor_update = now
                             if completed == 0:
                                 stall_threshold_sec = stall_startup_sec
                                 stalled = (now - pool_start_time) >= stall_threshold_sec
@@ -1656,10 +1347,29 @@ def render_main(
                                 submit_next()
 
                             current_time = time.perf_counter()
-                            # ━━━ LIVE: rafraîchir toutes les 0.5s (progress_interval) ━━━
-                            if current_time - last_render_time >= progress_interval:
-                                _refresh_live()
+                            # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                            # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                            # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                            if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
+                                with sweep_placeholder.container():
+                                    progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
+                                    elapsed = time.perf_counter() - start_time
+                                    rate = completed / elapsed if elapsed > 0 else 0
+                                    remaining = (total_runs - completed) / rate if rate > 0 else 0
+
+                                    # Barre de progression simple (pas d'HTML custom lourd)
+                                    st.progress(progress_pct / 100.0)
+                                    st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
+
+                                    # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
+                                    if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
+                                        best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
+                                        best_pnl = best_result.metrics.get("total_pnl", 0)
+                                        pnl_color = "green" if best_pnl > 0 else "red"
+                                        st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
+
                                 last_render_time = current_time
+                                time.sleep(0.01)
 
                         if pool_failed:
                             diag.log_pool_broken(pool_fail_reason or "unknown", pool_error)
@@ -1700,219 +1410,164 @@ def render_main(
                     diag.log_sequential_fallback(pool_fail_reason, len(pending_combos))
                     fallback_iter = chain(pending_combos, combo_iter)
                     run_sequential_combos(fallback_iter, "sweep_fallback")
-
-            # 🔒 ZONE 3: Mode Séquentiel (avec GUARD pour éviter double exécution)
-            elif not use_numba_sweep and completed < total_runs:
-                logger.info(f"[EXECUTION PATH] 📋 MODE SEQUENTIEL sélectionné: {total_runs:,} combos")
+            else:
                 run_sequential_combos(combo_iter, "sweep_sequential")
 
-            # 🔒 ZONE 4: Aucun mode exécuté (sweep déjà complété)
+            render_progress_monitor(monitor, monitor_placeholder)
+            sweep_placeholder.empty()
+            with sweep_placeholder.container():
+                render_sweep_progress(
+                    sweep_monitor,
+                    key="sweep_final",
+                    show_top_results=True,
+                    show_evolution=True,
+                )
+
+            st.markdown("---")
+            st.markdown("### 🎯 Résumé de l'Optimisation")
+            render_sweep_summary(sweep_monitor, key="sweep_summary")
+
+            # Finalize diagnostics
+            diag.log_final_summary()
+            st.caption(f"📋 Logs diagnostiques: `{diag.log_file}`")
+
+            monitor_placeholder.empty()
+            sweep_placeholder.empty()
+
+            with status_container:
+                show_status("success", f"Optimisation: {len(results_list)} tests")
+
+            results_df = pd.DataFrame(results_list)
+
+            if "trades" in results_df.columns:
+                logger = logging.getLogger(__name__)
+                logger.info("=" * 80)
+                logger.info("🔍 DEBUG GRID SEARCH - Analyse de la colonne 'trades'")
+                logger.info("   Type: %s", results_df["trades"].dtype)
+                logger.info("   Shape: %s", results_df["trades"].shape)
+                logger.info(
+                    "   Premières valeurs: %s",
+                    results_df["trades"].head(10).tolist(),
+                )
+                logger.info(
+                    "   Stats: min=%s, max=%s, mean=%.2f",
+                    results_df["trades"].min(),
+                    results_df["trades"].max(),
+                    results_df["trades"].mean(),
+                )
+
+                trades_values = results_df["trades"].values
+                fractional = [
+                    x for x in trades_values if isinstance(x, float) and not x.is_integer()
+                ]
+                if fractional:
+                    logger.warning(
+                        "   ⚠️  %s valeurs fractionnaires détectées: %s",
+                        len(fractional),
+                        fractional[:5],
+                    )
+                else:
+                    logger.info("   ✅ Toutes les valeurs sont des entiers")
+                logger.info("=" * 80)
+
+            error_items = []
+            if error_counts:
+                total_errors = sum(error_counts.values())
+                with st.expander("❌ Erreurs (extraits)", expanded=True):
+                    st.caption(
+                        f"{total_errors} erreurs detectees. "
+                        "Consultez le terminal pour les premiers messages."
+                    )
+                    error_items = sorted(
+                        error_counts.items(), key=lambda item: item[1], reverse=True
+                    )
+                    error_df = pd.DataFrame(
+                        [
+                            {"error": msg, "count": count}
+                            for msg, count in error_items[:10]
+                        ]
+                    )
+                    st.dataframe(error_df, use_container_width=True)
+
+            error_column = results_df.get("error")
+            if error_column is not None:
+                valid_results = results_df[error_column.isna()]
             else:
-                if completed >= total_runs:
-                    logger.info(f"[EXECUTION PATH] ✅ SKIP: Sweep déjà complété ({completed}/{total_runs})")
-                elif use_numba_sweep:
-                    logger.info(f"[EXECUTION PATH] ✅ SKIP: Numba a traité toutes les combinaisons ({completed}/{total_runs})")
+                valid_results = results_df
 
-            # ━━━ AFFICHAGE FINAL: métriques live + résultats détaillés ━━━
-            try:
-                # Protection globale contre KeyboardInterrupt pendant l'affichage final
-                _refresh_live()  # Dernier rafraîchissement live (100%)
+            if not valid_results.empty:
+                valid_results = valid_results.sort_values("sharpe", ascending=False)
 
-                # Utiliser _safe_streamlit_call pour toutes les opérations Streamlit finales
-                _safe_streamlit_call(sweep_placeholder.empty)
-                if sweep_placeholder:
-                    with sweep_placeholder.container():
-                        _safe_streamlit_call(
-                            render_sweep_progress,
-                            sweep_monitor,
-                            key="sweep_final",
-                            show_top_results=True,
-                            show_evolution=True,
+                st.subheader("🏆 Top 10 Combinaisons")
+
+                with st.expander("🔍 Debug Info - Types de données"):
+                    st.text(f"Nombre de résultats: {len(valid_results)}")
+                    st.text("Types des colonnes:")
+                    st.text(str(valid_results.dtypes))
+                    if "trades" in valid_results.columns:
+                        st.text("\nStatistiques 'trades':")
+                        st.text(f"  Type: {valid_results['trades'].dtype}")
+                        st.text(f"  Min: {valid_results['trades'].min()}")
+                        st.text(f"  Max: {valid_results['trades'].max()}")
+                        st.text(
+                            f"  Mean: {valid_results['trades'].mean():.2f}"
                         )
 
-                _safe_streamlit_call(st.markdown, "---")
-                _safe_streamlit_call(st.markdown, "### 🎯 Résumé de l'Optimisation")
+                st.dataframe(valid_results.head(10), use_container_width=True)
 
-                _safe_streamlit_call(render_sweep_summary, sweep_monitor, key="sweep_summary")
+                best = valid_results.iloc[0]
+                st.info(f"🥇 Meilleure: {best['params']}")
 
-                # Finalize diagnostics (diag n'existe que pour ZONE 2 ProcessPool)
-                if diag is not None:
-                    _safe_streamlit_call(diag.log_final_summary)
-                    _safe_streamlit_call(st.caption, f"📋 Logs diagnostiques: `{diag.log_file}`")
-
-                # Nettoyage final
-                _safe_streamlit_call(monitor_placeholder.empty)
-                _safe_streamlit_call(sweep_placeholder.empty)
-
-                # Status final
-                if 'status_container' in locals():
-                    with status_container:
-                        _safe_streamlit_call(show_status, "success", f"Optimisation: {len(results_list)} tests")
-
-            except KeyboardInterrupt:
-                # Interruption utilisateur pendant affichage final - sortie propre
-                logger.info(f"⚠️ Affichage final interrompu par l'utilisateur. {completed}/{total_runs} complétés.")
-                _safe_streamlit_call(st.warning, f"⚠️ Affichage interrompu. {completed:,}/{total_runs:,} combinaisons testées.")
-                return
-            except Exception as e:
-                # Toute autre erreur pendant affichage final
-                logger.warning(f"Erreur inattendue pendant affichage final: {e}")
-                logger.debug(traceback.format_exc())
-
-            # Traitement des résultats protégé contre les interruptions
-            try:
-                results_df = pd.DataFrame(results_list)
-
-                if "trades" in results_df.columns:
-                    logger = logging.getLogger(__name__)
-                    logger.info("=" * 80)
-                    logger.info("🔍 DEBUG GRID SEARCH - Analyse de la colonne 'trades'")
-                    logger.info("   Type: %s", results_df["trades"].dtype)
-                    logger.info("   Shape: %s", results_df["trades"].shape)
-                    logger.info(
-                        "   Premières valeurs: %s",
-                        results_df["trades"].head(10).tolist(),
+                best_params = param_combos_map.get(best["params"], {})
+                result, _ = safe_run_backtest(
+                    engine,
+                    df,
+                    strategy_key,
+                    best_params,
+                    symbol,
+                    timeframe,
+                    silent_mode=not debug_enabled,
+                )
+                if result is not None:
+                    winner_params = best_params
+                    winner_metrics = result.metrics
+                    winner_origin = "grid"
+                    winner_meta = result.meta
+                    st.session_state["last_run_result"] = result
+                    st.session_state["last_winner_params"] = winner_params
+                    st.session_state["last_winner_metrics"] = winner_metrics
+                    st.session_state["last_winner_origin"] = winner_origin
+                    st.session_state["last_winner_meta"] = winner_meta
+                    _maybe_auto_save_run(result)
+            else:
+                show_status("error", "Aucun résultat valide")
+                # Afficher diagnostic détaillé
+                st.markdown("### 🔍 Diagnostic")
+                st.warning(
+                    f"Sur {len(results_list)} combinaisons évaluées, "
+                    f"toutes ont échoué."
+                )
+                if error_items:
+                    top_error, top_count = error_items[0]
+                    st.error(
+                        f"**Erreur principale** ({top_count} occurrences sur {sum(error_counts.values())} erreurs):"
                     )
-                    logger.info(
-                        "   Stats: min=%s, max=%s, mean=%.2f",
-                        results_df["trades"].min(),
-                        results_df["trades"].max(),
-                        results_df["trades"].mean(),
-                    )
-
-                    trades_values = results_df["trades"].values
-                    fractional = [
-                        x for x in trades_values if isinstance(x, float) and not x.is_integer()
+                    st.code(top_error, language="text")
+                elif results_list:
+                    # Extraire les erreurs du DataFrame si error_counts vide
+                    errors_in_results = [
+                        r.get("error") for r in results_list if r.get("error")
                     ]
-                    if fractional:
-                        logger.warning(
-                            "   ⚠️  %s valeurs fractionnaires détectées: %s",
-                            len(fractional),
-                            fractional[:5],
-                        )
+                    if errors_in_results:
+                        st.error(f"**Première erreur détectée:**")
+                        st.code(errors_in_results[0], language="text")
+                        if len(errors_in_results) > 1:
+                            st.caption(f"+ {len(errors_in_results)-1} autres erreurs similaires")
                     else:
-                        logger.info("   ✅ Toutes les valeurs sont des entiers")
-                    logger.info("=" * 80)
-
-                # Affichage des erreurs avec protection
-                error_items = []
-                if error_counts:
-                    total_errors = sum(error_counts.values())
-                    def show_errors():
-                        with st.expander("❌ Erreurs (extraits)", expanded=True):
-                            st.caption(
-                                f"{total_errors} erreurs detectees. "
-                                "Consultez le terminal pour les premiers messages."
-                            )
-                        error_items_data = sorted(
-                            error_counts.items(), key=lambda item: item[1], reverse=True
+                        st.info(
+                            "Aucune erreur explicite, mais les résultats sont invalides. "
+                            "Vérifiez que les données OHLCV sont chargées et valides."
                         )
-                        error_df = pd.DataFrame(
-                            [
-                                {"error": msg, "count": count}
-                                for msg, count in error_items_data[:10]
-                            ]
-                        )
-                        st.dataframe(error_df, width="stretch")
-                        return error_items_data
-
-                    error_items = _safe_streamlit_call(show_errors) or []
-
-                # Traitement des résultats valides avec protection
-                error_column = results_df.get("error")
-                if error_column is not None:
-                    valid_results = results_df[error_column.isna()]
-                else:
-                    valid_results = results_df
-
-                if not valid_results.empty:
-                    valid_results = valid_results.sort_values("sharpe", ascending=False)
-
-                    _safe_streamlit_call(st.subheader, "🏆 Top 10 Combinaisons")
-
-                    def show_debug_info():
-                        with st.expander("🔍 Debug Info - Types de données"):
-                            st.text(f"Nombre de résultats: {len(valid_results)}")
-                            st.text("Types des colonnes:")
-                            st.text(str(valid_results.dtypes))
-                            if "trades" in valid_results.columns:
-                                st.text("\nStatistiques 'trades':")
-                                st.text(f"  Type: {valid_results['trades'].dtype}")
-                                st.text(f"  Min: {valid_results['trades'].min()}")
-                                st.text(f"  Max: {valid_results['trades'].max()}")
-                                st.text(f"  Mean: {valid_results['trades'].mean():.2f}")
-
-                    _safe_streamlit_call(show_debug_info)
-                    _safe_streamlit_call(st.dataframe, valid_results.head(10), width="stretch")
-
-                    best = valid_results.iloc[0]
-                    _safe_streamlit_call(st.info, f"🥇 Meilleure: {best['params']}")
-
-                    # Exécution du backtest de la meilleure config
-                    best_params = param_combos_map.get(best["params"], {})
-                    result, _ = safe_run_backtest(
-                        engine,
-                        df,
-                        strategy_key,
-                        best_params,
-                        symbol,
-                        timeframe,
-                        silent_mode=not debug_enabled,
-                    )
-                    if result is not None:
-                        winner_params = best_params
-                        winner_metrics = result.metrics
-                        winner_origin = "grid"
-                        winner_meta = result.meta
-                        st.session_state["last_run_result"] = result
-                        st.session_state["last_winner_params"] = winner_params
-                        st.session_state["last_winner_metrics"] = winner_metrics
-                        st.session_state["last_winner_origin"] = winner_origin
-                        st.session_state["last_winner_meta"] = winner_meta
-                        _maybe_auto_save_run(result)
-                else:
-                    _safe_streamlit_call(show_status, "error", "Aucun résultat valide")
-
-                    def show_diagnostic():
-                        st.markdown("### 🔍 Diagnostic")
-                        st.warning(
-                            f"Sur {len(results_list)} combinaisons évaluées, "
-                            f"toutes ont échoué."
-                        )
-                        if error_items:
-                            top_error, top_count = error_items[0]
-                            st.error(
-                                f"**Erreur principale** ({top_count} occurrences sur {sum(error_counts.values())} erreurs):"
-                            )
-                            st.code(top_error, language="text")
-                        elif results_list:
-                            # Extraire les erreurs du DataFrame si error_counts vide
-                            errors_in_results = [
-                                r.get("error") for r in results_list if r.get("error")
-                            ]
-                            if errors_in_results:
-                                st.error("**Première erreur détectée:**")
-                                st.code(errors_in_results[0], language="text")
-                                if len(errors_in_results) > 1:
-                                    st.caption(f"+ {len(errors_in_results)-1} autres erreurs similaires")
-                            else:
-                                st.info(
-                                    "Aucune erreur explicite, mais les résultats sont invalides. "
-                                    "Vérifiez que les données OHLCV sont chargées et valides."
-                                )
-
-                    _safe_streamlit_call(show_diagnostic)
-
-            except KeyboardInterrupt:
-                # Interruption utilisateur pendant traitement des résultats
-                logger.info(f"⚠️ Traitement résultats interrompu par l'utilisateur. {completed}/{total_runs} complétés.")
-                _safe_streamlit_call(st.warning, f"⚠️ Traitement interrompu. {completed:,}/{total_runs:,} combinaisons testées.")
-                return
-            except Exception as e:
-                # Erreur inattendue pendant traitement des résultats
-                logger.warning(f"Erreur inattendue pendant traitement résultats: {e}")
-                logger.debug(traceback.format_exc())
-                _safe_streamlit_call(st.error, f"Erreur pendant l'affichage des résultats: {e}")
                 st.session_state.is_running = False
                 st.stop()
 
@@ -2043,7 +1698,7 @@ def render_main(
                         st.caption(
                             f"Runs effectues: {len(comparison_results)} / {total_runs}"
                         )
-                        st.dataframe(pd.DataFrame(comparison_summary), width="stretch")
+                        st.dataframe(pd.DataFrame(comparison_summary), use_container_width=True)
 
                         chart_rows = []
                         for row in comparison_summary:
@@ -2278,7 +1933,7 @@ def render_main(
                         st.markdown("---")
                         st.dataframe(
                             pd.DataFrame(orchestrator_result.iteration_history),
-                            width="stretch",
+                            use_container_width=True,
                         )
 
                     best_params = orchestrator_result.final_params or {}

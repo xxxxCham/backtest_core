@@ -1218,3 +1218,30 @@ python run_streamlit.bat
 - Résultat : Les valeurs/combinaisons affichées dans l'UI correspondent désormais au moteur de sweep; la sidebar expose un total multi-stratégies pour éviter les écarts perçus (ex: 90k vs 495k).
 - Problèmes détectés : Comptage UI sous-estimé pour certains steps float (ex: 0.05) + manque de visibilité des combinaisons des stratégies secondaires.
 - Améliorations proposées : Optionnel — permettre la configuration des ranges par stratégie (tabs) pour éviter d'utiliser des ranges par défaut sur les stratégies non actives.
+
+- Date : 07/02/2026
+- Objectif : Normaliser définitivement les ranges UI/CLI/agents selon ParameterSpec (bornes min/max) avec warnings et stats cohérentes.
+- Fichiers modifiés : utils/parameters.py, agents/integration.py, ui/sidebar.py, ui/main.py, cli/commands.py, tests/unit/test_param_normalization.py.
+- Actions réalisées : (1) **normalize_param_ranges** retourne désormais (ranges normalisées + warnings), clamp min/max, recalcule count/values; ajout helper **normalize_param_grid_values**; _compute_param_count gère listes/tuples; (2) **UI sidebar** applique normalisation et affiche warnings; **UI main** consomme values/count pour générer la grille; (3) **Agents** LLM sweep utilisent ranges normalisées + warnings avant SweepEngine; (4) **CLI grid-backtest** filtre param_grid explicite via specs; (5) Ajout tests unitaires de normalisation.
+- Vérifications effectuées : `python3 -m pytest tests/unit/test_param_normalization.py -q` (échec: pytest absent) ; script sanity `python3 - <<'PY' ...` OK.
+- Résultat : Normalisation centrale appliquée à l’exécution (UI/agents/CLI), warnings visibles, stats basées sur ranges clampées.
+- Problèmes détectés : pytest non installé dans l’environnement.
+- Améliorations proposées : Installer pytest dans la venv ou ajouter un runner léger; étendre la normalisation aux flows externes si d’autres points d’entrée apparaissent.
+
+- Date : 07/02/2026
+- Objectif : Corriger NameError start_time dans le sweep UI (progression grille).
+- Fichiers modifiés : ui/main.py.
+- Actions réalisées : Ajout de l'initialisation `start_time = time.perf_counter()` avant l’affichage de progression dans le sweep.
+- Vérifications effectuées : aucune.
+- Résultat : Le calcul du temps écoulé ne référence plus une variable non définie.
+- Problèmes détectés : start_time non initialisé dans render_main.
+- Améliorations proposées : Optionnel — ajouter un guard si total_runs == 0.
+
+- Date : 07/02/2026
+- Objectif : Augmenter les plafonds de paramètres pour Bollinger Best Long 3i et Short 3i.
+- Fichiers modifiés : strategies/bollinger_best_longe_3i.py, strategies/bollinger_best_short_3i.py.
+- Actions réalisées : Extension des max_val sur bb_period (50→100), bb_std (4.0→5.0), entry_level, sl_level et tp_level; mise à jour des descriptions de plages dans les docstrings.
+- Vérifications effectuées : aucune.
+- Résultat : Les ranges UI/normalisation acceptent désormais des plafonds plus larges pour ces deux stratégies.
+- Problèmes détectés : aucun.
+- Améliorations proposées : Valider rapidement un sweep pour confirmer la couverture attendue des nouvelles plages.

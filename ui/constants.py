@@ -60,8 +60,8 @@ PARAM_CONSTRAINTS: Dict[str, Dict[str, object]] = {
         "description": "Periode ATR (2-100)",
     },
     "atr_percentile": {
-        "min": 0, "max": 60, "step": 1, "default": 30,
-        "description": "Percentile ATR (0-60)",
+        "min": 0, "max": 100, "step": 1, "default": 30,
+        "description": "Percentile ATR (0-100)",
     },
     "entry_z": {
         "min": 0.5, "max": 5.0, "step": 0.1, "default": 2.0,
@@ -225,3 +225,5 @@ MODE_OPTIONS: List[Tuple[str, str, str]] = [
 
 def build_strategy_options(available_strategies: List[str]) -> Dict[str, str]:
     return {get_strategy_ui_label(k): k for k in available_strategies}
+
+

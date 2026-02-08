@@ -129,6 +129,7 @@ import json
 import os
 import re
 import shutil
+from decimal import Decimal, ROUND_FLOOR
 from dataclasses import dataclass, field
 from datetime import datetime
 from itertools import product
@@ -304,6 +305,13 @@ def _compute_param_count(
         else:
             return -1  # Continu
 
+    # Cas 1b: Liste/array explicite de valeurs
+    if isinstance(spec, (list, np.ndarray)):
+        try:
+            return max(1, len(spec))
+        except Exception:
+            return 1
+
     # Cas 2: Tuple (min, max) ou (min, max, step)
     if isinstance(spec, tuple):
         if len(spec) == 3:
@@ -313,7 +321,8 @@ def _compute_param_count(
             return -1
         elif len(spec) == 2:
             return -1  # Continu
-        return 1
+        # Fallback: tuple de valeurs explicites
+        return max(1, len(spec))
 
     # Cas 3: Dict avec "min", "max", "step"
     if isinstance(spec, dict):
@@ -321,18 +330,30 @@ def _compute_param_count(
         max_v = spec.get("max", spec.get("max_val"))
         step = spec.get("step")
         count = spec.get("count")
+        values = spec.get("values")
 
-        # Si count déjà fourni (UI)
+        # Priorité 1: count explicite (UI)
         if count is not None:
-            return count
+            try:
+                return max(1, int(count))
+            except Exception:
+                return 1
 
+        # Priorité 2: liste de valeurs explicite
+        if isinstance(values, (list, tuple)):
+            return max(1, len(values))
+
+        # Priorité 3: calcul discret robuste
         if min_v is not None and max_v is not None:
             if step and step > 0:
-                return int((max_v - min_v) / step) + 1
+                try:
+                    n = int(round((float(max_v) - float(min_v)) / float(step))) + 1
+                    return max(1, n)
+                except Exception:
+                    return 1
             return -1
         return 1
 
-    # Fallback: valeur unique
     return 1
 
 
@@ -956,24 +977,71 @@ def compute_search_space_stats(
 
 # --- 3.5. normalize_param_ranges ---
 
+def _infer_step_decimals(step: float) -> int:
+    step_str = f"{step:.12f}".rstrip("0").rstrip(".")
+    if "." in step_str:
+        return len(step_str.split(".")[1])
+    return 0
+
+
+def _build_param_values_from_range(
+    min_v: float,
+    max_v: float,
+    step: float,
+    is_int: bool,
+) -> List[float]:
+    if step is None or step <= 0 or max_v < min_v:
+        return [float(min_v)]
+
+    if is_int:
+        step_int = max(1, int(round(step)))
+        return list(range(int(min_v), int(max_v) + 1, step_int))
+
+    step_dec = Decimal(str(step))
+    min_dec = Decimal(str(min_v))
+    max_dec = Decimal(str(max_v))
+    if step_dec <= 0:
+        return [float(min_v)]
+
+    count = int(((max_dec - min_dec) / step_dec).to_integral_value(rounding=ROUND_FLOOR)) + 1
+    decimals = _infer_step_decimals(step)
+    quant = Decimal(1).scaleb(-decimals) if decimals > 0 else None
+
+    values: List[float] = []
+    for i in range(count):
+        v = min_dec + step_dec * i
+        if v > max_dec:
+            break
+        if quant is not None:
+            v = v.quantize(quant)
+        val = float(v)
+        if not values or val != values[-1]:
+            values.append(val)
+
+    if not values:
+        values = [float(min_v)]
+
+    return values
+
+
 def normalize_param_ranges(
-    param_specs: List[ParameterSpec],
+    param_specs: Any,
     ranges: Dict[str, Dict[str, float]]
-) -> Dict[str, List[float]]:
+) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
     """
-    Normalise et valide les ranges demandées par le LLM pour grid search.
+    Normalise et valide des ranges de paramètres contre les ParameterSpec.
 
     - Clamp aux bornes des ParameterSpec
     - Vérifie min <= max, step > 0
     - Rejette clés inconnues
-    - Retourne param_grid compatible avec SweepEngine
+    - Recalcule count/values pour stats et exécution
 
     Args:
-        param_specs: Liste des spécifications de paramètres (bornes autorisées)
-        ranges: Ranges demandées par le LLM {param: {"min": x, "max": y, "step": z}}
+        param_specs: Liste ou dict de ParameterSpec
+        ranges: Ranges demandées {param: {"min": x, "max": y, "step": z}}
 
     Returns:
-        Dict[str, List[float]]: Grille de paramètres prête pour SweepEngine
+        Tuple (normalized_ranges, warnings)
 
     Raises:
         ValueError: Si ranges invalides (param inconnu, min > max, etc.)
@@ -987,14 +1055,17 @@ def normalize_param_ranges(
         ...     "bb_period": {"min": 20, "max": 25, "step": 1},
         ...     "bb_std": {"min": 2.0, "max": 2.5, "step": 0.1}
         ... }
-        >>> grid = normalize_param_ranges(specs, ranges)
-        >>> grid["bb_period"]
+        >>> normalized, warnings = normalize_param_ranges(specs, ranges)
+        >>> normalized["bb_period"]["values"]
         [20, 21, 22, 23, 24, 25]
-        >>> grid["bb_std"]
-        [2.0, 2.1, 2.2, 2.3, 2.4, 2.5]
     """
-    param_grid: Dict[str, List[float]] = {}
-    specs_dict = {spec.name: spec for spec in param_specs}
+    normalized: Dict[str, Dict[str, Any]] = {}
+    warnings: List[str] = []
+
+    if isinstance(param_specs, dict):
+        specs_dict = param_specs
+    else:
+        specs_dict = {spec.name: spec for spec in param_specs or []}
 
     for param_name, range_def in ranges.items():
         # Vérifier que le paramètre existe
@@ -1007,6 +1078,10 @@ def normalize_param_ranges(
         spec = specs_dict[param_name]
 
         # Extraire min/max/step
+        if not isinstance(range_def, dict):
+            raise ValueError(
+                f"Paramètre '{param_name}': format invalide (attendu dict avec min/max/step)"
+            )
         min_val = range_def.get("min")
         max_val = range_def.get("max")
         step = range_def.get("step")
@@ -1022,8 +1097,8 @@ def normalize_param_ranges(
 
         # Log si clamping appliqué
         if clamped_min != min_val or clamped_max != max_val:
-            logger.warning(
-                f"Ranges clamped pour '{param_name}': "
+            warnings.append(
+                f"{param_name}: plage clampée "
                 f"[{min_val}, {max_val}] → [{clamped_min}, {clamped_max}] "
                 f"(limites: [{spec.min_val}, {spec.max_val}])"
             )
@@ -1036,30 +1111,32 @@ def normalize_param_ranges(
             )
 
         # Utiliser step fourni ou step du spec
-        if step is None:
+        if step is None or step <= 0:
             step = spec.step if spec.step is not None else (clamped_max - clamped_min) / 10
+            if step is None or step <= 0:
+                range_size = float(clamped_max) - float(clamped_min)
+                if spec.param_type == "int":
+                    step = max(1, int(range_size / 10)) if range_size > 0 else 1
+                else:
+                    step = range_size / 10 if range_size > 0 else 0.1
 
         if step <= 0:
             raise ValueError(
                 f"Paramètre '{param_name}': step doit être > 0 (reçu: {step})"
             )
 
-        # Générer valeurs (méthode robuste pour éviter erreurs de précision float)
-        n_steps = int(round((clamped_max - clamped_min) / step)) + 1
-        values: List[float] = []
+        is_int = spec.param_type == "int" or spec.param_type is int
+        if is_int:
+            clamped_min = int(round(clamped_min))
+            clamped_max = int(round(clamped_max))
+            step = max(1, int(round(step)))
 
-        for i in range(n_steps):
-            current = clamped_min + (i * step)
-
-            # S'assurer de ne pas dépasser max (avec tolérance pour précision float)
-            if current > clamped_max + 1e-9:
-                break
-
-            # Arrondir pour éviter problèmes de précision float
-            if spec.param_type == "int":
-                values.append(int(round(current)))
-            else:
-                values.append(round(current, 10))
+        values = _build_param_values_from_range(
+            clamped_min,
+            clamped_max,
+            step,
+            is_int=is_int,
+        )
 
         if not values:
             raise ValueError(
@@ -1067,14 +1144,90 @@ def normalize_param_ranges(
                 f"(min={clamped_min}, max={clamped_max}, step={step})"
             )
 
-        param_grid[param_name] = values
+        normalized[param_name] = {
+            "min": clamped_min,
+            "max": clamped_max,
+            "step": step,
+            "count": len(values),
+            "values": values,
+        }
 
     logger.info(
-        f"Grid normalisé: {len(param_grid)} paramètres, "
-        f"{sum(len(vals) for vals in param_grid.values())} valeurs totales"
+        "Ranges normalisées: %s paramètres, %s valeurs totales",
+        len(normalized),
+        sum(len(r.get("values", [])) for r in normalized.values()),
     )
 
-    return param_grid
+    return normalized, warnings
+
+
+def normalize_param_grid_values(
+    param_specs: Any,
+    param_grid: Dict[str, Any],
+) -> Tuple[Dict[str, List[Any]], List[str]]:
+    """
+    Normalise une grille explicite de valeurs par paramètre.
+
+    - Convertit en liste si scalaire
+    - Filtre les valeurs hors bornes des ParameterSpec
+    - Rejette clés inconnues
+
+    Returns:
+        Tuple (normalized_param_grid, warnings)
+    """
+    if isinstance(param_specs, dict):
+        specs_dict = param_specs
+    else:
+        specs_dict = {spec.name: spec for spec in param_specs or []}
+
+    normalized: Dict[str, List[Any]] = {}
+    warnings: List[str] = []
+
+    for param_name, values in param_grid.items():
+        if param_name not in specs_dict:
+            raise ValueError(
+                f"Paramètre inconnu '{param_name}'. "
+                f"Paramètres disponibles: {list(specs_dict.keys())}"
+            )
+
+        spec = specs_dict[param_name]
+        if isinstance(values, (list, tuple, np.ndarray)):
+            values_list = list(values)
+        else:
+            values_list = [values]
+
+        filtered: List[Any] = []
+        removed = 0
+        is_int = spec.param_type == "int" or spec.param_type is int
+
+        for value in values_list:
+            try:
+                v = int(value) if is_int else float(value)
+            except (TypeError, ValueError):
+                removed += 1
+                continue
+
+            if v < spec.min_val or v > spec.max_val:
+                removed += 1
+                continue
+
+            filtered.append(v)
+
+        if removed:
+            warnings.append(
+                f"{param_name}: {removed} valeur(s) hors bornes supprimées "
+                f"(limites: [{spec.min_val}, {spec.max_val}])"
+            )
+
+        if not filtered:
+            raise ValueError(
+                f"Paramètre '{param_name}': aucune valeur valide après filtrage "
+                f"(limites: [{spec.min_val}, {spec.max_val}])"
+            )
+
+        normalized[param_name] = filtered
+
+    return normalized, warnings
 
 
 # =============================================================================
@@ -1890,6 +2043,7 @@ __all__ = [
     "calculate_combinations",
     "compute_search_space_stats",
     "normalize_param_ranges",
+    "normalize_param_grid_values",
     "generate_param_grid",
     "generate_constrained_param_grid",
     # Presets simple
@@ -1917,3 +2071,4 @@ __all__ = [
     "ATR_CHANNEL_PRESET",
     "PRESETS",
 ]
+
