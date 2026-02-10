@@ -156,6 +156,12 @@ from .state_machine import (  # noqa: E402
     ValidationResult,
 )
 from .strategist import StrategistAgent  # noqa: E402
+from .strategy_builder import (  # noqa: E402
+    BuilderIteration,
+    BuilderSession,
+    StrategyBuilder,
+    validate_generated_code,
+)
 from .validator import ValidatorAgent  # noqa: E402
 
 __all__ = [
@@ -222,4 +228,9 @@ __all__ = [
     "get_models_by_category",
     "get_global_model_config",
     "set_global_model_config",
+    # Strategy Builder
+    "StrategyBuilder",
+    "BuilderSession",
+    "BuilderIteration",
+    "validate_generated_code",
 ]

@@ -27,6 +27,7 @@ from .commands import (
     cmd_analyze,
     cmd_backtest,
     cmd_benchmark,
+    cmd_builder,
     cmd_check_gpu,
     cmd_export,
     cmd_grid_backtest,
@@ -793,6 +794,50 @@ Exemples:
         help="Fichier de sortie pour l'analyse"
     )
 
+    # === BUILDER ===
+    builder_parser = subparsers.add_parser(
+        "builder",
+        parents=[common_parser],
+        help="Créer une stratégie via LLM (Strategy Builder)",
+        description="Génère itérativement une stratégie de trading en combinant les indicateurs existants",
+    )
+    builder_parser.add_argument(
+        "--objective",
+        type=str,
+        required=True,
+        help="Objectif de la stratégie (ex: 'Trend-following BTC 30m avec Bollinger + ATR')",
+    )
+    builder_parser.add_argument(
+        "-d", "--data",
+        type=str,
+        required=True,
+        help="Chemin vers le fichier de données OHLCV",
+    )
+    builder_parser.add_argument(
+        "--max-iterations",
+        type=int,
+        default=10,
+        help="Nombre max d'itérations (défaut: 10)",
+    )
+    builder_parser.add_argument(
+        "--target-sharpe",
+        type=float,
+        default=1.0,
+        help="Sharpe ratio cible pour acceptation (défaut: 1.0)",
+    )
+    builder_parser.add_argument(
+        "--capital",
+        type=float,
+        default=10000.0,
+        help="Capital initial (défaut: 10000)",
+    )
+    builder_parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Modèle LLM à utiliser (override $BACKTEST_LLM_MODEL)",
+    )
+
     return parser
 
 
@@ -829,6 +874,7 @@ def main(args: Optional[list] = None) -> int:
         "grid-backtest": cmd_grid_backtest,
         "grid": cmd_grid_backtest,
         "analyze": cmd_analyze,
+        "builder": cmd_builder,
     }
 
     try:

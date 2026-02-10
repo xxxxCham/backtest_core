@@ -1,0 +1,113 @@
+{# Template pour Strategy Builder — Génération du code Python complet #}
+{# Utilisé par agents/strategy_builder.py pour générer la classe de stratégie #}
+
+Generate a COMPLETE Python strategy class based on this proposal.
+
+## OBJECTIVE
+{{ objective }}
+
+## PROPOSAL
+- Strategy: {{ proposal.strategy_name|default("custom_strategy") }}
+- Hypothesis: {{ proposal.hypothesis|default("N/A") }}
+- Indicators: {{ proposal.used_indicators|default([])|join(", ") }}
+- Entry LONG: {{ proposal.entry_long_logic|default("N/A") }}
+- Entry SHORT: {{ proposal.entry_short_logic|default("N/A") }}
+- Exit: {{ proposal.exit_logic|default("N/A") }}
+- Risk management: {{ proposal.risk_management|default("N/A") }}
+
+## AVAILABLE INDICATORS
+{% for ind in available_indicators %}
+- {{ ind }}
+{% endfor %}
+
+## INDICATOR USAGE IN THE ENGINE
+The engine pre-computes indicators from `required_indicators` property.
+Indicator results are passed in the `indicators` dict:
+- `indicators["rsi"]` → numpy array (float64)
+- `indicators["bollinger"]` → tuple (upper, middle, lower) of numpy arrays
+- `indicators["macd"]` → dict with keys: "macd", "signal", "histogram"
+- `indicators["atr"]` → numpy array
+- `indicators["ema"]` → numpy array (needs period in params: ema_period=X)
+- `indicators["sma"]` → numpy array (needs period in params: sma_period=X)
+- `indicators["stochastic"]` → tuple (k, d) of numpy arrays
+- `indicators["adx"]` → dict with keys: "adx", "plus_di", "minus_di"
+- `indicators["supertrend"]` → dict with keys: "supertrend", "direction"
+- `indicators["ichimoku"]` → dict with keys: "tenkan", "kijun", "senkou_a", "senkou_b", "chikou"
+- `indicators["psar"]` → dict with keys: "sar", "trend", "signal"
+- `indicators["vortex"]` → dict with keys: "vi_plus", "vi_minus", "signal", "oscillator"
+- `indicators["stoch_rsi"]` → dict with keys: "k", "d", "signal"
+- `indicators["aroon"]` → dict with keys: "aroon_up", "aroon_down"
+- `indicators["donchian"]` → dict with keys: "upper", "middle", "lower"
+- `indicators["keltner"]` → dict with keys: "middle", "upper", "lower"
+- `indicators["cci"]` → numpy array
+- `indicators["williams_r"]` → numpy array
+- `indicators["momentum"]` → numpy array
+- `indicators["mfi"]` → numpy array
+- `indicators["obv"]` → numpy array
+- `indicators["roc"]` → numpy array
+- `indicators["vwap"]` → numpy array
+
+## REQUIRED CODE STRUCTURE
+
+```python
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+
+from utils.parameters import ParameterSpec
+from strategies.base import StrategyBase
+
+
+class {{ class_name }}(StrategyBase):
+    """
+    Auto-generated strategy: {{ proposal.strategy_name|default("custom") }}
+    Objective: {{ objective }}
+    Indicators: {{ proposal.used_indicators|default([])|join(", ") }}
+    """
+
+    def __init__(self):
+        super().__init__(name="{{ proposal.strategy_name|default("BuilderStrategy") }}")
+
+    @property
+    def required_indicators(self) -> List[str]:
+        return {{ proposal.used_indicators|default([])|tojson }}
+
+    @property
+    def default_params(self) -> Dict[str, Any]:
+        return {{ proposal.default_params|default({})|tojson }}
+
+    @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        return {
+            # Define ParameterSpec for each tunable parameter
+        }
+
+    def generate_signals(
+        self,
+        df: pd.DataFrame,
+        indicators: Dict[str, Any],
+        params: Dict[str, Any],
+    ) -> pd.Series:
+        n = len(df)
+        signals = pd.Series(0.0, index=df.index, dtype=np.float64)
+
+        # YOUR LOGIC HERE based on proposal:
+        # - Entry LONG: {{ proposal.entry_long_logic|default("TODO") }}
+        # - Entry SHORT: {{ proposal.entry_short_logic|default("TODO") }}
+        # - Exit: {{ proposal.exit_logic|default("TODO") }}
+
+        return signals
+```
+
+## CRITICAL RULES
+1. Class name MUST be `{{ class_name }}`
+2. MUST inherit from `StrategyBase`
+3. `generate_signals` returns `pd.Series` with values 1.0 (LONG), -1.0 (SHORT), 0.0 (FLAT)
+4. Handle NaN: use `np.nan_to_num()` or boolean masking
+5. NEVER use `os`, `subprocess`, `eval`, `exec`, `open()`
+6. ONLY import: numpy, pandas, strategies.base, utils.parameters
+7. Access indicators via `indicators["name"]` dict
+8. Access close prices via `df["close"]`, high via `df["high"]`, etc.
+
+Generate the COMPLETE code. No placeholders, no TODOs.

@@ -2147,3 +2147,105 @@ def cmd_analyze(args) -> int:
         print_success(f"Analyse exportée: {output_path}")
 
     return 0
+
+
+# =============================================================================
+# BUILDER — Strategy Builder LLM
+# =============================================================================
+
+
+def cmd_builder(args) -> int:
+    """Lance le Strategy Builder pour créer une stratégie via LLM.
+
+    Le builder utilise le LLM pour concevoir itérativement une stratégie
+    de trading en combinant les indicateurs existants du registry.
+    Les fichiers générés sont isolés dans sandbox_strategies/<session_id>/.
+    """
+    from agents.llm_client import LLMConfig
+    from agents.strategy_builder import StrategyBuilder
+    from data.loader import load_ohlcv
+
+    objective = args.objective
+    data_path = args.data
+
+    print()
+    print(f"{Colors.BOLD}{'=' * 60}{Colors.RESET}")
+    print(f"{Colors.BOLD}  🏗️  Strategy Builder{Colors.RESET}")
+    print(f"{Colors.BOLD}{'=' * 60}{Colors.RESET}")
+    print()
+    print(f"  Objectif : {Colors.BLUE}{objective}{Colors.RESET}")
+    print(f"  Données  : {data_path}")
+    print(f"  Itérations max : {args.max_iterations}")
+    print(f"  Sharpe cible   : {args.target_sharpe}")
+    print()
+
+    # Charger les données
+    try:
+        df = load_ohlcv(data_path)
+        print(f"  📊 Données chargées : {len(df)} barres")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Erreur chargement données: {e}{Colors.RESET}")
+        return 1
+
+    # Configurer LLM
+    llm_config = LLMConfig.from_env()
+    if args.model:
+        llm_config.model = args.model
+    print(f"  🤖 Modèle LLM : {llm_config.model}")
+    print()
+
+    # Créer le builder et lancer
+    builder = StrategyBuilder(llm_config=llm_config)
+
+    print(f"  📋 Indicateurs disponibles : {len(builder.available_indicators)}")
+    print(f"     {', '.join(builder.available_indicators[:10])}...")
+    print()
+    print(f"{Colors.BOLD}{'─' * 60}{Colors.RESET}")
+    print()
+
+    session = builder.run(
+        objective=objective,
+        data=df,
+        max_iterations=args.max_iterations,
+        target_sharpe=args.target_sharpe,
+        initial_capital=args.capital,
+    )
+
+    # Afficher le résumé
+    print()
+    print(f"{Colors.BOLD}{'=' * 60}{Colors.RESET}")
+    print(f"{Colors.BOLD}  📊 Résumé Strategy Builder{Colors.RESET}")
+    print(f"{Colors.BOLD}{'=' * 60}{Colors.RESET}")
+    print()
+    print(f"  Session    : {session.session_id}")
+    print(f"  Statut     : {session.status}")
+    print(f"  Itérations : {len(session.iterations)}")
+
+    if session.best_sharpe > float("-inf"):
+        color = Colors.GREEN if session.best_sharpe > 0 else Colors.RED
+        print(f"  Best Sharpe: {color}{session.best_sharpe:.3f}{Colors.RESET}")
+
+    if session.best_iteration:
+        bt = session.best_iteration.backtest_result
+        if bt:
+            m = bt.metrics
+            print(f"  Best Return: {m.get('total_return_pct', 0):.2f}%")
+            print(f"  Best DD    : {m.get('max_drawdown_pct', 0):.2f}%")
+            print(f"  Trades     : {m.get('total_trades', 0)}")
+
+    print()
+    print(f"  📁 Fichiers : {session.session_dir}")
+    print()
+
+    # Historique des itérations
+    for it in session.iterations:
+        icon = "✅" if it.decision == "accept" else "🔄" if it.decision == "continue" else "❌"
+        sharpe_str = ""
+        if it.backtest_result:
+            s = it.backtest_result.metrics.get("sharpe_ratio", 0)
+            sharpe_str = f" | Sharpe={s:.3f}"
+        error_str = f" | ⚠️ {it.error[:60]}" if it.error else ""
+        print(f"  {icon} Iter {it.iteration}: {it.hypothesis[:50]}{sharpe_str}{error_str}")
+
+    print()
+    return 0

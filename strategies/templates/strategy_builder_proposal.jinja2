@@ -1,0 +1,77 @@
+{# Template pour Strategy Builder — Proposition de logique de stratégie #}
+{# Utilisé par agents/strategy_builder.py pour générer une proposition JSON #}
+
+Design a trading strategy proposal for the following objective.
+
+## OBJECTIVE
+{{ objective }}
+
+## AVAILABLE INDICATORS (use ONLY these)
+{% for ind in available_indicators %}
+- {{ ind }}
+{% endfor %}
+
+## ITERATION {{ iteration }} / {{ max_iterations }}
+
+{% if last_metrics -%}
+## LAST BACKTEST RESULTS
+- Sharpe Ratio: {{ last_metrics.sharpe_ratio|format_float(3) }}
+- Total Return: {{ last_metrics.total_return_pct|format_float(2) }}%
+- Max Drawdown: {{ last_metrics.max_drawdown_pct|format_float(2) }}%
+- Win Rate: {{ last_metrics.win_rate_pct|format_float(1) }}%
+- Trades: {{ last_metrics.total_trades }}
+- Profit Factor: {{ last_metrics.profit_factor|format_float(2) }}
+
+Best Sharpe so far: {{ best_sharpe|format_float(3) }}
+
+{% endif -%}
+
+{% if last_analysis -%}
+## LAST ANALYSIS
+{{ last_analysis }}
+
+{% endif -%}
+
+{% if last_code -%}
+## CURRENT CODE (to iterate on)
+```python
+{{ last_code }}
+```
+
+{% endif -%}
+
+{% if iteration_history and iteration_history|length > 0 -%}
+## ITERATION HISTORY
+{% for h in iteration_history %}
+- Iter {{ h.iteration }}: hypothesis="{{ h.hypothesis }}" | sharpe={{ h.sharpe|default("N/A") }} | error={{ h.error|default("none") }}
+{% endfor %}
+
+{% endif -%}
+
+## INSTRUCTIONS
+{% if last_code -%}
+Based on the previous results, propose MODIFICATIONS to the current strategy logic.
+Focus on:
+- Improving signal quality (fewer false signals)
+- Better risk management (stop-loss, take-profit)
+- Adding/removing indicator conditions
+- Adjusting entry/exit thresholds
+{% else -%}
+Propose a NEW strategy from scratch.
+Choose indicators that match the objective.
+Design clear entry/exit rules and risk management.
+{% endif %}
+
+Respond with a JSON object containing:
+{
+  "strategy_name": "descriptive_name",
+  "hypothesis": "what you expect this change to achieve",
+  "used_indicators": ["indicator1", "indicator2"],
+  "indicator_params": {"indicator1": {"period": 14}},
+  "entry_long_logic": "conditions for entering LONG",
+  "entry_short_logic": "conditions for entering SHORT",
+  "exit_logic": "conditions for exiting positions",
+  "risk_management": "stop-loss and take-profit rules",
+  "default_params": {"param1": value},
+  "parameter_specs": {"param1": {"min": 5, "max": 50, "default": 14, "type": "int"}}
+}

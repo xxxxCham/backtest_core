@@ -1290,3 +1290,12 @@ python run_streamlit.bat
 - Résultat : Test walk-forward prêt à être commité.
 - Problèmes détectés : aucun.
 - Améliorations proposées : Optionnel — ajouter tests de performance WFA si besoin.
+
+- Date : 10/02/2026
+- Objectif : Implémentation complète du Strategy Builder — agent LLM créant des stratégies depuis zéro via les indicateurs du registre.
+- Fichiers modifiés : agents/strategy_builder.py (CRÉÉ ~470 lignes), strategies/templates/strategy_builder_proposal.jinja2 (CRÉÉ), strategies/templates/strategy_builder_code.jinja2 (CRÉÉ), sandbox_strategies/.gitkeep (CRÉÉ), cli/commands.py (MODIFIÉ +80 lignes cmd_builder), cli/__init__.py (MODIFIÉ +15 lignes parser builder), agents/__init__.py (MODIFIÉ +4 exports), tests/test_strategy_builder.py (CRÉÉ 23 tests).
+- Actions réalisées : Création module agents/strategy_builder.py avec classes StrategyBuilder, BuilderSession, BuilderIteration; workflow complet _ask_proposal→_ask_code→validate_generated_code→_save_and_load→_run_backtest→_ask_analysis; validation AST (syntaxe + sécurité: bloque os.system/subprocess/eval/exec/open/__import__/shutil.rmtree); chargement dynamique via importlib; versioning strategy_v{N}.py dans sandbox_strategies/<session_id>/; sauvegarde session_summary.json; 2 templates Jinja2 (proposal JSON + code Python avec doc indicateurs détaillée); commande CLI `builder` avec args --objective/-d/--max-iterations/--target-sharpe/--capital/--model; 23 tests unitaires (7 validation code, 6 extraction réponse, 4 session, 2 chargement dynamique, 2 indicateurs, 2 templates) tous PASSED en 0.72s; exports publics dans agents/__init__.py.
+- Vérifications effectuées : py_compile sur 5 fichiers (0 erreur); pytest tests/test_strategy_builder.py -v (23/23 PASSED); python -m cli builder --help (OK); rendu templates vérifié; imports agents.strategy_builder validés.
+- Résultat : Strategy Builder 100% fonctionnel et testé; isolation sandbox_strategies/ respectée; aucune modification de strategies/ ou indicators/ (core); 31 indicateurs du registre disponibles pour génération; CLI prête; branche feature/strategy-builder.
+- Problèmes détectés : aucun bloquant; test end-to-end avec LLM réel non effectué (requiert Ollama/OpenAI actif).
+- Améliorations proposées : Tester avec Ollama sur données réelles; ajouter support multi-objectif (sharpe + drawdown); intégrer dans UI Streamlit; ajouter métriques Walk-Forward post-génération.
