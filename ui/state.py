@@ -91,6 +91,11 @@ class SidebarState:
     leverage: float
     leverage_enabled: bool  # Si False, leverage=1 forcé
     disabled_params: List[str]  # Paramètres désactivés (utilisent valeur par défaut)
+    # Walk-Forward Analysis (WFA) — 10/02/2026
+    use_walk_forward: bool
+    wfa_n_folds: int
+    wfa_train_ratio: float
+    wfa_expanding: bool
 
     def __post_init__(self) -> None:
         if self.use_date_filter:

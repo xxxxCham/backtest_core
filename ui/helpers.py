@@ -896,6 +896,47 @@ def safe_run_backtest(
         return None, f"Erreur: {str(exc)}\n{traceback.format_exc()}"
 
 
+def safe_run_walk_forward(
+    df: pd.DataFrame,
+    strategy: str,
+    params: Dict[str, Any],
+    n_folds: int = 5,
+    train_ratio: float = 0.7,
+    expanding: bool = False,
+) -> Tuple[Optional[Any], str]:
+    """Lance une Walk-Forward Analysis et retourne (WalkForwardSummary, message)."""
+    from backtest.walk_forward import (
+        WalkForwardConfig,
+        WalkForwardSummary,
+        check_wfa_feasibility,
+        run_walk_forward,
+    )
+
+    config = WalkForwardConfig(
+        n_folds=n_folds,
+        train_ratio=train_ratio,
+        expanding=expanding,
+    )
+
+    ok, msg = check_wfa_feasibility(len(df), config=config)
+    if not ok:
+        return None, f"WFA impossible : {msg}"
+
+    try:
+        summary = run_walk_forward(df, strategy, params, config=config)
+        if summary.n_valid_folds == 0:
+            return None, "WFA : aucun fold valide (données insuffisantes)"
+        verdict = "✅ Robuste" if summary.is_robust else "⚠️ Overfitting probable"
+        msg = (
+            f"{verdict} | {summary.n_valid_folds} folds "
+            f"| Sharpe train {summary.avg_train_sharpe:.2f} → test {summary.avg_test_sharpe:.2f} "
+            f"| Dégradation {summary.degradation_pct:.0f}%"
+        )
+        return summary, msg
+    except Exception as exc:
+        return None, f"Erreur WFA : {exc}"
+
+
 def _strip_global_params(params: Dict[str, Any]) -> Dict[str, Any]:
     for key in ("fees_bps", "slippage_bps", "initial_capital"):
         params.pop(key, None)

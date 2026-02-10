@@ -1970,6 +1970,56 @@ def render_sidebar() -> SidebarState:
         if unchecked_indicators:
             st.sidebar.caption(f"_Indicateurs masqués: {', '.join(unchecked_indicators)}_")
 
+    # =========================================================================
+    # Walk-Forward Analysis (WFA) — 10/02/2026
+    # =========================================================================
+    st.sidebar.subheader("🔬 Walk-Forward Analysis")
+
+    use_walk_forward = st.sidebar.checkbox(
+        "Activer la validation Walk-Forward",
+        value=False,
+        key="use_walk_forward",
+        help=(
+            "Découpe les données en folds train/test séquentiels pour valider "
+            "la robustesse hors-échantillon. Désactivé par défaut."
+        ),
+    )
+    wfa_n_folds = 5
+    wfa_train_ratio = 0.7
+    wfa_expanding = False
+
+    if use_walk_forward:
+        wfa_n_folds = st.sidebar.slider(
+            "Nombre de folds",
+            min_value=2,
+            max_value=10,
+            value=5,
+            key="wfa_n_folds",
+            help="Nombre de fenêtres train/test glissantes.",
+        )
+        wfa_train_ratio = st.sidebar.slider(
+            "Ratio train (%)",
+            min_value=50,
+            max_value=90,
+            value=70,
+            step=5,
+            key="wfa_train_ratio",
+            help="Proportion des données allouées à l'entraînement par fold.",
+        ) / 100.0
+        wfa_expanding = st.sidebar.checkbox(
+            "Mode expanding (ancré au début)",
+            value=False,
+            key="wfa_expanding",
+            help=(
+                "Si coché, chaque fold inclut toutes les données depuis le début "
+                "(anchored). Sinon, fenêtre glissante (rolling)."
+            ),
+        )
+        st.sidebar.caption(
+            f"📐 {wfa_n_folds} folds × {wfa_train_ratio:.0%} train "
+            f"| {'expanding' if wfa_expanding else 'rolling'}"
+        )
+
     st.sidebar.subheader("💾 Versioned Presets")
 
     versioned_presets = list_strategy_versions(strategy_key)
@@ -2215,6 +2265,11 @@ def render_sidebar() -> SidebarState:
         leverage=leverage,
         leverage_enabled=leverage_enabled,
         disabled_params=disabled_params,
+        # Walk-Forward Analysis
+        use_walk_forward=use_walk_forward,
+        wfa_n_folds=wfa_n_folds,
+        wfa_train_ratio=wfa_train_ratio,
+        wfa_expanding=wfa_expanding,
     )
 
     applied_state = _apply_config_guard(draft_state)

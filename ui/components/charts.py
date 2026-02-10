@@ -2463,7 +2463,118 @@ def render_multi_sweep_ranking(
 
 
 # ============================================================================
-# 14. API PUBLIQUE
+# 15. WALK-FORWARD ANALYSIS — Visualisation folds (10/02/2026)
+# ============================================================================
+
+def render_walk_forward_results(summary: Any, key: str = "wfa_chart") -> None:
+    """Affiche les résultats complets d'une Walk-Forward Analysis.
+
+    Sections :
+    1. Verdict + métriques clés (4 colonnes)
+    2. Graphique barres groupées Sharpe train vs test par fold
+    3. Tableau détaillé des folds
+    """
+    import plotly.graph_objects as go
+
+    if summary is None or not hasattr(summary, "folds") or not summary.folds:
+        st.warning("Aucun fold WFA à afficher.")
+        return
+
+    # ── Verdict global ──────────────────────────────────────────────────
+    if summary.is_robust:
+        st.success(
+            f"✅ **Stratégie robuste** — Confiance : {summary.confidence_score:.0%}"
+        )
+    else:
+        st.warning(
+            f"⚠️ **Overfitting probable** — Confiance : {summary.confidence_score:.0%}"
+        )
+
+    # ── Métriques clés ──────────────────────────────────────────────────
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(
+        "Sharpe Train (moy.)",
+        f"{summary.avg_train_sharpe:.2f}",
+    )
+    c2.metric(
+        "Sharpe Test (moy.)",
+        f"{summary.avg_test_sharpe:.2f}",
+        delta=f"{summary.avg_test_sharpe - summary.avg_train_sharpe:+.2f}",
+        delta_color="normal",
+    )
+    c3.metric(
+        "Dégradation",
+        f"{summary.degradation_pct:.0f}%",
+        delta=f"{-summary.degradation_pct:.0f}%",
+        delta_color="inverse",
+    )
+    c4.metric(
+        "Stabilité Test (σ)",
+        f"{summary.test_stability_std:.3f}",
+    )
+
+    # ── Graphique barres ────────────────────────────────────────────────
+    fold_ids = [f"Fold {f.fold_id}" for f in summary.folds]
+    train_sharpes = []
+    test_sharpes = []
+    for f in summary.folds:
+        ts = (f.train_metrics or {}).get("sharpe_ratio", 0)
+        te = (f.test_metrics or {}).get("sharpe_ratio", 0)
+        train_sharpes.append(ts)
+        test_sharpes.append(te)
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name="Train",
+        x=fold_ids,
+        y=train_sharpes,
+        marker_color="#636EFA",
+        text=[f"{v:.2f}" for v in train_sharpes],
+        textposition="auto",
+    ))
+    fig.add_trace(go.Bar(
+        name="Test (OOS)",
+        x=fold_ids,
+        y=test_sharpes,
+        marker_color="#EF553B",
+        text=[f"{v:.2f}" for v in test_sharpes],
+        textposition="auto",
+    ))
+    fig.update_layout(
+        title="Sharpe Ratio — Train vs Test par fold",
+        barmode="group",
+        yaxis_title="Sharpe Ratio",
+        template="plotly_dark",
+        height=350,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=f"{key}_bars")
+
+    # ── Tableau détaillé ────────────────────────────────────────────────
+    rows = []
+    for f in summary.folds:
+        train_m = f.train_metrics or {}
+        test_m = f.test_metrics or {}
+        rows.append({
+            "Fold": f.fold_id,
+            "Train [start:end]": f"{f.train_start}:{f.train_end}",
+            "Test  [start:end]": f"{f.test_start}:{f.test_end}",
+            "Sharpe Train": round(train_m.get("sharpe_ratio", 0), 3),
+            "Sharpe Test": round(test_m.get("sharpe_ratio", 0), 3),
+            "Overfitting Ratio": round(f.overfitting_ratio, 2),
+            "Temps (ms)": round(f.execution_time_ms, 0),
+        })
+
+    import pandas as _pd
+    st.dataframe(_pd.DataFrame(rows), use_container_width=True)
+
+    # ── Résumé textuel ──────────────────────────────────────────────────
+    with st.expander("📋 Détails techniques WFA"):
+        st.json(summary.to_dict())
+
+
+# ============================================================================
+# 16. API PUBLIQUE
 # ============================================================================
 
 __all__ = [
@@ -2478,4 +2589,5 @@ __all__ = [
     "render_returns_distribution",
     "render_multi_sweep_heatmap",
     "render_multi_sweep_ranking",
+    "render_walk_forward_results",
 ]

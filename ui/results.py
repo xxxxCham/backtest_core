@@ -255,28 +255,28 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
 
             with col1:
                 st.markdown("**💰 Rendement**")
-                st.text(f"P&L Total: ${result.metrics['total_pnl']:,.2f}")
-                st.text(f"Rendement: {result.metrics['total_return_pct']:.2f}%")
-                st.text(f"Ann. Return: {result.metrics['annualized_return']:.2f}%")
-                st.text(f"Volatilité: {result.metrics['volatility_annual']:.2f}%")
+                st.text(f"P&L Total: ${result.metrics.get('total_pnl', 0):,.2f}")
+                st.text(f"Rendement: {result.metrics.get('total_return_pct', 0):.2f}%")
+                st.text(f"Ann. Return: {result.metrics.get('annualized_return', 0):.2f}%")
+                st.text(f"Volatilité: {result.metrics.get('volatility_annual', 0):.2f}%")
 
             with col2:
                 st.markdown("**📊 Risque**")
-                st.text(f"Sharpe: {result.metrics['sharpe_ratio']:.2f}")
-                st.text(f"Sortino: {result.metrics['sortino_ratio']:.2f}")
-                st.text(f"Calmar: {result.metrics['calmar_ratio']:.2f}")
+                st.text(f"Sharpe: {result.metrics.get('sharpe_ratio', 0):.2f}")
+                st.text(f"Sortino: {result.metrics.get('sortino_ratio', 0):.2f}")
+                st.text(f"Calmar: {result.metrics.get('calmar_ratio', 0):.2f}")
                 # Compatibilité: fallback max_drawdown si max_drawdown_pct absent
                 max_dd = result.metrics.get('max_drawdown_pct', result.metrics.get('max_drawdown', 0))
                 st.text(f"Max DD: {max_dd:.2f}%")
 
             with col3:
                 st.markdown("**🎯 Trading**")
-                st.text(f"Trades: {result.metrics['total_trades']}")
+                st.text(f"Trades: {result.metrics.get('total_trades', 0)}")
                 # Compatibilité: fallback win_rate si win_rate_pct absent
                 win_rate = result.metrics.get('win_rate_pct', result.metrics.get('win_rate', 0))
                 st.text(f"Win Rate: {win_rate:.1f}%")
-                st.text(f"Profit Factor: {result.metrics['profit_factor']:.2f}")
-                st.text(f"Expectancy: ${result.metrics['expectancy']:.2f}")
+                st.text(f"Profit Factor: {result.metrics.get('profit_factor', 0):.2f}")
+                st.text(f"Expectancy: ${result.metrics.get('expectancy', 0):.2f}")
 
         if result is not None and not result.trades.empty:
             with st.expander("📊 Analyse Statistique Avancée (Seaborn)", expanded=True):

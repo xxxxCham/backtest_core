@@ -29,7 +29,11 @@ import numpy as np
 import pandas as pd
 
 from backtest.engine import BacktestEngine
-from backtest.validation import ValidationFold, WalkForwardValidator
+from backtest.walk_forward import (
+    WalkForwardConfig,
+    WalkForwardSummary,
+    run_walk_forward,
+)
 from metrics_types import normalize_metrics, pct_to_frac
 from strategies.base import get_strategy, get_strategy_overview, list_strategies
 from utils.config import Config
@@ -294,6 +298,10 @@ def run_walk_forward_for_agent(
     """
     Exécute une validation walk-forward et retourne les métriques.
 
+    Délègue au module ``backtest.walk_forward`` (pipeline standalone)
+    puis convertit le résultat en ``WalkForwardMetrics`` pour
+    compatibilité avec la couche agents.
+
     Configuration optimisée pour 2 ans de données :
     - 6 fenêtres → ~4 mois de test par fenêtre
     - 75% train → 18 mois d'entraînement, 6 mois de test
@@ -307,120 +315,27 @@ def run_walk_forward_for_agent(
         train_ratio: Ratio train/total (1 - test_ratio)
         initial_capital: Capital de départ
         config: Configuration optionnelle
-        n_workers: Nombre de workers pour parallélisation (1 = séquentiel)
+        n_workers: Nombre de workers (réservé futur, séquentiel pour l'instant)
 
     Returns:
         Dict avec train_sharpe, test_sharpe, overfitting_ratio, métriques robustes
     """
-    test_pct = 1.0 - train_ratio
-
-    validator = WalkForwardValidator(
+    wfa_cfg = WalkForwardConfig(
         n_folds=n_windows,
-        test_pct=test_pct,
-        embargo_pct=0.02,  # 2% d'embargo pour éviter le leakage
+        train_ratio=train_ratio,
+        embargo_pct=0.02,
     )
 
-    folds = validator.split(data)
+    summary: WalkForwardSummary = run_walk_forward(
+        df=data,
+        strategy_name=strategy_name,
+        params=params,
+        config=wfa_cfg,
+        initial_capital=initial_capital,
+        engine_config=config,
+    )
 
-    def _run_fold(fold: ValidationFold) -> tuple[ValidationFold, bool]:
-        """Exécute un fold complet (train + test) - thread-safe."""
-        # Créer une instance d'engine par thread pour éviter les problèmes de concurrence
-        engine = BacktestEngine(initial_capital=initial_capital, config=config)
-        train_df, test_df = validator.get_data_splits(data, fold)
-
-        try:
-            # Backtest sur train
-            train_result = engine.run(
-                df=train_df,
-                strategy=strategy_name,
-                params=params,
-            )
-
-            # Backtest sur test
-            test_result = engine.run(
-                df=test_df,
-                strategy=strategy_name,
-                params=params,
-            )
-
-            # Stocker dans le fold
-            fold.train_metrics = _normalize_engine_metrics(train_result.metrics)
-            fold.test_metrics = _normalize_engine_metrics(test_result.metrics)
-
-            return fold, True
-
-        except Exception as e:
-            _logger.warning("fold_%s_failed error=%s", fold.fold_id, str(e))
-            return fold, False
-
-    # Mode séquentiel (par défaut)
-    if n_workers <= 1 or len(folds) <= 1:
-        for fold in folds:
-            _run_fold(fold)
-    else:
-        # Mode parallèle - utiliser ThreadPoolExecutor pour paralléliser les folds
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        _logger.info(f"Walk-forward parallèle avec {n_workers} workers sur {len(folds)} folds")
-
-        with ThreadPoolExecutor(max_workers=n_workers) as pool:
-            futures = {pool.submit(_run_fold, fold): fold for fold in folds}
-
-            for fut in as_completed(futures):
-                original_fold = futures[fut]
-                try:
-                    updated_fold, success = fut.result()
-                    if not success:
-                        _logger.warning(f"Fold {original_fold.fold_id} a échoué")
-                except Exception as e:
-                    _logger.warning(f"Erreur lors de l'exécution du fold {original_fold.fold_id}: {e}")
-
-    # Collecter les résultats des folds valides
-    train_sharpes = []
-    test_sharpes = []
-    for fold in folds:
-        if fold.train_metrics and fold.test_metrics:
-            train_sharpes.append(fold.train_metrics.get("sharpe_ratio", 0))
-            test_sharpes.append(fold.test_metrics.get("sharpe_ratio", 0))
-
-    n_folds = len(train_sharpes)
-
-    if n_folds == 0:
-        return {
-            "train_sharpe": 0.0,
-            "test_sharpe": 0.0,
-            "overfitting_ratio": 999.0,
-            "classic_ratio": 999.0,
-            "degradation_pct": 100.0,
-            "test_stability_std": 0.0,
-            "n_valid_folds": 0,
-        }
-
-    # Moyennes avec numpy
-    avg_train = np.mean(train_sharpes)
-    avg_test = np.mean(test_sharpes)
-    std_test = np.std(test_sharpes)
-
-    # Ratio classique avec garde-fou
-    classic_ratio = avg_train / avg_test if avg_test > 1e-6 else 999.0
-
-    # Dégradation % avec garde-fou
-    degradation_pct = (avg_train - avg_test) / avg_train * 100 if avg_train > 1e-6 else 100.0
-    degradation_pct = max(0.0, degradation_pct)
-
-    # Ratio robuste = ratio classique + pénalité de stabilité
-    stability_penalty = std_test * 2.0
-    robust_ratio = classic_ratio + stability_penalty
-
-    return {
-        "train_sharpe": float(avg_train),
-        "test_sharpe": float(avg_test),
-        "overfitting_ratio": float(robust_ratio),
-        "classic_ratio": float(classic_ratio),
-        "degradation_pct": float(degradation_pct),
-        "test_stability_std": float(std_test),
-        "n_valid_folds": n_folds,
-    }
+    return summary.to_agent_metrics()
 
 
 def create_optimizer_from_engine(

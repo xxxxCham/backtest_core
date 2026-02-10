@@ -21,6 +21,13 @@ Skip-if: Vous travaillez sur une seule strat/indicateur.
 """
 
 from .engine import BacktestEngine, RunResult
+from .walk_forward import (
+    FoldResult,
+    WalkForwardConfig,
+    WalkForwardSummary,
+    check_wfa_feasibility,
+    run_walk_forward,
+)
 from .errors import (
     BackendInternalError,
     BacktestError,

@@ -1254,3 +1254,30 @@ python run_streamlit.bat
 - Résultat : Les 21 backtests existants sont maintenant accessibles via `backtest_results_organized/` dans une structure propre, sans altérer `backtest_results/`.
 - Problèmes détectés : `psutil` non disponible (message informatif "monitoring limité", non bloquant).
 - Améliorations proposées : Optionnel — installer `psutil` pour monitoring; lancer `python3 backtest/results_organizer.py --archive --days 90` après validation pour archiver les runs anciens.
+
+- Date : 09/02/2026
+- Objectif : Consolidation Walk-Forward Analysis (WFA) — extraction module standalone, tests, non-régression.
+- Fichiers modifiés : backtest/walk_forward.py (CRÉÉ ~350 lignes), backtest/validation.py (suppression .copy()), agents/integration.py (délégation vers walk_forward, suppression code inline), backtest/__init__.py (exports), tests/test_walk_forward.py (CRÉÉ 15 tests).
+- Actions réalisées : Création backtest/walk_forward.py (WalkForwardConfig frozen, FoldResult, WalkForwardSummary avec to_dict/to_agent_metrics, run_walk_forward pipeline split→run→aggregate, check_wfa_feasibility garde-fou); suppression .copy() dans validation.get_data_splits (engine ne mute pas df); refactoring run_walk_forward_for_agent dans agents/integration.py pour déléguer au nouveau module; nettoyage imports inutilisés post-refactoring; 15 tests unitaires (feasibility, config frozen, no look-ahead, folds séquentiels, expanding mode, barres insuffisantes, métriques numériques, sérialisation dict/agent, non-régression WFA off).
+- Vérifications effectuées : pytest tests/test_walk_forward.py → 15/15 PASSED (1.89s); pytest tests/test_backend_cpu_only.py + tests/test_walk_forward.py → 26/26 PASSED (0.71s); get_errors sur 5 fichiers (seuls warnings Pylance type-narrowing, zéro erreur bloquante).
+- Résultat : WFA modulaire, testable standalone, compatible 4ème axe itérable (token/TF/stratégie/WFA); zéro régression; performance préservée (pas de .copy(), silent_mode, fast_metrics).
+- Problèmes détectés : aucun bloquant; warnings Pylance type-narrowing sur .get() de dict|None (cosmétique).
+- Améliorations proposées : Ajouter parallélisation optionnelle par fold (ThreadPoolExecutor) si besoin perf sur gros datasets; intégrer WFA dans CLI (`python -m cli backtest --wfa`); ajouter garde-fou perf (temps max WFA).
+
+- Date : 10/02/2026
+- Objectif : Intégration complète WFA dans l'UI Streamlit — contrôles sidebar, exécution post-backtest, visualisation résultats.
+- Fichiers modifiés : ui/state.py (4 champs WFA), ui/sidebar.py (section WFA + SidebarState), ui/helpers.py (safe_run_walk_forward), ui/components/charts.py (render_walk_forward_results), ui/main.py (imports + logique post-backtest).
+- Actions réalisées : Ajout champs use_walk_forward/wfa_n_folds/wfa_train_ratio/wfa_expanding dans SidebarState; création section sidebar « 🔬 Walk-Forward Analysis » avec checkbox activation, slider folds (2-10), slider train ratio (50-90%), checkbox expanding; création safe_run_walk_forward() dans helpers.py (garde-fou feasibility, exécution, message verdict); création render_walk_forward_results() dans charts.py (verdict coloré, 4 métriques st.metric, graphique barres groupées Sharpe train/test par fold via Plotly, tableau détaillé folds, JSON expandable); injection logique WFA post-backtest simple dans main.py (exécution conditionnelle si use_walk_forward, stockage session_state, enrichissement winner_metrics avec wfa_test_sharpe/is_robust/degradation_pct/confidence).
+- Vérifications effectuées : py_compile 5 fichiers OK; imports safe_run_walk_forward/render_walk_forward_results/SidebarState OK; pytest 26/26 PASSED (0.72s).
+- Résultat : WFA accessible depuis l'UI Streamlit avec contrôle complet (activation, folds, ratio, mode) et restitution visuelle claire (verdict, métriques, graphique, tableau, JSON).
+- Problèmes détectés : aucun.
+- Améliorations proposées : Intégrer WFA dans mode sweep (post-meilleur résultat); ajouter WFA dans CLI; tester avec Streamlit en conditions réelles.
+
+- Date : 10/02/2026
+- Objectif : Créer un commit code « Code_de_backtest_corev2_5_6 » en excluant tests et artefacts de résultats.
+- Fichiers modifiés : AGENTS.md.
+- Actions réalisées : Ajout d'une entrée de journal ; préparation d'un commit ciblé (code uniquement) sans inclure les résultats ni les fichiers de tests.
+- Vérifications effectuées : aucune.
+- Résultat : Journal mis à jour ; périmètre de commit défini pour exclure tests et résultats.
+- Problèmes détectés : aucun.
+- Améliorations proposées : Si besoin, créer un commit séparé pour les tests de non-régression.

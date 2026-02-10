@@ -250,6 +250,9 @@ class WalkForwardValidator:
         """
         Retourne les DataFrames train et test pour un fold.
 
+        PERF: pas de .copy() — le moteur lit mais ne mute pas le DataFrame.
+        Les slices partagent la mémoire avec le DataFrame source.
+
         Args:
             data: DataFrame complet
             fold: ValidationFold avec les indices
@@ -257,8 +260,8 @@ class WalkForwardValidator:
         Returns:
             Tuple (train_df, test_df)
         """
-        train_df = data.iloc[fold.train_start:fold.train_end].copy()
-        test_df = data.iloc[fold.test_start:fold.test_end].copy()
+        train_df = data.iloc[fold.train_start:fold.train_end]
+        test_df = data.iloc[fold.test_start:fold.test_end]
 
         return train_df, test_df
 

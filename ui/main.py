@@ -61,6 +61,7 @@ from ui.helpers import (
     safe_load_data,
     load_selected_data,
     safe_run_backtest,
+    safe_run_walk_forward,
     safe_copy_cleanup,
     show_status,
     summarize_comparison_results,
@@ -75,6 +76,7 @@ from ui.components.charts import (
     render_multi_sweep_ranking,
     render_strategy_param_diagram,
     render_ohlcv_with_trades_and_indicators,
+    render_walk_forward_results,
 )
 from ui.components.sweep_monitor import (
     SweepMonitor,
@@ -86,6 +88,11 @@ from utils.run_tracker import RunSignature, get_global_tracker
 
 # Import du worker isolé pour éviter les problèmes de pickling avec hot-reload Streamlit
 from backtest.worker import run_backtest_worker as _isolated_worker
+from backtest.walk_forward import (
+    WalkForwardConfig,
+    check_wfa_feasibility,
+    run_walk_forward,
+)
 
 # ━━━ Throttle central : un seul réglage pour le refresh UI pendant les runs ━━━
 _UI_REFRESH_EVERY_N = int(os.getenv("BACKTEST_UI_REFRESH_EVERY_N", "50000"))
@@ -935,6 +942,30 @@ def render_main(
             st.session_state["last_winner_origin"] = winner_origin
             st.session_state["last_winner_meta"] = winner_meta
             _maybe_auto_save_run(result)
+
+            # ── Walk-Forward Analysis (post-backtest simple) ──────────
+            if getattr(state, "use_walk_forward", False):
+                with st.spinner("🔬 Walk-Forward Analysis en cours..."):
+                    wfa_summary, wfa_msg = safe_run_walk_forward(
+                        df,
+                        strategy_key,
+                        params,
+                        n_folds=getattr(state, "wfa_n_folds", 5),
+                        train_ratio=getattr(state, "wfa_train_ratio", 0.7),
+                        expanding=getattr(state, "wfa_expanding", False),
+                    )
+                if wfa_summary is not None:
+                    st.session_state["last_wfa_summary"] = wfa_summary
+                    st.divider()
+                    st.subheader("🔬 Walk-Forward Analysis")
+                    render_walk_forward_results(wfa_summary)
+                    # Enrichir winner_metrics pour le résumé
+                    winner_metrics["wfa_test_sharpe"] = wfa_summary.avg_test_sharpe
+                    winner_metrics["wfa_is_robust"] = wfa_summary.is_robust
+                    winner_metrics["wfa_degradation_pct"] = wfa_summary.degradation_pct
+                    winner_metrics["wfa_confidence"] = wfa_summary.confidence_score
+                else:
+                    st.warning(f"WFA : {wfa_msg}")
 
         elif optimization_mode == "Grille de Paramètres":
             n_workers_effective = _resolve_workers(n_workers)
