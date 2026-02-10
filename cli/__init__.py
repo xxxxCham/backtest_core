@@ -843,6 +843,13 @@ Exemples:
 
 def main(args: Optional[list] = None) -> int:
     """Point d'entrée principal du CLI."""
+    # Charger .env (BACKTEST_DATA_DIR, etc.) si python-dotenv disponible
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
     parser = create_parser()
     parsed = parser.parse_args(args)
 
