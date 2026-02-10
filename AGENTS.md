@@ -1281,3 +1281,12 @@ python run_streamlit.bat
 - Résultat : Journal mis à jour ; périmètre de commit défini pour exclure tests et résultats.
 - Problèmes détectés : aucun.
 - Améliorations proposées : Si besoin, créer un commit séparé pour les tests de non-régression.
+
+- Date : 10/02/2026
+- Objectif : Ajouter les tests walk-forward en commit séparé.
+- Fichiers modifiés : AGENTS.md, tests/test_walk_forward.py.
+- Actions réalisées : Ajout d'une entrée de journal et préparation du commit du test walk-forward.
+- Vérifications effectuées : aucune.
+- Résultat : Test walk-forward prêt à être commité.
+- Problèmes détectés : aucun.
+- Améliorations proposées : Optionnel — ajouter tests de performance WFA si besoin.
