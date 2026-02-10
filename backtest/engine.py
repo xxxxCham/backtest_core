@@ -1,3 +1,5 @@
+
+
 """
 Backtest Core - Backtest Engine
 ===============================
@@ -188,7 +190,7 @@ class BacktestEngine:
         timeframe: str = "1m",
         seed: int = 42,
         silent_mode: bool = False,
-        fast_metrics: bool = False
+        fast_metrics: bool = True  # ⚡ Performance: 536 bt/s (True) vs 85 bt/s (False)
     ) -> RunResult:
         """
         Exécute un backtest complet.

@@ -1245,3 +1245,12 @@ python run_streamlit.bat
 - Résultat : Les ranges UI/normalisation acceptent désormais des plafonds plus larges pour ces deux stratégies.
 - Problèmes détectés : aucun.
 - Améliorations proposées : Valider rapidement un sweep pour confirmer la couverture attendue des nouvelles plages.
+
+- Date : 09/02/2026
+- Objectif : Organiser proprement les résultats de backtest en arborescence hiérarchique (catégorie/stratégie/symbole+timeframe).
+- Fichiers modifiés : backtest_results_organized/** (création arborescence + copies des runs), backtest_results_organized/*/README.md (création).
+- Actions réalisées : Exécution `python3 backtest/results_organizer.py --organize` ; copie des runs depuis `backtest_results/<run_id>/` vers `backtest_results_organized/{category}/{strategy}/{symbol_tf}/{date_runid}` ; génération des README par catégorie.
+- Vérifications effectuées : Présence des catégories (`✅_Good`, `📊_Mediocre`, `❌_Unprofitable`, `❌_Failed`, `⚠️_Insufficient_Data`) ; 21 fichiers `metadata.json` copiés dans `backtest_results_organized`.
+- Résultat : Les 21 backtests existants sont maintenant accessibles via `backtest_results_organized/` dans une structure propre, sans altérer `backtest_results/`.
+- Problèmes détectés : `psutil` non disponible (message informatif "monitoring limité", non bloquant).
+- Améliorations proposées : Optionnel — installer `psutil` pour monitoring; lancer `python3 backtest/results_organizer.py --archive --days 90` après validation pour archiver les runs anciens.

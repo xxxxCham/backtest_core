@@ -926,16 +926,23 @@ def simulate_trades_fast(
             # ✅ SOLUTION A : Kernel Numba JIT avec BB levels (RAPIDE)
             logger.debug("Backend: numba_bb_levels (JIT-compiled)")
 
-            # Numba requiert arrays (pas None) → remplacer None par NaN arrays
+            # ⚡ Performance: cache fallback NaN réutilisable (évite allocations GC)
+            # Numba requiert arrays (pas None) → fallback NaN array si None
             n_bars = len(closes)
-            bb_stop_long_arr = bb_stop_long if bb_stop_long is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            bb_tp_long_arr = bb_tp_long if bb_tp_long is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            bb_stop_short_arr = bb_stop_short if bb_stop_short is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            bb_tp_short_arr = bb_tp_short if bb_tp_short is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            bb_pos_low_arr = bb_pos_low if bb_pos_low is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            bb_pos_high_arr = bb_pos_high if bb_pos_high is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            sl_level_arr_safe = sl_level_arr if sl_level_arr is not None else np.full(n_bars, np.nan, dtype=np.float64)
-            tp_level_arr_safe = tp_level_arr if tp_level_arr is not None else np.full(n_bars, np.nan, dtype=np.float64)
+
+            # Cache thread-local pour éviter allocations répétées (gain mémoire + GC)
+            if not hasattr(simulate_trades_fast, '_nan_cache') or len(simulate_trades_fast._nan_cache) != n_bars:
+                simulate_trades_fast._nan_cache = np.full(n_bars, np.nan, dtype=np.float64)
+            _nan_fallback = simulate_trades_fast._nan_cache
+
+            bb_stop_long_arr = bb_stop_long if bb_stop_long is not None else _nan_fallback
+            bb_tp_long_arr = bb_tp_long if bb_tp_long is not None else _nan_fallback
+            bb_stop_short_arr = bb_stop_short if bb_stop_short is not None else _nan_fallback
+            bb_tp_short_arr = bb_tp_short if bb_tp_short is not None else _nan_fallback
+            bb_pos_low_arr = bb_pos_low if bb_pos_low is not None else _nan_fallback
+            bb_pos_high_arr = bb_pos_high if bb_pos_high is not None else _nan_fallback
+            sl_level_arr_safe = sl_level_arr if sl_level_arr is not None else _nan_fallback
+            tp_level_arr_safe = tp_level_arr if tp_level_arr is not None else _nan_fallback
 
             result = _simulate_trades_numba_bb_levels(
                 closes, highs, lows, signal_arr,

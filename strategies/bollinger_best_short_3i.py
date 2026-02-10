@@ -72,33 +72,33 @@ class BollingerBestShort3iStrategy(StrategyBase):
         return {
             "bb_period": ParameterSpec(
                 name="bb_period",
-                min_val=10, max_val=100, default=20,
+                min_val=5, max_val=200, default=20,
                 param_type="int",
-                description="Bollinger period",
+                description="Bollinger period (5-200: micro to macro trends)",
             ),
             "bb_std": ParameterSpec(
                 name="bb_std",
-                min_val=1.0, max_val=5.0, step=0.1, default=2.1,
+                min_val=0.5, max_val=6.0, step=0.1, default=2.1,
                 param_type="float",
-                description="Bollinger std dev",
+                description="Bollinger std dev (0.5-6.0: tight to wide bands)",
             ),
             "entry_level": ParameterSpec(
                 name="entry_level",
-                min_val=0.8, max_val=1.2, step=0.05, default=1.0,
+                min_val=0.6, max_val=1.5, step=0.05, default=1.0,
                 param_type="float",
-                description="Entry level near upper band (0.8 to 1.2)",
+                description="Entry level near upper band (0.6-1.5: flexible entry)",
             ),
             "sl_level": ParameterSpec(
                 name="sl_level",
-                min_val=1.3, max_val=2.5, step=0.05, default=1.5,
+                min_val=1.1, max_val=3.5, step=0.05, default=1.5,
                 param_type="float",
-                description="Stop-loss level above upper band",
+                description="Stop-loss level above upper band (1.1-3.5: tight to wide SL)",
             ),
             "tp_level": ParameterSpec(
                 name="tp_level",
-                min_val=0.0, max_val=0.6, step=0.05, default=0.15,
+                min_val=-0.2, max_val=1.0, step=0.05, default=0.15,
                 param_type="float",
-                description="Take-profit level toward lower band",
+                description="Take-profit level toward lower band (-0.2-1.0: can cross middle)",
             ),
             "leverage": ParameterSpec(
                 name="leverage",
@@ -162,18 +162,24 @@ class BollingerBestShort3iStrategy(StrategyBase):
         stop_short = lower + sl_level * total_distance
         tp_short = lower + tp_level * total_distance
 
-        df.loc[:, "bb_entry_short"] = entry_price_level
-        df.loc[:, "bb_stop_short"] = stop_short
-        df.loc[:, "bb_tp_short"] = tp_short
-        df.loc[:, "bb_upper"] = upper
-        df.loc[:, "bb_middle"] = middle
-        df.loc[:, "bb_lower"] = lower
+        # ⚡ Performance: mutations DataFrame désactivées (coûteuses en sweep)
+        # Décommentez pour debug/visualisation uniquement
+        # df.loc[:, "bb_entry_short"] = entry_price_level
+        # df.loc[:, "bb_stop_short"] = stop_short
+        # df.loc[:, "bb_tp_short"] = tp_short
+        # df.loc[:, "bb_upper"] = upper
+        # df.loc[:, "bb_middle"] = middle
+        # df.loc[:, "bb_lower"] = lower
 
-        signals_diff = signals.diff()
-        signals_clean = signals.copy()
-        signals_clean[1:] = np.where(signals_diff[1:] != 0, signals[1:], 0)
+        # ⚡ Performance: dédupliquer signaux (numpy direct, pas de .diff())
+        signals_arr = signals.values
+        signals_clean = np.zeros_like(signals_arr)
+        signals_clean[0] = signals_arr[0]
+        for i in range(1, len(signals_arr)):
+            if signals_arr[i] != signals_arr[i-1]:
+                signals_clean[i] = signals_arr[i]
 
-        return signals_clean
+        return pd.Series(signals_clean, index=df.index, dtype=np.float64, name="signals")
 
     def _resolve_level_price(
         self,

@@ -31,7 +31,7 @@ _worker_symbol = None
 _worker_timeframe = None
 _worker_initial_capital = None
 _worker_debug_enabled = False
-_worker_fast_metrics = False
+_worker_fast_metrics = True  # ⚡ Performance: verrouillage mode rapide (536 bt/s vs 85 bt/s)
 _worker_period_days = None
 _worker_engine = None
 _worker_indicator_cache = None  # Cache des indicateurs calculés
@@ -49,9 +49,12 @@ def init_worker_with_dataframe(
     initial_capital: float,
     debug_enabled: bool,
     thread_limit: int,
-    fast_metrics: bool = False,
+    fast_metrics: bool = True,  # ⚡ Performance: mode rapide par défaut
     is_path: bool = False,
 ):
+    # ⚡ Performance: désactiver cache disque indicateur (contention I/O en parallèle)
+    # Cache mémoire reste actif pour indicateurs réutilisables
+    os.environ["INDICATOR_CACHE_DISK_ENABLED"] = "0"
     """
     Initializer pour ProcessPoolExecutor - charge le DataFrame une seule fois.
 

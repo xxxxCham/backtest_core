@@ -855,7 +855,7 @@ def safe_run_backtest(
     timeframe: str,
     run_id: Optional[str] = None,
     silent_mode: bool = False,
-    fast_metrics: bool = False,
+    fast_metrics: bool = True,  # ⚡ Performance: mode rapide par défaut
 ) -> Tuple[Optional[Any], str]:
     run_id = run_id or generate_run_id(
         strategy=strategy,
@@ -1384,7 +1384,7 @@ def run_sweep_sequential_with_callback_legacy(
 
 def run_sweep_parallel_with_callback(
     df, strategy, param_grid, initial_capital, n_workers=None, callback=None,
-    silent_mode=True, fast_metrics=False, symbol="unknown", timeframe="unknown"
+    silent_mode=True, fast_metrics=True, symbol="unknown", timeframe="unknown"  # ⚡ Performance
 ):
     """
     Exécute un sweep en parallèle avec callback de progression temps réel.
@@ -1474,7 +1474,7 @@ def run_sweep_parallel_with_callback(
 
 def run_sweep_sequential_with_callback(
     df, strategy, param_grid, initial_capital, callback=None,
-    silent_mode=True, fast_metrics=False
+    silent_mode=True, fast_metrics=True  # ⚡ Performance
 ):
     """Exécute un sweep en séquentiel avec callback de progression."""
     from backtest.engine import BacktestEngine
