@@ -35,11 +35,10 @@ import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
-
-from agents.backtest_executor import BacktestExecutor, BacktestRequest, BacktestResult
 from agents.base_agent import AgentRole, MetricsSnapshot
 from agents.llm_client import LLMClient, LLMConfig, LLMMessage, create_llm_client
 from indicators.registry import get_indicator, list_indicators
@@ -66,7 +65,7 @@ class BuilderIteration:
     iteration: int
     hypothesis: str = ""
     code: str = ""
-    backtest_result: Optional[BacktestResult] = None
+    backtest_result: Optional[Any] = None
     error: Optional[str] = None
     analysis: str = ""
     decision: str = ""  # "continue", "accept", "stop"
@@ -512,13 +511,16 @@ The code must be ready to execute with ZERO modifications."""
             params=params,
         )
 
-        # Convertir en BacktestResult pour compatibilité
+        # Convertir en résultat léger avec .metrics dict
         metrics_pct = normalize_metrics(result.metrics, "pct")
 
-        return BacktestResult(
-            request_id=run_id,
+        return SimpleNamespace(
             success=True,
             metrics=metrics_pct,
+            sharpe_ratio=metrics_pct.get("sharpe_ratio", 0.0),
+            total_return_pct=metrics_pct.get("total_return_pct", 0.0),
+            max_drawdown_pct=metrics_pct.get("max_drawdown_pct", 0.0),
+            total_trades=metrics_pct.get("total_trades", 0),
             execution_time_ms=getattr(result, "execution_time_ms", 0),
         )
 

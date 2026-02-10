@@ -2163,10 +2163,20 @@ def cmd_builder(args) -> int:
     """
     from agents.llm_client import LLMConfig
     from agents.strategy_builder import StrategyBuilder
-    from data.loader import load_ohlcv
 
     objective = args.objective
-    data_path = args.data
+    data_path = Path(args.data)
+    if not data_path.exists():
+        env_data_dir = os.environ.get("BACKTEST_DATA_DIR")
+        if env_data_dir:
+            data_path = Path(env_data_dir) / args.data
+        else:
+            data_path = Path(__file__).parent.parent / "data" / "sample_data" / args.data
+
+    if not data_path.exists():
+        print(f"{Colors.RED}❌ Fichier non trouvé: {args.data}{Colors.RESET}")
+        print(f"   Répertoire cherché: {data_path.parent}")
+        return 1
 
     print()
     print(f"{Colors.BOLD}{'=' * 60}{Colors.RESET}")
@@ -2181,7 +2191,8 @@ def cmd_builder(args) -> int:
 
     # Charger les données
     try:
-        df = load_ohlcv(data_path)
+        from data.loader import _normalize_ohlcv, _read_file
+        df = _normalize_ohlcv(_read_file(data_path))
         print(f"  📊 Données chargées : {len(df)} barres")
     except Exception as e:
         print(f"{Colors.RED}❌ Erreur chargement données: {e}{Colors.RESET}")
@@ -2228,10 +2239,9 @@ def cmd_builder(args) -> int:
     if session.best_iteration:
         bt = session.best_iteration.backtest_result
         if bt:
-            m = bt.metrics
-            print(f"  Best Return: {m.get('total_return_pct', 0):.2f}%")
-            print(f"  Best DD    : {m.get('max_drawdown_pct', 0):.2f}%")
-            print(f"  Trades     : {m.get('total_trades', 0)}")
+            print(f"  Best Return: {getattr(bt, 'total_return_pct', 0):.2f}%")
+            print(f"  Best DD    : {getattr(bt, 'max_drawdown_pct', 0):.2f}%")
+            print(f"  Trades     : {getattr(bt, 'total_trades', 0)}")
 
     print()
     print(f"  📁 Fichiers : {session.session_dir}")
@@ -2242,7 +2252,7 @@ def cmd_builder(args) -> int:
         icon = "✅" if it.decision == "accept" else "🔄" if it.decision == "continue" else "❌"
         sharpe_str = ""
         if it.backtest_result:
-            s = it.backtest_result.metrics.get("sharpe_ratio", 0)
+            s = getattr(it.backtest_result, 'sharpe_ratio', 0)
             sharpe_str = f" | Sharpe={s:.3f}"
         error_str = f" | ⚠️ {it.error[:60]}" if it.error else ""
         print(f"  {icon} Iter {it.iteration}: {it.hypothesis[:50]}{sharpe_str}{error_str}")
