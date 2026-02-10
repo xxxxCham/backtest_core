@@ -22,11 +22,12 @@ Skip-if: Vous ne modifiez que analyze/propose/validate.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from utils.observability import get_obs_logger
 from utils.template import render_prompt
 
 from .base_agent import (
@@ -36,7 +37,43 @@ from .base_agent import (
     BaseAgent,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
+
+
+# === Modèles Pydantic pour validation ===
+
+
+class ProposalEvaluation(BaseModel):
+    """Évaluation d'une proposition par le Critic."""
+    proposal_id: int
+    overfitting_score: int = Field(default=50, ge=0, le=100)
+    robustness_score: int = Field(default=50, ge=0, le=100)
+    recommendation: str = Field(..., pattern="^(APPROVE|MODIFY|REJECT)$")
+    critical_issues: List[str] = Field(default_factory=list)
+    warnings: List[str] = Field(default_factory=list)
+    suggested_modifications: List[str] = Field(default_factory=list)
+    reasoning: str = ""
+
+    @field_validator("recommendation", mode="before")
+    @classmethod
+    def normalize_recommendation(cls, v: Any) -> str:
+        if isinstance(v, str):
+            v = v.upper().strip()
+        return v if v in ("APPROVE", "MODIFY", "REJECT") else "MODIFY"
+
+
+class CriticResponse(BaseModel):
+    """Structure de réponse complète du Critic."""
+    overall_assessment: str = Field(..., min_length=5)
+    walk_forward_summary: str = ""
+    market_regime_concerns: List[str] = Field(default_factory=list)
+    statistical_concerns: List[str] = Field(default_factory=list)
+    proposal_evaluations: List[ProposalEvaluation] = Field(default_factory=list)
+    approved_proposals: List[int] = Field(default_factory=list)
+    rejected_proposals: List[int] = Field(default_factory=list)
+    best_proposal_id: Optional[int] = None
+    proceed_with_testing: bool = False
+    final_concerns: List[str] = Field(default_factory=list)
 
 
 class CriticAgent(BaseAgent):
@@ -159,15 +196,21 @@ Respond ONLY in valid JSON format with this exact structure:
         if critique is None:
             return AgentResult.failure_result(
                 self.role,
-                f"Échec parsing JSON: {response.parse_error}",
+                "Échec parsing JSON: %s" % (response.parse_error or "Unknown"),
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
 
-        # Valider la structure
-        validation_errors = self._validate_critique(critique)
-        if validation_errors:
-            logger.warning(f"Critique partiellement invalide: {validation_errors}")
+        # Validation Pydantic (best-effort)
+        try:
+            validated = CriticResponse.model_validate(critique)
+            logger.debug(
+                "critic_response_validated evals=%d approved=%d",
+                len(validated.proposal_evaluations),
+                len(validated.approved_proposals),
+            )
+        except ValidationError as exc:
+            logger.warning("critic_pydantic_partial errors=%d", len(exc.errors()))
 
         # Extraire les informations clés
         approved = critique.get("approved_proposals", [])
@@ -253,28 +296,3 @@ Respond ONLY in valid JSON format with this exact structure:
 
         return render_prompt("critic.jinja2", template_context)
 
-    def _validate_critique(self, critique: Dict[str, Any]) -> List[str]:
-        """Valide la structure de la critique."""
-        errors = []
-
-        required_fields = [
-            "overall_assessment",
-            "proposal_evaluations",
-            "proceed_with_testing",
-        ]
-
-        for field in required_fields:
-            if field not in critique:
-                errors.append(f"Champ manquant: {field}")
-
-        # Valider les évaluations
-        evaluations = critique.get("proposal_evaluations", [])
-        for eval_data in evaluations:
-            if "proposal_id" not in eval_data:
-                errors.append("proposal_id manquant dans évaluation")
-            if "recommendation" not in eval_data:
-                errors.append("recommendation manquante dans évaluation")
-            elif eval_data["recommendation"] not in ["APPROVE", "MODIFY", "REJECT"]:
-                errors.append(f"recommendation invalide: {eval_data['recommendation']}")
-
-        return errors

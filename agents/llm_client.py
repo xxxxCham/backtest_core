@@ -22,9 +22,7 @@ Skip-if: Vous appelez juste le client via create_llm_client().
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
 import json
-import logging
 import os
 import time
 from abc import ABC, abstractmethod
@@ -34,7 +32,10 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-logger = logging.getLogger(__name__)
+from backtest.errors import LLMUnavailableError
+from utils.observability import get_obs_logger
+
+logger = get_obs_logger(__name__)
 
 
 class LLMProvider(Enum):
@@ -488,7 +489,11 @@ class OpenAIClient(LLMClient):
         super().__init__(config)
 
         if not config.openai_api_key:
-            raise ValueError("OpenAI API key requise (OPENAI_API_KEY)")
+            raise LLMUnavailableError(
+                "OpenAI API key requise (OPENAI_API_KEY)",
+                provider="openai",
+                reason="missing_api_key",
+            )
 
         # Timeout adaptatif selon le type de modèle
         adaptive_timeout = _get_adaptive_timeout(config)

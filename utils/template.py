@@ -22,14 +22,15 @@ Skip-if: Vous appelez juste render_prompt().
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from jinja2.runtime import Undefined
 
-logger = logging.getLogger(__name__)
+from utils.observability import get_obs_logger
+
+logger = get_obs_logger(__name__)
 
 # Chemin vers le dossier templates (robuste pour installation en paquet)
 # Utiliser importlib.resources pour Python 3.9+, sinon fallback
@@ -44,7 +45,7 @@ except (ImportError, TypeError):
         TEMPLATES_DIR = Path(str(files("backtest_core") / "templates"))
     except (ImportError, TypeError):
         # Dernier fallback : utiliser le chemin relatif résolu
-        TEMPLATES_DIR = (Path(__file__).resolve().parent.parent / "templates").expanduser()
+        TEMPLATES_DIR = (Path(__file__).resolve().parent.parent / "strategies" / "templates").expanduser()
 
 # Environment Jinja2 global (lazy init)
 _jinja_env: Optional[Environment] = None

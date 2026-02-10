@@ -22,18 +22,18 @@ Skip-if: Vous ne changez qu'un agent spécifique.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Mapping, Optional
 
+from utils.observability import get_obs_logger
+
 from .llm_client import LLMClient, LLMMessage, LLMResponse
 from .state_machine import ValidationResult
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
 
 
 class AgentRole(Enum):

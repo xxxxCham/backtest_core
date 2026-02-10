@@ -22,12 +22,13 @@ Skip-if: Vous ne changez que analyze/propose/critique.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 import time
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from utils.observability import get_obs_logger
 from utils.template import render_prompt
 
 from .base_agent import (
@@ -37,7 +38,7 @@ from .base_agent import (
     BaseAgent,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
 
 
 class ValidationDecision(Enum):
@@ -46,6 +47,67 @@ class ValidationDecision(Enum):
     REJECT = "REJECT"        # Rejeter définitivement
     ITERATE = "ITERATE"      # Continuer l'optimisation
     ABORT = "ABORT"          # Arrêter (problème grave)
+
+
+# === Modèles Pydantic pour validation ===
+
+
+class CriteriaCheck(BaseModel):
+    """Vérification des critères objectifs."""
+    sharpe_meets_minimum: bool = False
+    drawdown_within_limit: bool = False
+    overfitting_acceptable: bool = False
+    sufficient_trades: bool = False
+    critic_approved: bool = False
+
+
+class AgentSynthesis(BaseModel):
+    """Synthèse des contributions des agents."""
+    analyst_key_points: List[str] = Field(default_factory=list)
+    strategist_contribution: str = ""
+    critic_concerns_addressed: bool = False
+
+
+class ApprovedConfig(BaseModel):
+    """Détails si décision APPROVE."""
+    final_parameters: Dict[str, Any] = Field(default_factory=dict)
+    expected_performance: Dict[str, Any] = Field(default_factory=dict)
+    deployment_notes: List[str] = Field(default_factory=list)
+    monitoring_recommendations: List[str] = Field(default_factory=list)
+
+
+class IterateGuidance(BaseModel):
+    """Détails si décision ITERATE."""
+    focus_areas: List[str] = Field(default_factory=list)
+    suggested_approach: str = ""
+    max_more_iterations: int = Field(default=3, ge=1, le=20)
+
+
+class RejectionDetails(BaseModel):
+    """Détails si décision REJECT."""
+    primary_reasons: List[str] = Field(default_factory=list)
+    fundamental_issues: List[str] = Field(default_factory=list)
+    recommendations: List[str] = Field(default_factory=list)
+
+
+class ValidatorResponse(BaseModel):
+    """Structure de réponse complète du Validator."""
+    decision: str = Field(..., pattern="^(APPROVE|REJECT|ITERATE|ABORT)$")
+    confidence: int = Field(default=50, ge=0, le=100)
+    summary: str = ""
+    criteria_check: Optional[CriteriaCheck] = None
+    agent_synthesis: Optional[AgentSynthesis] = None
+    if_approved: Optional[ApprovedConfig] = None
+    if_iterate: Optional[IterateGuidance] = None
+    if_rejected: Optional[RejectionDetails] = None
+    final_report: str = ""
+
+    @field_validator("decision", mode="before")
+    @classmethod
+    def normalize_decision(cls, v: Any) -> str:
+        if isinstance(v, str):
+            v = v.upper().strip()
+        return v if v in ("APPROVE", "REJECT", "ITERATE", "ABORT") else "ITERATE"
 
 
 class ValidatorAgent(BaseAgent):
@@ -176,10 +238,20 @@ Respond ONLY in valid JSON format with this exact structure:
         if validation is None:
             return AgentResult.failure_result(
                 self.role,
-                f"Échec parsing JSON: {response.parse_error}",
+                "Échec parsing JSON: %s" % (response.parse_error or "Unknown"),
                 execution_time_ms=execution_time,
                 raw_llm_response=response,
             )
+
+        # Validation Pydantic (best-effort)
+        try:
+            validated_resp = ValidatorResponse.model_validate(validation)
+            logger.debug(
+                "validator_response_validated decision=%s confidence=%d",
+                validated_resp.decision, validated_resp.confidence,
+            )
+        except ValidationError as exc:
+            logger.warning("validator_pydantic_partial errors=%d", len(exc.errors()))
 
         # Extraire la décision
         decision_str = validation.get("decision", "ITERATE")
@@ -326,8 +398,7 @@ Respond ONLY in valid JSON format with this exact structure:
         # Ne pas APPROVE si tous les critères ne sont pas remplis
         if decision == ValidationDecision.APPROVE and not all_criteria_met:
             logger.warning(
-                "Décision APPROVE incohérente avec critères non remplis. "
-                "Changement en ITERATE."
+                "validator_decision_override from=APPROVE to=ITERATE reason=criteria_not_met"
             )
             return ValidationDecision.ITERATE
 

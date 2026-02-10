@@ -22,8 +22,6 @@ Skip-if: Vous utilisez la config par défaut.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 import os
 import random
 import time
@@ -34,8 +32,9 @@ from typing import Any, Dict, List, Optional, Set
 import httpx
 
 from utils.model_loader import get_all_ollama_models
+from utils.observability import get_obs_logger
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
 
 # Seuil en milliards de paramètres au-delà duquel un modèle nécessite approbation manuelle
 MAX_AUTO_SELECT_PARAMS_B: float = 50.0

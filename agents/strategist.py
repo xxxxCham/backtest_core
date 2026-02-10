@@ -22,11 +22,12 @@ Skip-if: Vous ne touchez qu'à analyze/critique/validate.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel, Field, ValidationError, field_validator
+
+from utils.observability import get_obs_logger
 from utils.template import render_prompt
 
 from .base_agent import (
@@ -36,7 +37,55 @@ from .base_agent import (
     BaseAgent,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
+
+
+# === Modèles Pydantic pour validation ===
+
+
+class ExpectedImpact(BaseModel):
+    """Impact attendu d'une proposition."""
+    sharpe_ratio: str = ""
+    drawdown: str = ""
+    trade_frequency: str = ""
+
+
+class ProposalItem(BaseModel):
+    """Une proposition de paramètres du Strategist."""
+    id: int
+    name: str = Field(..., min_length=1)
+    priority: str = Field(default="MEDIUM", pattern="^(HIGH|MEDIUM|LOW)$")
+    risk_level: str = Field(default="MEDIUM", pattern="^(LOW|MEDIUM|HIGH)$")
+    parameters: Dict[str, Any]
+    rationale: str = Field(..., min_length=5)
+    changes_from_current: Optional[Dict[str, Any]] = None
+    expected_impact: Optional[ExpectedImpact] = None
+    risks: List[str] = Field(default_factory=list)
+
+    @field_validator("priority", "risk_level", mode="before")
+    @classmethod
+    def normalize_enum_fields(cls, v: Any) -> str:
+        if isinstance(v, str):
+            v = v.upper().strip()
+        return v if v in ("HIGH", "MEDIUM", "LOW") else "MEDIUM"
+
+
+class SweepRequest(BaseModel):
+    """Requête de grid search du Strategist."""
+    ranges: Dict[str, Dict[str, float]]
+    rationale: str = Field(..., min_length=5)
+    optimize_for: str = "sharpe_ratio"
+    max_combinations: int = Field(default=100, ge=1, le=10000)
+
+
+class StrategistResponse(BaseModel):
+    """Structure de réponse complète du Strategist."""
+    analysis_summary: str = ""
+    optimization_strategy: str = ""
+    proposals: List[ProposalItem] = Field(default_factory=list)
+    sweep: Optional[SweepRequest] = None
+    constraints_respected: bool = True
+    fallback_recommendation: str = ""
 
 
 class StrategistAgent(BaseAgent):
@@ -143,8 +192,34 @@ Respond ONLY in valid JSON format with this exact structure:
         if proposals_data is None:
             return AgentResult.failure_result(
                 self.role,
-                f"Échec parsing JSON: {response.parse_error}",
+                "Échec parsing JSON: %s" % (response.parse_error or "Unknown"),
                 execution_time_ms=execution_time,
+                raw_llm_response=response,
+            )
+
+        # Validation Pydantic (best-effort : on ne bloque pas si la structure est partielle)
+        try:
+            validated_response = StrategistResponse.model_validate(proposals_data)
+            logger.debug(
+                "strategist_response_validated proposals=%d sweep=%s",
+                len(validated_response.proposals),
+                validated_response.sweep is not None,
+            )
+        except ValidationError as exc:
+            logger.warning("strategist_pydantic_partial errors=%d", len(exc.errors()))
+            # Fallback : on continue avec les données brutes
+            validated_response = None
+
+        # Détecter un sweep request
+        sweep = proposals_data.get("sweep")
+        if sweep:
+            return AgentResult.success_result(
+                self.role,
+                content=proposals_data.get("optimization_strategy", ""),
+                data={"sweep": sweep},
+                execution_time_ms=execution_time,
+                tokens_used=response.total_tokens,
+                llm_calls=1,
                 raw_llm_response=response,
             )
 
@@ -239,8 +314,7 @@ Respond ONLY in valid JSON format with this exact structure:
             # Vérifier chaque paramètre
             for param_name, value in params.items():
                 if param_name not in specs_dict:
-                    # Paramètre inconnu - ignorer
-                    logger.warning(f"Paramètre inconnu ignoré: {param_name}")
+                    logger.warning("param_unknown_ignored name=%s", param_name)
                     continue
 
                 spec = specs_dict[param_name]
@@ -248,13 +322,15 @@ Respond ONLY in valid JSON format with this exact structure:
                 # Forcer les contraintes
                 if spec.min_value is not None and value < spec.min_value:
                     logger.warning(
-                        f"Paramètre {param_name}={value} < min={spec.min_value}, corrigé"
+                        "param_clamped_min name=%s value=%s min=%s",
+                        param_name, value, spec.min_value,
                     )
                     value = spec.min_value
 
                 if spec.max_value is not None and value > spec.max_value:
                     logger.warning(
-                        f"Paramètre {param_name}={value} > max={spec.max_value}, corrigé"
+                        "param_clamped_max name=%s value=%s max=%s",
+                        param_name, value, spec.max_value,
                     )
                     value = spec.max_value
 

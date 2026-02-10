@@ -22,14 +22,13 @@ Skip-if: Vous ne changez que propose/critique/validate.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
 import json
-import logging
 import time
 from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from utils.observability import get_obs_logger
 from utils.template import render_prompt
 
 from .base_agent import (
@@ -39,7 +38,7 @@ from .base_agent import (
     BaseAgent,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
 
 
 # === Modèles Pydantic pour validation ===

@@ -22,14 +22,14 @@ Skip-if: Vous ne touchez qu'aux agents isolés.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional, Set
 
-logger = logging.getLogger(__name__)
+from utils.observability import get_obs_logger
+
+logger = get_obs_logger(__name__)
 
 
 class AgentState(Enum):

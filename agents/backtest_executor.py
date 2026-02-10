@@ -22,10 +22,8 @@ Skip-if: Vous ne touchez qu’au moteur backtest/ (engine/simulator/performance)
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
 import hashlib
 import json
-import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -35,8 +33,9 @@ import numpy as np
 import pandas as pd
 
 from metrics_types import normalize_metrics, pct_to_frac
+from utils.observability import get_obs_logger
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from agents.integration import AgentBacktestMetrics, WalkForwardMetrics

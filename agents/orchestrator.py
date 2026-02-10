@@ -22,8 +22,6 @@ Skip-if: Vous ne modifiez qu’un agent isolé ou le moteur de backtest pur.
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
-import logging
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -42,6 +40,7 @@ from utils.llm_memory import (
     split_date_range,
     start_session,
 )
+from utils.observability import get_obs_logger
 from utils.session_param_tracker import SessionParameterTracker
 
 from .analyst import AnalystAgent
@@ -71,7 +70,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from agents.integration import AgentBacktestMetrics
 
 
-logger = logging.getLogger(__name__)
+logger = get_obs_logger(__name__)
 
 
 @dataclass
@@ -935,12 +934,12 @@ class Orchestrator:
                     ))
 
             if not param_specs:
-                raise ValueError("Impossible d'extraire param_specs du contexte")
+                raise RuntimeError("Impossible d'extraire param_specs du contexte")
 
             # Récupérer les données
             if self._loaded_data is None:
-                logger.error("Sweep impossible: données non disponibles dans orchestrator")
-                raise ValueError("Données non disponibles pour sweep")
+                logger.error("sweep_impossible reason=no_data")
+                raise RuntimeError("Données non disponibles pour sweep")
 
             # Exécuter le sweep
             logger.info(

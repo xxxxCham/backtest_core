@@ -22,11 +22,7 @@ Skip-if: Vous utilisez uniquement le mode orchestré sans exécution de backtest
 
 from __future__ import annotations
 
-# pylint: disable=logging-fstring-interpolation
 import itertools
-import logging
-
-# Import search space statistics
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
@@ -34,6 +30,7 @@ from typing import Any, Callable, Dict, List, Optional
 import pandas as pd
 
 from strategies.base import get_strategy_overview
+from utils.observability import get_obs_logger
 from utils.parameters import ParameterSpec, RangeProposal, compute_search_space_stats
 
 from .backtest_executor import (
@@ -46,9 +43,7 @@ from .indicator_context import build_indicator_context
 from .llm_client import LLMClient, LLMConfig
 from .ollama_manager import GPUMemoryManager
 
-logger = logging.getLogger(__name__)
-# Force WARNING level pour ce module pour voir les décisions critiques
-logger.setLevel(logging.WARNING)
+logger = get_obs_logger(__name__)
 
 
 @dataclass
