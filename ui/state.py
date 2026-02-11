@@ -96,6 +96,16 @@ class SidebarState:
     wfa_n_folds: int
     wfa_train_ratio: float
     wfa_expanding: bool
+    # Strategy Builder (10/02/2026)
+    builder_objective: str
+    builder_model: str
+    builder_max_iterations: int
+    builder_target_sharpe: float
+    builder_capital: float
+    # Mode autonome 24/24 (11/02/2026)
+    builder_autonomous: bool
+    builder_auto_pause: int       # Pause en secondes entre runs (0-120)
+    builder_auto_use_llm: bool    # True = LLM génère l'objectif, False = templates
 
     def __post_init__(self) -> None:
         if self.use_date_filter:

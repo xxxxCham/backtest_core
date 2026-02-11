@@ -28,7 +28,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import httpx
 
@@ -480,6 +480,107 @@ class OllamaClient(LLMClient):
             provider=LLMProvider.OLLAMA,
             parse_error="Échec après plusieurs tentatives",
         )
+
+    def chat_stream(
+        self,
+        messages: List[LLMMessage],
+        *,
+        on_chunk: Optional[Callable[[str], None]] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        json_mode: bool = False,
+    ) -> LLMResponse:
+        """Chat avec streaming token par token via l'API Ollama native.
+
+        Appelle ``on_chunk(text)`` pour chaque fragment de texte généré,
+        puis retourne la réponse complète comme ``chat()``.
+
+        Si ``on_chunk`` est None, délègue à ``chat()`` classique.
+        """
+        if on_chunk is None:
+            return self.chat(
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+            )
+
+        url = f"{self.config.ollama_host}/api/chat"
+        payload = {
+            "model": self.config.model,
+            "messages": [m.to_dict() for m in messages],
+            "stream": True,
+            "options": {
+                "temperature": temperature or self.config.temperature,
+                "num_predict": max_tokens or self.config.max_tokens,
+                "top_p": self.config.top_p,
+            },
+        }
+        if json_mode:
+            payload["format"] = "json"
+
+        start_time = time.time()
+        full_content: List[str] = []
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        logger.info(
+            "🤖 Interrogation streaming %s (timeout: %.0fs)...",
+            self.config.model, self._adaptive_timeout,
+        )
+
+        try:
+            with self._http_client.stream(
+                "POST", url, json=payload, timeout=self._adaptive_timeout,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    chunk = data.get("message", {}).get("content", "")
+                    if chunk:
+                        full_content.append(chunk)
+                        try:
+                            on_chunk(chunk)
+                        except Exception:  # noqa: BLE001
+                            pass  # callback UI peut échouer sans casser le stream
+                    if data.get("done", False):
+                        prompt_tokens = data.get("prompt_eval_count", 0)
+                        completion_tokens = data.get("eval_count", 0)
+                        break
+        except Exception as exc:
+            logger.warning("Streaming Ollama échoué (%s) — fallback non-stream", exc)
+            return self.chat(
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=json_mode,
+            )
+
+        latency = (time.time() - start_time) * 1000
+        total_tokens = prompt_tokens + completion_tokens
+        self._total_tokens += total_tokens
+        self._total_requests += 1
+
+        content = "".join(full_content)
+        llm_response = LLMResponse(
+            content=content,
+            model=self.config.model,
+            provider=LLMProvider.OLLAMA,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency,
+            raw_response={},
+        )
+        if json_mode:
+            llm_response.parse_json()
+
+        return llm_response
 
 
 class OpenAIClient(LLMClient):

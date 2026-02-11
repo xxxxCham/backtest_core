@@ -19,7 +19,6 @@ import pandas as pd
 import pytest
 
 from backtest.walk_forward import (
-    FoldResult,
     WalkForwardConfig,
     WalkForwardSummary,
     check_wfa_feasibility,

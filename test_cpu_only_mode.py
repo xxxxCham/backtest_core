@@ -160,8 +160,10 @@ try:
     bollinger = calculate_indicator("bollinger", df, {"period": 20, "std": 2.0})
     elapsed_ms = (time.perf_counter() - start) * 1000
 
-    if bollinger is not None and len(bollinger) == 3:
-        print(f"  ✅ Bollinger Bands calculé en {elapsed_ms:.1f}ms (CPU-only)")
+    if isinstance(bollinger, dict) and "upper" in bollinger:
+        print(f"  ✅ Bollinger Bands calculé en {elapsed_ms:.1f}ms (CPU-only, dict)")
+    elif bollinger is not None and len(bollinger) == 3:
+        print(f"  ✅ Bollinger Bands calculé en {elapsed_ms:.1f}ms (CPU-only, tuple)")
     else:
         print(f"  ❌ Bollinger Bands retour invalide: {type(bollinger)}")
         sys.exit(1)

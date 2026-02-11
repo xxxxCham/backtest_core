@@ -23,7 +23,7 @@ Skip-if: Vous ne modifiez que analyze/propose/validate.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 

@@ -220,6 +220,7 @@ MODE_OPTIONS: List[Tuple[str, str, str]] = [
     ("Backtest Simple", "📊", "1 combinaison de paramètres"),
     ("Grille de Paramètres", "🔢", "Exploration min/max/step"),
     ("🤖 Optimisation LLM", "🧠", "Agents IA + Deep Trace intégré"),
+    ("🏗️ Strategy Builder", "🔧", "Création de stratégies par IA"),
 ]
 
 

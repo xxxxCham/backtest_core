@@ -1,10 +1,27 @@
 {# Template pour Strategy Builder — Proposition de logique de stratégie #}
-{# Utilisé par agents/strategy_builder.py pour générer une proposition JSON #}
+{# Enrichi avec diagnostic déterministe, bulletin de notes, et historique tendanciel #}
 
 Design a trading strategy proposal for the following objective.
 
 ## OBJECTIVE
 {{ objective }}
+
+## MARKET CONTEXT
+{% if symbol and symbol != "UNKNOWN" -%}
+- **Symbol/Token**: {{ symbol }}
+{% endif -%}
+{% if timeframe -%}
+- **Timeframe**: {{ timeframe }}
+{% endif -%}
+{% if n_bars -%}
+- **Dataset**: {{ n_bars }} bars{% if date_range_start %} ({{ date_range_start }} → {{ date_range_end }}){% endif %}
+{% endif -%}
+{% if fees_bps -%}
+- **Trading costs**: {{ fees_bps }} bps fees + {{ slippage_bps|default(5) }} bps slippage per trade (engine applies them — do NOT model costs in logic)
+{% endif -%}
+{% if initial_capital -%}
+- **Capital**: ${{ initial_capital|int }}
+{% endif %}
 
 ## AVAILABLE INDICATORS (use ONLY these)
 {% for ind in available_indicators %}
@@ -15,19 +32,58 @@ Design a trading strategy proposal for the following objective.
 
 {% if last_metrics -%}
 ## LAST BACKTEST RESULTS
-- Sharpe Ratio: {{ last_metrics.sharpe_ratio|format_float(3) }}
+
+### Profitability{% if diagnostic %} ({{ diagnostic.score_card.profitability.grade }}){% endif %}
+
 - Total Return: {{ last_metrics.total_return_pct|format_float(2) }}%
-- Max Drawdown: {{ last_metrics.max_drawdown_pct|format_float(2) }}%
-- Win Rate: {{ last_metrics.win_rate_pct|format_float(1) }}%
-- Trades: {{ last_metrics.total_trades }}
 - Profit Factor: {{ last_metrics.profit_factor|format_float(2) }}
+- Expectancy: {{ last_metrics.expectancy|format_float(2) }}
+
+### Risk{% if diagnostic %} ({{ diagnostic.score_card.risk.grade }}){% endif %}
+
+- Max Drawdown: {{ last_metrics.max_drawdown_pct|format_float(2) }}%
+- Annual Volatility: {{ last_metrics.volatility_annual|format_float(2) }}%
+
+### Efficiency{% if diagnostic %} ({{ diagnostic.score_card.efficiency.grade }}){% endif %}
+
+- Sharpe Ratio: {{ last_metrics.sharpe_ratio|format_float(3) }}
+- Sortino Ratio: {{ last_metrics.sortino_ratio|format_float(3) }}
+- Calmar Ratio: {{ last_metrics.calmar_ratio|format_float(3) }}
+
+### Signal Quality{% if diagnostic %} ({{ diagnostic.score_card.signal_quality.grade }}){% endif %}
+
+- Win Rate: {{ last_metrics.win_rate_pct|format_float(1) }}%
+- Total Trades: {{ last_metrics.total_trades }}
+- Avg Win / Avg Loss: {{ last_metrics.avg_win|format_float(2) }} / {{ last_metrics.avg_loss|format_float(2) }}
+- Risk/Reward Ratio: {{ last_metrics.risk_reward_ratio|format_float(2) }}
 
 Best Sharpe so far: {{ best_sharpe|format_float(3) }}
 
 {% endif -%}
 
+{% if diagnostic -%}
+## AUTOMATIC DIAGNOSTIC
+**Category**: {{ diagnostic.category }} ({{ diagnostic.severity }})
+**Summary**: {{ diagnostic.summary }}
+**Recommended change**: {{ diagnostic.change_type }}
+**Trend**: {{ diagnostic.trend }}{% if diagnostic.trend_detail %} — {{ diagnostic.trend_detail }}{% endif %}
+
+### CONCRETE ACTIONS TO FOLLOW:
+{% for action in diagnostic.actions %}
+{{ loop.index }}. {{ action }}
+{% endfor %}
+
+{% if diagnostic.donts %}
+### DO NOT:
+{% for dont in diagnostic.donts %}
+- {{ dont }}
+{% endfor %}
+{% endif %}
+
+{% endif -%}
+
 {% if last_analysis -%}
-## LAST ANALYSIS
+## PREVIOUS ANALYSIS
 {{ last_analysis }}
 
 {% endif -%}
@@ -43,35 +99,95 @@ Best Sharpe so far: {{ best_sharpe|format_float(3) }}
 {% if iteration_history and iteration_history|length > 0 -%}
 ## ITERATION HISTORY
 {% for h in iteration_history %}
-- Iter {{ h.iteration }}: hypothesis="{{ h.hypothesis }}" | sharpe={{ h.sharpe|default("N/A") }} | error={{ h.error|default("none") }}
+- Iter {{ h.iteration }}: [{{ h.change_type|default("new") }}] sharpe={{ h.sharpe|default("N/A") }} | return={{ h.return_pct|default("N/A") }}% | trades={{ h.trades|default("N/A") }} | diag={{ h.diagnostic_category|default("-") }}{% if h.error %} | ERROR={{ h.error }}{% endif %}
+
 {% endfor %}
 
 {% endif -%}
 
 ## INSTRUCTIONS
-{% if last_code -%}
-Based on the previous results, propose MODIFICATIONS to the current strategy logic.
+{% if diagnostic and diagnostic.change_type == "logic" -%}
+**STRUCTURAL PROBLEM** — you MUST change the LOGIC (indicators, conditions, filters).
+Do NOT simply adjust numeric values.
+
 Focus on:
-- Improving signal quality (fewer false signals)
-- Better risk management (stop-loss, take-profit)
-- Adding/removing indicator conditions
-- Adjusting entry/exit thresholds
+- Change the indicators or their combination
+- Modify entry conditions (when to open a position)
+- Modify exit conditions (when to close a position)
+- Add/modify risk management (SL, TP, filters)
+
+{% elif diagnostic and diagnostic.change_type == "params" -%}
+**LOGIC IS WORKING** — ADJUST PARAMETERS only.
+Do NOT change the strategy structure.
+
+Focus on:
+- Adjust indicator periods (e.g. RSI 14→12, EMA 50→40)
+- Modify entry/exit thresholds (e.g. RSI overbought 70→75)
+- Optimize stop-loss and take-profit (ATR multipliers)
+- Adjust leverage if needed
+
+{% elif diagnostic and diagnostic.change_type == "both" -%}
+**MIXED CHANGES** recommended (logic + parameters).
+
+Focus on:
+- Add a confirmation filter/indicator
+- Adjust thresholds and parameters simultaneously
+- Improve risk/reward ratio
+
+{% elif diagnostic and diagnostic.change_type == "accept" -%}
+**TARGET REACHED** — propose the same parameters or a micro-adjustment.
+
+{% else -%}
+{% if last_code -%}
+Based on the previous results, propose MODIFICATIONS to improve performance.
+
+You have TWO options:
+1. **LOGIC CHANGE**: Change the strategy logic (different indicators, entry/exit rules)
+   → Use when: 0 trades, too many trades, wrong direction, bad risk management
+2. **PARAM CHANGE**: Keep the same logic, adjust parameter values
+   → Use when: reasonable trade count but poor Sharpe, need fine-tuning
+
+Focus on signal quality, risk management, and entry/exit improvements.
 {% else -%}
 Propose a NEW strategy from scratch.
 Choose indicators that match the objective.
-Design clear entry/exit rules and risk management.
+Design clear entry/exit rules and risk management (SL/TP).
+{% endif -%}
 {% endif %}
 
-Respond with a JSON object containing:
+## COMMON MISTAKES TO AVOID
+- Do NOT use indicators that are NOT in the available list above
+- Do NOT set extremely tight thresholds (e.g. RSI > 95) — this produces 0 trades
+- Do NOT combine more than 4 AND conditions — this filters out all signals
+- Always include ATR-based stop-loss and take-profit in risk_management
+- Keep indicator_params consistent with used_indicators (every indicator needs its params)
+
+## RESPONSE FORMAT
+Respond with ONLY a JSON object (no text before or after):
+```json
 {
-  "strategy_name": "descriptive_name",
-  "hypothesis": "what you expect this change to achieve",
+  "strategy_name": "descriptive_snake_case_name",
+  "hypothesis": "what you expect this change to achieve and WHY",
+  "change_type": "logic|params|both",
   "used_indicators": ["indicator1", "indicator2"],
-  "indicator_params": {"indicator1": {"period": 14}},
-  "entry_long_logic": "conditions for entering LONG",
-  "entry_short_logic": "conditions for entering SHORT",
-  "exit_logic": "conditions for exiting positions",
-  "risk_management": "stop-loss and take-profit rules",
-  "default_params": {"param1": value},
-  "parameter_specs": {"param1": {"min": 5, "max": 50, "default": 14, "type": "int"}}
+  "indicator_params": {
+    "indicator1": {"period": 14},
+    "indicator2": {"period": 20}
+  },
+  "entry_long_logic": "precise conditions for entering LONG (use indicator names + thresholds)",
+  "entry_short_logic": "precise conditions for entering SHORT (use indicator names + thresholds)",
+  "exit_logic": "precise conditions for exiting positions",
+  "risk_management": "stop-loss and take-profit rules using ATR multiples",
+  "default_params": {
+    "rsi_period": 14,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "stop_atr_mult": 1.5,
+    "tp_atr_mult": 3.0
+  },
+  "parameter_specs": {
+    "rsi_period": {"min": 5, "max": 50, "default": 14, "type": "int"},
+    "stop_atr_mult": {"min": 0.5, "max": 4.0, "default": 1.5, "type": "float"}
+  }
 }
+```

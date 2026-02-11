@@ -907,7 +907,6 @@ def safe_run_walk_forward(
     """Lance une Walk-Forward Analysis et retourne (WalkForwardSummary, message)."""
     from backtest.walk_forward import (
         WalkForwardConfig,
-        WalkForwardSummary,
         check_wfa_feasibility,
         run_walk_forward,
     )
@@ -1228,7 +1227,14 @@ def build_indicator_overlays(
                 df,
                 {"k_period": stoch_k, "d_period": stoch_d, "smooth_k": 3},
             )
-            if isinstance(stoch_values, tuple) and len(stoch_values) >= 2:
+            if isinstance(stoch_values, dict):
+                overlays["stochastic"] = {
+                    "k": pd.Series(stoch_values["stoch_k"], index=df.index),
+                    "d": pd.Series(stoch_values["stoch_d"], index=df.index),
+                    "oversold": oversold,
+                    "overbought": overbought,
+                }
+            elif isinstance(stoch_values, tuple) and len(stoch_values) >= 2:
                 overlays["stochastic"] = {
                     "k": pd.Series(stoch_values[0], index=df.index),
                     "d": pd.Series(stoch_values[1], index=df.index),
@@ -1241,11 +1247,15 @@ def build_indicator_overlays(
             bb_std = float(params.get("bb_std", 2.0))
             ma_window = int(params.get("ma_window", 10))
             ma_type = str(params.get("ma_type", "sma")).lower()
-            upper, middle, lower = calculate_indicator(
+            bb_result = calculate_indicator(
                 "bollinger",
                 df,
                 {"period": bb_window, "std_dev": bb_std},
             )
+            if isinstance(bb_result, dict):
+                upper, middle, lower = bb_result["upper"], bb_result["middle"], bb_result["lower"]
+            else:
+                upper, middle, lower = bb_result[:3]
             overlays["bollinger"] = {
                 "upper": pd.Series(upper, index=df.index),
                 "lower": pd.Series(lower, index=df.index),

@@ -136,10 +136,12 @@ class BollingerBestShort3iStrategy(StrategyBase):
             return signals
 
         bb_result = indicators["bollinger"]
-        if not isinstance(bb_result, tuple) or len(bb_result) < 3:
+        if isinstance(bb_result, dict):
+            upper, middle, lower = bb_result["upper"], bb_result["middle"], bb_result["lower"]
+        elif isinstance(bb_result, tuple) and len(bb_result) >= 3:
+            upper, middle, lower = bb_result[:3]
+        else:
             return signals
-
-        upper, middle, lower = bb_result[:3]
 
         if not isinstance(upper, pd.Series):
             upper = pd.Series(np.asarray(upper), index=df.index)
@@ -159,8 +161,8 @@ class BollingerBestShort3iStrategy(StrategyBase):
 
         sl_level = float(params.get("sl_level", 1.5))
         tp_level = float(params.get("tp_level", 0.15))
-        stop_short = lower + sl_level * total_distance
-        tp_short = lower + tp_level * total_distance
+        _stop_short = lower + sl_level * total_distance  # noqa: F841
+        _tp_short = lower + tp_level * total_distance  # noqa: F841
 
         # ⚡ Performance: mutations DataFrame désactivées (coûteuses en sweep)
         # Décommentez pour debug/visualisation uniquement

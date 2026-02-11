@@ -221,11 +221,12 @@ def calculate_indicator(
     if name == "bollinger":
         period = int(params.get("period", 20))
         std_dev = float(params.get("std_dev", 2.0))
-        result = bollinger_bands(
+        upper, middle, lower = bollinger_bands(
             df["close"],
             period=period,
             std_dev=std_dev
         )
+        result = {"upper": upper, "middle": middle, "lower": lower}
 
     elif name == "atr":
         period = int(params.get("period", 14))
@@ -288,7 +289,7 @@ def calculate_indicator(
             d_period=int(params.get("d_period", 3)),
             smooth_k=int(params.get("smooth_k", 3))
         )
-        result = (stoch_k, stoch_d)
+        result = {"stoch_k": stoch_k, "stoch_d": stoch_d}
 
     elif name == "vwap":
         result = vwap(

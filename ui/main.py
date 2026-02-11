@@ -2380,6 +2380,17 @@ def render_main(
                     st.session_state.is_running = False
                     st.stop()
 
+        elif optimization_mode == "🏗️ Strategy Builder":
+            # ── Mode Strategy Builder — création de stratégies par IA ──
+            if not LLM_AVAILABLE:
+                show_status("error", "Module agents LLM non disponible")
+                st.code(LLM_IMPORT_ERROR)
+                st.session_state.is_running = False
+                st.stop()
+
+            from ui.builder_view import render_builder_view
+            render_builder_view(state, df, status_container)
+
         else:
             show_status("error", f"Mode non reconnu: {optimization_mode}")
             st.session_state.is_running = False

@@ -48,7 +48,8 @@ def _windows_to_wsl_path(path: Path) -> Optional[Path]:
     if not rest:
         return None
 
-    return Path(f"/mnt/{drive}/{rest.replace('\\', '/')}")
+    rest_posix = rest.replace("\\", "/")
+    return Path(f"/mnt/{drive}/{rest_posix}")
 
 
 def get_models_json_path() -> Path:

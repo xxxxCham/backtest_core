@@ -14,6 +14,17 @@ Generate a COMPLETE Python strategy class based on this proposal.
 - Entry SHORT: {{ proposal.entry_short_logic|default("N/A") }}
 - Exit: {{ proposal.exit_logic|default("N/A") }}
 - Risk management: {{ proposal.risk_management|default("N/A") }}
+{% if proposal.default_params -%}
+- Default params: {{ proposal.default_params|tojson }}
+{% endif %}
+
+## MARKET CONTEXT
+{% if symbol and symbol != "UNKNOWN" %}- **Symbol/Token**: {{ symbol }}
+{% endif %}{% if timeframe %}- **Timeframe**: {{ timeframe }}
+{% endif %}{% if n_bars %}- **Dataset**: {{ n_bars }} bars
+{% endif %}{% if fees_bps %}- **Trading costs**: {{ fees_bps }} bps fees + {{ slippage_bps|default(5) }} bps slippage per trade (ALREADY applied by engine — do NOT subtract in code)
+{% endif %}{% if initial_capital %}- **Capital**: ${{ initial_capital|int }}
+{% endif %}
 
 ## AVAILABLE INDICATORS
 {% for ind in available_indicators %}
@@ -22,30 +33,137 @@ Generate a COMPLETE Python strategy class based on this proposal.
 
 ## INDICATOR USAGE IN THE ENGINE
 The engine pre-computes indicators from `required_indicators` property.
-Indicator results are passed in the `indicators` dict:
-- `indicators["rsi"]` → numpy array (float64)
-- `indicators["bollinger"]` → tuple (upper, middle, lower) of numpy arrays
-- `indicators["macd"]` → dict with keys: "macd", "signal", "histogram"
-- `indicators["atr"]` → numpy array
-- `indicators["ema"]` → numpy array (needs period in params: ema_period=X)
-- `indicators["sma"]` → numpy array (needs period in params: sma_period=X)
-- `indicators["stochastic"]` → tuple (k, d) of numpy arrays
-- `indicators["adx"]` → dict with keys: "adx", "plus_di", "minus_di"
-- `indicators["supertrend"]` → dict with keys: "supertrend", "direction"
-- `indicators["ichimoku"]` → dict with keys: "tenkan", "kijun", "senkou_a", "senkou_b", "chikou"
-- `indicators["psar"]` → dict with keys: "sar", "trend", "signal"
-- `indicators["vortex"]` → dict with keys: "vi_plus", "vi_minus", "signal", "oscillator"
-- `indicators["stoch_rsi"]` → dict with keys: "k", "d", "signal"
-- `indicators["aroon"]` → dict with keys: "aroon_up", "aroon_down"
-- `indicators["donchian"]` → dict with keys: "upper", "middle", "lower"
-- `indicators["keltner"]` → dict with keys: "middle", "upper", "lower"
-- `indicators["cci"]` → numpy array
-- `indicators["williams_r"]` → numpy array
-- `indicators["momentum"]` → numpy array
-- `indicators["mfi"]` → numpy array
-- `indicators["obv"]` → numpy array
-- `indicators["roc"]` → numpy array
-- `indicators["vwap"]` → numpy array
+Indicator results are passed in the `indicators` dict.
+
+CRITICAL: Every indicator you use via `indicators["xxx"]` MUST be listed in `required_indicators`.
+
+### Return types — ALL indicators return dict or numpy array (NEVER tuple):
+
+**Numpy arrays (access directly):**
+- `indicators["rsi"]` → numpy array (float64, 0-100)
+- `indicators["atr"]` → numpy array (float64, price units)
+- `indicators["ema"]` → numpy array (needs `period` param, default 20)
+- `indicators["sma"]` → numpy array (needs `period` param, default 20)
+- `indicators["cci"]` → numpy array (typically -200 to +200)
+- `indicators["williams_r"]` → numpy array (-100 to 0)
+- `indicators["momentum"]` → numpy array (absolute price change)
+- `indicators["mfi"]` → numpy array (0-100, volume-weighted RSI)
+- `indicators["obv"]` → numpy array (cumulative volume)
+- `indicators["roc"]` → numpy array (percentage price change)
+- `indicators["vwap"]` → numpy array (volume-weighted average price)
+- `indicators["standard_deviation"]` → numpy array (rolling std of close)
+- `indicators["volume_oscillator"]` → numpy array (short MA - long MA of volume)
+
+**Dicts (access via string keys):**
+- `indicators["bollinger"]` → dict: `"upper"`, `"middle"`, `"lower"` (numpy arrays)
+- `indicators["macd"]` → dict: `"macd"`, `"signal"`, `"histogram"` (numpy arrays)
+- `indicators["stochastic"]` → dict: `"stoch_k"`, `"stoch_d"` (numpy arrays, 0-100)
+- `indicators["adx"]` → dict: `"adx"`, `"plus_di"`, `"minus_di"` (numpy arrays)
+- `indicators["supertrend"]` → dict: `"supertrend"`, `"direction"` (direction: 1=up, -1=down)
+- `indicators["ichimoku"]` → dict: `"tenkan"`, `"kijun"`, `"senkou_a"`, `"senkou_b"`, `"chikou"`, `"cloud_position"`
+- `indicators["psar"]` → dict: `"sar"`, `"trend"`, `"signal"` (trend: 1=up, -1=down)
+- `indicators["vortex"]` → dict: `"vi_plus"`, `"vi_minus"`, `"signal"`, `"oscillator"`
+- `indicators["stoch_rsi"]` → dict: `"k"`, `"d"`, `"signal"` (0-100)
+- `indicators["aroon"]` → dict: `"aroon_up"`, `"aroon_down"` (numpy arrays, 0-100)
+- `indicators["donchian"]` → dict: `"upper"`, `"middle"`, `"lower"` (numpy arrays)
+- `indicators["keltner"]` → dict: `"middle"`, `"upper"`, `"lower"` (numpy arrays)
+- `indicators["pivot_points"]` → dict: `"pivot"`, `"r1"`, `"s1"`, `"r2"`, `"s2"`, `"r3"`, `"s3"`
+- `indicators["fibonacci"]` → dict: `"high"`, `"low"`, `"level_236"`, `"level_382"`, `"level_500"`, `"level_618"`
+
+### COPY-PASTE EXAMPLES (use these exact patterns):
+
+```python
+# RSI (numpy array, 0-100)
+rsi_val = np.nan_to_num(indicators["rsi"])
+oversold = rsi_val < params.get("rsi_oversold", 30)
+overbought = rsi_val > params.get("rsi_overbought", 70)
+
+# Bollinger Bands (dict of numpy arrays)
+bb = indicators["bollinger"]
+upper = np.nan_to_num(bb["upper"])
+lower = np.nan_to_num(bb["lower"])
+middle = np.nan_to_num(bb["middle"])
+close = df["close"].values
+
+# ATR (numpy array)
+atr_val = np.nan_to_num(indicators["atr"])
+
+# EMA / SMA (numpy array)
+ema_val = np.nan_to_num(indicators["ema"])
+sma_val = np.nan_to_num(indicators["sma"])
+
+# MACD (dict)
+macd_data = indicators["macd"]
+macd_line = np.nan_to_num(macd_data["macd"])
+signal_line = np.nan_to_num(macd_data["signal"])
+histogram = np.nan_to_num(macd_data["histogram"])
+
+# Stochastic (dict, 0-100)
+stoch = indicators["stochastic"]
+stoch_k = np.nan_to_num(stoch["stoch_k"])
+stoch_d = np.nan_to_num(stoch["stoch_d"])
+
+# ADX (dict)
+adx_data = indicators["adx"]
+adx_val = np.nan_to_num(adx_data["adx"])
+plus_di = np.nan_to_num(adx_data["plus_di"])
+minus_di = np.nan_to_num(adx_data["minus_di"])
+
+# Supertrend (dict)
+st = indicators["supertrend"]
+supertrend_val = np.nan_to_num(st["supertrend"])
+direction = st["direction"]  # 1=up (bullish), -1=down (bearish)
+
+# Vortex (dict)
+vx = indicators["vortex"]
+vi_plus = np.nan_to_num(vx["vi_plus"])
+vi_minus = np.nan_to_num(vx["vi_minus"])
+
+# PSAR (dict)
+psar = indicators["psar"]
+sar_val = np.nan_to_num(psar["sar"])
+psar_trend = psar["trend"]  # 1=up, -1=down
+
+# Ichimoku (dict)
+ichi = indicators["ichimoku"]
+tenkan = np.nan_to_num(ichi["tenkan"])
+kijun = np.nan_to_num(ichi["kijun"])
+
+# Stoch RSI (dict, 0-100)
+srsi = indicators["stoch_rsi"]
+srsi_k = np.nan_to_num(srsi["k"])
+srsi_d = np.nan_to_num(srsi["d"])
+```
+
+### SIGNAL GENERATION PATTERNS:
+
+```python
+# Pattern 1: Vectorized boolean conditions (PREFERRED — fast)
+close = df["close"].values
+long_cond = (rsi_val < 30) & (close < lower)
+short_cond = (rsi_val > 70) & (close > upper)
+signals = pd.Series(0.0, index=df.index, dtype=np.float64)
+signals[long_cond] = 1.0
+signals[short_cond] = -1.0
+
+# Pattern 2: Crossover detection (for MACD, EMA, etc.)
+cross_up = (macd_line[1:] > signal_line[1:]) & (macd_line[:-1] <= signal_line[:-1])
+cross_down = (macd_line[1:] < signal_line[1:]) & (macd_line[:-1] >= signal_line[:-1])
+signals.iloc[1:][cross_up] = 1.0
+signals.iloc[1:][cross_down] = -1.0
+
+# Pattern 3: Skip warmup period (avoids NaN-driven false signals)
+warmup = params.get("warmup", 50)
+signals.iloc[:warmup] = 0.0
+```
+
+### STOP-LOSS / TAKE-PROFIT:
+The engine automatically applies SL/TP if these params are present in default_params:
+- `stop_atr_mult`: stop-loss distance = stop_atr_mult * ATR (e.g. 1.5)
+- `tp_atr_mult`: take-profit distance = tp_atr_mult * ATR (e.g. 3.0)
+
+You do NOT need to implement SL/TP logic in generate_signals.
+Just include `"atr"` in required_indicators and these params in default_params.
 
 ## REQUIRED CODE STRUCTURE
 
@@ -60,11 +178,9 @@ from strategies.base import StrategyBase
 
 
 class {{ class_name }}(StrategyBase):
-    """
-    Auto-generated strategy: {{ proposal.strategy_name|default("custom") }}
-    Objective: {{ objective }}
-    Indicators: {{ proposal.used_indicators|default([])|join(", ") }}
-    """
+    # Auto-generated strategy: {{ proposal.strategy_name|default("custom") }}
+    # Objective: {{ objective[:100] }}
+    # Indicators: {{ proposal.used_indicators|default([])|join(", ") }}
 
     def __init__(self):
         super().__init__(name="{{ proposal.strategy_name|default("BuilderStrategy") }}")
@@ -81,6 +197,7 @@ class {{ class_name }}(StrategyBase):
     def parameter_specs(self) -> Dict[str, ParameterSpec]:
         return {
             # Define ParameterSpec for each tunable parameter
+            # Example: "rsi_period": ParameterSpec(min_val=5, max_val=50, default=14, param_type="int"),
         }
 
     def generate_signals(
@@ -92,22 +209,25 @@ class {{ class_name }}(StrategyBase):
         n = len(df)
         signals = pd.Series(0.0, index=df.index, dtype=np.float64)
 
-        # YOUR LOGIC HERE based on proposal:
-        # - Entry LONG: {{ proposal.entry_long_logic|default("TODO") }}
-        # - Entry SHORT: {{ proposal.entry_short_logic|default("TODO") }}
-        # - Exit: {{ proposal.exit_logic|default("TODO") }}
+        # IMPLEMENT: Entry LONG conditions → signals = 1.0
+        # IMPLEMENT: Entry SHORT conditions → signals = -1.0
+        # IMPLEMENT: Exit / flat conditions → signals = 0.0
 
         return signals
 ```
 
 ## CRITICAL RULES
-1. Class name MUST be `{{ class_name }}`
+1. Class name MUST be EXACTLY `{{ class_name }}` — ANY other name = FATAL ERROR
 2. MUST inherit from `StrategyBase`
-3. `generate_signals` returns `pd.Series` with values 1.0 (LONG), -1.0 (SHORT), 0.0 (FLAT)
-4. Handle NaN: use `np.nan_to_num()` or boolean masking
+3. `generate_signals` returns `pd.Series` with values: 1.0 (LONG), -1.0 (SHORT), 0.0 (FLAT)
+4. Handle NaN: ALWAYS use `np.nan_to_num()` on every indicator before comparison
 5. NEVER use `os`, `subprocess`, `eval`, `exec`, `open()`
 6. ONLY import: numpy, pandas, strategies.base, utils.parameters
-7. Access indicators via `indicators["name"]` dict
-8. Access close prices via `df["close"]`, high via `df["high"]`, etc.
+7. Access indicators via `indicators["name"]` dict — NOT via direct calculation
+8. Access OHLCV via `df["close"].values`, `df["high"].values`, etc.
+9. Do NOT use triple-quoted docstrings (""" or ''') — use single-line # comments ONLY
+10. Output ONLY the Python code inside a ```python block. No explanations before or after.
+11. Skip warmup period: set first N bars to 0.0 (N = max indicator period, typically 50)
+12. Every indicator in `indicators["xxx"]` MUST appear in `required_indicators`
 
-Generate the COMPLETE code. No placeholders, no TODOs.
+Generate the COMPLETE code. No placeholders, no TODOs, no pass statements.

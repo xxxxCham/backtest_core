@@ -33,7 +33,6 @@ import streamlit as st
 from ui.constants import (
     MODE_BUTTON_CSS,
     MODE_OPTIONS,
-    PARAM_CONSTRAINTS,
     build_strategy_options,
     get_strategy_description,
     get_strategy_ui_indicators,
@@ -218,6 +217,15 @@ def _build_config_signature(state: SidebarState) -> str:
         "leverage": state.leverage,
         "leverage_enabled": state.leverage_enabled,
         "disabled_params": sorted(state.disabled_params or []),
+        # Strategy Builder
+        "builder_objective": state.builder_objective,
+        "builder_model": state.builder_model,
+        "builder_max_iterations": state.builder_max_iterations,
+        "builder_target_sharpe": state.builder_target_sharpe,
+        "builder_capital": state.builder_capital,
+        "builder_autonomous": state.builder_autonomous,
+        "builder_auto_pause": state.builder_auto_pause,
+        "builder_auto_use_llm": state.builder_auto_use_llm,
     }
 
     normalized = _normalize_signature_value(payload)
@@ -1041,7 +1049,167 @@ def render_sidebar() -> SidebarState:
     llm_unload_during_backtest = default_llm_unload
     llm_model = None
 
-    if optimization_mode == "🤖 Optimisation LLM":
+    # ── Strategy Builder defaults ──
+    builder_objective = ""
+    builder_model = "deepseek-r1:32b"
+    builder_max_iterations = 10
+    builder_target_sharpe = 1.0
+    builder_capital = 10000.0
+    builder_autonomous = False
+    builder_auto_pause = 10
+    builder_auto_use_llm = False
+
+    if optimization_mode == "🏗️ Strategy Builder":
+        st.sidebar.markdown("---")
+        st.sidebar.subheader("🔧 Strategy Builder")
+
+        # ── Mode autonome 24/24 ──
+        builder_autonomous = st.sidebar.toggle(
+            "🔄 Mode autonome 24/24",
+            value=st.session_state.get("builder_autonomous", False),
+            help="Génère automatiquement des objectifs variés et lance le builder en boucle continue.",
+            key="builder_autonomous_toggle",
+        )
+        st.session_state["builder_autonomous"] = builder_autonomous
+
+        builder_auto_pause = 10
+        builder_auto_use_llm = False
+
+        if builder_autonomous:
+            st.sidebar.caption("*Objectifs générés automatiquement*")
+            builder_auto_pause = st.sidebar.slider(
+                "⏱️ Pause entre runs (s)",
+                min_value=0,
+                max_value=120,
+                value=st.session_state.get("builder_auto_pause", 10),
+                key="builder_auto_pause_slider",
+                help="Délai en secondes entre chaque session autonome.",
+            )
+            st.session_state["builder_auto_pause"] = builder_auto_pause
+
+            builder_auto_use_llm = st.sidebar.toggle(
+                "🧠 Objectifs par LLM",
+                value=st.session_state.get("builder_auto_use_llm", False),
+                key="builder_auto_use_llm_toggle",
+                help="Si activé, le LLM génère des objectifs créatifs. Sinon, templates aléatoires (plus rapide).",
+            )
+            st.session_state["builder_auto_use_llm"] = builder_auto_use_llm
+
+        builder_objective = st.sidebar.text_area(
+            "🎯 Objectif de la stratégie",
+            value=st.session_state.get("builder_objective", ""),
+            height=100,
+            placeholder=(
+                "Ex: Trend-following BTC 1h avec EMA + RSI.\n"
+                "Mean reversion sur Bollinger bands + ATR filter.\n"
+                "Scalping MACD cross avec stop ATR serré."
+            ),
+            help="Décrivez la stratégie que l'IA doit créer. "
+                 "Soyez précis sur les indicateurs, le style, et les objectifs.",
+            key="builder_objective_input",
+            disabled=builder_autonomous,
+        )
+        st.session_state["builder_objective"] = builder_objective
+
+        # ── Exemple de format (discret) ──
+        with st.sidebar.expander("💡 Exemple de format", expanded=False):
+            st.sidebar.markdown(
+                "**Structure recommandée :**\n"
+                "```\n"
+                "[Style] sur [marché] [timeframe].\n"
+                "Indicateurs : [ind1] + [ind2] + [ind3].\n"
+                "Entrées : [conditions d'entrée].\n"
+                "Sorties : [conditions de sortie].\n"
+                "Risk management : [SL/TP/sizing].\n"
+                "```\n\n"
+                "**Exemple concret :**\n"
+                "> Trend-following sur BTCUSDC 30m.\n"
+                "> Utiliser EMA(20/50) + MACD + ATR.\n"
+                "> Entrée long quand EMA rapide croise\n"
+                "> au-dessus de la lente ET MACD > signal.\n"
+                "> Stop-loss = 1.5x ATR, take-profit = 3x ATR."
+            )
+
+        # Modèle LLM
+        try:
+            available_models = get_available_models_for_ui()
+        except Exception:
+            available_models = [
+                "deepseek-r1:32b", "qwq:32b", "qwen2.5:32b",
+                "deepseek-r1:14b", "deepseek-r1:8b", "mistral:7b-instruct",
+            ]
+
+        default_model = st.session_state.get("builder_model", "deepseek-r1:32b")
+        if default_model not in available_models and available_models:
+            default_model = available_models[0]
+        model_idx = available_models.index(default_model) if default_model in available_models else 0
+
+        builder_model = st.sidebar.selectbox(
+            "🤖 Modèle LLM",
+            available_models,
+            index=model_idx,
+            key="builder_model_select",
+            help="Modèle pour générer et analyser les stratégies. "
+                 "Les modèles >14B produisent du code de meilleure qualité.",
+        )
+        st.session_state["builder_model"] = builder_model
+
+        st.sidebar.markdown("---")
+        st.sidebar.caption("**⚙️ Paramètres de construction**")
+
+        builder_max_iterations = st.sidebar.slider(
+            "Itérations max",
+            min_value=1,
+            max_value=30,
+            value=st.session_state.get("builder_max_iterations", 10),
+            key="builder_max_iters_slider",
+            help="Nombre maximum de tentatives pour améliorer la stratégie.",
+        )
+
+        builder_target_sharpe = st.sidebar.number_input(
+            "Sharpe cible",
+            min_value=0.0,
+            max_value=5.0,
+            value=st.session_state.get("builder_target_sharpe", 1.0),
+            step=0.1,
+            key="builder_target_sharpe_input",
+            help="Sharpe ratio minimum pour accepter automatiquement la stratégie.",
+        )
+
+        builder_capital = st.sidebar.number_input(
+            "Capital initial ($)",
+            min_value=100.0,
+            max_value=1_000_000.0,
+            value=st.session_state.get("builder_capital", 10000.0),
+            step=1000.0,
+            key="builder_capital_input",
+            format="%.0f",
+        )
+
+        # Indicateurs disponibles (info)
+        try:
+            from indicators.registry import list_indicators
+            indicators = list_indicators()
+            st.sidebar.caption(f"📐 {len(indicators)} indicateurs disponibles")
+            with st.sidebar.expander("Voir la liste", expanded=False):
+                st.sidebar.write(", ".join(sorted(indicators)))
+        except Exception:
+            pass
+
+        # Sessions précédentes
+        from pathlib import Path as _Path
+        sandbox_root = _Path(__file__).resolve().parent.parent / "sandbox_strategies"
+        if sandbox_root.exists():
+            sessions = sorted(
+                [d.name for d in sandbox_root.iterdir() if d.is_dir() and d.name != ".gitkeep"],
+                reverse=True,
+            )
+            if sessions:
+                with st.sidebar.expander(f"📁 Sessions précédentes ({len(sessions)})", expanded=False):
+                    for s in sessions[:10]:
+                        st.sidebar.caption(f"• {s}")
+
+    elif optimization_mode == "🤖 Optimisation LLM":
         st.sidebar.markdown("---")
         st.sidebar.subheader("🧠 Configuration LLM")
 
@@ -2270,6 +2438,16 @@ def render_sidebar() -> SidebarState:
         wfa_n_folds=wfa_n_folds,
         wfa_train_ratio=wfa_train_ratio,
         wfa_expanding=wfa_expanding,
+        # Strategy Builder
+        builder_objective=builder_objective,
+        builder_model=builder_model,
+        builder_max_iterations=builder_max_iterations,
+        builder_target_sharpe=builder_target_sharpe,
+        builder_capital=builder_capital,
+        # Mode autonome
+        builder_autonomous=builder_autonomous,
+        builder_auto_pause=builder_auto_pause,
+        builder_auto_use_llm=builder_auto_use_llm,
     )
 
     applied_state = _apply_config_guard(draft_state)
@@ -2279,6 +2457,7 @@ def render_sidebar() -> SidebarState:
         "Backtest Simple": "🚀 Lancer le Backtest",
         "Grille de Paramètres": "🧪 Lancer le Sweep",
         "🤖 Optimisation LLM": "🧠 Lancer l'itération LLM",
+        "🏗️ Strategy Builder": "🏗️ Lancer le Builder",
     }
     run_label = run_label_map.get(
         st.session_state.optimization_mode,

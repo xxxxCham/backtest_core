@@ -77,6 +77,7 @@ LLM_AVAILABLE = False
 LLM_IMPORT_ERROR = ""
 
 AutonomousStrategist = None
+StrategyBuilder = None
 create_optimizer_from_engine = None
 create_orchestrator_with_backtest = None
 get_strategy_param_bounds = None
@@ -130,6 +131,7 @@ save_model_preset = None
 
 try:
     from agents.autonomous_strategist import AutonomousStrategist  # noqa: F401
+    from agents.strategy_builder import StrategyBuilder  # noqa: F401
     from agents.integration import (  # noqa: F401
         create_optimizer_from_engine,
         create_orchestrator_with_backtest,

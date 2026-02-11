@@ -179,10 +179,12 @@ class BollingerATRStrategyV2(StrategyBase):
             return signals
 
         bb_result = indicators["bollinger"]
-        if not isinstance(bb_result, tuple) or len(bb_result) < 3:
+        if isinstance(bb_result, dict):
+            upper, middle, lower = bb_result["upper"], bb_result["middle"], bb_result["lower"]
+        elif isinstance(bb_result, tuple) and len(bb_result) >= 3:
+            upper, middle, lower = bb_result[:3]
+        else:
             return signals
-
-        upper, middle, lower = bb_result[:3]
 
         # Convertir en Series si nécessaire
         if not isinstance(upper, pd.Series):

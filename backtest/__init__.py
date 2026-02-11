@@ -85,6 +85,12 @@ __all__ = [
     # Engine
     "BacktestEngine",
     "RunResult",
+    # Walk-Forward
+    "FoldResult",
+    "WalkForwardConfig",
+    "WalkForwardSummary",
+    "check_wfa_feasibility",
+    "run_walk_forward",
     # Performance
     "PerformanceCalculator",
     "calculate_metrics",
