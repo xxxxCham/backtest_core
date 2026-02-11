@@ -22,6 +22,7 @@ Skip-if: Logique backend pure
 
 from __future__ import annotations
 
+import logging
 import json
 import os
 import re
@@ -76,6 +77,100 @@ from ui.helpers import (
 from ui.state import SidebarState
 from utils.observability import is_debug_enabled, set_log_level
 from utils.parameters import normalize_param_ranges
+
+logger = logging.getLogger(__name__)
+
+POTENTIAL_TOKENS = [
+    "BTCUSDC",  # Bitcoin - Référence marché
+    "ETHUSDC",  # Ethereum - Leader DeFi
+    "BNBUSDC",  # Binance Coin - Plateforme CEX
+    "SOLUSDC",  # Solana - Haute vitesse
+    "AVAXUSDC",  # Avalanche - DeFi concurrente
+    "LINKUSDC",  # Chainlink - Oracle leader
+    "ADAUSDC",  # Cardano - Approche académique
+    "DOTUSDC",  # Polkadot - Interopérabilité
+    "ATOMUSDC",  # Cosmos - Hub inter-chaînes
+]
+
+SIDEBAR_STYLE_CSS = """
+<style>
+[data-testid="stSidebar"] > div:first-child {
+    background: linear-gradient(180deg, #f7faf7 0%, #eef6f2 42%, #edf3f9 100%);
+}
+[data-testid="stSidebar"] .bc-sidebar-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    margin-bottom: 0.2rem;
+}
+[data-testid="stSidebar"] .bc-sidebar-section {
+    margin-top: 0.7rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #2f3f4d;
+}
+[data-testid="stSidebar"] .bc-sidebar-card {
+    border: 1px solid #cdded2;
+    border-radius: 12px;
+    padding: 0.6rem 0.7rem;
+    background: rgba(255, 255, 255, 0.72);
+}
+[data-testid="stSidebar"] .bc-sidebar-card strong {
+    color: #22313f;
+}
+[data-testid="stSidebar"] .stButton > button {
+    border-radius: 10px;
+    border: 1px solid #c8d7cc;
+    font-weight: 600;
+}
+[data-testid="stSidebar"] .stSelectbox > div > div,
+[data-testid="stSidebar"] .stTextInput > div > div > input,
+[data-testid="stSidebar"] .stNumberInput > div > div > input {
+    border-radius: 8px;
+}
+[data-testid="stSidebar"] .streamlit-expanderHeader {
+    font-weight: 600;
+}
+[data-testid="stSidebar"] .stExpander {
+    border: 1px solid #d5e3d8;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.64);
+}
+</style>
+"""
+
+
+def _inject_sidebar_styles() -> None:
+    st.markdown(SIDEBAR_STYLE_CSS, unsafe_allow_html=True)
+
+
+def _sidebar_section(title: str) -> None:
+    st.sidebar.markdown(f'<div class="bc-sidebar-section">{title}</div>', unsafe_allow_html=True)
+
+
+def _render_sidebar_summary_card(
+    optimization_mode: str,
+    strategy_names: List[str],
+    symbols: List[str],
+    timeframes: List[str],
+    use_date_filter: bool,
+) -> None:
+    st.sidebar.markdown(
+        (
+            "<div class='bc-sidebar-card'>"
+            "<strong>Résumé configuration</strong><br/>"
+            f"Mode: <strong>{optimization_mode}</strong><br/>"
+            f"Stratégies: <strong>{len(strategy_names)}</strong> | "
+            f"Tokens: <strong>{len(symbols)}</strong> | "
+            f"TF: <strong>{len(timeframes)}</strong><br/>"
+            f"Filtre dates: <strong>{'Oui' if use_date_filter else 'Non'}</strong>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def _is_valid_timeframe_format(tf: str) -> bool:
@@ -266,7 +361,9 @@ def _apply_config_guard(draft_state: SidebarState) -> SidebarState:
 
 
 def render_sidebar() -> SidebarState:
-    st.sidebar.header("⚙️ Configuration")
+    _inject_sidebar_styles()
+    st.sidebar.markdown('<div class="bc-sidebar-title">⚙️ Configuration</div>', unsafe_allow_html=True)
+    st.sidebar.caption("Réglages centralisés du backtest, sweep et builder.")
 
     with st.sidebar.expander("🔧 Debug", expanded=False):
         debug_enabled = st.checkbox(
@@ -280,7 +377,7 @@ def render_sidebar() -> SidebarState:
         else:
             set_log_level("INFO")
 
-    st.sidebar.subheader("📊 Données")
+    _sidebar_section("📊 Données")
 
     data_status = st.sidebar.empty()
     try:
@@ -381,18 +478,6 @@ def render_sidebar() -> SidebarState:
                     del st.session_state[key]
 
     # === MULTI-SÉLECTION TOKENS (multiselect) ===
-    # Tokens à potentiel (base de comparaison méticuleuse)
-    POTENTIAL_TOKENS = [
-        "BTCUSDC",    # Bitcoin - Référence marché
-        "ETHUSDC",    # Ethereum - Leader DeFi
-        "BNBUSDC",    # Binance Coin - Plateforme CEX
-        "SOLUSDC",    # Solana - Haute vitesse
-        "AVAXUSDC",   # Avalanche - DeFi concurrente
-        "LINKUSDC",   # Chainlink - Oracle leader
-        "ADAUSDC",    # Cardano - Approche académique
-        "DOTUSDC",    # Polkadot - Interopérabilité
-        "ATOMUSDC",   # Cosmos - Hub inter-chaînes
-    ]
 
     default_symbols = ["BTCUSDC"] if "BTCUSDC" in available_tokens else available_tokens[:1]
 
@@ -747,7 +832,7 @@ def render_sidebar() -> SidebarState:
         if cached_msg:
             st.sidebar.caption(f"Cache: {cached_msg}")
 
-    st.sidebar.subheader("🎯 Stratégie")
+    _sidebar_section("🎯 Stratégie")
 
     available_strategies = list_strategies()
     strategy_options = build_strategy_options(available_strategies)
@@ -816,7 +901,7 @@ def render_sidebar() -> SidebarState:
     except KeyError:
         st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
 
-    st.sidebar.subheader("Indicateurs")
+    _sidebar_section("📈 Indicateurs")
     available_indicators = get_strategy_ui_indicators(strategy_key)
     # Tous les indicateurs sont toujours affichés
     active_indicators: List[str] = available_indicators if available_indicators else []
@@ -828,7 +913,7 @@ def render_sidebar() -> SidebarState:
 
     # (Versioned Presets moved to bottom)
 
-    st.sidebar.subheader("🔄 Mode d'exécution")
+    _sidebar_section("🔄 Mode d'exécution")
 
     if "optimization_mode" not in st.session_state:
         st.session_state.optimization_mode = "Grille de Paramètres"
@@ -1976,7 +2061,7 @@ def render_sidebar() -> SidebarState:
 
     # ======================== GPU ACCELERATION ========================
     st.sidebar.markdown("---")
-    st.sidebar.subheader("⚡ Accélération GPU")
+    _sidebar_section("⚡ Accélération GPU")
     st.sidebar.info(
         "Mode CPU-only: GPU désactivé.\n\n"
         "• Numba JIT + cache RAM utilisés\n"
@@ -1985,7 +2070,7 @@ def render_sidebar() -> SidebarState:
     os.environ["BACKTEST_USE_GPU"] = "0"
     os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 
-    st.sidebar.subheader("🔧 Paramètres")
+    _sidebar_section("🔧 Paramètres")
 
     param_mode = "range" if optimization_mode == "Grille de Paramètres" else "single"
 
@@ -2045,16 +2130,17 @@ def render_sidebar() -> SidebarState:
                             params[param_name] = spec.default
                         else:
                             params[param_name] = getattr(spec, "default", params.get(param_name))
-                        # DEBUG: Afficher les ranges générés
-                        print(f"[DEBUG] param_ranges[{param_name}] = {range_data}")
+                        logger.debug("Sidebar param range generated - %s: %s", param_name, range_data)
 
             if validation_errors:
                 for err in validation_errors:
                     st.sidebar.error(err)
 
-            # DEBUG: Afficher le résumé des param_ranges
-            print(f"[DEBUG] param_ranges final = {list(param_ranges.keys())}")
-            print(f"[DEBUG] Total paramètres optimisables: {sum(1 for s in param_specs.values() if getattr(s, 'optimize', True))}")
+            logger.debug("Sidebar param ranges final keys: %s", list(param_ranges.keys()))
+            logger.debug(
+                "Sidebar optimizable parameter count: %s",
+                sum(1 for s in param_specs.values() if getattr(s, "optimize", True)),
+            )
 
             normalized_ranges = param_ranges
             range_warnings: List[str] = []
@@ -2100,11 +2186,11 @@ def render_sidebar() -> SidebarState:
     else:
         st.sidebar.error(f"Stratégie '{strategy_key}' non trouvée")
 
-    st.sidebar.subheader("💰 Trading")
+    _sidebar_section("💰 Trading")
 
     # Checkbox pour activer/désactiver le leverage
     leverage_enabled = st.sidebar.checkbox(
-        "� Activer le leverage",
+        "Activer le leverage",
         value=False,  # Désactivé par défaut = leverage forcé à 1
         key="leverage_enabled",
         help="Si décoché, leverage=1 (sans effet de levier). Recommandé pour tests sûrs.",
@@ -2141,7 +2227,7 @@ def render_sidebar() -> SidebarState:
     # =========================================================================
     # Walk-Forward Analysis (WFA) — 10/02/2026
     # =========================================================================
-    st.sidebar.subheader("🔬 Walk-Forward Analysis")
+    _sidebar_section("🔬 Walk-Forward Analysis")
 
     use_walk_forward = st.sidebar.checkbox(
         "Activer la validation Walk-Forward",
@@ -2188,7 +2274,7 @@ def render_sidebar() -> SidebarState:
             f"| {'expanding' if wfa_expanding else 'rolling'}"
         )
 
-    st.sidebar.subheader("💾 Versioned Presets")
+    _sidebar_section("💾 Versioned Presets")
 
     versioned_presets = list_strategy_versions(strategy_key)
 
@@ -2359,7 +2445,7 @@ def render_sidebar() -> SidebarState:
 
     if param_mode == "range" and len(strategy_names) > 1:
         st.sidebar.markdown("---")
-        st.sidebar.subheader("📌 Combinaisons multi-stratégies")
+        _sidebar_section("📌 Combinaisons multi-stratégies")
         total_per_sweep = 0
         for strat_key in strategy_keys:
             ranges = all_param_ranges.get(strat_key) or {}
@@ -2377,6 +2463,15 @@ def render_sidebar() -> SidebarState:
         st.sidebar.info(
             f"Total estimé (somme stratégies × tokens × TF): {total_runs:,} runs"
         )
+
+    st.sidebar.markdown("---")
+    _render_sidebar_summary_card(
+        optimization_mode=optimization_mode,
+        strategy_names=strategy_names,
+        symbols=symbols,
+        timeframes=timeframes,
+        use_date_filter=use_date_filter,
+    )
 
     draft_state = SidebarState(
         debug_enabled=debug_enabled,
