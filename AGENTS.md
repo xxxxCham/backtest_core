@@ -1432,3 +1432,12 @@ python run_streamlit.bat
 - Résultat : Sidebar plus propre, plus lisible et visuellement cohérente sans modifier la logique métier de backtest/sweep ; rendu prêt pour usage Streamlit.
 - Problèmes détectés : `python` absent dans l'environnement shell (usage de `python3` nécessaire) ; aucun blocage fonctionnel sur la sidebar.
 - Améliorations proposées : Factoriser dans un second temps les gros blocs `render_sidebar()` (Data, LLM, Params) en fonctions dédiées pour réduire la complexité cyclomatique et faciliter les tests unitaires UI.
+
+- Date : 11/02/2026
+- Objectif : Revoir la sidebar après retour visuel utilisateur (texte trop pâle / contraste insuffisant).
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : Ajustement CSS sidebar orienté lisibilité : ajout variables de contraste (`--bc-text`, `--bc-border`, etc.), forçage couleur foncée sur labels/markdown/captions/alerts, amélioration contraste des expanders et séparateurs, personnalisation des boutons primary/secondary pour éviter le rendu rouge agressif, amélioration du rendu des tags multiselect, harmonisation des champs baseweb (fond blanc + bordure), légère retouche de la carte de synthèse (format plus lisible).
+- Vérifications effectuées : `python3 -m py_compile ui/sidebar.py ui/main.py ui/app.py` ; `python3 tests/verify_ui_imports.py`.
+- Résultat : Sidebar plus lisible et cohérente en thème clair, avec meilleure hiérarchie visuelle et contraste texte/fond corrigé.
+- Problèmes détectés : Aucun blocant ; rendu final dépend encore du thème global Streamlit côté client.
+- Améliorations proposées : Ajouter un switch explicite “Theme sidebar: clair/sombre” en session_state pour adapter automatiquement les contrastes au thème utilisateur.

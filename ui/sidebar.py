@@ -94,14 +94,34 @@ POTENTIAL_TOKENS = [
 
 SIDEBAR_STYLE_CSS = """
 <style>
+[data-testid="stSidebar"] {
+    color-scheme: light;
+    --bc-text: #1f2a37;
+    --bc-muted: #5a6877;
+    --bc-border: #cdd9d1;
+    --bc-surface: #ffffff;
+    --bc-soft: #f4f8f5;
+}
 [data-testid="stSidebar"] > div:first-child {
-    background: linear-gradient(180deg, #f7faf7 0%, #eef6f2 42%, #edf3f9 100%);
+    background: linear-gradient(180deg, #f6faf7 0%, #edf5f1 45%, #ebf1f8 100%);
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li,
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] span,
+[data-testid="stSidebar"] .stCaption,
+[data-testid="stSidebar"] label {
+    color: var(--bc-text) !important;
+}
+[data-testid="stSidebar"] [data-testid="stAlertContainer"] p {
+    color: #1d2b3a !important;
 }
 [data-testid="stSidebar"] .bc-sidebar-title {
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: 0.01em;
     margin-bottom: 0.2rem;
+    color: var(--bc-text);
 }
 [data-testid="stSidebar"] .bc-sidebar-section {
     margin-top: 0.7rem;
@@ -116,28 +136,71 @@ SIDEBAR_STYLE_CSS = """
     border: 1px solid #cdded2;
     border-radius: 12px;
     padding: 0.6rem 0.7rem;
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--bc-text);
 }
 [data-testid="stSidebar"] .bc-sidebar-card strong {
     color: #22313f;
 }
 [data-testid="stSidebar"] .stButton > button {
     border-radius: 10px;
-    border: 1px solid #c8d7cc;
+    border: 1px solid var(--bc-border);
     font-weight: 600;
+    color: #f4f7fb;
+    background: #2d3443;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #0f766e 0%, #0ea5a3 100%);
+    border: 1px solid #0d9488;
+    color: #ffffff !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="secondary"] {
+    background: #2c3445;
+    border: 1px solid #3f4b62;
+    color: #f3f6fa !important;
 }
 [data-testid="stSidebar"] .stSelectbox > div > div,
 [data-testid="stSidebar"] .stTextInput > div > div > input,
 [data-testid="stSidebar"] .stNumberInput > div > div > input {
     border-radius: 8px;
+    color: var(--bc-text) !important;
+}
+[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+[data-testid="stSidebar"] div[data-baseweb="input"] > div,
+[data-testid="stSidebar"] div[data-baseweb="textarea"] > div {
+    background: var(--bc-surface);
+    border-color: var(--bc-border);
+}
+[data-testid="stSidebar"] div[data-baseweb="tag"] {
+    background: #e9f2ff !important;
+    color: #173a67 !important;
+    border: 1px solid #b5cceb !important;
+}
+[data-testid="stSidebar"] div[data-baseweb="tag"] span {
+    color: #173a67 !important;
+}
+[data-testid="stSidebar"] [data-testid="stMultiSelect"] svg,
+[data-testid="stSidebar"] [data-testid="stSelectbox"] svg {
+    color: #3e4d61 !important;
 }
 [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-weight: 600;
+    color: var(--bc-text) !important;
 }
 [data-testid="stSidebar"] .stExpander {
     border: 1px solid #d5e3d8;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.64);
+    background: rgba(255, 255, 255, 0.78);
+}
+[data-testid="stSidebar"] [data-testid="stSlider"] p {
+    color: var(--bc-muted) !important;
+}
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label p,
+[data-testid="stSidebar"] [data-testid="stToggle"] label p {
+    color: var(--bc-text) !important;
+}
+[data-testid="stSidebar"] hr {
+    border-color: #dbe5de;
 }
 </style>
 """
@@ -162,11 +225,11 @@ def _render_sidebar_summary_card(
         (
             "<div class='bc-sidebar-card'>"
             "<strong>Résumé configuration</strong><br/>"
-            f"Mode: <strong>{optimization_mode}</strong><br/>"
-            f"Stratégies: <strong>{len(strategy_names)}</strong> | "
-            f"Tokens: <strong>{len(symbols)}</strong> | "
-            f"TF: <strong>{len(timeframes)}</strong><br/>"
-            f"Filtre dates: <strong>{'Oui' if use_date_filter else 'Non'}</strong>"
+            f"<span>Mode: <strong>{optimization_mode}</strong></span><br/>"
+            f"<span>Stratégies: <strong>{len(strategy_names)}</strong> • "
+            f"Tokens: <strong>{len(symbols)}</strong> • "
+            f"TF: <strong>{len(timeframes)}</strong></span><br/>"
+            f"<span>Filtre dates: <strong>{'Oui' if use_date_filter else 'Non'}</strong></span>"
             "</div>"
         ),
         unsafe_allow_html=True,
