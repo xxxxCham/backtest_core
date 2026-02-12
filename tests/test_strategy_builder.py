@@ -21,8 +21,14 @@ from agents.strategy_builder import (
     BuilderIteration,
     BuilderSession,
     StrategyBuilder,
+    _build_deterministic_fallback_code,
+    _is_accept_candidate,
+    _policy_change_type_override,
+    _ranking_sharpe,
     _extract_json_from_response,
     _extract_python_from_response,
+    recommend_market_context,
+    sanitize_objective_text,
     validate_generated_code,
 )
 
@@ -160,6 +166,140 @@ class TestValidateCode:
         is_valid, msg = validate_generated_code(code)
         assert not is_valid
 
+    def test_reject_iloc_on_indicator_array(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["rsi"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    for i in range(len(df)):
+                        if indicators["rsi"].iloc[i] < 30:
+                            signals.iloc[i] = 1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "iloc" in msg.lower()
+
+    def test_reject_unknown_indicator_alias(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["rsi", "bollinger_upper"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    upper = indicators.get("bollinger_upper")
+                    rsi = indicators["rsi"]
+                    if upper is not None:
+                        signals[(rsi > 70) & (df["close"].values > upper)] = -1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "indicateur" in msg.lower() or "inconnu" in msg.lower()
+
+    def test_reject_array_indicator_subkey_access(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["ema"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    ema_21 = np.nan_to_num(indicators["ema"]["ema_21"])
+                    signals[df["close"].values > ema_21] = 1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "ndarray" in msg.lower() or "ema" in msg.lower()
+
+    def test_reject_dict_indicator_direct_comparison(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["adx"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    adx = indicators["adx"]
+                    signals[adx > 25] = 1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "dict" in msg.lower() and "adx" in msg.lower()
+
+    def test_reject_unknown_supertrend_subkey(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["supertrend"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    st = indicators["supertrend"]
+                    upper = np.nan_to_num(st["upper"])
+                    signals[df["close"].values > upper] = 1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "supertrend" in msg.lower() and "sous-cl" in msg.lower()
+
 
 # ─── Tests extraction LLM ─────────────────────────────────────────────────
 
@@ -198,6 +338,63 @@ class TestExtractResponse:
         assert "import pandas" in result
 
 
+class _DummyLLMClient:
+    def __init__(self, response: str):
+        self._response = response
+
+    def chat(self, messages, max_tokens=0):  # noqa: ANN001
+        return self._response
+
+
+class TestMarketRecommendation:
+    def test_recommend_market_context_valid(self):
+        llm = _DummyLLMClient(
+            '{"symbol":"DOGEUSDC","timeframe":"5m","confidence":0.82,"reason":"Scalp court terme."}',
+        )
+        result = recommend_market_context(
+            llm,
+            objective="Scalp de continuation agressif",
+            candidate_symbols=["BTCUSDC", "DOGEUSDC"],
+            candidate_timeframes=["5m", "15m"],
+            default_symbol="BTCUSDC",
+            default_timeframe="15m",
+        )
+        assert result["source"] == "llm"
+        assert result["symbol"] == "DOGEUSDC"
+        assert result["timeframe"] == "5m"
+        assert float(result["confidence"]) > 0.8
+
+    def test_recommend_market_context_out_of_universe_fallback(self):
+        llm = _DummyLLMClient(
+            '{"symbol":"ETHUSDC","timeframe":"1m","confidence":0.9,"reason":"Test"}',
+        )
+        result = recommend_market_context(
+            llm,
+            objective="Scalp",
+            candidate_symbols=["BTCUSDC", "DOGEUSDC"],
+            candidate_timeframes=["5m", "15m"],
+            default_symbol="BTCUSDC",
+            default_timeframe="15m",
+        )
+        assert result["source"] == "fallback_out_of_universe"
+        assert result["symbol"] == "BTCUSDC"
+        assert result["timeframe"] == "15m"
+
+    def test_recommend_market_context_invalid_json_fallback(self):
+        llm = _DummyLLMClient("pas de json ici")
+        result = recommend_market_context(
+            llm,
+            objective="Scalp",
+            candidate_symbols=["BTCUSDC"],
+            candidate_timeframes=["5m"],
+            default_symbol="BTCUSDC",
+            default_timeframe="5m",
+        )
+        assert result["source"] == "fallback_invalid_json"
+        assert result["symbol"] == "BTCUSDC"
+        assert result["timeframe"] == "5m"
+
+
 # ─── Tests session ─────────────────────────────────────────────────────────
 
 class TestSession:
@@ -230,6 +427,143 @@ class TestSession:
         assert it.hypothesis == ""
         assert it.error is None
         assert it.decision == ""
+
+
+class TestObjectiveSanitizer:
+    """Tests du nettoyage d'objectif Builder."""
+
+    def test_preserve_clean_objective(self):
+        objective = (
+            "Scalp de continuation sur DOGEUSDC 5m. "
+            "Indicateurs: EMA + RSI + Bollinger. "
+            "Entrées pullback EMA21. Sorties ATR."
+        )
+        assert sanitize_objective_text(objective) == objective
+
+    def test_extract_objective_from_contaminated_logs(self):
+        raw = textwrap.dedent("""\
+            19:24:49 | INFO | agents.ollama_manager | démarrage
+            19:25:00 | INFO | backtest.agents.strategy_builder | strategy_builder_start session=abc objective='19:24:49 | INFO | noise
+            19:25:00 | INFO | backtest.agents.strategy_builder | strategy_builder_start session=prev objective='[Scalp de continuation / micro-retournement] sur [crypto liquide] [5m ou 15m].
+            Indicateurs : [EMA 9/21/50] + [RSI 14] + [Bandes de Bollinger 20,2].' indicators=31
+            Traceback (most recent call last):
+              File "D:\\backtest_core\\agents\\strategy_builder.py", line 1
+            ' indicators=31
+        """)
+        cleaned = sanitize_objective_text(raw)
+        assert cleaned.startswith("[Scalp de continuation / micro-retournement]")
+        assert "strategy_builder_start" not in cleaned
+        assert "| INFO |" not in cleaned
+
+    def test_drop_pipe_warning_and_traceback_blob(self):
+        raw = textwrap.dedent("""\
+            | WARNING | data.loader | Plus gros gap : 2019-05-15 02:30:00+00:00 → 2019-05-15 13:00:00+00:00 (20 barres)
+            ────────────────────────── Traceback (most recent call last) ───────────────────────────
+            C:\\Program Files\\Python312\\Lib\\site-packages\\streamlit\\runtime\\scriptrunner\\exec_code.py
+            StreamlitAPIException: st.session_state.builder_objective_input cannot be modified
+        """)
+        cleaned = sanitize_objective_text(raw)
+        assert cleaned == ""
+
+
+class TestBuilderRobustnessGate:
+    """Tests des garde-fous robustesse pour acceptance/ranking."""
+
+    def test_ranking_penalizes_ruined_metrics(self):
+        metrics = {
+            "sharpe_ratio": 1.8,
+            "total_return_pct": -35000.0,
+            "max_drawdown_pct": -100.0,
+            "total_trades": 1200,
+        }
+        assert _ranking_sharpe(metrics) == -20.0
+
+    def test_ranking_penalizes_no_trades(self):
+        metrics = {
+            "sharpe_ratio": 0.0,
+            "total_return_pct": 0.0,
+            "max_drawdown_pct": 0.0,
+            "total_trades": 0,
+        }
+        assert _ranking_sharpe(metrics) <= -5.0
+
+    def test_accept_candidate_requires_robustness(self):
+        metrics = {
+            "sharpe_ratio": 1.2,
+            "total_return_pct": 10.0,
+            "max_drawdown_pct": -30.0,
+            "total_trades": 40,
+        }
+        ok, reason = _is_accept_candidate(metrics, target_sharpe=1.0)
+        assert ok is True
+        assert reason == "ok"
+
+    def test_accept_candidate_rejects_ruined(self):
+        metrics = {
+            "sharpe_ratio": 1.5,
+            "total_return_pct": -200.0,
+            "max_drawdown_pct": -99.0,
+            "total_trades": 60,
+        }
+        ok, reason = _is_accept_candidate(metrics, target_sharpe=1.0)
+        assert ok is False
+        assert reason == "ruined_metrics"
+
+    def test_policy_change_type_overrides_to_logic_on_ruined_no_trades_cycle(self):
+        session = BuilderSession(
+            session_id="test",
+            objective="test",
+            session_dir=Path("/tmp/test_policy_logic"),
+        )
+        it1 = BuilderIteration(
+            iteration=1,
+            diagnostic_category="ruined",
+            diagnostic_detail={"severity": "critical"},
+        )
+        it2 = BuilderIteration(
+            iteration=2,
+            diagnostic_category="no_trades",
+            diagnostic_detail={"severity": "critical"},
+        )
+        session.iterations = [it1, it2]
+
+        override = _policy_change_type_override(session=session, last_iteration=it2)
+        assert override == "logic"
+
+    def test_policy_change_type_overrides_to_params_near_target(self):
+        session = BuilderSession(
+            session_id="test",
+            objective="test",
+            session_dir=Path("/tmp/test_policy_params"),
+        )
+        it1 = BuilderIteration(
+            iteration=1,
+            diagnostic_category="approaching_target",
+            diagnostic_detail={"severity": "info"},
+        )
+        session.iterations = [it1]
+
+        override = _policy_change_type_override(session=session, last_iteration=it1)
+        assert override == "params"
+
+
+class TestDeterministicFallbackCode:
+    """Vérifie le fallback de code déterministe en dernier recours."""
+
+    def test_deterministic_fallback_is_valid_python(self):
+        proposal = {
+            "strategy_name": "Fallback Test",
+            "used_indicators": ["rsi", "bollinger", "adx"],
+            "default_params": {"rsi_period": 14, "stop_atr_mult": 1.5},
+        }
+        code = _build_deterministic_fallback_code(proposal)
+        is_valid, msg = validate_generated_code(code)
+        assert is_valid, msg
+
+    def test_deterministic_fallback_contains_length_alignment(self):
+        proposal = {"strategy_name": "Fallback Test", "used_indicators": ["rsi"]}
+        code = _build_deterministic_fallback_code(proposal)
+        assert "_align_len" in code
 
 
 # ─── Tests chargement dynamique ──────────────────────────────────────────

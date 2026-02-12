@@ -30,6 +30,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 import json
+import pprint
 import random
 import re
 import sys
@@ -63,6 +64,82 @@ GENERATED_CLASS_NAME = "BuilderGeneratedStrategy"
 MAX_CONSECUTIVE_FAILURES = 3
 # Nombre minimum de lignes pour considérer du code comme non-vide
 MIN_CODE_LINES = 10
+# Nombre max de tentatives de réalignement quand le LLM répond hors phase
+MAX_PHASE_REALIGN_ATTEMPTS = 2
+# Nombre mini d'itérations backtestées avant d'autoriser un arrêt LLM "stop"
+MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 3
+# Nombre mini de trades pour accepter une stratégie en cours d'optimisation
+MIN_TRADES_FOR_ACCEPT = 10
+MAX_DRAWDOWN_PCT_FOR_ACCEPT = 60.0
+MIN_RETURN_PCT_FOR_ACCEPT = 0.0
+
+_DICT_INDICATOR_NAMES = {
+    "bollinger",
+    "macd",
+    "stochastic",
+    "adx",
+    "supertrend",
+    "ichimoku",
+    "psar",
+    "vortex",
+    "stoch_rsi",
+    "aroon",
+    "donchian",
+    "keltner",
+    "pivot_points",
+    "fibonacci",
+    "fibonacci_levels",
+}
+
+_DICT_INDICATOR_ALLOWED_KEYS: Dict[str, set[str]] = {
+    "bollinger": {"upper", "middle", "lower"},
+    "macd": {"macd", "signal", "histogram"},
+    "stochastic": {"stoch_k", "stoch_d"},
+    "adx": {"adx", "plus_di", "minus_di"},
+    "supertrend": {"supertrend", "direction"},
+    "ichimoku": {"tenkan", "kijun", "senkou_a", "senkou_b", "chikou", "cloud_position"},
+    "psar": {"sar", "trend", "signal"},
+    "vortex": {"vi_plus", "vi_minus", "signal", "oscillator"},
+    "stoch_rsi": {"k", "d", "signal"},
+    "aroon": {"aroon_up", "aroon_down"},
+    "donchian": {"upper", "middle", "lower"},
+    "keltner": {"middle", "upper", "lower"},
+    "pivot_points": {"pivot", "r1", "s1", "r2", "s2", "r3", "s3"},
+    # fibonacci_levels expose aussi des clés dynamiques de type level_XXX.
+    "fibonacci_levels": {"high", "low"},
+}
+
+_INDICATOR_ALIAS_HINTS = {
+    "bollinger_upper": "indicators['bollinger']['upper']",
+    "bollinger_middle": "indicators['bollinger']['middle']",
+    "bollinger_lower": "indicators['bollinger']['lower']",
+    "macd_line": "indicators['macd']['macd']",
+    "macd_signal": "indicators['macd']['signal']",
+    "macd_histogram": "indicators['macd']['histogram']",
+}
+
+_PROPOSAL_PLACEHOLDER_VALUES = {
+    "",
+    "-",
+    "—",
+    "n/a",
+    "na",
+    "none",
+    "null",
+    "brief description",
+    "what you expect this change to achieve and why",
+    "when to buy",
+    "when to sell",
+    "when to close",
+}
+
+_LOG_PREFIX_RE = re.compile(r"^\s*\d{2}:\d{2}:\d{2}\s*\|\s*\w+\s*\|", re.IGNORECASE)
+_PIPE_LOG_PREFIX_RE = re.compile(
+    r"^\s*\|\s*(DEBUG|INFO|WARNING|ERROR|CRITICAL)\s*\|",
+    re.IGNORECASE,
+)
+_TRACEBACK_LINE_RE = re.compile(r'^\s*File\s+"[^"]+",\s*line\s+\d+', re.IGNORECASE)
+_WINDOWS_PATH_LINE_RE = re.compile(r"^\s*[A-Za-z]:\\")
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +160,7 @@ class BuilderIteration:
     change_type: str = ""  # "logic", "params", "both"
     diagnostic_category: str = ""  # computed by compute_diagnostic()
     diagnostic_detail: Dict[str, Any] = field(default_factory=dict)
+    phase_feedback: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -169,6 +247,676 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
     for pattern in dangerous_patterns:
         if pattern.lower() in code_lower:
             return False, f"Import/appel dangereux détecté: '{pattern}'"
+
+    # 5. Accès invalide aux indicateurs via df[...] au lieu de indicators[...]
+    try:
+        known_indicators = {ind.lower() for ind in list_indicators()}
+    except Exception:
+        known_indicators = set()
+
+    # 5b. Indicateurs inconnus via indicators[...] / indicators.get(...)
+    used_indicators = _collect_indicator_names(tree)
+    if known_indicators and used_indicators:
+        unknown = sorted(
+            {
+                name for name in used_indicators
+                if name.lower() not in known_indicators
+            }
+        )
+        if unknown:
+            hints = [
+                f"{name} -> {_INDICATOR_ALIAS_HINTS[name.lower()]}"
+                for name in unknown
+                if name.lower() in _INDICATOR_ALIAS_HINTS
+            ]
+            hint_suffix = (
+                f" Corrections possibles: {', '.join(hints)}."
+                if hints
+                else ""
+            )
+            return (
+                False,
+                "Indicateur(s) inconnu(s) via indicators détecté(s): "
+                f"{unknown}. Utiliser uniquement les noms du registre."
+                f"{hint_suffix}",
+            )
+
+    df_indexed = re.findall(r"df\s*\[\s*['\"]([^'\"]+)['\"]\s*\]", code)
+    bad_df_cols = sorted(
+        {col for col in df_indexed if col.lower() in known_indicators}
+    )
+    if bad_df_cols:
+        return (
+            False,
+            "Accès indicateur invalide via df[...] détecté: "
+            f"{bad_df_cols}. Utiliser indicators['name'].",
+        )
+
+    # 6. Mauvais usage de np.nan_to_num sur indicateurs dict (bollinger, macd, ...)
+    dict_like_indicators = (
+        "bollinger",
+        "macd",
+        "stochastic",
+        "adx",
+        "supertrend",
+        "ichimoku",
+        "psar",
+        "vortex",
+        "stoch_rsi",
+        "aroon",
+        "donchian",
+        "keltner",
+        "pivot_points",
+        "fibonacci",
+    )
+    for ind in dict_like_indicators:
+        bad_pattern = (
+            r"np\.nan_to_num\(\s*indicators\s*\[\s*['\"]"
+            + re.escape(ind)
+            + r"['\"]\s*\]\s*\)"
+        )
+        if re.search(bad_pattern, code):
+            return (
+                False,
+                f"Usage invalide: np.nan_to_num(indicators['{ind}']) (dict). "
+                "Appliquer np.nan_to_num sur ses sous-clés.",
+            )
+
+    # 7. Validation sémantique AST (usage indicateurs/arrays)
+    semantics_ok, semantics_err = _validate_indicator_usage_semantics(code)
+    if not semantics_ok:
+        return False, semantics_err
+
+    return True, ""
+
+
+def sanitize_objective_text(objective: Any) -> str:
+    """Nettoie un objectif utilisateur et retire les contaminations de logs.
+
+    Cas traités:
+    - Collage accidentel de logs complets (INFO/WARNING/Traceback)
+    - Objectif imbriqué dans une ligne de log `... objective='...' indicators=...`
+    - Bruit visuel (lignes de séparation terminal)
+    """
+    text = str(objective or "")
+    text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        return ""
+
+    # Nettoyage résidus modèles de raisonnement
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    text = re.sub(r"<think>.*", "", text, flags=re.DOTALL).strip()
+
+    # Si un objectif est imbriqué dans des logs, récupérer la dernière occurrence
+    lower = text.lower()
+    marker = "objective='"
+    last_idx = lower.rfind(marker)
+    if last_idx >= 0:
+        start = last_idx + len(marker)
+        end = lower.find("' indicators=", start)
+        if end == -1:
+            end = lower.find("'\n", start)
+        if end == -1:
+            end = lower.find("'", start)
+        if end > start:
+            embedded = text[start:end].strip()
+            if len(embedded) >= 20:
+                text = embedded
+
+    cleaned_lines: List[str] = []
+    in_traceback_block = False
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            if cleaned_lines and cleaned_lines[-1] != "":
+                cleaned_lines.append("")
+            continue
+
+        lower_line = line.lower()
+        if "traceback (most recent call last)" in lower_line:
+            in_traceback_block = True
+            continue
+        if in_traceback_block:
+            continue
+
+        if _LOG_PREFIX_RE.match(line):
+            continue
+        if _PIPE_LOG_PREFIX_RE.match(line):
+            continue
+        if lower_line.startswith("traceback"):
+            continue
+        if lower_line.startswith("during handling of the above exception"):
+            continue
+        if _TRACEBACK_LINE_RE.match(line):
+            continue
+        if _WINDOWS_PATH_LINE_RE.match(line):
+            continue
+        if line.startswith("PS "):
+            continue
+        if line.startswith("❱"):
+            continue
+        if re.match(r"^\d+\s*$", line):
+            continue
+        if "streamlitapiexception" in lower_line:
+            continue
+        if "site-packages\\streamlit" in lower_line:
+            continue
+        if lower_line.startswith("files\\python"):
+            continue
+        if re.match(r"^[═━\-]{10,}$", line):
+            continue
+        if re.match(r"^\^+$", line):
+            continue
+
+        cleaned_lines.append(line)
+
+    cleaned = "\n".join(cleaned_lines).strip()
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = cleaned.strip("`'\" \n\t")
+    if len(cleaned) > 4000:
+        cleaned = cleaned[:4000].rstrip()
+    return cleaned
+
+
+def _looks_like_log_pollution(text: str) -> bool:
+    """Heuristique simple pour détecter un collage de logs/traceback."""
+    if not text:
+        return False
+    lower = text.lower()
+    if "traceback (most recent call last)" in lower:
+        return True
+    if "streamlitapiexception" in lower:
+        return True
+    if re.search(r"^\s*\d{2}:\d{2}:\d{2}\s*\|\s*\w+\s*\|", text, re.MULTILINE):
+        return True
+    if re.search(
+        r"^\s*\|\s*(debug|info|warning|error|critical)\s*\|",
+        text,
+        re.MULTILINE | re.IGNORECASE,
+    ):
+        return True
+    return False
+
+
+def _metric_float(metrics: Dict[str, Any], key: str, default: float = 0.0) -> float:
+    """Lecture float robuste d'une métrique sans écraser les zéros valides."""
+    value = metrics.get(key, default)
+    if value is None:
+        return float(default)
+    try:
+        return float(value)
+    except Exception:
+        return float(default)
+
+
+def _is_ruined_metrics(metrics: Dict[str, Any]) -> bool:
+    """Détecte une configuration ruinée à partir des métriques de backtest."""
+    ret = _metric_float(metrics, "total_return_pct", 0.0)
+    max_dd = abs(_metric_float(metrics, "max_drawdown_pct", 0.0))
+    account_ruined = bool(metrics.get("account_ruined", False))
+    return account_ruined or ret <= -90.0 or max_dd >= 90.0
+
+
+def _ranking_sharpe(metrics: Dict[str, Any]) -> float:
+    """Sharpe de ranking, pénalisé pour éviter de promouvoir des runs invalides."""
+    sharpe = _metric_float(metrics, "sharpe_ratio", float("-inf"))
+    trades = int(metrics.get("total_trades", 0) or 0)
+    if _is_ruined_metrics(metrics):
+        return -20.0
+    if trades <= 0:
+        return min(sharpe, -5.0)
+    return sharpe
+
+
+def _is_accept_candidate(
+    metrics: Dict[str, Any],
+    *,
+    target_sharpe: float,
+) -> tuple[bool, str]:
+    """Vérifie si une itération est suffisamment robuste pour terminer en succès."""
+    sharpe = _metric_float(metrics, "sharpe_ratio", 0.0)
+    trades = int(metrics.get("total_trades", 0) or 0)
+    ret = _metric_float(metrics, "total_return_pct", 0.0)
+    max_dd = abs(_metric_float(metrics, "max_drawdown_pct", 0.0))
+
+    if _is_ruined_metrics(metrics):
+        return False, "ruined_metrics"
+    if trades < MIN_TRADES_FOR_ACCEPT:
+        return False, "insufficient_trades"
+    if sharpe < target_sharpe:
+        return False, "target_sharpe_not_reached"
+    if ret <= MIN_RETURN_PCT_FOR_ACCEPT:
+        return False, "non_positive_return"
+    if max_dd > MAX_DRAWDOWN_PCT_FOR_ACCEPT:
+        return False, "drawdown_too_high"
+    return True, "ok"
+
+
+def _const_value(node: ast.AST) -> Any:
+    """Extrait une valeur constante AST (str/int/float) si possible."""
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Str):  # pragma: no cover - compat py<3.8
+        return node.s
+    return None
+
+
+def _indicator_name_from_subscript(node: ast.AST) -> Optional[str]:
+    """Retourne le nom d'indicateur pour indicators['name']."""
+    if not isinstance(node, ast.Subscript):
+        return None
+    if not isinstance(node.value, ast.Name) or node.value.id != "indicators":
+        return None
+    key = _const_value(node.slice)
+    if isinstance(key, str):
+        return key
+    return None
+
+
+def _indicator_name_from_get_call(node: ast.AST) -> Optional[str]:
+    """Retourne le nom d'indicateur pour indicators.get('name', ...)."""
+    if not isinstance(node, ast.Call):
+        return None
+    if not isinstance(node.func, ast.Attribute) or node.func.attr != "get":
+        return None
+    if not isinstance(node.func.value, ast.Name) or node.func.value.id != "indicators":
+        return None
+    if not node.args:
+        return None
+    key = _const_value(node.args[0])
+    if isinstance(key, str):
+        return key
+    return None
+
+
+def _is_np_nan_to_num_call(node: ast.AST) -> bool:
+    """Vérifie si le noeud est un appel np.nan_to_num(...)."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "np"
+        and node.func.attr == "nan_to_num"
+    )
+
+
+def _is_params_get_call(node: ast.AST) -> bool:
+    """Vérifie si le noeud est un appel params.get(...)."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "params"
+        and node.func.attr == "get"
+    )
+
+
+def _is_params_subscript(node: ast.AST) -> bool:
+    """Vérifie si le noeud est params['x']."""
+    return (
+        isinstance(node, ast.Subscript)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "params"
+    )
+
+
+def _is_scalar_cast_call(node: ast.AST) -> bool:
+    """Vérifie si le noeud est un cast scalaire (float/int/bool)."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in {"float", "int", "bool"}
+    )
+
+
+def _is_numeric_nonbool_constant(node: ast.AST) -> bool:
+    """True si le noeud est une constante numérique non-bool."""
+    if not isinstance(node, ast.Constant):
+        return False
+    return isinstance(node.value, (int, float)) and not isinstance(node.value, bool)
+
+
+def _iter_generate_signals_functions(tree: ast.AST) -> List[ast.FunctionDef]:
+    """Extrait les méthodes generate_signals de BuilderGeneratedStrategy."""
+    out: List[ast.FunctionDef] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == GENERATED_CLASS_NAME:
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == "generate_signals":
+                    out.append(item)
+    return out
+
+
+def _collect_indicator_names(tree: ast.AST) -> set[str]:
+    """Collecte les noms d'indicateurs référencés dans generate_signals."""
+    names: set[str] = set()
+    for fn in _iter_generate_signals_functions(tree):
+        for node in ast.walk(fn):
+            sub = _indicator_name_from_subscript(node)
+            if sub:
+                names.add(sub)
+            got = _indicator_name_from_get_call(node)
+            if got:
+                names.add(got)
+    return names
+
+
+def _dict_indicator_key_is_valid(indicator_name: str, key: Any) -> bool:
+    """Valide une sous-clé pour un indicateur dict connu."""
+    if not isinstance(key, str):
+        return True
+    name = indicator_name.lower()
+    allowed = _DICT_INDICATOR_ALLOWED_KEYS.get(name)
+    if not allowed:
+        return True
+    if key in allowed:
+        return True
+    if name in {"fibonacci", "fibonacci_levels"} and key.startswith("level_"):
+        return True
+    return False
+
+
+def _dict_indicator_allowed_keys_hint(indicator_name: str) -> str:
+    """Construit un hint compact des sous-clés valides."""
+    name = indicator_name.lower()
+    allowed = sorted(_DICT_INDICATOR_ALLOWED_KEYS.get(name, set()))
+    if name in {"fibonacci", "fibonacci_levels"}:
+        allowed = [*allowed, "level_XXX"]
+    if not allowed:
+        return "sous-clés string attendues"
+    return ", ".join(allowed)
+
+
+def _validate_indicator_usage_semantics(code: str) -> tuple[bool, str]:
+    """Validation AST des usages indicateurs pour éviter erreurs runtime récurrentes."""
+    try:
+        tree = ast.parse(code)
+    except Exception:
+        return True, ""
+
+    # var_name -> {"kind": "array|dict|values", "indicator": Optional[str]}
+    bindings: Dict[str, Dict[str, Any]] = {}
+
+    for fn in _iter_generate_signals_functions(tree):
+        # Pass 1: collect bindings
+        for node in ast.walk(fn):
+            targets: List[ast.Name] = []
+            value: Optional[ast.AST] = None
+
+            if isinstance(node, ast.Assign):
+                value = node.value
+                for t in node.targets:
+                    if isinstance(t, ast.Name):
+                        targets.append(t)
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                value = node.value
+                targets.append(node.target)
+            else:
+                continue
+
+            if value is None or not targets:
+                continue
+
+            ind_name = _indicator_name_from_subscript(value)
+            kind: Optional[str] = None
+            if ind_name is not None:
+                kind = "dict" if ind_name.lower() in _DICT_INDICATOR_NAMES else "array"
+            elif _is_np_nan_to_num_call(value) and getattr(value, "args", None):
+                arg0 = value.args[0]
+                ind_name = _indicator_name_from_subscript(arg0)
+                if ind_name is not None:
+                    if ind_name.lower() in _DICT_INDICATOR_NAMES:
+                        return (
+                            False,
+                            f"Usage invalide: np.nan_to_num(indicators['{ind_name}']) "
+                            "(indicator dict).",
+                        )
+                    kind = "array"
+                elif isinstance(arg0, ast.Name) and arg0.id in bindings:
+                    if bindings[arg0.id]["kind"] == "dict":
+                        return (
+                            False,
+                            f"Usage invalide: np.nan_to_num({arg0.id}) alors que "
+                            f"{arg0.id} est un indicator dict.",
+                        )
+                    kind = "array"
+            elif isinstance(value, ast.Attribute) and value.attr == "values":
+                kind = "values"
+            elif _is_params_get_call(value) or _is_params_subscript(value):
+                kind = "scalar"
+            elif _is_scalar_cast_call(value) and getattr(value, "args", None):
+                arg0 = value.args[0]
+                if _is_params_get_call(arg0) or _is_params_subscript(arg0):
+                    kind = "scalar"
+                elif isinstance(arg0, ast.Name):
+                    b = bindings.get(arg0.id)
+                    if b and b["kind"] == "scalar":
+                        kind = "scalar"
+
+            if kind is not None:
+                for t in targets:
+                    bindings[t.id] = {"kind": kind, "indicator": ind_name}
+
+        # Pass 2: detect invalid usage
+        for node in ast.walk(fn):
+            # ndarray.shift(...) / ndarray.rolling(...)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+                attr = node.func.attr
+                if (
+                    attr in {"shift", "rolling", "ewm"}
+                    and isinstance(node.func.value, ast.Name)
+                ):
+                    var = node.func.value.id
+                    b = bindings.get(var)
+                    if b and b["kind"] in {"array", "values"}:
+                        return (
+                            False,
+                            f"Usage invalide: {var}.{attr}(...) sur ndarray. "
+                            "Utiliser pandas Series ou logique vectorisée numpy.",
+                        )
+                if attr in {"shift", "rolling", "ewm"}:
+                    ind_name = _indicator_name_from_subscript(node.func.value)
+                    if ind_name:
+                        return (
+                            False,
+                            f"Usage invalide: indicators['{ind_name}'].{attr}(...) "
+                            "sur ndarray. Utiliser une logique numpy.",
+                        )
+
+                # np.nan_to_num(var_dict)
+                if _is_np_nan_to_num_call(node) and getattr(node, "args", None):
+                    arg0 = node.args[0]
+                    if isinstance(arg0, ast.Name):
+                        b = bindings.get(arg0.id)
+                        if b and b["kind"] == "dict":
+                            return (
+                                False,
+                                f"Usage invalide: np.nan_to_num({arg0.id}) alors que "
+                                f"{arg0.id} est un indicator dict.",
+                            )
+
+            # .iloc/.loc/.iat/.at sur indicateurs ndarray/dict
+            if isinstance(node, ast.Attribute) and node.attr in {"iloc", "loc", "iat", "at"}:
+                if isinstance(node.value, ast.Name):
+                    var = node.value.id
+                    b = bindings.get(var)
+                    if b and b["kind"] in {"array", "values", "dict"}:
+                        return (
+                            False,
+                            f"Usage invalide: {var}.{node.attr} sur indicateur "
+                            "numpy/dict. Utiliser indexation numpy (`arr[i]`).",
+                        )
+                ind_name = _indicator_name_from_subscript(node.value)
+                if ind_name:
+                    return (
+                        False,
+                        f"Usage invalide: indicators['{ind_name}'].{node.attr} "
+                        "n'est pas supporté. Utiliser indexation numpy (`arr[i]`).",
+                    )
+
+            # Subscript checks: multi-dim on 1D arrays, numeric key on dict indicators
+            if isinstance(node, ast.Subscript):
+                if isinstance(node.value, ast.Name):
+                    var = node.value.id
+                    b = bindings.get(var)
+                    if b:
+                        key = _const_value(node.slice)
+                        if b["kind"] in {"array", "values"} and isinstance(node.slice, ast.Tuple):
+                            return (
+                                False,
+                                f"Usage invalide: indexation multi-dim `{var}[..., ...]` "
+                                "sur indicateur 1D.",
+                            )
+                        if b["kind"] in {"array", "values"} and isinstance(key, str):
+                            return (
+                                False,
+                                f"Usage invalide: clé string `{var}['{key}']` sur "
+                                "indicateur ndarray. Utiliser directement l'array.",
+                            )
+                        if b["kind"] == "dict" and isinstance(key, (int, float)):
+                            return (
+                                False,
+                                f"Usage invalide: clé numérique `{var}[{key}]` sur "
+                                "indicator dict; utiliser des sous-clés string.",
+                            )
+                        if b["kind"] == "dict" and isinstance(key, str):
+                            ind = str(b.get("indicator") or "")
+                            if ind and not _dict_indicator_key_is_valid(ind, key):
+                                hint = _dict_indicator_allowed_keys_hint(ind)
+                                return (
+                                    False,
+                                    f"Usage invalide: `{var}['{key}']` pour "
+                                    f"indicateur dict '{ind}'. Sous-clés valides: {hint}.",
+                                )
+
+                # indicators['bollinger'][50] / indicators['ema']['ema_21']
+                ind_name = _indicator_name_from_subscript(node.value)
+                if ind_name:
+                    key = _const_value(node.slice)
+                    if ind_name.lower() in _DICT_INDICATOR_NAMES:
+                        if isinstance(key, (int, float)):
+                            return (
+                                False,
+                                f"Usage invalide: indicators['{ind_name}'][{key}] — "
+                                "utiliser des sous-clés string.",
+                            )
+                        if isinstance(key, str) and not _dict_indicator_key_is_valid(ind_name, key):
+                            hint = _dict_indicator_allowed_keys_hint(ind_name)
+                            return (
+                                False,
+                                f"Usage invalide: indicators['{ind_name}']['{key}'] — "
+                                f"sous-clé inconnue. Sous-clés valides: {hint}.",
+                            )
+                    elif isinstance(key, str):
+                        return (
+                            False,
+                            f"Usage invalide: indicators['{ind_name}']['{key}'] — "
+                            f"'{ind_name}' retourne un ndarray, pas un dict.",
+                        )
+                get_name = _indicator_name_from_get_call(node.value)
+                if get_name:
+                    key = _const_value(node.slice)
+                    if get_name.lower() in _DICT_INDICATOR_NAMES:
+                        if isinstance(key, (int, float)):
+                            return (
+                                False,
+                                f"Usage invalide: indicators.get('{get_name}')[{key}] — "
+                                "utiliser des sous-clés string.",
+                            )
+                        if isinstance(key, str) and not _dict_indicator_key_is_valid(get_name, key):
+                            hint = _dict_indicator_allowed_keys_hint(get_name)
+                            return (
+                                False,
+                                f"Usage invalide: indicators.get('{get_name}')['{key}'] — "
+                                f"sous-clé inconnue. Sous-clés valides: {hint}.",
+                            )
+                    elif isinstance(key, str):
+                        return (
+                            False,
+                            f"Usage invalide: indicators.get('{get_name}')['{key}'] — "
+                            f"'{get_name}' retourne un ndarray, pas un dict.",
+                        )
+
+            # Comparaisons/arithmétiques directes sur dict indicators
+            if isinstance(node, ast.Compare):
+                operands = [node.left, *node.comparators]
+                for operand in operands:
+                    if isinstance(operand, ast.Name):
+                        var = operand.id
+                        b = bindings.get(var)
+                        if b and b["kind"] == "dict":
+                            hint_key = _dict_indicator_allowed_keys_hint(
+                                str(b.get("indicator") or var)
+                            ).split(",")[0].strip()
+                            return (
+                                False,
+                                f"Usage invalide: comparaison `{var} ...` alors que "
+                                f"`{var}` est un indicator dict. Utiliser une sous-clé "
+                                f"(ex: {var}['{hint_key}']).",
+                            )
+
+            if isinstance(node, ast.BinOp):
+                for operand in (node.left, node.right):
+                    if isinstance(operand, ast.Name):
+                        var = operand.id
+                        b = bindings.get(var)
+                        if b and b["kind"] == "dict":
+                            hint_key = _dict_indicator_allowed_keys_hint(
+                                str(b.get("indicator") or var)
+                            ).split(",")[0].strip()
+                            return (
+                                False,
+                                f"Usage invalide: opération arithmétique sur `{var}` "
+                                "qui est un indicator dict. Utiliser une sous-clé "
+                                f"(ex: {var}['{hint_key}']).",
+                            )
+
+                if isinstance(node.op, (ast.BitAnd, ast.BitOr, ast.BitXor)):
+                    for operand in (node.left, node.right):
+                        if isinstance(operand, ast.Name):
+                            b = bindings.get(operand.id)
+                            if b and b["kind"] == "scalar":
+                                return (
+                                    False,
+                                    f"Usage invalide: opérateur logique bitwise avec "
+                                    f"scalaire `{operand.id}`. Comparer d'abord la valeur "
+                                    "scalaire (ex: `arr > threshold`) puis combiner les masques.",
+                                )
+                        if _is_numeric_nonbool_constant(operand):
+                            return (
+                                False,
+                                "Usage invalide: opérateur logique bitwise avec constante "
+                                "numérique. Utiliser des comparaisons booléennes de part et d'autre.",
+                            )
+
+            if isinstance(node, ast.BoolOp):
+                for operand in node.values:
+                    if isinstance(operand, ast.Name):
+                        var = operand.id
+                        b = bindings.get(var)
+                        if b and b["kind"] == "dict":
+                            hint_key = _dict_indicator_allowed_keys_hint(
+                                str(b.get("indicator") or var)
+                            ).split(",")[0].strip()
+                            return (
+                                False,
+                                f"Usage invalide: test booléen direct sur `{var}` "
+                                "qui est un indicator dict. Utiliser une sous-clé "
+                                f"(ex: {var}['{hint_key}']).",
+                            )
+
+            if isinstance(node, (ast.If, ast.While)) and isinstance(node.test, ast.Name):
+                var = node.test.id
+                b = bindings.get(var)
+                if b and b["kind"] == "dict":
+                    hint_key = _dict_indicator_allowed_keys_hint(
+                        str(b.get("indicator") or var)
+                    ).split(",")[0].strip()
+                    return (
+                        False,
+                        f"Usage invalide: condition `{var}` alors que `{var}` est un "
+                        f"indicator dict. Utiliser une sous-clé (ex: {var}['{hint_key}']).",
+                    )
 
     return True, ""
 
@@ -281,6 +1029,90 @@ def _repair_code(code: str) -> str:
     return code
 
 
+def _build_deterministic_fallback_code(proposal: Dict[str, Any]) -> str:
+    """Construit un code de stratégie minimal, robuste et syntaxiquement valide.
+
+    Utilisé en dernier recours si le LLM renvoie un code invalide même après retry.
+    L'objectif est d'éviter une itération en erreur pure (syntax/AST), quitte à
+    produire une logique simple.
+    """
+    strategy_name = str(proposal.get("strategy_name", "BuilderFallback")).strip()
+    if not strategy_name:
+        strategy_name = "BuilderFallback"
+    strategy_name = strategy_name.replace('"', "").replace("'", "")
+
+    used = proposal.get("used_indicators", [])
+    if not isinstance(used, list):
+        used = []
+    safe_used: List[str] = []
+    for x in used:
+        if isinstance(x, str):
+            sx = x.strip()
+            if sx:
+                safe_used.append(sx)
+    if len(safe_used) > 20:
+        safe_used = safe_used[:20]
+
+    default_params = proposal.get("default_params", {})
+    if not isinstance(default_params, dict):
+        default_params = {}
+    default_params_literal = _format_python_dict_literal(default_params)
+    default_params_lines = default_params_literal.splitlines() or ["{}"]
+    if len(default_params_lines) == 1:
+        default_params_block = f"        return {default_params_lines[0]}\n\n"
+    else:
+        default_params_block = "        return " + default_params_lines[0] + "\n"
+        default_params_block += "".join(
+            f"        {line}\n" for line in default_params_lines[1:]
+        )
+        default_params_block += "\n"
+
+    return (
+        "from typing import Any, Dict, List\n\n"
+        "import numpy as np\n"
+        "import pandas as pd\n\n"
+        "from utils.parameters import ParameterSpec\n"
+        "from strategies.base import StrategyBase\n\n\n"
+        f"class {GENERATED_CLASS_NAME}(StrategyBase):\n"
+        "    def __init__(self):\n"
+        f"        super().__init__(name=\"{strategy_name}\")\n\n"
+        "    @property\n"
+        "    def required_indicators(self) -> List[str]:\n"
+        f"        return {safe_used!r}\n\n"
+        "    @property\n"
+        "    def default_params(self) -> Dict[str, Any]:\n"
+        f"{default_params_block}"
+        "    @property\n"
+        "    def parameter_specs(self) -> Dict[str, ParameterSpec]:\n"
+        "        return {}\n\n"
+        "    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:\n"
+        "        n = len(df)\n"
+        "        signals = pd.Series(0.0, index=df.index, dtype=np.float64)\n"
+        "        def _align_len(arr: np.ndarray, target_len: int, fill: float = np.nan) -> np.ndarray:\n"
+        "            out = np.full(target_len, fill, dtype=np.float64)\n"
+        "            m = min(target_len, len(arr))\n"
+        "            if m > 0:\n"
+        "                out[:m] = arr[:m]\n"
+        "            return out\n"
+        "        close = _align_len(np.nan_to_num(df['close'].values.astype(np.float64)), n, fill=0.0)\n"
+        "        if len(close) < 2:\n"
+        "            return signals\n"
+        "        prev_close = np.roll(close, 1)\n"
+        "        prev_close[0] = close[0]\n"
+        "        long_mask = close > prev_close\n"
+        "        short_mask = close < prev_close\n"
+        "        rsi_raw = indicators.get('rsi')\n"
+        "        if isinstance(rsi_raw, np.ndarray):\n"
+        "            rsi = _align_len(np.nan_to_num(rsi_raw.astype(np.float64)), n)\n"
+        "            long_mask = long_mask & (rsi < 55)\n"
+        "            short_mask = short_mask & (rsi > 45)\n"
+        "        signals[long_mask] = 1.0\n"
+        "        signals[short_mask] = -1.0\n"
+        "        signals.iloc[:50] = 0.0\n"
+        "        return signals\n"
+    )
+
+
 # Prefixes de ligne indiquant du vrai code Python (pas du texte de docstring)
 _CODE_LINE_STARTS = (
     "def ", "class ", "@", "return ", "import ", "from ",
@@ -367,14 +1199,10 @@ def _normalize_proposal_keys(proposal: Dict[str, Any]) -> Dict[str, Any]:
         normalized[canonical] = value
 
     # Normaliser change_type (certains LLM retournent "logic|params|both")
-    ct = str(normalized.get("change_type", "")).strip()
-    if ct and ct not in ("logic", "params", "both", "accept"):
-        if "logic" in ct:
-            normalized["change_type"] = "logic"
-        elif "params" in ct:
-            normalized["change_type"] = "params"
-        else:
-            normalized["change_type"] = "both"
+    if "change_type" in normalized:
+        normalized["change_type"] = _normalize_change_type(
+            normalized.get("change_type", "")
+        )
 
     return normalized
 
@@ -392,12 +1220,291 @@ def _is_empty_proposal(proposal: Dict[str, Any]) -> bool:
     return False
 
 
+def _normalize_change_type(change_type: Any) -> str:
+    """Normalise le type de changement dans {logic, params, both, accept}."""
+    raw = str(change_type or "").strip().lower()
+    if raw in {"logic", "params", "both", "accept"}:
+        return raw
+    if "param" in raw:
+        return "params"
+    if "logic" in raw:
+        return "logic"
+    if "accept" in raw:
+        return "accept"
+    return "logic"
+
+
+def _policy_change_type_override(
+    *,
+    session: "BuilderSession",
+    last_iteration: Optional["BuilderIteration"],
+) -> Optional[str]:
+    """Force un type de modification cohérent avec le diagnostic récent.
+
+    Objectif: éviter les oscillations `both` quand le problème est clairement
+    structurel (ruined/no_trades/etc.).
+    """
+    if last_iteration is None:
+        return None
+
+    cat = str(getattr(last_iteration, "diagnostic_category", "") or "").strip().lower()
+    sev = str(
+        (getattr(last_iteration, "diagnostic_detail", {}) or {}).get("severity", "")
+    ).strip().lower()
+
+    # Pattern oscillant fréquent: ruined <-> no_trades
+    recent = [
+        str(getattr(it, "diagnostic_category", "") or "").strip().lower()
+        for it in (session.iterations[-3:] if session.iterations else [])
+        if str(getattr(it, "diagnostic_category", "") or "").strip()
+    ]
+    if len(recent) >= 2 and set(recent[-2:]).issubset({"ruined", "no_trades"}):
+        return "logic"
+
+    logic_cats = {
+        "ruined",
+        "no_trades",
+        "overtrading",
+        "wrong_direction",
+        "high_drawdown",
+        "needs_work",
+    }
+    param_cats = {"approaching_target", "marginal", "target_reached"}
+
+    if cat in logic_cats:
+        return "logic"
+    if cat in param_cats and sev in {"info", "success"}:
+        return "params"
+    return None
+
+
+def _is_placeholder_text(value: Any) -> bool:
+    """Détecte un champ placeholder/générique au lieu d'une vraie consigne."""
+    text = str(value or "").strip().lower()
+    if text in _PROPOSAL_PLACEHOLDER_VALUES:
+        return True
+    return (
+        "placeholder" in text
+        or text.startswith("example")
+        or text.startswith("exemple")
+        or "to achieve and why" in text
+    )
+
+
+def _proposal_issues(proposal: Dict[str, Any]) -> List[str]:
+    """Retourne la liste des raisons rendant une proposition invalide."""
+    issues: List[str] = []
+    if not proposal:
+        issues.append("empty_payload")
+        return issues
+
+    hyp = str(proposal.get("hypothesis", "")).strip()
+    inds = proposal.get("used_indicators", [])
+    if not hyp or hyp in ("—", "-", "N/A", ""):
+        issues.append("missing_hypothesis")
+    if not isinstance(inds, list) or not inds:
+        issues.append("missing_used_indicators")
+
+    critical_fields = (
+        "hypothesis",
+        "entry_long_logic",
+        "entry_short_logic",
+        "exit_logic",
+        "risk_management",
+    )
+    for key in critical_fields:
+        if _is_placeholder_text(proposal.get(key, "")):
+            issues.append(f"placeholder_{key}")
+
+    default_params = proposal.get("default_params")
+    if default_params is not None and not isinstance(default_params, dict):
+        issues.append("default_params_not_dict")
+
+    ct = _normalize_change_type(proposal.get("change_type", "logic"))
+    if ct not in ("logic", "params", "both", "accept"):
+        issues.append("invalid_change_type")
+
+    return issues
+
+
+def _proposal_has_placeholder_fields(proposal: Dict[str, Any]) -> bool:
+    """Détecte les placeholders sur les champs critiques d'une proposition."""
+    critical_fields = (
+        "hypothesis",
+        "entry_long_logic",
+        "entry_short_logic",
+        "exit_logic",
+        "risk_management",
+    )
+    for key in critical_fields:
+        if _is_placeholder_text(proposal.get(key, "")):
+            return True
+    return False
+
+
+def _is_invalid_proposal(proposal: Dict[str, Any]) -> bool:
+    """Validation minimale d'une proposition avant phase code."""
+    return bool(_proposal_issues(proposal))
+
+
 def _is_empty_code(code: str) -> bool:
     """Vérifie si le code généré est vide ou trivial."""
     stripped = code.strip()
     if not stripped:
         return True
     return len(stripped.splitlines()) < MIN_CODE_LINES
+
+
+def _looks_like_python_code(text: str) -> bool:
+    """Heuristique: détecte un contenu ressemblant à du code Python."""
+    if not text:
+        return False
+    lowered = text.lower()
+    markers = (
+        "```python",
+        "class ",
+        "def ",
+        "import ",
+        "from ",
+        "return ",
+        "np.",
+        "pd.",
+    )
+    return any(m in lowered for m in markers)
+
+
+def _looks_like_json_object(text: str) -> bool:
+    """Heuristique: détecte un contenu ressemblant à un objet JSON."""
+    if not text:
+        return False
+    stripped = text.strip().lower()
+    if stripped.startswith("```json"):
+        return True
+    return stripped.startswith("{") and stripped.endswith("}")
+
+
+def _looks_like_strategy_code(raw_text: str, code: str) -> bool:
+    """Validation heuristique du contenu attendu en phase code."""
+    if _is_empty_code(code):
+        return False
+    if _looks_like_json_object(raw_text) and not _looks_like_python_code(raw_text):
+        return False
+
+    lowered = code.lower()
+    return "class " in lowered and "generate_signals" in lowered
+
+
+def _classify_raw_response(text: str) -> str:
+    """Retourne la nature d'une réponse brute LLM pour debug de phase."""
+    if not text or not text.strip():
+        return "empty"
+    if _looks_like_json_object(text):
+        return "json"
+    if _looks_like_python_code(text):
+        return "python"
+    return "text"
+
+
+def _extract_required_indicators_signature(code: str) -> tuple[str, ...]:
+    """Retourne une signature stable des required_indicators depuis le code."""
+    try:
+        tree = ast.parse(code)
+    except Exception:
+        return tuple()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == GENERATED_CLASS_NAME:
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == "required_indicators":
+                    for stmt in item.body:
+                        if isinstance(stmt, ast.Return):
+                            try:
+                                value = ast.literal_eval(stmt.value)
+                            except Exception:
+                                return tuple()
+                            if isinstance(value, (list, tuple)):
+                                normalized = [str(v) for v in value]
+                                return tuple(sorted(normalized))
+    return tuple()
+
+
+def _extract_generate_signals_signature(code: str) -> str:
+    """Retourne une signature AST du corps de generate_signals."""
+    try:
+        tree = ast.parse(code)
+    except Exception:
+        return ""
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == GENERATED_CLASS_NAME:
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name == "generate_signals":
+                    return ast.dump(
+                        ast.Module(body=item.body, type_ignores=[]),
+                        include_attributes=False,
+                    )
+    return ""
+
+
+def _params_only_contract_respected(previous_code: str, new_code: str) -> tuple[bool, str]:
+    """Vérifie qu'une itération params-only n'a pas modifié la logique."""
+    prev_inds = _extract_required_indicators_signature(previous_code)
+    new_inds = _extract_required_indicators_signature(new_code)
+    if prev_inds and new_inds and prev_inds != new_inds:
+        return (
+            False,
+            f"required_indicators modifiés: avant={prev_inds} après={new_inds}",
+        )
+
+    prev_sig = _extract_generate_signals_signature(previous_code)
+    new_sig = _extract_generate_signals_signature(new_code)
+    if prev_sig and new_sig and prev_sig != new_sig:
+        return (
+            False,
+            "generate_signals modifié alors que change_type=params",
+        )
+
+    return True, ""
+
+
+def _format_python_dict_literal(data: Dict[str, Any]) -> str:
+    """Formate un dict Python de manière stable pour insertion dans le code."""
+    return pprint.pformat(data, width=88, sort_dicts=True, compact=False)
+
+
+def _rewrite_default_params_from_proposal(
+    previous_code: str,
+    proposal: Dict[str, Any],
+) -> Optional[str]:
+    """Réécrit uniquement default_params dans un code existant (mode params-only)."""
+    default_params = proposal.get("default_params")
+    if not isinstance(default_params, dict) or not default_params:
+        return None
+
+    pattern = re.compile(
+        r"(?ms)^(\s*)(def\s+default_params\s*\(\s*self\s*\)\s*(?:->\s*[^:\n]+)?\s*:)\n"
+        r".*?(?=^\1(?:def\s+|@property)|^\s*class\s+|\Z)"
+    )
+    match = pattern.search(previous_code)
+    if not match:
+        return None
+
+    indent = match.group(1)
+    def_header = match.group(2)
+    body_indent = indent + "    "
+    literal = _format_python_dict_literal(default_params)
+    literal_lines = literal.splitlines() or ["{}"]
+
+    if len(literal_lines) == 1:
+        return_stmt = f"{body_indent}return {literal_lines[0]}\n"
+    else:
+        return_stmt = f"{body_indent}return {literal_lines[0]}\n"
+        return_stmt += "".join(f"{body_indent}{line}\n" for line in literal_lines[1:])
+
+    replacement = f"{indent}{def_header}\n{return_stmt}"
+
+    patched = previous_code[:match.start()] + replacement + previous_code[match.end():]
+    return patched
 
 
 # ---------------------------------------------------------------------------
@@ -727,7 +1834,10 @@ class StrategyBuilder:
     @staticmethod
     def create_session_id(objective: str) -> str:
         """Génère un identifiant de session unique."""
-        slug = re.sub(r"[^a-z0-9]+", "_", objective.lower())[:40].strip("_")
+        normalized = sanitize_objective_text(objective).lower()
+        slug = re.sub(r"[^a-z0-9]+", "_", normalized)[:40].strip("_")
+        if not slug:
+            slug = "builder_session"
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{ts}_{slug}"
 
@@ -744,8 +1854,12 @@ class StrategyBuilder:
         self,
         session: BuilderSession,
         last_iteration: Optional[BuilderIteration] = None,
-    ) -> Dict[str, Any]:
-        """Demande au LLM une proposition de stratégie."""
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        """Demande au LLM une proposition de stratégie.
+
+        Returns:
+            (proposal, feedback)
+        """
         context = {
             "objective": session.objective,
             "available_indicators": self.available_indicators,
@@ -811,27 +1925,95 @@ class StrategyBuilder:
             ]
 
         prompt = render_prompt("strategy_builder_proposal.jinja2", context)
+        base_messages = [
+            LLMMessage(role="system", content=self._system_prompt_proposal()),
+            LLMMessage(role="user", content=prompt),
+        ]
 
         response = self._chat_llm(
-            messages=[
-                LLMMessage(role="system", content=self._system_prompt_proposal()),
-                LLMMessage(role="user", content=prompt),
-            ],
+            messages=base_messages,
             phase="proposal",
             json_mode=True,
             max_tokens=4096,
         )
+        raw = response.content or ""
+        feedback: Dict[str, Any] = {
+            "phase": "proposal",
+            "initial_kind": _classify_raw_response(raw),
+            "realign_attempts": 0,
+            "realign_success": False,
+            "issues": [],
+        }
+        proposal = _normalize_proposal_keys(_extract_json_from_response(raw))
+        issues = _proposal_issues(proposal)
+        feedback["issues"] = issues
+        if not issues:
+            proposal["change_type"] = _normalize_change_type(
+                proposal.get("change_type", "logic")
+            )
+            feedback["final_kind"] = feedback["initial_kind"]
+            feedback["final_valid"] = True
+            return proposal, feedback
 
-        return _normalize_proposal_keys(
-            _extract_json_from_response(response.content)
-        )
+        # Phase guard: certains modèles répondent du code / texte libre.
+        for attempt in range(1, MAX_PHASE_REALIGN_ATTEMPTS + 1):
+            if _looks_like_python_code(raw):
+                mismatch = "You answered with Python code, but this is PROPOSAL phase."
+            elif _looks_like_json_object(raw):
+                mismatch = "You answered JSON but with missing/placeholder fields."
+            else:
+                mismatch = "You answered with text/explanations, not strict strategy JSON."
+
+            correction = (
+                "PHASE LOCK: PROPOSAL ONLY.\n"
+                f"{mismatch}\n\n"
+                "Return EXACTLY one valid JSON object and nothing else.\n"
+                "Forbidden in this phase: Python code, markdown, commentary, objective rewrite.\n"
+                "All fields must be concrete (no placeholders like 'brief description').\n"
+                "Required keys: strategy_name, hypothesis, change_type, "
+                "used_indicators, entry_long_logic, entry_short_logic, exit_logic, "
+                "risk_management, default_params, parameter_specs.\n"
+                "change_type must be one of: logic, params, both, accept."
+            )
+            response = self._chat_llm(
+                messages=[
+                    *base_messages,
+                    LLMMessage(role="assistant", content=raw[:4000]),
+                    LLMMessage(role="user", content=correction),
+                ],
+                phase=f"proposal_realign_{attempt}",
+                json_mode=(attempt == 1),
+                max_tokens=4096,
+            )
+            raw = response.content or ""
+            feedback["realign_attempts"] = attempt
+            proposal = _normalize_proposal_keys(_extract_json_from_response(raw))
+            issues = _proposal_issues(proposal)
+            feedback["issues"] = issues
+            if not issues:
+                proposal["change_type"] = _normalize_change_type(
+                    proposal.get("change_type", "logic")
+                )
+                feedback["realign_success"] = True
+                feedback["final_kind"] = _classify_raw_response(raw)
+                feedback["final_valid"] = True
+                return proposal, feedback
+
+        feedback["final_kind"] = _classify_raw_response(raw)
+        feedback["final_valid"] = False
+        return proposal, feedback
 
     def _ask_code(
         self,
         session: BuilderSession,
         proposal: Dict[str, Any],
-    ) -> str:
-        """Demande au LLM de générer le code Python complet."""
+        last_iteration: Optional[BuilderIteration] = None,
+    ) -> tuple[str, Dict[str, Any]]:
+        """Demande au LLM de générer le code Python complet.
+
+        Returns:
+            (code, feedback)
+        """
         context = {
             "objective": session.objective,
             "proposal": proposal,
@@ -844,20 +2026,79 @@ class StrategyBuilder:
             "fees_bps": session.fees_bps,
             "slippage_bps": session.slippage_bps,
             "initial_capital": session.initial_capital,
+            "previous_code": (
+                last_iteration.code
+                if last_iteration is not None and getattr(last_iteration, "code", "")
+                else ""
+            ),
         }
 
         prompt = render_prompt("strategy_builder_code.jinja2", context)
+        base_messages = [
+            LLMMessage(role="system", content=self._system_prompt_code()),
+            LLMMessage(role="user", content=prompt),
+        ]
 
         response = self._chat_llm(
-            messages=[
-                LLMMessage(role="system", content=self._system_prompt_code()),
-                LLMMessage(role="user", content=prompt),
-            ],
+            messages=base_messages,
             phase="code",
             max_tokens=4096,
         )
+        raw = response.content or ""
+        feedback: Dict[str, Any] = {
+            "phase": "code",
+            "initial_kind": _classify_raw_response(raw),
+            "realign_attempts": 0,
+            "realign_success": False,
+        }
+        code = _extract_python_from_response(raw)
+        if _looks_like_strategy_code(raw, code):
+            feedback["final_kind"] = feedback["initial_kind"]
+            feedback["final_valid"] = True
+            return code, feedback
 
-        return _extract_python_from_response(response.content)
+        # Phase guard: certains modèles reviennent en mode JSON/proposition.
+        for attempt in range(1, MAX_PHASE_REALIGN_ATTEMPTS + 1):
+            if _looks_like_json_object(raw):
+                mismatch = "You answered JSON/proposal content, but this is CODE phase."
+            elif _looks_like_python_code(raw):
+                mismatch = (
+                    "You answered Python but not a full strategy class. "
+                    "Return a complete class."
+                )
+            else:
+                mismatch = "You answered non-code text, not executable Python."
+
+            correction = (
+                "PHASE LOCK: CODE ONLY.\n"
+                f"{mismatch}\n\n"
+                f"Return ONLY executable Python code for class {GENERATED_CLASS_NAME}.\n"
+                "Do not output JSON, strategy objective rewrite, or commentary.\n"
+                "Must include: class definition, required_indicators, default_params, "
+                "generate_signals.\n"
+                "No placeholders."
+            )
+            response = self._chat_llm(
+                messages=[
+                    *base_messages,
+                    LLMMessage(role="assistant", content=raw[:6000]),
+                    LLMMessage(role="user", content=correction),
+                ],
+                phase=f"code_realign_{attempt}",
+                max_tokens=4096,
+            )
+            raw = response.content or ""
+            feedback["realign_attempts"] = attempt
+            code = _extract_python_from_response(raw)
+            if _looks_like_strategy_code(raw, code):
+                feedback["realign_success"] = True
+                feedback["final_kind"] = _classify_raw_response(raw)
+                feedback["final_valid"] = True
+                return code, feedback
+
+        feedback["final_kind"] = _classify_raw_response(raw)
+        feedback["final_valid"] = False
+        return code, feedback
 
     def _retry_proposal_simple(self, objective: str) -> Dict[str, Any]:
         """Prompt simplifié quand le LLM ne répond pas au template riche.
@@ -872,22 +2113,23 @@ class StrategyBuilder:
             "Reply ONLY with this JSON:\n"
             "{\n"
             '  "strategy_name": "my_strategy",\n'
-            '  "hypothesis": "brief description",\n'
+            '  "hypothesis": "one concrete sentence explaining why this setup should work",\n'
             '  "change_type": "logic",\n'
             '  "used_indicators": ["rsi", "bollinger"],\n'
-            '  "entry_long_logic": "when to BUY",\n'
-            '  "entry_short_logic": "when to SELL",\n'
-            '  "exit_logic": "when to close",\n'
-            '  "risk_management": "SL/TP rules",\n'
-            '  "default_params": {},\n'
-            '  "parameter_specs": {}\n'
+            '  "entry_long_logic": "explicit rule with thresholds, e.g. RSI<30 and close<lower band",\n'
+            '  "entry_short_logic": "explicit rule with thresholds, e.g. RSI>70 and close>upper band",\n'
+            '  "exit_logic": "explicit close rule, e.g. mean reversion to middle band or RSI cross 50",\n'
+            '  "risk_management": "ATR stop and ATR take-profit with concrete multipliers",\n'
+            '  "default_params": {"rsi_period": 14, "rsi_oversold": 30, "rsi_overbought": 70, "stop_atr_mult": 1.5, "tp_atr_mult": 3.0},\n'
+            '  "parameter_specs": {"rsi_period": {"min": 5, "max": 50, "default": 14, "type": "int"}}\n'
             "}"
         )
         sys_msg = LLMMessage(
             role="system",
             content=(
                 "You are a quant trader. "
-                "Reply ONLY with valid JSON. No commentary. No thinking."
+                "Reply ONLY with valid JSON. No commentary. No thinking. "
+                "No placeholders."
             ),
         )
         user_msg = LLMMessage(role="user", content=prompt)
@@ -932,6 +2174,15 @@ class StrategyBuilder:
             f"Indicators: {inds}\n"
             f"LONG when: {entry_l}\n"
             f"SHORT when: {entry_s}\n\n"
+            "IMPORTANT:\n"
+            "- indicator values are numpy arrays (or dict of numpy arrays)\n"
+            "- never use .iloc/.loc on indicators; use arr[i] or vectorized masks\n"
+            "- bollinger must be indicators['bollinger']['upper|middle|lower']\n\n"
+            "- adx must be indicators['adx']['adx|plus_di|minus_di'] (not indicators['adx'] directly)\n"
+            "- supertrend must be indicators['supertrend']['supertrend|direction'] (no upper/lower)\n"
+            "- do not compare dict indicators directly (e.g. NEVER `adx > 25`)\n"
+            "- for `&` / `|`, ensure both sides are boolean masks (no float/int scalar in bitwise op)\n\n"
+            "- ema/rsi/atr are plain arrays: NEVER use indicators['ema']['ema_21'] style\n\n"
             "EXACT structure:\n\n"
             "```python\n"
             "from typing import Any, Dict, List\n"
@@ -966,6 +2217,54 @@ class StrategyBuilder:
                 LLMMessage(role="user", content=prompt),
             ],
             phase="retry_code",
+        )
+        return _extract_python_from_response(response.content)
+
+    def _retry_code_runtime_fix(
+        self,
+        proposal: Dict[str, Any],
+        failing_code: str,
+        runtime_error: str,
+    ) -> str:
+        """Demande une correction ciblée d'un code qui a échoué au runtime backtest."""
+        prompt = (
+            "The following strategy code failed at runtime during backtest.\n\n"
+            f"Runtime error: {runtime_error}\n\n"
+            "Fix ONLY what is necessary to remove the runtime error while keeping "
+            "the strategy intent intact.\n"
+            "Rules:\n"
+            "- Class name must remain BuilderGeneratedStrategy\n"
+            "- Keep required_indicators coherent with indicator usage\n"
+            "- Use indicators dict correctly (dict indicators via sub-keys)\n"
+            "- Indicator values are numpy arrays; never call .iloc/.loc on indicators\n"
+            "- Use bollinger as indicators['bollinger']['upper|middle|lower'] only\n"
+            "- Use adx as indicators['adx']['adx|plus_di|minus_di'] only\n"
+            "- Use supertrend as indicators['supertrend']['supertrend|direction'] only\n"
+            "- Do NOT compare dict indicators directly (e.g. avoid `adx > threshold`)\n"
+            "- For bitwise `&` / `|`, each side must be a boolean mask expression\n"
+            "- ema/rsi/atr are arrays: do not use sub-keys like indicators['ema']['ema_21']\n"
+            "- Do not use df['rsi']/df['ema']/df['bollinger']\n"
+            "- Return only Python code in one ```python block\n\n"
+            f"Current proposal context: {proposal}\n\n"
+            "Failing code:\n"
+            "```python\n"
+            f"{failing_code}\n"
+            "```"
+        )
+        response = self._chat_llm(
+            messages=[
+                LLMMessage(
+                    role="system",
+                    content=(
+                        "You are a senior Python quant developer. "
+                        "Fix runtime errors in trading strategy code. "
+                        "Output code only."
+                    ),
+                ),
+                LLMMessage(role="user", content=prompt),
+            ],
+            phase="retry_code_runtime",
+            max_tokens=4096,
         )
         return _extract_python_from_response(response.content)
 
@@ -1061,6 +2360,8 @@ class StrategyBuilder:
                     "Analyse les résultats de backtest et le diagnostic fourni. "
                     "Décide: accept (cible atteinte + robuste), "
                     "continue (amélioration possible), stop (impasse). "
+                    "Privilégie 'continue' tant que des tests supplémentaires "
+                    "peuvent améliorer la stratégie. "
                     "Sois concis. Réponds en JSON."
                 )),
                 LLMMessage(role="user", content=prompt),
@@ -1095,6 +2396,8 @@ RULES:
 - Use 2-3 indicators max to avoid overfitting
 - Include realistic default_params with sensible ranges in parameter_specs
 - hypothesis must explain WHY this combination should work, not just WHAT it does
+- Never output placeholder values (e.g. "brief description", "when to BUY")
+- This phase is proposal-only: NEVER output Python code
 
 Focus on signal quality, risk management, and robustness."""
 
@@ -1114,6 +2417,20 @@ CRITICAL RULES:
 8. Do NOT use triple-quoted docstrings — use single-line # comments ONLY
 9. Output ONLY Python code in a ```python block. No text before or after.
 10. Skip warmup: set signals.iloc[:50] = 0.0 to avoid NaN-driven false signals
+11. STRICT CHANGE CONTRACT:
+   - if proposal.change_type == "params": keep same required_indicators and same generate_signals logic.
+     Only edit default_params (and optionally parameter_specs).
+   - if proposal.change_type == "logic": modify logic/indicators/filters.
+   - if proposal.change_type == "both": modify both logic and params.
+12. This phase is code-only: NEVER output JSON/proposal/objective rewrite.
+13. Never access indicators via df['rsi']/df['ema']/df['bollinger']; always use indicators['name'].
+14. For dict indicators (bollinger/macd/adx/stochastic/etc), access sub-keys before np.nan_to_num.
+15. Indicator values are numpy arrays (or dict of numpy arrays): NEVER use .iloc/.loc/.shift/.rolling on indicators.
+16. Bollinger must be used as indicators['bollinger']['upper|middle|lower'] (never indicators['bollinger_upper']).
+17. EMA/RSI/ATR are plain arrays: NEVER use sub-keys like indicators['ema']['ema_21'].
+18. ADX must be used as indicators['adx']['adx|plus_di|minus_di'] (never compare indicators['adx'] directly).
+19. Supertrend must be used as indicators['supertrend']['supertrend|direction'] (no upper/lower keys).
+20. For bitwise '&' and '|', both sides must be boolean mask expressions (never float/int scalars).
 
 The code must be ready to execute with ZERO modifications."""
 
@@ -1180,9 +2497,13 @@ The code must be ready to execute with ZERO modifications."""
             La classe (éventuellement patchée)
         """
         # Extraire tous les noms d'indicateurs référencés dans le code
-        used_in_code = set(
-            re.findall(r'indicators\s*\[\s*["\'](\w+)["\']\s*\]', code)
-        )
+        try:
+            tree = ast.parse(code)
+            used_in_code = _collect_indicator_names(tree)
+        except Exception:
+            used_in_code = set(
+                re.findall(r'indicators\s*\[\s*["\'](\w+)["\']\s*\]', code)
+            )
 
         if not used_in_code:
             return strategy_cls
@@ -1214,8 +2535,6 @@ The code must be ready to execute with ZERO modifications."""
         )
 
         strategy_cls._patched_required = new_required
-
-        original_prop = type(instance).required_indicators
 
         @property
         def _patched_required_indicators(self):
@@ -1312,6 +2631,22 @@ The code must be ready to execute with ZERO modifications."""
         Returns:
             BuilderSession avec l'historique complet et le meilleur résultat
         """
+        raw_objective = str(objective or "")
+        objective = sanitize_objective_text(raw_objective)
+        if not objective and not _looks_like_log_pollution(raw_objective):
+            objective = raw_objective.strip()
+        if raw_objective.strip() != objective:
+            logger.warning(
+                "builder_objective_sanitized raw_len=%d clean_len=%d",
+                len(raw_objective),
+                len(objective),
+            )
+        if not objective:
+            raise ValueError(
+                "Objectif Builder vide ou invalide après nettoyage "
+                "(probable collage de logs/traceback)."
+            )
+
         session_id = self.create_session_id(objective)
         session_dir = self.get_session_dir(session_id)
         session_dir.mkdir(parents=True, exist_ok=True)
@@ -1376,26 +2711,35 @@ The code must be ready to execute with ZERO modifications."""
                 logger.info("builder_iter_%d_proposal", i)
                 ts.proposal_sent(has_previous=last_iteration is not None)
                 t0 = time.perf_counter()
-                proposal = self._ask_proposal(session, last_iteration)
+                proposal, proposal_feedback = self._ask_proposal(
+                    session, last_iteration
+                )
+                iteration.phase_feedback["proposal"] = proposal_feedback
                 dt_proposal = time.perf_counter() - t0
 
                 # Garde : proposition vide → retry avec prompt simplifié
-                if _is_empty_proposal(proposal):
+                if _is_invalid_proposal(proposal):
                     ts.warning(
-                        "Proposition vide reçue — retry avec prompt simplifié"
+                        "Proposition invalide/hors phase — retry avec prompt simplifié"
                     )
                     ts.retry("proposition", 2)
                     logger.warning(
-                        "builder_iter_%d_empty_proposal proposal=%s — retrying",
+                        "builder_iter_%d_invalid_proposal proposal=%s — retrying",
                         i, proposal,
                     )
                     t0 = time.perf_counter()
                     proposal = self._retry_proposal_simple(objective)
+                    iteration.phase_feedback.setdefault(
+                        "proposal", {}
+                    )["fallback_retry_used"] = True
+                    iteration.phase_feedback.setdefault(
+                        "proposal", {}
+                    )["issues_after_retry"] = _proposal_issues(proposal)
                     dt_proposal = time.perf_counter() - t0
 
-                    if _is_empty_proposal(proposal):
+                    if _is_invalid_proposal(proposal):
                         ts.warning(
-                            "Proposition toujours vide après retry — skip itération"
+                            "Proposition toujours invalide après retry — skip itération"
                         )
                         iteration.error = (
                             "LLM incapable de produire une proposition. "
@@ -1409,7 +2753,29 @@ The code must be ready to execute with ZERO modifications."""
                 iteration.hypothesis = proposal.get(
                     "hypothesis", f"Itération {i}"
                 )
-                iteration.change_type = proposal.get("change_type", "")
+                proposal["change_type"] = _normalize_change_type(
+                    proposal.get("change_type", "logic")
+                )
+                policy_ct = _policy_change_type_override(
+                    session=session,
+                    last_iteration=last_iteration,
+                )
+                if policy_ct and proposal["change_type"] != policy_ct:
+                    iteration.phase_feedback.setdefault("proposal", {})[
+                        "change_type_overridden"
+                    ] = {
+                        "from": proposal["change_type"],
+                        "to": policy_ct,
+                        "reason": "diagnostic_policy",
+                    }
+                    logger.info(
+                        "builder_iter_%d_change_type_overridden from=%s to=%s",
+                        i,
+                        proposal["change_type"],
+                        policy_ct,
+                    )
+                    proposal["change_type"] = policy_ct
+                iteration.change_type = proposal["change_type"]
                 ts.proposal_received(proposal, dt_proposal)
 
                 # Valider que les indicateurs demandés existent
@@ -1431,24 +2797,82 @@ The code must be ready to execute with ZERO modifications."""
                 logger.info("builder_iter_%d_codegen", i)
                 ts.codegen_sent()
                 t0 = time.perf_counter()
-                code = self._ask_code(session, proposal)
+                change_type = _normalize_change_type(
+                    proposal.get("change_type", "logic")
+                )
+                has_stable_base_code = bool(
+                    last_iteration
+                    and last_iteration.code
+                    and last_iteration.error is None
+                    and last_iteration.backtest_result is not None
+                )
+                if change_type == "params" and not has_stable_base_code:
+                    iteration.phase_feedback.setdefault("proposal", {})[
+                        "change_type_overridden"
+                    ] = {
+                        "from": "params",
+                        "to": "logic",
+                        "reason": "no_stable_base_code",
+                    }
+                    logger.info(
+                        "builder_iter_%d_change_type_overridden from=params to=logic "
+                        "reason=no_stable_base_code",
+                        i,
+                    )
+                    change_type = "logic"
+                    proposal["change_type"] = "logic"
+                    iteration.change_type = "logic"
+                code: str
+                code_feedback: Dict[str, Any] = {
+                    "phase": "code",
+                    "initial_kind": "local_patch",
+                    "realign_attempts": 0,
+                    "realign_success": False,
+                    "final_valid": True,
+                }
+                if change_type == "params" and has_stable_base_code and last_iteration and last_iteration.code:
+                    patched = _rewrite_default_params_from_proposal(
+                        last_iteration.code, proposal,
+                    )
+                    if patched:
+                        code = patched
+                        code_feedback["source"] = "params_patch"
+                        code_feedback["final_kind"] = "python"
+                        iteration.phase_feedback["code"] = code_feedback
+                        logger.info(
+                            "builder_iter_%d_params_only_patch applied (no logic rewrite)",
+                            i,
+                        )
+                    else:
+                        code, code_feedback = self._ask_code(
+                            session, proposal, last_iteration
+                        )
+                        iteration.phase_feedback["code"] = code_feedback
+                else:
+                    code, code_feedback = self._ask_code(
+                        session, proposal, last_iteration
+                    )
+                    iteration.phase_feedback["code"] = code_feedback
                 dt_code = time.perf_counter() - t0
 
                 # Garde : code vide/trivial → retry avec prompt simplifié
-                if _is_empty_code(code):
+                if not _looks_like_strategy_code(code, code):
                     ts.warning(
-                        f"Code vide/trivial ({len(code.strip().splitlines())} lignes)"
+                        f"Code invalide/hors phase ({len(code.strip().splitlines())} lignes)"
                         " — retry avec prompt simplifié"
                     )
                     ts.retry("code", 2)
                     logger.warning("builder_iter_%d_empty_code — retrying", i)
                     t0 = time.perf_counter()
                     code = self._retry_code_simple(proposal)
+                    iteration.phase_feedback.setdefault("code", {})[
+                        "fallback_retry_used"
+                    ] = True
                     dt_code = time.perf_counter() - t0
 
-                    if _is_empty_code(code):
+                    if not _looks_like_strategy_code(code, code):
                         ts.warning(
-                            "Code toujours vide après retry — skip itération"
+                            "Code toujours invalide après retry — skip itération"
                         )
                         iteration.code = code
                         iteration.error = (
@@ -1462,6 +2886,42 @@ The code must be ready to execute with ZERO modifications."""
 
                 iteration.code = code
                 ts.codegen_received(code, dt_code)
+
+                # Contrat strict params-only: logique identique entre itérations.
+                if change_type == "params" and last_iteration and last_iteration.code:
+                    contract_ok, contract_reason = _params_only_contract_respected(
+                        last_iteration.code,
+                        code,
+                    )
+                    if not contract_ok:
+                        ts.warning(f"Violation params-only: {contract_reason}")
+                        logger.warning(
+                            "builder_iter_%d_params_only_violation: %s",
+                            i,
+                            contract_reason,
+                        )
+                        patched = _rewrite_default_params_from_proposal(
+                            last_iteration.code, proposal,
+                        )
+                        if patched:
+                            code = patched
+                            iteration.code = code
+                            ts.warning(
+                                "Correctif automatique appliqué: "
+                                "logique précédente conservée, params réécrits."
+                            )
+                        else:
+                            # Fallback non bloquant: conserver la version précédente
+                            # plutôt que casser la session entière sur une itération params.
+                            code = last_iteration.code
+                            iteration.code = code
+                            iteration.phase_feedback.setdefault("code", {})[
+                                "params_contract_fallback"
+                            ] = "reused_previous_code"
+                            ts.warning(
+                                "Fallback params-only: code précédent conservé "
+                                "(patch default_params impossible)."
+                            )
 
                 # ── Phase 3 : Auto-repair + Validation syntaxe + sécurité ──
                 code = _repair_code(code)
@@ -1483,7 +2943,28 @@ The code must be ready to execute with ZERO modifications."""
                         iteration.code = code
                         is_valid, error_msg = True, ""
                     else:
-                        error_msg = f"{error_msg} | retry: {error_msg_r}"
+                        # Fallback déterministe pour ne pas perdre l'itération
+                        fallback_code = _build_deterministic_fallback_code(proposal)
+                        fallback_code = _repair_code(fallback_code)
+                        is_valid_fb, error_msg_fb = validate_generated_code(fallback_code)
+                        if is_valid_fb:
+                            code = fallback_code
+                            iteration.code = code
+                            iteration.phase_feedback.setdefault("code", {})[
+                                "fallback_deterministic_used"
+                            ] = True
+                            iteration.phase_feedback.setdefault("code", {})[
+                                "source"
+                            ] = "deterministic_fallback"
+                            ts.warning(
+                                "Code LLM invalide après retry: fallback déterministe appliqué."
+                            )
+                            is_valid, error_msg = True, ""
+                        else:
+                            error_msg = (
+                                f"{error_msg} | retry: {error_msg_r} | "
+                                f"fallback: {error_msg_fb}"
+                            )
 
                 ts.validation(is_valid, error_msg)
                 if not is_valid:
@@ -1507,13 +2988,105 @@ The code must be ready to execute with ZERO modifications."""
                 logger.info("builder_iter_%d_backtest", i)
                 ts.backtest_start()
                 default_params = proposal.get("default_params", {})
-                bt_result = self._run_backtest(
-                    strategy_cls, data, default_params, initial_capital,
-                    symbol=session.symbol,
-                    timeframe=session.timeframe,
-                    fees_bps=session.fees_bps,
-                    slippage_bps=session.slippage_bps,
-                )
+                try:
+                    bt_result = self._run_backtest(
+                        strategy_cls, data, default_params, initial_capital,
+                        symbol=session.symbol,
+                        timeframe=session.timeframe,
+                        fees_bps=session.fees_bps,
+                        slippage_bps=session.slippage_bps,
+                    )
+                except Exception as bt_exc:
+                    bt_error = f"{type(bt_exc).__name__}: {bt_exc}"
+                    iteration.phase_feedback.setdefault("backtest", {})[
+                        "runtime_error"
+                    ] = bt_error
+                    ts.warning(
+                        f"Backtest runtime error: {bt_error} — tentative auto-fix"
+                    )
+                    logger.warning(
+                        "builder_iter_%d_backtest_runtime_error: %s", i, bt_error
+                    )
+
+                    retry_code = self._retry_code_runtime_fix(
+                        proposal=proposal,
+                        failing_code=code,
+                        runtime_error=bt_error,
+                    )
+                    retry_code = _repair_code(retry_code)
+                    valid_retry, retry_err = validate_generated_code(retry_code)
+                    used_runtime_fallback = False
+                    if not valid_retry:
+                        iteration.phase_feedback.setdefault("backtest", {})[
+                            "runtime_fix_validation_error"
+                        ] = retry_err
+                        fallback_code = _build_deterministic_fallback_code(proposal)
+                        fallback_code = _repair_code(fallback_code)
+                        valid_fb, fb_err = validate_generated_code(fallback_code)
+                        if not valid_fb:
+                            raise ValueError(
+                                "Runtime-fix invalide et fallback déterministe invalide: "
+                                f"{retry_err} | {fb_err}"
+                            )
+                        retry_code = fallback_code
+                        used_runtime_fallback = True
+                        iteration.phase_feedback.setdefault("backtest", {})[
+                            "runtime_fix_fallback_deterministic_used"
+                        ] = True
+                        iteration.phase_feedback.setdefault("code", {})[
+                            "source"
+                        ] = "deterministic_fallback"
+
+                    retry_cls = self._save_and_load(session, retry_code, i)
+                    retry_cls = self._auto_fix_required_indicators(
+                        retry_cls, retry_code
+                    )
+                    try:
+                        bt_result = self._run_backtest(
+                            retry_cls, data, default_params, initial_capital,
+                            symbol=session.symbol,
+                            timeframe=session.timeframe,
+                            fees_bps=session.fees_bps,
+                            slippage_bps=session.slippage_bps,
+                        )
+                    except Exception as retry_bt_exc:
+                        if used_runtime_fallback:
+                            raise
+                        iteration.phase_feedback.setdefault("backtest", {})[
+                            "runtime_fix_retry_error"
+                        ] = f"{type(retry_bt_exc).__name__}: {retry_bt_exc}"
+                        fallback_code = _build_deterministic_fallback_code(proposal)
+                        fallback_code = _repair_code(fallback_code)
+                        valid_fb2, fb_err2 = validate_generated_code(fallback_code)
+                        if not valid_fb2:
+                            raise ValueError(
+                                "Runtime-fix backtest failed and deterministic fallback "
+                                f"is invalid: {fb_err2}"
+                            )
+                        fallback_cls = self._save_and_load(session, fallback_code, i)
+                        fallback_cls = self._auto_fix_required_indicators(
+                            fallback_cls, fallback_code
+                        )
+                        bt_result = self._run_backtest(
+                            fallback_cls, data, default_params, initial_capital,
+                            symbol=session.symbol,
+                            timeframe=session.timeframe,
+                            fees_bps=session.fees_bps,
+                            slippage_bps=session.slippage_bps,
+                        )
+                        retry_code = fallback_code
+                        used_runtime_fallback = True
+                        iteration.phase_feedback.setdefault("backtest", {})[
+                            "runtime_fix_fallback_deterministic_used"
+                        ] = True
+                        iteration.phase_feedback.setdefault("code", {})[
+                            "source"
+                        ] = "deterministic_fallback"
+                    code = retry_code
+                    iteration.code = retry_code
+                    iteration.phase_feedback.setdefault("backtest", {})[
+                        "runtime_fix_applied"
+                    ] = True
                 iteration.backtest_result = bt_result
                 ts.backtest_result(bt_result.metrics)
 
@@ -1521,11 +3094,13 @@ The code must be ready to execute with ZERO modifications."""
                 consecutive_failures = 0
 
                 # ── Phase 6 : Mise à jour best ──
-                sharpe = bt_result.metrics.get("sharpe_ratio", float("-inf"))
-                if sharpe > session.best_sharpe:
-                    session.best_sharpe = sharpe
+                metrics_cur = bt_result.metrics or {}
+                sharpe = _metric_float(metrics_cur, "sharpe_ratio", float("-inf"))
+                rank_sharpe = _ranking_sharpe(metrics_cur)
+                if rank_sharpe > session.best_sharpe:
+                    session.best_sharpe = rank_sharpe
                     session.best_iteration = iteration
-                    ts.best_update(sharpe, i)
+                    ts.best_update(rank_sharpe, i)
 
                 # ── Phase 7 : Diagnostic déterministe + Analyse LLM ──
                 logger.info("builder_iter_%d_diagnostic", i)
@@ -1545,7 +3120,9 @@ The code must be ready to execute with ZERO modifications."""
                 iteration.diagnostic_category = diag["category"]
                 iteration.diagnostic_detail = diag
                 if not iteration.change_type:
-                    iteration.change_type = diag["change_type"]
+                    iteration.change_type = _normalize_change_type(
+                        diag.get("change_type", "logic")
+                    )
                 ts.diagnostic(diag)
 
                 logger.info(
@@ -1558,6 +3135,69 @@ The code must be ready to execute with ZERO modifications."""
                     session, iteration, diag,
                 )
                 dt_analysis = time.perf_counter() - t0
+
+                # Garde anti-arrêt prématuré: forcer la phase d'ajustement
+                # tant que la session n'a pas suffisamment itéré.
+                successful_iters = (
+                    sum(1 for it in session.iterations if it.backtest_result is not None)
+                    + 1
+                )
+                if decision == "stop" and i < max_iterations:
+                    if (
+                        successful_iters < MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP
+                        or session.best_sharpe < session.target_sharpe
+                    ):
+                        ts.warning(
+                            "Décision 'stop' ignorée: poursuite obligatoire "
+                            "de la phase test/ajustement."
+                        )
+                        logger.info(
+                            "builder_iter_%d_stop_overridden successful_iters=%d "
+                            "best_sharpe=%.3f target=%.3f",
+                            i,
+                            successful_iters,
+                            session.best_sharpe,
+                            session.target_sharpe,
+                        )
+                        decision = "continue"
+                        analysis = (
+                            f"{analysis}\n"
+                            "[Policy] stop overridden to continue optimization."
+                        )
+                        iteration.phase_feedback.setdefault("decision", {})[
+                            "stop_overridden"
+                        ] = True
+
+                trades = int(metrics_cur.get("total_trades", 0) or 0)
+                max_dd = abs(float(metrics_cur.get("max_drawdown_pct", 0) or 0))
+                accept_allowed, accept_reason = _is_accept_candidate(
+                    metrics_cur,
+                    target_sharpe=session.target_sharpe,
+                )
+                if decision == "accept" and i < max_iterations:
+                    if not accept_allowed:
+                        ts.warning(
+                            "Décision 'accept' ignorée: qualité statistique "
+                            "insuffisante, poursuite optimisation."
+                        )
+                        logger.info(
+                            "builder_iter_%d_accept_overridden reason=%s trades=%d "
+                            "rank_sharpe=%.3f target=%.3f max_dd=%.2f",
+                            i,
+                            accept_reason,
+                            trades,
+                            session.best_sharpe,
+                            session.target_sharpe,
+                            max_dd,
+                        )
+                        decision = "continue"
+                        analysis = (
+                            f"{analysis}\n"
+                            "[Policy] accept overridden to continue optimization."
+                        )
+                        iteration.phase_feedback.setdefault("decision", {})[
+                            "accept_overridden"
+                        ] = True
 
                 iteration.analysis = analysis
                 iteration.decision = decision
@@ -1574,12 +3214,39 @@ The code must be ready to execute with ZERO modifications."""
                 )
 
                 if decision == "accept":
-                    session.status = "success"
+                    accept_now, accept_now_reason = _is_accept_candidate(
+                        metrics_cur,
+                        target_sharpe=session.target_sharpe,
+                    )
+                    if accept_now:
+                        session.status = "success"
+                    else:
+                        session.status = "failed"
+                        logger.info(
+                            "builder_iter_%d_accept_rejected reason=%s",
+                            i,
+                            accept_now_reason,
+                        )
                     break
                 if decision == "stop":
-                    session.status = (
-                        "success" if session.best_sharpe > 0 else "failed"
+                    best_metrics = (
+                        session.best_iteration.backtest_result.metrics
+                        if session.best_iteration and session.best_iteration.backtest_result
+                        else {}
                     )
+                    best_ok, best_reason = _is_accept_candidate(
+                        best_metrics,
+                        target_sharpe=session.target_sharpe,
+                    )
+                    session.status = "success" if best_ok else "failed"
+                    if not best_ok:
+                        logger.info(
+                            "builder_iter_%d_stop_rejected_success reason=%s "
+                            "best_rank_sharpe=%.3f",
+                            i,
+                            best_reason,
+                            session.best_sharpe,
+                        )
                     break
 
             except Exception as e:
@@ -1648,6 +3315,7 @@ The code must be ready to execute with ZERO modifications."""
                         it.diagnostic_detail.get("score_card")
                         if it.diagnostic_detail else None
                     ),
+                    "phase_feedback": it.phase_feedback or None,
                 }
                 for it in session.iterations
             ],
@@ -1878,6 +3546,7 @@ def generate_llm_objective(
     # Nettoyer les tags <think> si présents
     objective = re.sub(r"<think>.*?</think>", "", objective, flags=re.DOTALL).strip()
     objective = re.sub(r"<think>.*", "", objective, flags=re.DOTALL).strip()
+    objective = sanitize_objective_text(objective)
 
     # Fallback si le LLM retourne du vide
     if not objective or len(objective) < 20:
@@ -1885,3 +3554,152 @@ def generate_llm_objective(
         return generate_random_objective(symbol, timeframe, available_indicators)
 
     return objective
+
+
+def recommend_market_context(
+    llm_client: Any,
+    *,
+    objective: str,
+    candidate_symbols: List[str],
+    candidate_timeframes: List[str],
+    default_symbol: str = "BTCUSDC",
+    default_timeframe: str = "1h",
+    stream_callback: Optional[Callable[[str, str], None]] = None,
+) -> Dict[str, Any]:
+    """Recommande un couple (symbol, timeframe) adapté à un objectif Builder.
+
+    Le choix est strictement borné à l'univers fourni (`candidate_symbols`,
+    `candidate_timeframes`). En cas de réponse invalide du LLM, un fallback
+    déterministe est appliqué.
+    """
+
+    def _unique_non_empty(values: List[str], *, upper: bool = False) -> List[str]:
+        out: List[str] = []
+        seen: set[str] = set()
+        for raw in values:
+            val = str(raw or "").strip()
+            if not val:
+                continue
+            if upper:
+                val = val.upper()
+            if val in seen:
+                continue
+            seen.add(val)
+            out.append(val)
+        return out
+
+    symbol_re = re.compile(r"^[A-Za-z0-9_.-]{2,24}$")
+    timeframe_re = re.compile(r"^\d+[mhdwM]$")
+
+    symbols = _unique_non_empty(
+        [*candidate_symbols, default_symbol or "BTCUSDC"],
+        upper=True,
+    )
+    symbols = [s for s in symbols if symbol_re.match(s)]
+
+    timeframes = _unique_non_empty(
+        [*candidate_timeframes, default_timeframe or "1h"],
+        upper=False,
+    )
+    timeframes = [tf for tf in timeframes if timeframe_re.match(tf)]
+
+    fallback_symbol = symbols[0] if symbols else "BTCUSDC"
+    fallback_timeframe = timeframes[0] if timeframes else "1h"
+
+    if not symbols or not timeframes:
+        return {
+            "symbol": fallback_symbol,
+            "timeframe": fallback_timeframe,
+            "confidence": 0.0,
+            "reason": "Univers marché incomplet, fallback par défaut.",
+            "source": "fallback_no_candidates",
+        }
+
+    clean_objective = sanitize_objective_text(objective)
+    if not clean_objective:
+        clean_objective = str(objective or "").strip()
+
+    system_msg = LLMMessage(
+        role="system",
+        content=(
+            "Tu es un analyste quant. Choisis UN seul couple symbole/timeframe "
+            "le plus pertinent pour l'objectif. Réponds en JSON strict uniquement."
+        ),
+    )
+    user_msg = LLMMessage(
+        role="user",
+        content=(
+            "Objectif:\n"
+            f"{clean_objective}\n\n"
+            "Contraintes:\n"
+            f"- symbol MUST be one of: {', '.join(symbols)}\n"
+            f"- timeframe MUST be one of: {', '.join(timeframes)}\n"
+            "- Retourne un JSON strict, sans markdown:\n"
+            '{"symbol":"...","timeframe":"...","confidence":0.0,"reason":"..."}\n'
+            "- confidence doit être entre 0 et 1."
+        ),
+    )
+
+    try:
+        if stream_callback and hasattr(llm_client, "chat_stream"):
+            raw = llm_client.chat_stream(
+                [system_msg, user_msg],
+                on_chunk=lambda c: stream_callback("market_pick", c),
+                max_tokens=180,
+            )
+        else:
+            raw = llm_client.chat([system_msg, user_msg], max_tokens=180)
+        raw_text = str(raw or "").strip()
+    except Exception as exc:
+        logger.warning("recommend_market_context: fallback exception=%s", exc)
+        return {
+            "symbol": fallback_symbol,
+            "timeframe": fallback_timeframe,
+            "confidence": 0.0,
+            "reason": f"Échec appel LLM ({exc}). Fallback appliqué.",
+            "source": "fallback_exception",
+        }
+
+    payload = _extract_json_from_response(raw_text)
+    symbol = str(payload.get("symbol", "")).strip().upper()
+    timeframe = str(payload.get("timeframe", "")).strip()
+
+    try:
+        confidence = float(payload.get("confidence", 0.5))
+    except Exception:
+        confidence = 0.5
+    confidence = max(0.0, min(1.0, confidence))
+
+    reason = str(payload.get("reason", "") or "").strip()
+    if len(reason) > 280:
+        reason = reason[:280].rstrip()
+
+    source = "llm"
+    if symbol not in symbols:
+        source = "fallback_out_of_universe"
+        symbol = fallback_symbol
+    if timeframe not in timeframes:
+        source = "fallback_out_of_universe"
+        timeframe = fallback_timeframe
+
+    if not payload:
+        source = "fallback_invalid_json"
+        symbol = fallback_symbol
+        timeframe = fallback_timeframe
+        confidence = 0.0
+        if not reason:
+            reason = "Réponse LLM non parseable en JSON. Fallback appliqué."
+
+    if not reason:
+        if source == "llm":
+            reason = "Choix basé sur style de stratégie, volatilité attendue et fréquence des signaux."
+        else:
+            reason = "Choix par défaut suite à une réponse LLM non exploitable."
+
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "confidence": confidence,
+        "reason": reason,
+        "source": source,
+    }

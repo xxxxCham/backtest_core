@@ -1,193 +1,104 @@
-{# Template pour Strategy Builder — Proposition de logique de stratégie #}
-{# Enrichi avec diagnostic déterministe, bulletin de notes, et historique tendanciel #}
+{# Strategy Builder - PROPOSAL PHASE TEMPLATE (strict JSON) #}
 
-Design a trading strategy proposal for the following objective.
+PHASE LOCK: PROPOSAL ONLY.
+Do NOT output Python code.
+Do NOT rewrite the objective.
+Do NOT output markdown outside the requested JSON.
 
 ## OBJECTIVE
 {{ objective }}
 
-## MARKET CONTEXT
-{% if symbol and symbol != "UNKNOWN" -%}
-- **Symbol/Token**: {{ symbol }}
-{% endif -%}
-{% if timeframe -%}
-- **Timeframe**: {{ timeframe }}
-{% endif -%}
-{% if n_bars -%}
-- **Dataset**: {{ n_bars }} bars{% if date_range_start %} ({{ date_range_start }} → {{ date_range_end }}){% endif %}
-{% endif -%}
-{% if fees_bps -%}
-- **Trading costs**: {{ fees_bps }} bps fees + {{ slippage_bps|default(5) }} bps slippage per trade (engine applies them — do NOT model costs in logic)
-{% endif -%}
-{% if initial_capital -%}
-- **Capital**: ${{ initial_capital|int }}
-{% endif %}
+## ITERATION {{ iteration }} / {{ max_iterations }}
 
-## AVAILABLE INDICATORS (use ONLY these)
+## MARKET CONTEXT
+- Symbol: {{ symbol|default("UNKNOWN") }}
+- Timeframe: {{ timeframe|default("?") }}
+- Bars: {{ n_bars|default(0) }}{% if date_range_start %} ({{ date_range_start }} -> {{ date_range_end }}){% endif %}
+- Costs: fees={{ fees_bps|default(10) }} bps, slippage={{ slippage_bps|default(5) }} bps
+- Capital: {{ initial_capital|default(10000) }}
+
+## AVAILABLE INDICATORS (ONLY THESE)
 {% for ind in available_indicators %}
 - {{ ind }}
 {% endfor %}
 
-## ITERATION {{ iteration }} / {{ max_iterations }}
-
-{% if last_metrics -%}
-## LAST BACKTEST RESULTS
-
-### Profitability{% if diagnostic %} ({{ diagnostic.score_card.profitability.grade }}){% endif %}
-
-- Total Return: {{ last_metrics.total_return_pct|format_float(2) }}%
-- Profit Factor: {{ last_metrics.profit_factor|format_float(2) }}
-- Expectancy: {{ last_metrics.expectancy|format_float(2) }}
-
-### Risk{% if diagnostic %} ({{ diagnostic.score_card.risk.grade }}){% endif %}
-
-- Max Drawdown: {{ last_metrics.max_drawdown_pct|format_float(2) }}%
-- Annual Volatility: {{ last_metrics.volatility_annual|format_float(2) }}%
-
-### Efficiency{% if diagnostic %} ({{ diagnostic.score_card.efficiency.grade }}){% endif %}
-
-- Sharpe Ratio: {{ last_metrics.sharpe_ratio|format_float(3) }}
-- Sortino Ratio: {{ last_metrics.sortino_ratio|format_float(3) }}
-- Calmar Ratio: {{ last_metrics.calmar_ratio|format_float(3) }}
-
-### Signal Quality{% if diagnostic %} ({{ diagnostic.score_card.signal_quality.grade }}){% endif %}
-
-- Win Rate: {{ last_metrics.win_rate_pct|format_float(1) }}%
-- Total Trades: {{ last_metrics.total_trades }}
-- Avg Win / Avg Loss: {{ last_metrics.avg_win|format_float(2) }} / {{ last_metrics.avg_loss|format_float(2) }}
-- Risk/Reward Ratio: {{ last_metrics.risk_reward_ratio|format_float(2) }}
-
-Best Sharpe so far: {{ best_sharpe|format_float(3) }}
-
-{% endif -%}
-
-{% if diagnostic -%}
-## AUTOMATIC DIAGNOSTIC
-**Category**: {{ diagnostic.category }} ({{ diagnostic.severity }})
-**Summary**: {{ diagnostic.summary }}
-**Recommended change**: {{ diagnostic.change_type }}
-**Trend**: {{ diagnostic.trend }}{% if diagnostic.trend_detail %} — {{ diagnostic.trend_detail }}{% endif %}
-
-### CONCRETE ACTIONS TO FOLLOW:
-{% for action in diagnostic.actions %}
-{{ loop.index }}. {{ action }}
-{% endfor %}
-
-{% if diagnostic.donts %}
-### DO NOT:
-{% for dont in diagnostic.donts %}
-- {{ dont }}
-{% endfor %}
+{% if last_metrics %}
+## LAST BACKTEST SNAPSHOT
+- Sharpe: {{ last_metrics.sharpe_ratio|format_float(3) }}
+- Return: {{ last_metrics.total_return_pct|format_float(2) }}%
+- MaxDD: {{ last_metrics.max_drawdown_pct|format_float(2) }}%
+- Trades: {{ last_metrics.total_trades }}
+- WinRate: {{ last_metrics.win_rate_pct|format_float(1) }}%
+- ProfitFactor: {{ last_metrics.profit_factor|format_float(2) }}
 {% endif %}
 
-{% endif -%}
+{% if diagnostic %}
+## DIAGNOSTIC CONTRACT
+- category: {{ diagnostic.category }}
+- severity: {{ diagnostic.severity }}
+- required_change_type: {{ diagnostic.change_type }}
+- summary: {{ diagnostic.summary }}
 
-{% if last_analysis -%}
-## PREVIOUS ANALYSIS
-{{ last_analysis }}
+Required behavior:
+{% if diagnostic.change_type == "params" %}
+- Keep same used_indicators as previous iteration.
+- Keep entry_long_logic / entry_short_logic / exit_logic unchanged (or micro-edit only).
+- Change only numeric parameters in default_params / parameter_specs.
+{% elif diagnostic.change_type == "logic" %}
+- Perform structural changes in logic, filters, and/or indicators.
+- Do not only tweak numbers.
+{% elif diagnostic.change_type == "both" %}
+- Change both logic and parameters.
+{% endif %}
+{% endif %}
 
-{% endif -%}
-
-{% if last_code -%}
-## CURRENT CODE (to iterate on)
+{% if last_code %}
+## PREVIOUS CODE (REFERENCE)
 ```python
 {{ last_code }}
 ```
-
-{% endif -%}
-
-{% if iteration_history and iteration_history|length > 0 -%}
-## ITERATION HISTORY
-{% for h in iteration_history %}
-- Iter {{ h.iteration }}: [{{ h.change_type|default("new") }}] sharpe={{ h.sharpe|default("N/A") }} | return={{ h.return_pct|default("N/A") }}% | trades={{ h.trades|default("N/A") }} | diag={{ h.diagnostic_category|default("-") }}{% if h.error %} | ERROR={{ h.error }}{% endif %}
-
-{% endfor %}
-
-{% endif -%}
-
-## INSTRUCTIONS
-{% if diagnostic and diagnostic.change_type == "logic" -%}
-**STRUCTURAL PROBLEM** — you MUST change the LOGIC (indicators, conditions, filters).
-Do NOT simply adjust numeric values.
-
-Focus on:
-- Change the indicators or their combination
-- Modify entry conditions (when to open a position)
-- Modify exit conditions (when to close a position)
-- Add/modify risk management (SL, TP, filters)
-
-{% elif diagnostic and diagnostic.change_type == "params" -%}
-**LOGIC IS WORKING** — ADJUST PARAMETERS only.
-Do NOT change the strategy structure.
-
-Focus on:
-- Adjust indicator periods (e.g. RSI 14→12, EMA 50→40)
-- Modify entry/exit thresholds (e.g. RSI overbought 70→75)
-- Optimize stop-loss and take-profit (ATR multipliers)
-- Adjust leverage if needed
-
-{% elif diagnostic and diagnostic.change_type == "both" -%}
-**MIXED CHANGES** recommended (logic + parameters).
-
-Focus on:
-- Add a confirmation filter/indicator
-- Adjust thresholds and parameters simultaneously
-- Improve risk/reward ratio
-
-{% elif diagnostic and diagnostic.change_type == "accept" -%}
-**TARGET REACHED** — propose the same parameters or a micro-adjustment.
-
-{% else -%}
-{% if last_code -%}
-Based on the previous results, propose MODIFICATIONS to improve performance.
-
-You have TWO options:
-1. **LOGIC CHANGE**: Change the strategy logic (different indicators, entry/exit rules)
-   → Use when: 0 trades, too many trades, wrong direction, bad risk management
-2. **PARAM CHANGE**: Keep the same logic, adjust parameter values
-   → Use when: reasonable trade count but poor Sharpe, need fine-tuning
-
-Focus on signal quality, risk management, and entry/exit improvements.
-{% else -%}
-Propose a NEW strategy from scratch.
-Choose indicators that match the objective.
-Design clear entry/exit rules and risk management (SL/TP).
-{% endif -%}
 {% endif %}
 
-## COMMON MISTAKES TO AVOID
-- Do NOT use indicators that are NOT in the available list above
-- Do NOT set extremely tight thresholds (e.g. RSI > 95) — this produces 0 trades
-- Do NOT combine more than 4 AND conditions — this filters out all signals
-- Always include ATR-based stop-loss and take-profit in risk_management
-- Keep indicator_params consistent with used_indicators (every indicator needs its params)
+{% if iteration_history and iteration_history|length > 0 %}
+## ITERATION HISTORY (LAST 5)
+{% for h in iteration_history %}
+- iter={{ h.iteration }} change={{ h.change_type|default("?") }} sharpe={{ h.sharpe|default("N/A") }} trades={{ h.trades|default("N/A") }} diag={{ h.diagnostic_category|default("-") }}{% if h.error %} error={{ h.error }}{% endif %}
+{% endfor %}
+{% endif %}
 
-## RESPONSE FORMAT
-Respond with ONLY a JSON object (no text before or after):
-```json
+## HARD RULES
+- Output ONE valid JSON object only.
+- No placeholders (forbidden: "brief description", "when to BUY", "N/A").
+- used_indicators must be a non-empty list from AVAILABLE INDICATORS.
+- hypothesis and logic fields must be concrete and actionable.
+- Include ATR risk management in risk_management and params.
+- change_type must be exactly one of: logic, params, both, accept.
+
+## REQUIRED JSON SCHEMA
 {
-  "strategy_name": "descriptive_snake_case_name",
-  "hypothesis": "what you expect this change to achieve and WHY",
-  "change_type": "logic|params|both",
-  "used_indicators": ["indicator1", "indicator2"],
+  "strategy_name": "snake_case_name",
+  "hypothesis": "why this should improve results",
+  "change_type": "logic|params|both|accept",
+  "used_indicators": ["rsi", "bollinger", "atr"],
   "indicator_params": {
-    "indicator1": {"period": 14},
-    "indicator2": {"period": 20}
+    "rsi": {"period": 14},
+    "bollinger": {"period": 20, "std_dev": 2},
+    "atr": {"period": 14}
   },
-  "entry_long_logic": "precise conditions for entering LONG (use indicator names + thresholds)",
-  "entry_short_logic": "precise conditions for entering SHORT (use indicator names + thresholds)",
-  "exit_logic": "precise conditions for exiting positions",
-  "risk_management": "stop-loss and take-profit rules using ATR multiples",
+  "entry_long_logic": "explicit boolean rule",
+  "entry_short_logic": "explicit boolean rule",
+  "exit_logic": "explicit boolean rule",
+  "risk_management": "ATR stop/take-profit with concrete multipliers",
   "default_params": {
     "rsi_period": 14,
     "rsi_oversold": 30,
     "rsi_overbought": 70,
     "stop_atr_mult": 1.5,
-    "tp_atr_mult": 3.0
+    "tp_atr_mult": 3.0,
+    "warmup": 50
   },
   "parameter_specs": {
     "rsi_period": {"min": 5, "max": 50, "default": 14, "type": "int"},
     "stop_atr_mult": {"min": 0.5, "max": 4.0, "default": 1.5, "type": "float"}
   }
 }
-```

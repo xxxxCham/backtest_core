@@ -102,6 +102,12 @@ class SidebarState:
     builder_max_iterations: int
     builder_target_sharpe: float
     builder_capital: float
+    builder_ollama_host: str
+    builder_preload_model: bool
+    builder_keep_alive_minutes: int
+    builder_unload_after_run: bool
+    builder_auto_start_ollama: bool
+    builder_auto_market_pick: bool
     # Mode autonome 24/24 (11/02/2026)
     builder_autonomous: bool
     builder_auto_pause: int       # Pause en secondes entre runs (0-120)
@@ -115,3 +121,4 @@ class SidebarState:
         assert self.n_workers >= 1
         assert self.llm_max_iterations >= 0
         assert self.initial_capital >= 0
+        assert self.builder_keep_alive_minutes >= 0

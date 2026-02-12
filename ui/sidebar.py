@@ -95,15 +95,15 @@ POTENTIAL_TOKENS = [
 SIDEBAR_STYLE_CSS = """
 <style>
 [data-testid="stSidebar"] {
-    color-scheme: light;
-    --bc-text: #1f2a37;
-    --bc-muted: #5a6877;
-    --bc-border: #cdd9d1;
-    --bc-surface: #ffffff;
-    --bc-soft: #f4f8f5;
+    color-scheme: dark;
+    --bc-text: #e6edf6;
+    --bc-muted: #9eb0c6;
+    --bc-border: #33465f;
+    --bc-surface: #0f1726;
+    --bc-soft: #172437;
 }
 [data-testid="stSidebar"] > div:first-child {
-    background: linear-gradient(180deg, #f6faf7 0%, #edf5f1 45%, #ebf1f8 100%);
+    background: linear-gradient(180deg, #0a1221 0%, #0d1b31 45%, #13233f 100%);
 }
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
 [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li,
@@ -114,7 +114,7 @@ SIDEBAR_STYLE_CSS = """
     color: var(--bc-text) !important;
 }
 [data-testid="stSidebar"] [data-testid="stAlertContainer"] p {
-    color: #1d2b3a !important;
+    color: #e8f1ff !important;
 }
 [data-testid="stSidebar"] .bc-sidebar-title {
     font-size: 1.15rem;
@@ -130,34 +130,35 @@ SIDEBAR_STYLE_CSS = """
     font-weight: 700;
     letter-spacing: 0.03em;
     text-transform: uppercase;
-    color: #2f3f4d;
+    color: #b8cae4;
 }
 [data-testid="stSidebar"] .bc-sidebar-card {
-    border: 1px solid #cdded2;
+    border: 1px solid #395373;
     border-radius: 12px;
     padding: 0.6rem 0.7rem;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(16, 31, 51, 0.86);
     color: var(--bc-text);
 }
 [data-testid="stSidebar"] .bc-sidebar-card strong {
-    color: #22313f;
+    color: #f0f7ff;
 }
 [data-testid="stSidebar"] .stButton > button {
     border-radius: 10px;
     border: 1px solid var(--bc-border);
     font-weight: 600;
-    color: #f4f7fb;
-    background: #2d3443;
+    color: #eff6ff;
+    background: #1a2a45;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #0f766e 0%, #0ea5a3 100%);
-    border: 1px solid #0d9488;
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+    border: 1px solid #3b82f6;
     color: #ffffff !important;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25), 0 10px 24px rgba(30, 64, 175, 0.35);
 }
 [data-testid="stSidebar"] .stButton > button[kind="secondary"] {
-    background: #2c3445;
-    border: 1px solid #3f4b62;
-    color: #f3f6fa !important;
+    background: #1a2a45;
+    border: 1px solid #314766;
+    color: #dce9fb !important;
 }
 [data-testid="stSidebar"] .stSelectbox > div > div,
 [data-testid="stSidebar"] .stTextInput > div > div > input,
@@ -172,25 +173,25 @@ SIDEBAR_STYLE_CSS = """
     border-color: var(--bc-border);
 }
 [data-testid="stSidebar"] div[data-baseweb="tag"] {
-    background: #e9f2ff !important;
-    color: #173a67 !important;
-    border: 1px solid #b5cceb !important;
+    background: #17346d !important;
+    color: #e9f3ff !important;
+    border: 1px solid #3b82f6 !important;
 }
 [data-testid="stSidebar"] div[data-baseweb="tag"] span {
-    color: #173a67 !important;
+    color: #e9f3ff !important;
 }
 [data-testid="stSidebar"] [data-testid="stMultiSelect"] svg,
 [data-testid="stSidebar"] [data-testid="stSelectbox"] svg {
-    color: #3e4d61 !important;
+    color: #b3c7e5 !important;
 }
 [data-testid="stSidebar"] .streamlit-expanderHeader {
     font-weight: 600;
     color: var(--bc-text) !important;
 }
 [data-testid="stSidebar"] .stExpander {
-    border: 1px solid #d5e3d8;
+    border: 1px solid #2e4461;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.78);
+    background: rgba(13, 24, 40, 0.9);
 }
 [data-testid="stSidebar"] [data-testid="stSlider"] p {
     color: var(--bc-muted) !important;
@@ -200,7 +201,7 @@ SIDEBAR_STYLE_CSS = """
     color: var(--bc-text) !important;
 }
 [data-testid="stSidebar"] hr {
-    border-color: #dbe5de;
+    border-color: #2a3f5b;
 }
 </style>
 """
@@ -381,6 +382,12 @@ def _build_config_signature(state: SidebarState) -> str:
         "builder_max_iterations": state.builder_max_iterations,
         "builder_target_sharpe": state.builder_target_sharpe,
         "builder_capital": state.builder_capital,
+        "builder_ollama_host": state.builder_ollama_host,
+        "builder_preload_model": state.builder_preload_model,
+        "builder_keep_alive_minutes": state.builder_keep_alive_minutes,
+        "builder_unload_after_run": state.builder_unload_after_run,
+        "builder_auto_start_ollama": state.builder_auto_start_ollama,
+        "builder_auto_market_pick": state.builder_auto_market_pick,
         "builder_autonomous": state.builder_autonomous,
         "builder_auto_pause": state.builder_auto_pause,
         "builder_auto_use_llm": state.builder_auto_use_llm,
@@ -1203,6 +1210,12 @@ def render_sidebar() -> SidebarState:
     builder_max_iterations = 10
     builder_target_sharpe = 1.0
     builder_capital = 10000.0
+    builder_ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+    builder_preload_model = True
+    builder_keep_alive_minutes = 20
+    builder_unload_after_run = False
+    builder_auto_start_ollama = True
+    builder_auto_market_pick = False
     builder_autonomous = False
     builder_auto_pause = 10
     builder_auto_use_llm = False
@@ -1243,6 +1256,13 @@ def render_sidebar() -> SidebarState:
             )
             st.session_state["builder_auto_use_llm"] = builder_auto_use_llm
 
+        pending_objective_sync = st.session_state.pop(
+            "_builder_objective_input_sync", None
+        )
+        if isinstance(pending_objective_sync, str):
+            # Assignation autorisée ici: la clé widget n'est pas encore instanciée.
+            st.session_state["builder_objective_input"] = pending_objective_sync
+
         builder_objective = st.sidebar.text_area(
             "🎯 Objectif de la stratégie",
             value=st.session_state.get("builder_objective", ""),
@@ -1258,6 +1278,18 @@ def render_sidebar() -> SidebarState:
             disabled=builder_autonomous,
         )
         st.session_state["builder_objective"] = builder_objective
+
+        builder_auto_market_pick = st.sidebar.toggle(
+            "🧭 LLM choisit token/TF",
+            value=st.session_state.get("builder_auto_market_pick", False),
+            key="builder_auto_market_pick_toggle",
+            help=(
+                "Avant chaque session Builder, le LLM sélectionne automatiquement "
+                "le symbole et le timeframe les plus adaptés à l'objectif, puis "
+                "charge les données correspondantes."
+            ),
+        )
+        st.session_state["builder_auto_market_pick"] = builder_auto_market_pick
 
         # ── Exemple de format (discret) ──
         with st.sidebar.expander("💡 Exemple de format", expanded=False):
@@ -1301,6 +1333,47 @@ def render_sidebar() -> SidebarState:
                  "Les modèles >14B produisent du code de meilleure qualité.",
         )
         st.session_state["builder_model"] = builder_model
+
+        st.sidebar.caption("**🔌 Chargement du modèle**")
+        builder_ollama_host = st.sidebar.text_input(
+            "URL Ollama (Builder)",
+            value=st.session_state.get(
+                "builder_ollama_host",
+                os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434"),
+            ),
+            key="builder_ollama_host",
+            help="Endpoint Ollama utilisé par le mode Strategy Builder.",
+        )
+        builder_auto_start_ollama = st.sidebar.toggle(
+            "Auto-démarrer Ollama (local)",
+            value=st.session_state.get("builder_auto_start_ollama", True),
+            key="builder_auto_start_ollama",
+            help=(
+                "Si URL locale (localhost/127.0.0.1), tente de démarrer Ollama "
+                "automatiquement avant l'exécution."
+            ),
+        )
+        builder_preload_model = st.sidebar.toggle(
+            "Précharger modèle avant run",
+            value=st.session_state.get("builder_preload_model", True),
+            key="builder_preload_model",
+            help="Charge le modèle en mémoire avant les appels LLM du builder.",
+        )
+        builder_keep_alive_minutes = st.sidebar.slider(
+            "Keep-alive modèle (minutes)",
+            min_value=1,
+            max_value=120,
+            value=int(st.session_state.get("builder_keep_alive_minutes", 20)),
+            key="builder_keep_alive_minutes",
+            help="Durée de maintien en mémoire du modèle après warmup.",
+            disabled=not builder_preload_model,
+        )
+        builder_unload_after_run = st.sidebar.toggle(
+            "Décharger modèle après run",
+            value=st.session_state.get("builder_unload_after_run", False),
+            key="builder_unload_after_run",
+            help="Libère la VRAM à la fin d'une session Builder.",
+        )
 
         st.sidebar.markdown("---")
         st.sidebar.caption("**⚙️ Paramètres de construction**")
@@ -2602,6 +2675,12 @@ def render_sidebar() -> SidebarState:
         builder_max_iterations=builder_max_iterations,
         builder_target_sharpe=builder_target_sharpe,
         builder_capital=builder_capital,
+        builder_ollama_host=builder_ollama_host,
+        builder_preload_model=builder_preload_model,
+        builder_keep_alive_minutes=builder_keep_alive_minutes,
+        builder_unload_after_run=builder_unload_after_run,
+        builder_auto_start_ollama=builder_auto_start_ollama,
+        builder_auto_market_pick=builder_auto_market_pick,
         # Mode autonome
         builder_autonomous=builder_autonomous,
         builder_auto_pause=builder_auto_pause,

@@ -95,7 +95,7 @@ from backtest.walk_forward import (
 )
 
 # ━━━ Throttle central : un seul réglage pour le refresh UI pendant les runs ━━━
-_UI_REFRESH_EVERY_N = int(os.getenv("BACKTEST_UI_REFRESH_EVERY_N", "50000"))
+_UI_REFRESH_EVERY_N = int(os.getenv("BACKTEST_UI_REFRESH_EVERY_N", "100000"))
 _UI_REFRESH_MAX_SEC = float(os.getenv("BACKTEST_UI_REFRESH_MAX_SEC", "30"))
 _UI_RICH_MODE = os.getenv("BACKTEST_UI_RICH", "0") == "1"
 
@@ -227,7 +227,7 @@ def _compute_max_safe_combos(total_sweeps: int, max_combos: int) -> int:
     """Limite adaptative pour multi-sweep (mémoire)."""
     if total_sweeps <= 0:
         return max_combos
-    adaptive = max(50_000, 500_000 // max(1, total_sweeps))
+    adaptive = max(100_000, 500_000 // max(1, total_sweeps))
     if max_combos and max_combos > 0:
         return min(max_combos, adaptive)
     return adaptive
@@ -1237,9 +1237,9 @@ def render_main(
 
                     # ━━━ SWEEP NUMBA PAR CHUNKS (live updates entre chaque chunk) ━━━
                     try:
-                        NUMBA_CHUNK = int(os.getenv("NUMBA_CHUNK_SIZE", "50000"))
+                        NUMBA_CHUNK = int(os.getenv("NUMBA_CHUNK_SIZE", "100000"))
                     except (TypeError, ValueError):
-                        NUMBA_CHUNK = 50000
+                        NUMBA_CHUNK = 100000
                     NUMBA_CHUNK = max(1000, NUMBA_CHUNK)
 
                     n_chunks = math.ceil(total_runs / NUMBA_CHUNK)

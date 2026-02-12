@@ -168,6 +168,16 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         description="RSI filtre par tendance EMA",
         ui_indicators=["rsi", "ema"],
     ),
+
+    # 10. Scalp EMA+BB+RSI (Labs)
+    "scalp_ema_bb_rsi_labs": StrategyIndicators(
+        name="Scalp EMA+BB+RSI (Labs)",
+        ui_label="🧪 Scalp EMA+BB+RSI (Labs)",
+        required_indicators=["ema", "rsi", "bollinger", "atr"],
+        internal_indicators=[],
+        description="Labs: Scalp continuation pullback EMA + Bollinger + RSI cross (grid exploratoire)",
+        ui_indicators=["ema", "rsi", "bollinger", "atr"],
+    ),
 }
 
 
