@@ -28,19 +28,21 @@ Skip-if: Vous utilisez uniquement les stratégies existantes ou l'AutonomousStra
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import pprint
 import random
 import re
 import sys
+import textwrap
 import time
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Callable, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
 from agents.llm_client import LLMClient, LLMConfig, LLMMessage, create_llm_client
@@ -72,6 +74,8 @@ MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 3
 MIN_TRADES_FOR_ACCEPT = 10
 MAX_DRAWDOWN_PCT_FOR_ACCEPT = 60.0
 MIN_RETURN_PCT_FOR_ACCEPT = 0.0
+# Nombre max de fallbacks déterministes avant arrêt de la session
+MAX_DETERMINISTIC_FALLBACKS = 4
 
 _DICT_INDICATOR_NAMES = {
     "bollinger",
@@ -229,14 +233,39 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
             f"Classes trouvées: {class_names}"
         )
 
-    # 3. Vérifier generate_signals
-    has_generate_signals = False
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "generate_signals":
-            has_generate_signals = True
-            break
-    if not has_generate_signals:
+    # 3. Vérifier generate_signals (dans la classe attendue)
+    generate_fns = _iter_generate_signals_functions(tree)
+    if not generate_fns:
         return False, "Méthode 'generate_signals' absente."
+
+    # 3b. Signature minimale (évite TypeError runtime)
+    fn = generate_fns[0]
+    if len(fn.args.args) < 4 and fn.args.vararg is None:
+        return (
+            False,
+            "Signature invalide: generate_signals doit accepter "
+            "(self, df, indicators, params).",
+        )
+
+    # 3c. NameError probable: variables coeur utilisées sans définition
+    #     (fréquent quand le LLM renomme l'argument `df` mais garde `df[...]` dans le corps)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != GENERATED_CLASS_NAME:
+            continue
+        for item in node.body:
+            if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            arg_names = {a.arg for a in item.args.args}
+            arg_names.update(a.arg for a in item.args.kwonlyargs)
+            load_names, store_names = _collect_name_load_store_sets(item)
+            for core in ("df", "indicators", "params"):
+                if core in load_names and core not in arg_names and core not in store_names:
+                    return (
+                        False,
+                        f"NameError probable: `{core}` utilisé dans `{item.name}` "
+                        "mais non défini (paramètre manquant ou variable non assignée).",
+                    )
+        break
 
     # 4. Imports dangereux
     dangerous_patterns = [
@@ -293,23 +322,7 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
         )
 
     # 6. Mauvais usage de np.nan_to_num sur indicateurs dict (bollinger, macd, ...)
-    dict_like_indicators = (
-        "bollinger",
-        "macd",
-        "stochastic",
-        "adx",
-        "supertrend",
-        "ichimoku",
-        "psar",
-        "vortex",
-        "stoch_rsi",
-        "aroon",
-        "donchian",
-        "keltner",
-        "pivot_points",
-        "fibonacci",
-    )
-    for ind in dict_like_indicators:
+    for ind in _DICT_INDICATOR_NAMES:
         bad_pattern = (
             r"np\.nan_to_num\(\s*indicators\s*\[\s*['\"]"
             + re.escape(ind)
@@ -468,6 +481,16 @@ def _ranking_sharpe(metrics: Dict[str, Any]) -> float:
     return sharpe
 
 
+def _metrics_fingerprint(metrics: Dict[str, Any]) -> str:
+    """Retourne un fingerprint stable des métriques clés pour détecter la stagnation."""
+    keys = ("total_return_pct", "max_drawdown_pct", "total_trades", "win_rate_pct", "profit_factor")
+    parts = []
+    for k in keys:
+        v = metrics.get(k, 0) or 0
+        parts.append(f"{k}={float(v):.4f}")
+    return "|".join(parts)
+
+
 def _is_accept_candidate(
     metrics: Dict[str, Any],
     *,
@@ -585,6 +608,38 @@ def _iter_generate_signals_functions(tree: ast.AST) -> List[ast.FunctionDef]:
                 if isinstance(item, ast.FunctionDef) and item.name == "generate_signals":
                     out.append(item)
     return out
+
+
+def _iter_child_nodes_excluding_nested_scopes(node: ast.AST) -> Any:
+    """Itère récursivement sur les noeuds en excluant les scopes imbriqués.
+
+    Objectif: analyser les Name Load/Store d'une méthode sans descendre dans
+    des `def`/`class` internes (closures), qui ont leurs propres variables.
+    """
+    stack = list(ast.iter_child_nodes(node))
+    while stack:
+        cur = stack.pop()
+        yield cur
+        if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            continue
+        stack.extend(ast.iter_child_nodes(cur))
+
+
+def _collect_name_load_store_sets(fn: ast.AST) -> tuple[set[str], set[str]]:
+    """Collecte les noms utilisés (Load) et assignés (Store/Del) dans un noeud.
+
+    Ne descend pas dans les scopes imbriqués (closures) pour éviter les faux
+    positifs sur les variables capturées.
+    """
+    load: set[str] = set()
+    store: set[str] = set()
+    for node in _iter_child_nodes_excluding_nested_scopes(fn):
+        if isinstance(node, ast.Name):
+            if isinstance(node.ctx, ast.Load):
+                load.add(node.id)
+            elif isinstance(node.ctx, (ast.Store, ast.Del)):
+                store.add(node.id)
+    return load, store
 
 
 def _collect_indicator_names(tree: ast.AST) -> set[str]:
@@ -1001,6 +1056,87 @@ def _fix_class_name(code: str) -> str:
     return code
 
 
+def _inject_generate_signals_core_param_aliases(code: str) -> str:
+    """Injecte des alias pour éviter des NameError de variables coeur.
+
+    Cas fréquent: `def generate_signals(self, data, indicators, params):` mais le
+    corps fait `signals = ... index=df.index` / `close = df["close"]...`.
+    On insère alors `df = data` en tête de méthode (idem pour `indicators/params`).
+    """
+    try:
+        tree = ast.parse(code)
+    except Exception:
+        return code
+
+    fns = _iter_generate_signals_functions(tree)
+    if not fns:
+        return code
+
+    lines = code.split("\n")
+    insertions: List[Tuple[int, List[str]]] = []
+
+    for fn in fns:
+        args = [a.arg for a in fn.args.args]
+        if len(args) < 4:
+            continue
+
+        df_arg, ind_arg, params_arg = args[1], args[2], args[3]
+        load_names, store_names = _collect_name_load_store_sets(fn)
+
+        alias_raw: List[str] = []
+        if "df" in load_names and "df" not in args and "df" not in store_names and df_arg != "df":
+            alias_raw.append(f"df = {df_arg}")
+        if (
+            "indicators" in load_names
+            and "indicators" not in args
+            and "indicators" not in store_names
+            and ind_arg != "indicators"
+        ):
+            alias_raw.append(f"indicators = {ind_arg}")
+        if "params" in load_names and "params" not in args and "params" not in store_names and params_arg != "params":
+            alias_raw.append(f"params = {params_arg}")
+
+        if not alias_raw:
+            continue
+
+        insert_lineno: int
+        if fn.body:
+            first_stmt = fn.body[0]
+            if (
+                isinstance(first_stmt, ast.Expr)
+                and isinstance(getattr(first_stmt, "value", None), ast.Constant)
+                and isinstance(first_stmt.value.value, str)
+            ):
+                end = getattr(first_stmt, "end_lineno", None) or first_stmt.lineno
+                insert_lineno = int(end) + 1
+            else:
+                insert_lineno = int(first_stmt.lineno)
+        else:
+            insert_lineno = int((getattr(fn, "end_lineno", None) or fn.lineno) + 1)
+
+        insert_idx = max(0, min(len(lines), insert_lineno - 1))
+
+        # Indentation = indentation de la première ligne de body (ou fallback def+4)
+        indent = ""
+        if 0 <= insert_idx < len(lines) and lines:
+            indent = re.match(r"^(\s*)", lines[insert_idx]).group(1)
+        else:
+            def_line_idx = max(0, min(len(lines) - 1, int(fn.lineno) - 1)) if lines else 0
+            def_indent = re.match(r"^(\s*)", lines[def_line_idx]).group(1) if lines else ""
+            indent = def_indent + "    "
+
+        insertions.append((insert_idx, [indent + line for line in alias_raw]))
+
+    if not insertions:
+        return code
+
+    # Appliquer en reverse pour préserver les index
+    for idx, new_lines in sorted(insertions, key=lambda x: x[0], reverse=True):
+        lines[idx:idx] = new_lines
+
+    return "\n".join(lines)
+
+
 def _repair_code(code: str) -> str:
     """Auto-repair des erreurs courantes du code genere par LLM.
 
@@ -1008,33 +1144,165 @@ def _repair_code(code: str) -> str:
     - Tags <think> des modeles de raisonnement (qwen3, deepseek-r1)
     - Docstrings triple-quoted non terminées (cause #1 de crash)
     - Nom de classe incorrect (cause #2 de crash)
+    - np.nan_to_num() appliqué directement sur indicateurs dict
+    - .shift() / .rolling() / .ewm() sur ndarray → remplacement numpy
+    - .iloc / .loc sur indicateurs ndarray → indexation numpy
+    - indicators['ema']['ema_XX'] → indicators['ema'] (array, pas dict)
     """
     # 1. Retirer les tags <think> des modeles de raisonnement
     code = re.sub(r"<think>.*?</think>\s*", "", code, flags=re.DOTALL)
     code = re.sub(r"<think>.*", "", code, flags=re.DOTALL)
 
-    # 2. Test rapide — si le code parse déjà, juste fixer le nom de classe
+    # 2. Supprimer le preamble non-Python (markdown, texte explicatif)
+    #    avant la première ligne de code réelle (from/import/class/def)
+    lines = code.split("\n")
+    first_code_idx = 0
+    for idx, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped and (
+            stripped.startswith(("from ", "import ", "class ", "def ", "@"))
+            or stripped.startswith("#!")
+        ):
+            first_code_idx = idx
+            break
+    if first_code_idx > 0:
+        code = "\n".join(lines[first_code_idx:])
+
+    # 3. Supprimer docstrings si syntax error + tenter un dedent sur erreurs d'indentation
     try:
         ast.parse(code)
-        return _fix_class_name(code)
-    except SyntaxError:
-        pass
+    except SyntaxError as e:
+        msg = str(getattr(e, "msg", "") or "").lower()
+        if "unexpected indent" in msg or "unindent" in msg or "indentation" in msg:
+            code = textwrap.dedent(code)
+        code = _strip_docstrings(code)
 
-    # 3. Supprimer TOUS les blocs triple-quoted (terminés et non terminés)
-    code = _strip_docstrings(code)
-
-    # 4. Fixer le nom de classe
+    # 3. Fixer le nom de classe
     code = _fix_class_name(code)
+
+    # 4. np.nan_to_num(indicators["bollinger"]) → indicateur dict accédé directement
+    #    Remplacer par extraction des sous-clés
+    for dict_ind in _DICT_INDICATOR_NAMES:
+        # np.nan_to_num(indicators["bollinger"]) → indicators["bollinger"]
+        code = re.sub(
+            r"np\.nan_to_num\(\s*indicators\s*\[\s*['\"]"
+            + re.escape(dict_ind)
+            + r"['\"]\s*\]\s*\)",
+            f'indicators["{dict_ind}"]',
+            code,
+        )
+        # np.nan_to_num(indicators.get("bollinger")) → indicators.get("bollinger")
+        code = re.sub(
+            r"np\.nan_to_num\(\s*indicators\.get\(\s*['\"]"
+            + re.escape(dict_ind)
+            + r"['\"]\s*\)\s*\)",
+            f'indicators.get("{dict_ind}")',
+            code,
+        )
+
+    # 4b. Normaliser les sous-clés erronées courantes (stochastic)
+    #     Certains modèles utilisent `indicators['stochastic']['signal|stochastic']`.
+    code = re.sub(
+        r"(indicators\s*\[\s*['\"]stochastic['\"]\s*\]\s*\[\s*['\"])(stochastic|k)(['\"]\s*\])",
+        r"\1stoch_k\3",
+        code,
+        flags=re.IGNORECASE,
+    )
+    code = re.sub(
+        r"(indicators\s*\[\s*['\"]stochastic['\"]\s*\]\s*\[\s*['\"])(signal|d)(['\"]\s*\])",
+        r"\1stoch_d\3",
+        code,
+        flags=re.IGNORECASE,
+    )
+
+    # 5. .shift(N) sur ndarray → np.roll(..., N)
+    #    pattern: var_name.shift(N)  → np.roll(var_name, N)
+    code = re.sub(
+        r"(\b\w+)\.shift\(\s*(\d+)\s*\)",
+        r"np.roll(\1, \2)",
+        code,
+    )
+    # .shift() sans arg → np.roll(..., 1)
+    code = re.sub(
+        r"(\b\w+)\.shift\(\s*\)",
+        r"np.roll(\1, 1)",
+        code,
+    )
+
+    # 6. indicators['ema']['ema_XX'] → indicators['ema']
+    #    (ema/rsi/atr sont des plain arrays, pas des dicts)
+    for arr_ind in ("ema", "rsi", "atr", "sma", "cci", "mfi",
+                    "williams_r", "momentum", "obv", "roc"):
+        code = re.sub(
+            r"indicators\s*\[\s*['\"]"
+            + re.escape(arr_ind)
+            + r"['\"]\s*\]\s*\[\s*['\"][^'\"]*['\"]\s*\]",
+            f'indicators["{arr_ind}"]',
+            code,
+        )
+
+    # 7. Supprimer les imports incorrects "from indicators import ..."
+    #    Le LLM local tente parfois d'importer directement les indicateurs
+    #    alors qu'ils sont fournis via le dict `indicators`.
+    code = re.sub(
+        r"^from\s+indicators\s+import\s+[^\n]+\n?",
+        "",
+        code,
+        flags=re.MULTILINE,
+    )
+    code = re.sub(
+        r"^import\s+indicators\b[^\n]*\n?",
+        "",
+        code,
+        flags=re.MULTILINE,
+    )
+
+    # 8. Garantir les imports obligatoires
+    _REQUIRED_IMPORTS = [
+        ("from typing import", "from typing import Any, Dict, List\n"),
+        ("from strategies.base import StrategyBase", "from strategies.base import StrategyBase\n"),
+        ("from utils.parameters import ParameterSpec", "from utils.parameters import ParameterSpec\n"),
+        ("import numpy", "import numpy as np\n"),
+        ("import pandas", "import pandas as pd\n"),
+    ]
+    for check_str, import_line in _REQUIRED_IMPORTS:
+        if check_str not in code:
+            code = import_line + code
+
+    # 9. Garantir l'héritage StrategyBase
+    #    Si la classe est définie sans parent ou avec un parent incorrect,
+    #    forcer l'héritage de StrategyBase.
+    code = re.sub(
+        rf"class\s+{GENERATED_CLASS_NAME}\s*:\s*\n",
+        f"class {GENERATED_CLASS_NAME}(StrategyBase):\n",
+        code,
+    )
+    code = re.sub(
+        rf"class\s+{GENERATED_CLASS_NAME}\s*\(\s*\)\s*:",
+        f"class {GENERATED_CLASS_NAME}(StrategyBase):",
+        code,
+    )
+
+    # 10. Alias variables coeur dans generate_signals (évite NameError df/indicators/params)
+    code = _inject_generate_signals_core_param_aliases(code)
 
     return code
 
 
-def _build_deterministic_fallback_code(proposal: Dict[str, Any]) -> str:
-    """Construit un code de stratégie minimal, robuste et syntaxiquement valide.
+def _build_deterministic_fallback_code(
+    proposal: Dict[str, Any],
+    variant: int = 0,
+) -> str:
+    """Construit un code de stratégie conservateur, robuste et syntaxiquement valide.
 
     Utilisé en dernier recours si le LLM renvoie un code invalide même après retry.
-    L'objectif est d'éviter une itération en erreur pure (syntax/AST), quitte à
-    produire une logique simple.
+    Le paramètre ``variant`` permet de varier la logique quand le fallback est
+    appelé plusieurs fois dans la même session (évite la stagnation).
+
+    Variantes:
+        0 — mean-reversion RSI/Bollinger + SL/TP ATR (impulsions, overtrading-safe)
+        1 — trend-following Supertrend/ADX + SL/TP ATR (impulsions)
+        2 — momentum RSI/EMA + SL/TP ATR (impulsions)
     """
     strategy_name = str(proposal.get("strategy_name", "BuilderFallback")).strip()
     if not strategy_name:
@@ -1047,15 +1315,183 @@ def _build_deterministic_fallback_code(proposal: Dict[str, Any]) -> str:
     safe_used: List[str] = []
     for x in used:
         if isinstance(x, str):
-            sx = x.strip()
+            sx = x.strip().lower()
             if sx:
-                safe_used.append(sx)
+                if sx not in safe_used:
+                    safe_used.append(sx)
     if len(safe_used) > 20:
         safe_used = safe_used[:20]
 
     default_params = proposal.get("default_params", {})
     if not isinstance(default_params, dict):
         default_params = {}
+    default_params.setdefault("warmup", 50)
+    default_params.setdefault("atr_period", 14)
+    default_params.setdefault("stop_atr_mult", 1.5)
+    default_params.setdefault("tp_atr_mult", 3.0)
+    default_params["leverage"] = 1  # Force leverage=1 (not setdefault)
+
+    effective_variant = variant % 3
+
+    if effective_variant == 1:
+        # ── Variante 1: trend-following Supertrend/ADX ──
+        for needed in ("supertrend", "adx", "atr"):
+            if needed not in safe_used:
+                safe_used.append(needed)
+        default_params.setdefault("supertrend_atr_period", 10)
+        default_params.setdefault("supertrend_multiplier", 3.0)
+        default_params.setdefault("adx_period", 14)
+        default_params.setdefault("adx_threshold", 20.0)
+        signals_body = (
+            "        stop_atr_mult = float(params.get('stop_atr_mult', 1.5))\n"
+            "        tp_atr_mult = float(params.get('tp_atr_mult', 3.0))\n"
+            "        adx_threshold = float(params.get('adx_threshold', 20.0))\n"
+            "        close = np.nan_to_num(df['close'].values.astype(np.float64))\n"
+            "        if len(close) < warmup + 2:\n"
+            "            return signals\n"
+            "        atr_raw = indicators.get('atr')\n"
+            "        if isinstance(atr_raw, np.ndarray):\n"
+            "            atr = np.nan_to_num(atr_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            atr = np.full(n, 0.0)\n"
+            "        st_raw = indicators.get('supertrend')\n"
+            "        if isinstance(st_raw, dict):\n"
+            "            direction = np.nan_to_num(st_raw.get('direction', np.zeros(n))).astype(np.float64)\n"
+            "        else:\n"
+            "            direction = np.full(n, 0.0)\n"
+            "        adx_raw = indicators.get('adx')\n"
+            "        if isinstance(adx_raw, dict):\n"
+            "            adx = np.nan_to_num(adx_raw.get('adx', np.zeros(n))).astype(np.float64)\n"
+            "        else:\n"
+            "            adx = np.full(n, 0.0)\n"
+            "        df.loc[:, 'bb_stop_long'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_long'] = np.nan\n"
+            "        df.loc[:, 'bb_stop_short'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_short'] = np.nan\n"
+            "        bull = direction > 0\n"
+            "        bear = direction < 0\n"
+            "        bull_prev = np.roll(bull, 1)\n"
+            "        bear_prev = np.roll(bear, 1)\n"
+            "        bull_prev[:1] = False\n"
+            "        bear_prev[:1] = False\n"
+            "        long_entry = bull & (~bull_prev) & (adx >= adx_threshold)\n"
+            "        short_entry = bear & (~bear_prev) & (adx >= adx_threshold)\n"
+            "        long_entry[:warmup] = False\n"
+            "        short_entry[:warmup] = False\n"
+            "        signals[long_entry] = 1.0\n"
+            "        signals[short_entry] = -1.0\n"
+            "        df.loc[long_entry, 'bb_stop_long'] = close[long_entry] - stop_atr_mult * atr[long_entry]\n"
+            "        df.loc[long_entry, 'bb_tp_long'] = close[long_entry] + tp_atr_mult * atr[long_entry]\n"
+            "        df.loc[short_entry, 'bb_stop_short'] = close[short_entry] + stop_atr_mult * atr[short_entry]\n"
+            "        df.loc[short_entry, 'bb_tp_short'] = close[short_entry] - tp_atr_mult * atr[short_entry]\n"
+        )
+    elif effective_variant == 2:
+        # ── Variante 2: momentum RSI/EMA ──
+        for needed in ("rsi", "ema", "atr"):
+            if needed not in safe_used:
+                safe_used.append(needed)
+        default_params.setdefault("rsi_mid", 50.0)
+        default_params.setdefault("ema_period", 50)
+        signals_body = (
+            "        rsi_mid = float(params.get('rsi_mid', 50.0))\n"
+            "        stop_atr_mult = float(params.get('stop_atr_mult', 1.5))\n"
+            "        tp_atr_mult = float(params.get('tp_atr_mult', 3.0))\n"
+            "        close = np.nan_to_num(df['close'].values.astype(np.float64))\n"
+            "        if len(close) < warmup + 2:\n"
+            "            return signals\n"
+            "        atr_raw = indicators.get('atr')\n"
+            "        if isinstance(atr_raw, np.ndarray):\n"
+            "            atr = np.nan_to_num(atr_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            atr = np.full(n, 0.0)\n"
+            "        rsi_raw = indicators.get('rsi')\n"
+            "        if isinstance(rsi_raw, np.ndarray):\n"
+            "            rsi = np.nan_to_num(rsi_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            rsi = np.full(n, 50.0)\n"
+            "        ema_raw = indicators.get('ema')\n"
+            "        if isinstance(ema_raw, np.ndarray):\n"
+            "            ema = np.nan_to_num(ema_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            ema = close.copy()\n"
+            "        df.loc[:, 'bb_stop_long'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_long'] = np.nan\n"
+            "        df.loc[:, 'bb_stop_short'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_short'] = np.nan\n"
+            "        long_cond = (rsi > rsi_mid) & (close > ema)\n"
+            "        short_cond = (rsi < rsi_mid) & (close < ema)\n"
+            "        long_prev = np.roll(long_cond, 1)\n"
+            "        short_prev = np.roll(short_cond, 1)\n"
+            "        long_prev[:1] = False\n"
+            "        short_prev[:1] = False\n"
+            "        long_entry = long_cond & (~long_prev)\n"
+            "        short_entry = short_cond & (~short_prev)\n"
+            "        long_entry[:warmup] = False\n"
+            "        short_entry[:warmup] = False\n"
+            "        signals[long_entry] = 1.0\n"
+            "        signals[short_entry] = -1.0\n"
+            "        df.loc[long_entry, 'bb_stop_long'] = close[long_entry] - stop_atr_mult * atr[long_entry]\n"
+            "        df.loc[long_entry, 'bb_tp_long'] = close[long_entry] + tp_atr_mult * atr[long_entry]\n"
+            "        df.loc[short_entry, 'bb_stop_short'] = close[short_entry] + stop_atr_mult * atr[short_entry]\n"
+            "        df.loc[short_entry, 'bb_tp_short'] = close[short_entry] - tp_atr_mult * atr[short_entry]\n"
+        )
+    else:
+        # ── Variante 0: mean-reversion RSI/Bollinger ──
+        for needed in ("rsi", "bollinger", "atr"):
+            if needed not in safe_used:
+                safe_used.append(needed)
+        default_params.setdefault("rsi_oversold", 30)
+        default_params.setdefault("rsi_overbought", 70)
+        signals_body = (
+            "        rsi_oversold = float(params.get('rsi_oversold', 30))\n"
+            "        rsi_overbought = float(params.get('rsi_overbought', 70))\n"
+            "        stop_atr_mult = float(params.get('stop_atr_mult', 1.5))\n"
+            "        tp_atr_mult = float(params.get('tp_atr_mult', 3.0))\n"
+            "        close = np.nan_to_num(df['close'].values.astype(np.float64))\n"
+            "        if len(close) < warmup + 2:\n"
+            "            return signals\n"
+            "        atr_raw = indicators.get('atr')\n"
+            "        if isinstance(atr_raw, np.ndarray):\n"
+            "            atr = np.nan_to_num(atr_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            atr = np.full(n, 0.0)\n"
+            "        rsi_raw = indicators.get('rsi')\n"
+            "        bb_raw = indicators.get('bollinger')\n"
+            "        has_rsi = isinstance(rsi_raw, np.ndarray)\n"
+            "        has_bb = isinstance(bb_raw, dict)\n"
+            "        if has_rsi:\n"
+            "            rsi = np.nan_to_num(rsi_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            rsi = np.full(n, 50.0)\n"
+            "        if has_bb:\n"
+            "            bb_lower = np.nan_to_num(bb_raw.get('lower', np.zeros(n)).astype(np.float64))\n"
+            "            bb_upper = np.nan_to_num(bb_raw.get('upper', np.zeros(n)).astype(np.float64))\n"
+            "        else:\n"
+            "            bb_lower = np.full(n, 0.0)\n"
+            "            bb_upper = np.full(n, np.inf)\n"
+            "        df.loc[:, 'bb_stop_long'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_long'] = np.nan\n"
+            "        df.loc[:, 'bb_stop_short'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_short'] = np.nan\n"
+            "        long_cond = (rsi < rsi_oversold) & (close <= bb_lower)\n"
+            "        short_cond = (rsi > rsi_overbought) & (close >= bb_upper)\n"
+            "        long_prev = np.roll(long_cond, 1)\n"
+            "        short_prev = np.roll(short_cond, 1)\n"
+            "        long_prev[:1] = False\n"
+            "        short_prev[:1] = False\n"
+            "        long_entry = long_cond & (~long_prev)\n"
+            "        short_entry = short_cond & (~short_prev)\n"
+            "        long_entry[:warmup] = False\n"
+            "        short_entry[:warmup] = False\n"
+            "        signals[long_entry] = 1.0\n"
+            "        signals[short_entry] = -1.0\n"
+            "        df.loc[long_entry, 'bb_stop_long'] = close[long_entry] - stop_atr_mult * atr[long_entry]\n"
+            "        df.loc[long_entry, 'bb_tp_long'] = close[long_entry] + tp_atr_mult * atr[long_entry]\n"
+            "        df.loc[short_entry, 'bb_stop_short'] = close[short_entry] + stop_atr_mult * atr[short_entry]\n"
+            "        df.loc[short_entry, 'bb_tp_short'] = close[short_entry] - tp_atr_mult * atr[short_entry]\n"
+        )
+
+    # ── Partie commune: assemblage du code final ──
     default_params_literal = _format_python_dict_literal(default_params)
     default_params_lines = default_params_literal.splitlines() or ["{}"]
     if len(default_params_lines) == 1:
@@ -1088,27 +1524,9 @@ def _build_deterministic_fallback_code(proposal: Dict[str, Any]) -> str:
         "    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:\n"
         "        n = len(df)\n"
         "        signals = pd.Series(0.0, index=df.index, dtype=np.float64)\n"
-        "        def _align_len(arr: np.ndarray, target_len: int, fill: float = np.nan) -> np.ndarray:\n"
-        "            out = np.full(target_len, fill, dtype=np.float64)\n"
-        "            m = min(target_len, len(arr))\n"
-        "            if m > 0:\n"
-        "                out[:m] = arr[:m]\n"
-        "            return out\n"
-        "        close = _align_len(np.nan_to_num(df['close'].values.astype(np.float64)), n, fill=0.0)\n"
-        "        if len(close) < 2:\n"
-        "            return signals\n"
-        "        prev_close = np.roll(close, 1)\n"
-        "        prev_close[0] = close[0]\n"
-        "        long_mask = close > prev_close\n"
-        "        short_mask = close < prev_close\n"
-        "        rsi_raw = indicators.get('rsi')\n"
-        "        if isinstance(rsi_raw, np.ndarray):\n"
-        "            rsi = _align_len(np.nan_to_num(rsi_raw.astype(np.float64)), n)\n"
-        "            long_mask = long_mask & (rsi < 55)\n"
-        "            short_mask = short_mask & (rsi > 45)\n"
-        "        signals[long_mask] = 1.0\n"
-        "        signals[short_mask] = -1.0\n"
-        "        signals.iloc[:50] = 0.0\n"
+        "        warmup = int(params.get('warmup', 50))\n"
+        f"{signals_body}"
+        "        signals.iloc[:warmup] = 0.0\n"
         "        return signals\n"
     )
 
@@ -1899,6 +2317,16 @@ class StrategyBuilder:
             # Diagnostic pré-calculé de la dernière itération
             if last_iteration.diagnostic_detail:
                 context["diagnostic"] = last_iteration.diagnostic_detail
+            # Stagnation détectée : forcer le LLM à changer radicalement
+            stag = (last_iteration.phase_feedback or {}).get("stagnation", {})
+            if stag.get("identical_metrics"):
+                context["stagnation_warning"] = (
+                    "CRITICAL: Previous iteration produced IDENTICAL metrics. "
+                    "Your changes had NO effect. You MUST change the fundamental "
+                    "approach: use DIFFERENT indicators, DIFFERENT entry logic, "
+                    "or DIFFERENT strategy type (e.g. trend-following instead of "
+                    "mean-reversion). Do NOT repeat the same logic with minor tweaks."
+                )
 
         if session.iterations:
             context["iteration_history"] = [
@@ -2014,6 +2442,14 @@ class StrategyBuilder:
         Returns:
             (code, feedback)
         """
+        # Extraire les actions diagnostiques de la dernière itération
+        diag_actions: List[str] = []
+        diag_donts: List[str] = []
+        if last_iteration is not None:
+            diag_detail = getattr(last_iteration, "diagnostic_detail", {}) or {}
+            diag_actions = diag_detail.get("actions", [])
+            diag_donts = diag_detail.get("donts", [])
+
         context = {
             "objective": session.objective,
             "proposal": proposal,
@@ -2031,6 +2467,9 @@ class StrategyBuilder:
                 if last_iteration is not None and getattr(last_iteration, "code", "")
                 else ""
             ),
+            # Diagnostic de l'itération précédente (injecté dans le template)
+            "diagnostic_actions": diag_actions,
+            "diagnostic_donts": diag_donts,
         }
 
         prompt = render_prompt("strategy_builder_code.jinja2", context)
@@ -2180,9 +2619,12 @@ class StrategyBuilder:
             "- bollinger must be indicators['bollinger']['upper|middle|lower']\n\n"
             "- adx must be indicators['adx']['adx|plus_di|minus_di'] (not indicators['adx'] directly)\n"
             "- supertrend must be indicators['supertrend']['supertrend|direction'] (no upper/lower)\n"
+            "- stochastic must be indicators['stochastic']['stoch_k|stoch_d'] (no 'signal' key)\n"
             "- do not compare dict indicators directly (e.g. NEVER `adx > 25`)\n"
             "- for `&` / `|`, ensure both sides are boolean masks (no float/int scalar in bitwise op)\n\n"
             "- ema/rsi/atr are plain arrays: NEVER use indicators['ema']['ema_21'] style\n\n"
+            "- ALWAYS include leverage=1 in default_params\n"
+            "- If using ATR-based SL/TP: write df['bb_stop_long/bb_tp_long/bb_stop_short/bb_tp_short'] on entry bars\n\n"
             "EXACT structure:\n\n"
             "```python\n"
             "from typing import Any, Dict, List\n"
@@ -2197,10 +2639,9 @@ class StrategyBuilder:
             f"        return {inds}\n\n"
             "    @property\n"
             "    def default_params(self):\n"
-            "        return {}\n\n"
+            "        return {\"leverage\": 1, \"warmup\": 50, \"stop_atr_mult\": 1.5, \"tp_atr_mult\": 3.0}\n\n"
             "    def generate_signals(self, df, indicators, params):\n"
             "        signals = pd.Series(0.0, index=df.index)\n"
-            "        # FILL IN: actual trading logic using indicators\n"
             "        return signals\n"
             "```\n\n"
             "Generate the COMPLETE code with ACTUAL logic (no placeholders)."
@@ -2229,17 +2670,22 @@ class StrategyBuilder:
         """Demande une correction ciblée d'un code qui a échoué au runtime backtest."""
         prompt = (
             "The following strategy code failed at runtime during backtest.\n\n"
-            f"Runtime error: {runtime_error}\n\n"
+            f"Runtime error (may include traceback tail):\n{runtime_error}\n\n"
             "Fix ONLY what is necessary to remove the runtime error while keeping "
             "the strategy intent intact.\n"
             "Rules:\n"
             "- Class name must remain BuilderGeneratedStrategy\n"
             "- Keep required_indicators coherent with indicator usage\n"
+            "- Keep generate_signals signature EXACTLY: "
+            "def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series\n"
+            "- Never reference undefined globals like `df`, `indicators`, `params` inside helper methods; "
+            "pass what you need as arguments.\n"
             "- Use indicators dict correctly (dict indicators via sub-keys)\n"
             "- Indicator values are numpy arrays; never call .iloc/.loc on indicators\n"
             "- Use bollinger as indicators['bollinger']['upper|middle|lower'] only\n"
             "- Use adx as indicators['adx']['adx|plus_di|minus_di'] only\n"
             "- Use supertrend as indicators['supertrend']['supertrend|direction'] only\n"
+            "- Use stochastic as indicators['stochastic']['stoch_k|stoch_d'] only\n"
             "- Do NOT compare dict indicators directly (e.g. avoid `adx > threshold`)\n"
             "- For bitwise `&` / `|`, each side must be a boolean mask expression\n"
             "- ema/rsi/atr are arrays: do not use sub-keys like indicators['ema']['ema_21']\n"
@@ -2430,7 +2876,14 @@ CRITICAL RULES:
 17. EMA/RSI/ATR are plain arrays: NEVER use sub-keys like indicators['ema']['ema_21'].
 18. ADX must be used as indicators['adx']['adx|plus_di|minus_di'] (never compare indicators['adx'] directly).
 19. Supertrend must be used as indicators['supertrend']['supertrend|direction'] (no upper/lower keys).
-20. For bitwise '&' and '|', both sides must be boolean mask expressions (never float/int scalars).
+20. Stochastic must be used as indicators['stochastic']['stoch_k|stoch_d'] (no 'signal' key).
+21. For bitwise '&' and '|', both sides must be boolean mask expressions (never float/int scalars).
+22. ALWAYS set "leverage": 1 in default_params. The backtest engine defaults to leverage=3 which ruins accounts.
+23. To implement ATR-based SL/TP, write price levels into the DataFrame columns:
+    - df.loc[:, "bb_stop_long"] = entry_price - stop_atr_mult * atr  (NaN where no entry)
+    - df.loc[:, "bb_tp_long"]   = entry_price + tp_atr_mult * atr    (NaN where no entry)
+    - df.loc[:, "bb_stop_short"] / df.loc[:, "bb_tp_short"] for short positions.
+    The simulator reads these columns automatically. Only write values on entry signal bars (NaN elsewhere).
 
 The code must be ready to execute with ZERO modifications."""
 
@@ -2691,6 +3144,7 @@ The code must be ready to execute with ZERO modifications."""
 
         last_iteration: Optional[BuilderIteration] = None
         consecutive_failures = 0
+        fallback_count = 0  # compteur de fallbacks déterministes dans la session
 
         for i in range(1, max_iterations + 1):
             iteration = BuilderIteration(iteration=i)
@@ -2702,6 +3156,19 @@ The code must be ready to execute with ZERO modifications."""
                 logger.warning(
                     "builder_circuit_breaker consecutive=%d",
                     consecutive_failures,
+                )
+                session.status = "failed"
+                break
+
+            # ── Circuit breaker fallback ──
+            if fallback_count >= MAX_DETERMINISTIC_FALLBACKS:
+                ts.warning(
+                    f"Arrêt: {fallback_count} fallbacks déterministes utilisés. "
+                    "Le LLM ne parvient pas à générer du code valide pour cette API."
+                )
+                logger.warning(
+                    "builder_fallback_circuit_breaker count=%d",
+                    fallback_count,
                 )
                 session.status = "failed"
                 break
@@ -2935,6 +3402,9 @@ The code must be ready to execute with ZERO modifications."""
                     logger.warning(
                         "builder_iter_%d_invalid code=%s — retrying", i, error_msg,
                     )
+                    iteration.phase_feedback.setdefault("code", {})[
+                        "validation_error"
+                    ] = error_msg
                     retry_code = self._retry_code_simple(proposal)
                     retry_code = _repair_code(retry_code)
                     is_valid_r, error_msg_r = validate_generated_code(retry_code)
@@ -2943,8 +3413,14 @@ The code must be ready to execute with ZERO modifications."""
                         iteration.code = code
                         is_valid, error_msg = True, ""
                     else:
+                        iteration.phase_feedback.setdefault("code", {})[
+                            "validation_error_retry"
+                        ] = error_msg_r
                         # Fallback déterministe pour ne pas perdre l'itération
-                        fallback_code = _build_deterministic_fallback_code(proposal)
+                        fallback_code = _build_deterministic_fallback_code(
+                            proposal, variant=fallback_count,
+                        )
+                        fallback_count += 1
                         fallback_code = _repair_code(fallback_code)
                         is_valid_fb, error_msg_fb = validate_generated_code(fallback_code)
                         if is_valid_fb:
@@ -2956,8 +3432,11 @@ The code must be ready to execute with ZERO modifications."""
                             iteration.phase_feedback.setdefault("code", {})[
                                 "source"
                             ] = "deterministic_fallback"
+                            iteration.phase_feedback.setdefault("code", {})[
+                                "fallback_variant"
+                            ] = fallback_count - 1
                             ts.warning(
-                                "Code LLM invalide après retry: fallback déterministe appliqué."
+                                f"Code LLM invalide après retry: fallback déterministe v{fallback_count - 1} appliqué."
                             )
                             is_valid, error_msg = True, ""
                         else:
@@ -2998,9 +3477,18 @@ The code must be ready to execute with ZERO modifications."""
                     )
                 except Exception as bt_exc:
                     bt_error = f"{type(bt_exc).__name__}: {bt_exc}"
+                    tb = traceback.format_exc()
+                    tb_tail = ""
+                    if tb:
+                        tb_lines = [line.rstrip() for line in tb.splitlines() if line.rstrip()]
+                        tb_tail = "\n".join(tb_lines[-16:]).strip()
                     iteration.phase_feedback.setdefault("backtest", {})[
                         "runtime_error"
                     ] = bt_error
+                    if tb_tail:
+                        iteration.phase_feedback.setdefault("backtest", {})[
+                            "runtime_traceback_tail"
+                        ] = tb_tail
                     ts.warning(
                         f"Backtest runtime error: {bt_error} — tentative auto-fix"
                     )
@@ -3008,10 +3496,16 @@ The code must be ready to execute with ZERO modifications."""
                         "builder_iter_%d_backtest_runtime_error: %s", i, bt_error
                     )
 
+                    runtime_error_for_llm = bt_error
+                    if tb_tail:
+                        runtime_error_for_llm = (
+                            f"{bt_error}\n\nTraceback (tail):\n{tb_tail}"
+                        )
+
                     retry_code = self._retry_code_runtime_fix(
                         proposal=proposal,
                         failing_code=code,
-                        runtime_error=bt_error,
+                        runtime_error=runtime_error_for_llm,
                     )
                     retry_code = _repair_code(retry_code)
                     valid_retry, retry_err = validate_generated_code(retry_code)
@@ -3020,7 +3514,10 @@ The code must be ready to execute with ZERO modifications."""
                         iteration.phase_feedback.setdefault("backtest", {})[
                             "runtime_fix_validation_error"
                         ] = retry_err
-                        fallback_code = _build_deterministic_fallback_code(proposal)
+                        fallback_code = _build_deterministic_fallback_code(
+                            proposal, variant=fallback_count,
+                        )
+                        fallback_count += 1
                         fallback_code = _repair_code(fallback_code)
                         valid_fb, fb_err = validate_generated_code(fallback_code)
                         if not valid_fb:
@@ -3055,7 +3552,10 @@ The code must be ready to execute with ZERO modifications."""
                         iteration.phase_feedback.setdefault("backtest", {})[
                             "runtime_fix_retry_error"
                         ] = f"{type(retry_bt_exc).__name__}: {retry_bt_exc}"
-                        fallback_code = _build_deterministic_fallback_code(proposal)
+                        fallback_code = _build_deterministic_fallback_code(
+                            proposal, variant=fallback_count,
+                        )
+                        fallback_count += 1
                         fallback_code = _repair_code(fallback_code)
                         valid_fb2, fb_err2 = validate_generated_code(fallback_code)
                         if not valid_fb2:
@@ -3101,6 +3601,28 @@ The code must be ready to execute with ZERO modifications."""
                     session.best_sharpe = rank_sharpe
                     session.best_iteration = iteration
                     ts.best_update(rank_sharpe, i)
+
+                # ── Phase 6b : Détection de stagnation ──
+                cur_fp = _metrics_fingerprint(metrics_cur)
+                if last_iteration and last_iteration.backtest_result:
+                    prev_fp = _metrics_fingerprint(
+                        last_iteration.backtest_result.metrics or {}
+                    )
+                    if cur_fp == prev_fp:
+                        iteration.phase_feedback.setdefault("stagnation", {})[
+                            "identical_metrics"
+                        ] = True
+                        ts.warning(
+                            "Stagnation détectée: métriques identiques à "
+                            "l'itération précédente — forçage changement radical."
+                        )
+                        logger.warning(
+                            "builder_iter_%d_stagnation fingerprint=%s",
+                            i, cur_fp,
+                        )
+                        # Injecter un signal fort dans la proposition pour
+                        # forcer le LLM à changer d'approche à l'itération suivante
+                        proposal["_stagnation_detected"] = True
 
                 # ── Phase 7 : Diagnostic déterministe + Analyse LLM ──
                 logger.info("builder_iter_%d_diagnostic", i)
@@ -3423,11 +3945,14 @@ _RISK_TEMPLATES = [
 
 
 def generate_random_objective(
-    symbol: str = "BTCUSDC",
-    timeframe: str = "1h",
+    symbol: "str | List[str]" = "BTCUSDC",
+    timeframe: "str | List[str]" = "1h",
     available_indicators: Optional[List[str]] = None,
 ) -> str:
     """Génère un objectif de stratégie aléatoire à partir de templates.
+
+    Accepte des listes de symboles/timeframes : un couple est choisi
+    aléatoirement pour diversifier les objectifs en mode autonome.
 
     Combine une famille de stratégie, des indicateurs du registry,
     des conditions d'entrée/sortie et du risk management.
@@ -3435,6 +3960,12 @@ def generate_random_objective(
     Returns:
         Objectif structuré en français prêt à être passé au StrategyBuilder.
     """
+    # Normaliser listes → valeur unique (choix aléatoire)
+    if isinstance(symbol, list):
+        symbol = random.choice(symbol) if symbol else "BTCUSDC"
+    if isinstance(timeframe, list):
+        timeframe = random.choice(timeframe) if timeframe else "1h"
+
     if available_indicators is None:
         available_indicators = list_indicators()
 
@@ -3490,15 +4021,16 @@ def generate_random_objective(
 
 def generate_llm_objective(
     llm_client: Any,
-    symbol: str = "BTCUSDC",
-    timeframe: str = "1h",
+    symbol: "str | List[str]" = "BTCUSDC",
+    timeframe: "str | List[str]" = "1h",
     available_indicators: Optional[List[str]] = None,
     stream_callback: Optional[Callable[[str, str], None]] = None,
+    recent_markets: Optional[List[Tuple[str, str]]] = None,
 ) -> str:
     """Génère un objectif de stratégie via un appel LLM.
 
-    Le LLM produit un objectif créatif et original en respectant
-    le format attendu et les indicateurs disponibles.
+    Accepte des listes de symboles/timeframes : le LLM est invité à
+    choisir le couple le plus pertinent pour sa stratégie.
 
     Returns:
         Objectif en texte libre généré par le LLM.
@@ -3507,6 +4039,39 @@ def generate_llm_objective(
         available_indicators = list_indicators()
 
     indicators_list = ", ".join(sorted(available_indicators))
+
+    # Normaliser en listes pour construire le prompt multi-marché
+    symbols_list = symbol if isinstance(symbol, list) else [symbol]
+    timeframes_list = timeframe if isinstance(timeframe, list) else [timeframe]
+    symbols_list = [s for s in symbols_list if s] or ["BTCUSDC"]
+    timeframes_list = [t for t in timeframes_list if t] or ["1h"]
+
+    # Construire l'instruction marché selon l'univers disponible
+    if len(symbols_list) > 1 or len(timeframes_list) > 1:
+        # Mélanger pour réduire le biais de position (BTC toujours 1er)
+        shuffled_symbols = symbols_list.copy()
+        random.shuffle(shuffled_symbols)
+        shuffled_timeframes = timeframes_list.copy()
+        random.shuffle(shuffled_timeframes)
+
+        market_instruction = (
+            f"Symboles disponibles (SEULS autorisés) : {', '.join(shuffled_symbols)}\n"
+            f"Timeframes disponibles (SEULS autorisés) : {', '.join(shuffled_timeframes)}\n"
+            "CHOISIS le symbole et le timeframe les plus adaptés à ta stratégie. "
+            "Tu ne DOIS utiliser QUE des symboles et timeframes de ces listes. "
+            "N'invente AUCUN timeframe (pas de 3m, 5m, 2h, etc. s'ils ne sont pas listés). "
+            "Ne te limite pas à BTC — explore les altcoins si ta stratégie s'y prête mieux.\n\n"
+        )
+        # Injecter l'historique récent pour forcer la diversité
+        if recent_markets:
+            recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_markets[-6:])
+            market_instruction += (
+                f"IMPORTANT — Les marchés suivants ont DÉJÀ été utilisés récemment : {recent_str}. "
+                "Tu DOIS choisir un couple symbol/timeframe DIFFÉRENT de ceux-ci. "
+                "Varie les tokens ET les timeframes.\n\n"
+            )
+    else:
+        market_instruction = f"Marché : {symbols_list[0]} en {timeframes_list[0]}.\n\n"
 
     system_msg = LLMMessage(
         role="system",
@@ -3519,7 +4084,8 @@ def generate_llm_objective(
     user_msg = LLMMessage(
         role="user",
         content=(
-            f"Génère un objectif de stratégie de trading pour {symbol} en {timeframe}.\n\n"
+            f"Génère un objectif de stratégie de trading.\n\n"
+            f"{market_instruction}"
             f"Indicateurs disponibles : {indicators_list}\n\n"
             "Format attendu :\n"
             "[Style] sur [marché] [timeframe]. "
@@ -3553,7 +4119,408 @@ def generate_llm_objective(
         logger.warning("generate_llm_objective: résultat LLM vide, fallback template")
         return generate_random_objective(symbol, timeframe, available_indicators)
 
+    # ── Post-validation : remplacer les TF/tokens hallucinés ──
+    tf_pattern = re.compile(r"\b(\d{1,2}[mhdwM])\b")
+    found_tfs = tf_pattern.findall(objective)
+    for found_tf in found_tfs:
+        if found_tf not in timeframes_list:
+            replacement = random.choice(timeframes_list)
+            objective = objective.replace(found_tf, replacement, 1)
+            logger.info(
+                "generate_llm_objective: TF halluciné '%s' → '%s'",
+                found_tf, replacement,
+            )
+
+    sym_upper_set = {s.upper() for s in symbols_list}
+    # Vérifier que le symbole mentionné est valide
+    sym_pattern = re.compile(r"\b([A-Z]{2,10}USDC)\b")
+    found_syms = sym_pattern.findall(objective.upper())
+    for found_sym in found_syms:
+        if found_sym not in sym_upper_set:
+            replacement = random.choice(symbols_list)
+            objective = re.sub(
+                re.escape(found_sym), replacement, objective,
+                count=1, flags=re.IGNORECASE,
+            )
+            logger.info(
+                "generate_llm_objective: token halluciné '%s' → '%s'",
+                found_sym, replacement,
+            )
+
     return objective
+
+
+# ---------------------------------------------------------------------------
+# Catalogue d'objectifs pré-construits pour exploration systématique
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CatalogObjective:
+    """Un objectif pré-construit du catalogue d'exploration."""
+
+    id: str
+    family: str
+    indicators: List[str]
+    direction: str          # "long_only", "short_only", "long_short"
+    risk_profile: str       # "tight", "balanced", "wide"
+    description: str        # Objectif formaté ({symbol} et {timeframe} en placeholders)
+    sl_mult: float
+    tp_mult: float
+    tags: List[str] = field(default_factory=list)
+
+
+def _make_catalog_entry(
+    family_key: str,
+    indicators: List[str],
+    direction: str,
+    risk_name: str,
+    sl_mult: float,
+    tp_mult: float,
+    tags: Optional[List[str]] = None,
+    entry_idx: int = 0,
+    exit_idx: int = 0,
+) -> CatalogObjective:
+    """Construit un CatalogObjective à partir des templates existants."""
+    family = _INDICATOR_FAMILIES[family_key]
+    entries = family["entry_templates"]
+    exits = family["exit_templates"]
+    entry_tpl = entries[entry_idx % len(entries)]
+    exit_tpl = exits[exit_idx % len(exits)]
+
+    inds_upper = {
+        "ind1": indicators[0].upper(),
+        "ind2": indicators[1].upper() if len(indicators) > 1 else indicators[0].upper(),
+        "ind3": indicators[2].upper() if len(indicators) > 2 else indicators[0].upper(),
+    }
+    entry = entry_tpl.format(**inds_upper)
+    exit_rule = exit_tpl.format(**inds_upper)
+
+    dir_label = {
+        "long_only": "Long uniquement.",
+        "short_only": "Short uniquement.",
+        "long_short": "Long et short.",
+    }.get(direction, "Long et short.")
+
+    rr = round(tp_mult / max(sl_mult, 0.1), 1)
+    risk = f"Stop-loss = {sl_mult}x ATR, take-profit = {tp_mult}x ATR (RR {rr}:1)."
+    indicators_str = " + ".join(ind.upper() for ind in indicators)
+
+    description = (
+        f"Stratégie de {family['label']} sur {{symbol}} {{timeframe}}. "
+        f"Indicateurs : {indicators_str}. "
+        f"{entry} {exit_rule} {dir_label} {risk}"
+    )
+
+    obj_id = hashlib.md5(
+        f"{family_key}_{'-'.join(indicators)}_{direction}_{risk_name}_{entry_idx}".encode()
+    ).hexdigest()[:12]
+
+    return CatalogObjective(
+        id=obj_id,
+        family=family_key,
+        indicators=list(indicators),
+        direction=direction,
+        risk_profile=risk_name,
+        description=description,
+        sl_mult=sl_mult,
+        tp_mult=tp_mult,
+        tags=tags or [],
+    )
+
+
+def _ensure_atr(inds: List[str]) -> List[str]:
+    if "atr" not in [i.lower() for i in inds]:
+        return list(inds) + ["atr"]
+    return list(inds)
+
+
+_RISK_PROFILES = {
+    "tight":    (1.0, 2.0),
+    "balanced": (1.5, 3.0),
+    "wide":     (2.0, 5.0),
+}
+
+_SCALP_RISK_PROFILES = {
+    "tight":    (0.5, 1.0),
+    "balanced": (1.0, 1.5),
+}
+
+
+def _build_objective_catalog() -> List[CatalogObjective]:
+    """Construit le catalogue complet d'objectifs pré-définis (~150)."""
+    catalog: List[CatalogObjective] = []
+
+    def _add(family: str, pairs: list, directions: list, risks: dict,
+             tags_base: Optional[List[str]] = None):
+        for pi, (inds, tags) in enumerate(pairs):
+            full_inds = _ensure_atr(inds)
+            all_tags = (tags_base or []) + tags
+            for direction in directions:
+                for risk_name, (sl, tp) in risks.items():
+                    catalog.append(_make_catalog_entry(
+                        family, full_inds, direction, risk_name, sl, tp,
+                        tags=all_tags, entry_idx=pi, exit_idx=pi,
+                    ))
+
+    # ── Trend-following (~42) ──
+    _add("trend-following", [
+        (["ema", "macd"],        ["trending", "momentum"]),
+        (["sma", "adx"],         ["trending", "strong_trend"]),
+        (["supertrend", "adx"],  ["trending", "breakout"]),
+        (["ema", "aroon"],       ["trending", "reversal"]),
+        (["macd", "supertrend"], ["trending", "momentum"]),
+        (["ema", "vortex"],      ["trending", "oscillator"]),
+        (["sma", "aroon"],       ["trending", "pullback"]),
+    ], ["long_only", "short_only"], _RISK_PROFILES)
+
+    # ── Mean-reversion (~42) ──
+    _add("mean-reversion", [
+        (["bollinger", "rsi"],        ["ranging", "oversold"]),
+        (["bollinger", "stochastic"], ["ranging", "overbought"]),
+        (["keltner", "cci"],          ["ranging", "channel"]),
+        (["donchian", "williams_r"],  ["ranging", "breakout"]),
+        (["bollinger", "stoch_rsi"],  ["ranging", "extreme"]),
+        (["keltner", "rsi"],          ["ranging", "mean_revert"]),
+        (["donchian", "rsi"],         ["ranging", "pullback"]),
+    ], ["long_only", "short_only"], _RISK_PROFILES)
+
+    # ── Momentum (~30) ──
+    _add("momentum", [
+        (["rsi", "macd"],         ["momentum", "divergence"]),
+        (["macd", "roc"],         ["momentum", "acceleration"]),
+        (["momentum", "stochastic"], ["momentum", "oscillator"]),
+        (["rsi", "mfi"],          ["momentum", "volume"]),
+        (["macd", "stochastic"],  ["momentum", "confirmation"]),
+    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.0), "wide": (2.0, 4.5)})
+
+    # ── Breakout (~24) ──
+    _add("breakout", [
+        (["bollinger", "adx"],      ["volatile", "expansion"]),
+        (["donchian", "atr"],       ["breakout", "channel"]),
+        (["keltner", "supertrend"], ["breakout", "trending"]),
+        (["bollinger", "supertrend"], ["volatile", "trending"]),
+    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.5), "wide": (2.0, 5.0)})
+
+    # ── Scalping (~12) ──
+    _add("scalping", [
+        (["ema", "stochastic"], ["scalp", "short_term"]),
+        (["macd", "rsi"],       ["scalp", "momentum"]),
+        (["bollinger", "vwap"], ["scalp", "mean_revert"]),
+        (["ema", "rsi"],        ["scalp", "pullback"]),
+        (["stochastic", "vwap"], ["scalp", "oscillator"]),
+        (["ema", "macd"],       ["scalp", "cross"]),
+    ], ["long_short"], _SCALP_RISK_PROFILES)
+
+    # ── Multi-factor (~12) ──
+    _add("multi-factor", [
+        (["ema", "rsi", "bollinger"],         ["composite", "three_factor"]),
+        (["supertrend", "adx", "stochastic"], ["composite", "trend_confirm"]),
+        (["macd", "bollinger", "obv"],        ["composite", "volume"]),
+        (["ema", "macd", "rsi"],              ["composite", "momentum"]),
+    ], ["long_short"], _RISK_PROFILES)
+
+    logger.info("objective_catalog_built count=%d", len(catalog))
+    return catalog
+
+
+# Singleton catalogue (lazy init)
+_OBJECTIVE_CATALOG: Optional[List[CatalogObjective]] = None
+
+
+def get_objective_catalog() -> List[CatalogObjective]:
+    """Retourne le catalogue d'objectifs (lazy init)."""
+    global _OBJECTIVE_CATALOG
+    if _OBJECTIVE_CATALOG is None:
+        _OBJECTIVE_CATALOG = _build_objective_catalog()
+    return _OBJECTIVE_CATALOG
+
+
+# ---------------------------------------------------------------------------
+# Exploration Tracker — persistance et suivi de couverture
+# ---------------------------------------------------------------------------
+
+class ExplorationTracker:
+    """Gère l'exploration systématique du catalogue d'objectifs.
+
+    Persiste l'état dans un fichier JSON pour survivre aux redémarrages.
+    """
+
+    STATE_FILE = SANDBOX_ROOT / "_exploration_state.json"
+
+    def __init__(self, catalog: List[CatalogObjective]):
+        self.catalog = catalog
+        self.catalog_by_id: Dict[str, CatalogObjective] = {
+            obj.id: obj for obj in catalog
+        }
+        self._catalog_hash = self._compute_catalog_hash()
+        self.state = self._load_or_create_state()
+
+    # -- persistence --
+
+    def _compute_catalog_hash(self) -> str:
+        ids = "|".join(obj.id for obj in self.catalog)
+        return hashlib.md5(ids.encode()).hexdigest()[:16]
+
+    def _load_or_create_state(self) -> Dict[str, Any]:
+        if self.STATE_FILE.exists():
+            try:
+                with open(self.STATE_FILE, "r", encoding="utf-8") as f:
+                    state = json.load(f)
+                if state.get("catalog_hash") == self._catalog_hash:
+                    return state
+                logger.info("exploration_tracker_catalog_changed — reset")
+            except Exception:
+                pass
+        return self._fresh_state()
+
+    def _fresh_state(self) -> Dict[str, Any]:
+        order = [obj.id for obj in self.catalog]
+        random.shuffle(order)
+        return {
+            "version": "1.0",
+            "catalog_hash": self._catalog_hash,
+            "exploration_order": order,
+            "current_index": 0,
+            "explored": {},
+        }
+
+    def _save(self) -> None:
+        self.STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.STATE_FILE.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(self.state, f, indent=2, ensure_ascii=False)
+        tmp.replace(self.STATE_FILE)
+
+    # -- API --
+
+    def get_next_objective(self) -> Optional[CatalogObjective]:
+        """Retourne le prochain objectif non exploré, ou None si épuisé."""
+        order = self.state["exploration_order"]
+        explored = self.state["explored"]
+        idx = self.state["current_index"]
+        while idx < len(order):
+            obj_id = order[idx]
+            if obj_id not in explored and obj_id in self.catalog_by_id:
+                self.state["current_index"] = idx
+                return self.catalog_by_id[obj_id]
+            idx += 1
+        return None
+
+    def mark_explored(
+        self,
+        obj_id: str,
+        *,
+        status: str,
+        best_sharpe: float,
+        session_id: str,
+        symbol: str,
+        timeframe: str,
+    ) -> None:
+        self.state["explored"][obj_id] = {
+            "tested_at": datetime.now().isoformat(),
+            "status": status,
+            "best_sharpe": best_sharpe,
+            "session_id": session_id,
+            "symbol": symbol,
+            "timeframe": timeframe,
+        }
+        self.state["current_index"] = self.state.get("current_index", 0) + 1
+        self._save()
+
+    def get_coverage_stats(self) -> Dict[str, Any]:
+        total = len(self.catalog)
+        explored = self.state["explored"]
+        n_explored = len(explored)
+        n_success = sum(1 for v in explored.values() if v.get("status") == "success")
+        best = max(
+            (v.get("best_sharpe", float("-inf")) for v in explored.values()),
+            default=0.0,
+        )
+        return {
+            "total_objectives": total,
+            "explored_count": n_explored,
+            "success_count": n_success,
+            "coverage_pct": round(100.0 * n_explored / max(total, 1), 1),
+            "best_sharpe_overall": round(best, 3),
+        }
+
+    def reset(self) -> None:
+        """Reset complet : re-shuffle et repart de zéro."""
+        self.state = self._fresh_state()
+        self._save()
+        logger.info("exploration_tracker_reset")
+
+
+# Singleton tracker (lazy init)
+_EXPLORATION_TRACKER: Optional[ExplorationTracker] = None
+
+
+def _get_exploration_tracker() -> ExplorationTracker:
+    global _EXPLORATION_TRACKER
+    if _EXPLORATION_TRACKER is None:
+        _EXPLORATION_TRACKER = ExplorationTracker(get_objective_catalog())
+    return _EXPLORATION_TRACKER
+
+
+def get_next_catalog_objective(
+    symbol: "str | List[str]" = "BTCUSDC",
+    timeframe: "str | List[str]" = "1h",
+) -> Optional[tuple[str, str]]:
+    """Retourne (description, obj_id) du prochain objectif non exploré.
+
+    Accepte des listes de symboles/timeframes : un couple est choisi
+    aléatoirement pour diversifier l'exploration du catalogue.
+
+    Returns:
+        ``(objective_text, obj_id)`` ou ``None`` si le catalogue est épuisé.
+    """
+    # Normaliser listes → valeur unique (choix aléatoire)
+    if isinstance(symbol, list):
+        symbol = random.choice(symbol) if symbol else "BTCUSDC"
+    if isinstance(timeframe, list):
+        timeframe = random.choice(timeframe) if timeframe else "1h"
+
+    tracker = _get_exploration_tracker()
+    obj = tracker.get_next_objective()
+    if obj is None:
+        return None
+    text = obj.description.replace("{symbol}", symbol).replace("{timeframe}", timeframe)
+    return text, obj.id
+
+
+def mark_catalog_objective_explored(
+    obj_id: str,
+    *,
+    status: str,
+    best_sharpe: float,
+    session_id: str,
+    symbol: str,
+    timeframe: str,
+) -> None:
+    """Enregistre un objectif du catalogue comme exploré."""
+    tracker = _get_exploration_tracker()
+    tracker.mark_explored(
+        obj_id,
+        status=status,
+        best_sharpe=best_sharpe,
+        session_id=session_id,
+        symbol=symbol,
+        timeframe=timeframe,
+    )
+
+
+def get_catalog_coverage() -> Dict[str, Any]:
+    """Retourne les statistiques de couverture du catalogue."""
+    tracker = _get_exploration_tracker()
+    return tracker.get_coverage_stats()
+
+
+def reset_catalog_exploration() -> None:
+    """Reset l'exploration du catalogue (re-shuffle)."""
+    global _EXPLORATION_TRACKER
+    tracker = _get_exploration_tracker()
+    tracker.reset()
+    _EXPLORATION_TRACKER = None  # force lazy re-init
 
 
 def recommend_market_context(
@@ -3565,6 +4532,7 @@ def recommend_market_context(
     default_symbol: str = "BTCUSDC",
     default_timeframe: str = "1h",
     stream_callback: Optional[Callable[[str, str], None]] = None,
+    recent_markets: Optional[List[Tuple[str, str]]] = None,
 ) -> Dict[str, Any]:
     """Recommande un couple (symbol, timeframe) adapté à un objectif Builder.
 
@@ -3619,6 +4587,20 @@ def recommend_market_context(
     if not clean_objective:
         clean_objective = str(objective or "").strip()
 
+    # Mélanger pour réduire le biais de position
+    shuffled_symbols = symbols.copy()
+    random.shuffle(shuffled_symbols)
+    shuffled_timeframes = timeframes.copy()
+    random.shuffle(shuffled_timeframes)
+
+    diversity_instruction = ""
+    if recent_markets:
+        recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_markets[-6:])
+        diversity_instruction = (
+            f"\n- DÉJÀ UTILISÉS récemment : {recent_str}. "
+            "Tu DOIS choisir un couple DIFFÉRENT. Varie tokens ET timeframes."
+        )
+
     system_msg = LLMMessage(
         role="system",
         content=(
@@ -3632,11 +4614,11 @@ def recommend_market_context(
             "Objectif:\n"
             f"{clean_objective}\n\n"
             "Contraintes:\n"
-            f"- symbol MUST be one of: {', '.join(symbols)}\n"
-            f"- timeframe MUST be one of: {', '.join(timeframes)}\n"
+            f"- symbol MUST be one of: {', '.join(shuffled_symbols)}\n"
+            f"- timeframe MUST be one of: {', '.join(shuffled_timeframes)}\n"
             "- Retourne un JSON strict, sans markdown:\n"
             '{"symbol":"...","timeframe":"...","confidence":0.0,"reason":"..."}\n'
-            "- confidence doit être entre 0 et 1."
+            f"- confidence doit être entre 0 et 1.{diversity_instruction}"
         ),
     )
 

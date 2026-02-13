@@ -38,7 +38,11 @@ from agents.strategy_builder import (
     StrategyBuilder,
     generate_llm_objective,
     generate_random_objective,
+    get_catalog_coverage,
+    get_next_catalog_objective,
+    mark_catalog_objective_explored,
     recommend_market_context,
+    reset_catalog_exploration,
     sanitize_objective_text,
 )
 from agents.thought_stream import STREAM_FILE
@@ -203,6 +207,9 @@ def render_iteration_card(
                     st.markdown("**Backtest phase**")
                     if bfb.get("runtime_error"):
                         st.markdown(f"- runtime_error: `{bfb.get('runtime_error')}`")
+                    if bfb.get("runtime_traceback_tail"):
+                        st.markdown("- traceback (tail):")
+                        st.code(str(bfb.get("runtime_traceback_tail")), language="text")
                     if bfb.get("runtime_fix_applied"):
                         st.markdown("- runtime_fix appliqué avec succès")
                     if bfb.get("runtime_fix_fallback_deterministic_used"):
@@ -616,6 +623,7 @@ def _pick_market_for_objective(
     default_symbol: str,
     default_timeframe: str,
     fallback_df: Any,
+    recent_markets: list[tuple[str, str]] | None = None,
 ) -> tuple[str, str, Any, Dict[str, Any]]:
     """Demande au LLM le meilleur marché pour l'objectif puis charge les données."""
     symbols, timeframes = _builder_market_candidates(
@@ -630,6 +638,7 @@ def _pick_market_for_objective(
         candidate_timeframes=timeframes,
         default_symbol=default_symbol,
         default_timeframe=default_timeframe,
+        recent_markets=recent_markets,
     )
 
     run_symbol = str(pick.get("symbol", default_symbol) or default_symbol).upper()
@@ -871,6 +880,22 @@ def _render_autonomous_recap(history: List[Dict[str, Any]]) -> None:
             f"{best.get('objective', '')[:80]}"
         )
 
+    # Couverture catalogue
+    try:
+        cov = get_catalog_coverage()
+        total = cov.get("total_objectives", 0)
+        explored = cov.get("explored_count", 0)
+        pct = cov.get("coverage_pct", 0.0)
+        success = cov.get("success_count", 0)
+        if total > 0:
+            st.markdown(
+                f"**Catalogue :** {explored}/{total} objectifs explores "
+                f"({pct:.0f}%) — {success} avec Sharpe > 0"
+            )
+            st.progress(min(pct / 100.0, 1.0))
+    except Exception:
+        pass
+
 
 # ---------------------------------------------------------------------------
 # Point d'entrée principal
@@ -917,6 +942,9 @@ def render_builder_view(
         or st.session_state.get("selected_timeframe")
         or "1h"
     )
+    # Listes complètes pour le mode autonome (diversification multi-market)
+    all_symbols = list(getattr(state, "symbols", []) or [symbol])
+    all_timeframes = list(getattr(state, "timeframes", []) or [timeframe])
     fees_bps_raw = getattr(state, "fees_bps", None)
     if fees_bps_raw is None:
         fees_bps_raw = st.session_state.get("fees_bps", 10.0)
@@ -1074,10 +1102,15 @@ def render_builder_view(
     use_llm_objectives = getattr(state, "builder_auto_use_llm", False)
 
     st.markdown("## 🔄 Strategy Builder — Mode Autonome 24/24")
+    _market_display = (
+        f"{', '.join(all_symbols)} × {', '.join(all_timeframes)}"
+        if len(all_symbols) > 1 or len(all_timeframes) > 1
+        else f"{symbol} {timeframe}"
+    )
     st.caption(
         f"Modèle: `{model}` | Max itérations/session: {max_iterations} | "
         f"Sharpe cible: {target_sharpe} | Capital: ${capital:,.0f} | "
-        f"Marché: {symbol} {timeframe} | "
+        f"Marchés: {_market_display} | "
         f"Pause entre runs: {auto_pause}s | "
         f"Objectifs: {'LLM' if use_llm_objectives else 'Templates'} | "
         f"Auto marché: {'ON' if auto_market_pick else 'OFF'}"
@@ -1139,19 +1172,36 @@ def render_builder_view(
     while st.session_state.get("is_running", False):
         session_num += 1
 
-        # ── Générer l'objectif ──
+        # ── Extraire les marchés récents pour forcer la diversité ──
+        _recent_markets: list[tuple[str, str]] = [
+            (str(h.get("symbol", "")), str(h.get("timeframe", "")))
+            for h in history[-6:]
+            if h.get("symbol") and h.get("timeframe")
+        ]
+
+        # ── Générer l'objectif (multi-market : listes symbols/timeframes) ──
+        current_catalog_id: Optional[str] = None
         if use_llm_objectives and llm_client_for_obj is not None:
             with st.spinner("🧠 Génération de l'objectif par LLM..."):
                 objective = generate_llm_objective(
                     llm_client_for_obj,
-                    symbol=symbol,
-                    timeframe=timeframe,
+                    symbol=all_symbols,
+                    timeframe=all_timeframes,
+                    recent_markets=_recent_markets or None,
                 )
         else:
-            objective = generate_random_objective(
-                symbol=symbol,
-                timeframe=timeframe,
+            # Catalogue systématique en priorité, fallback random
+            catalog_result = get_next_catalog_objective(
+                symbol=all_symbols, timeframe=all_timeframes,
             )
+            if catalog_result is not None:
+                objective, current_catalog_id = catalog_result
+            else:
+                st.info("📚 Catalogue épuisé — passage en mode aléatoire")
+                objective = generate_random_objective(
+                    symbol=all_symbols,
+                    timeframe=all_timeframes,
+                )
         objective = sanitize_objective_text(objective)
 
         session_symbol = symbol
@@ -1167,6 +1217,7 @@ def render_builder_view(
                     default_symbol=symbol,
                     default_timeframe=timeframe,
                     fallback_df=df,
+                    recent_markets=_recent_markets or None,
                 )
             confidence = float(market_pick.get("confidence", 0.0) or 0.0)
             source = str(market_pick.get("source", "") or "")
@@ -1221,6 +1272,17 @@ def render_builder_view(
             })
             st.session_state["builder_autonomous_history"] = history
             st.session_state["builder_session"] = session
+
+            # Marquer l'objectif catalogue comme exploré
+            if current_catalog_id is not None:
+                mark_catalog_objective_explored(
+                    current_catalog_id,
+                    status=session.status,
+                    best_sharpe=session.best_sharpe,
+                    session_id=session.session_id,
+                    symbol=session_symbol,
+                    timeframe=session_timeframe,
+                )
         else:
             history.append({
                 "session_num": session_num,
@@ -1236,6 +1298,17 @@ def render_builder_view(
                 "timeframe": session_timeframe,
             })
             st.session_state["builder_autonomous_history"] = history
+
+            # Marquer l'objectif catalogue comme exploré (même en erreur)
+            if current_catalog_id is not None:
+                mark_catalog_objective_explored(
+                    current_catalog_id,
+                    status="error",
+                    best_sharpe=0.0,
+                    session_id="",
+                    symbol=session_symbol,
+                    timeframe=session_timeframe,
+                )
 
         # ── Afficher le récap mis à jour ──
         with recap_placeholder.container():

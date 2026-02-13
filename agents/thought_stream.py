@@ -193,6 +193,8 @@ class ThoughtStream:
         ct_tag = f"  [{change_type.upper()}]" if change_type else ""
 
         # Afficher l'analyse sur plusieurs lignes indentées
+        if isinstance(analysis, list):
+            analysis = "\n".join(str(a) for a in analysis)
         analysis_lines = analysis.strip().replace("\n", "\n    ")
 
         self._append(

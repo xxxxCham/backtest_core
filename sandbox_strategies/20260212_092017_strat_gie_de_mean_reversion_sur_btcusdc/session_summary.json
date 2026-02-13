@@ -1,0 +1,534 @@
+{
+  "session_id": "20260212_092017_strat_gie_de_mean_reversion_sur_btcusdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur BTCUSDC 30m. Indicateurs : BOLLINGER + STOCH_RSI + ATR. Achat en survente (BOLLINGER < seuil) avec confirmation STOCH_RSI, vente en surachat. Sortie quand le prix revient vers la moyenne (BOLLINGER neutre). Short uniquement. Stop-loss = 1.5x ATR, take-profit = 3.0x ATR (RR 2.0:1).",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "BTCUSDC prices tend to revert to their mean when they move significantly beyond Bollinger Bands, especially when confirmed by Stochastic RSI showing extreme overbought/oversold conditions, creating profitable short opportunities.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": []
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Usage invalide: `stoch['k']` pour indicateur dict 'stochastic'. Sous-cl\u00e9s valides: stoch_d, stoch_k.",
+          "validation_error_retry": "Usage invalide: indicators['stochastic']['stoch_rsi'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: stoch_d, stoch_k.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The previous strategy failed because it relied on RSI alone for momentum confirmation, which is prone to false signals in trending markets. By replacing RSI with STOCH_RSI and incorporating BOLLINGER's position relative to its middle band, we create a more robust mean-reversion signal. The STOCH_RSI provides better momentum confirmation in ranging conditions, while BOLLINGER's position ensures we enter only when price is at extreme levels. Additionally, the strategy now strictly enforces short-only trades with proper ATR-based risk management, eliminating the overfitting from long entries that caused the ruin.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The previous strategy failed because it required stochastic RSI to confirm overbought conditions (k > 80) when entering short trades, which is too restrictive. By relaxing the Stochastic RSI confirmation to simply k > d (bullish crossover) without requiring extreme overbought levels, we allow more timely entries during strong downtrends. Additionally, the exit condition was too strict, requiring price to reach the middle band exactly. Now, we allow exit when price crosses back above the lower band, signaling reversal from oversold conditions. This adjustment increases trade frequency while maintaining robust risk controls through ATR-based stops.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.26498989369497156,
+      "return_pct": -397.1857590226222,
+      "trades": 103,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -397.2%, PF 0.25, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.265, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 1.9%, Trades 103, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "LLM incapable de produire une proposition. V\u00e9rifiez le mod\u00e8le ou l'objectif.",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ]
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "This strategy exploits mean-reversion in BTCUSDC by identifying overbought conditions via BOLLINGER bands and confirming with STOCH_RSI, enabling short entries when price breaches lower band and RSI confirms overbought sentiment. The exit is triggered when price returns to neutral BOLLINGER position, ensuring profits are captured before momentum reverses. ATR-based risk management ensures dynamic stop-loss and take-profit levels aligned with volatility, maintaining a 2:1 risk-reward ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.36798976946032796,
+      "return_pct": -1015.3904620895169,
+      "trades": 204,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1015.4%, PF 0.12, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.368, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 2.0%, Trades 204, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "BTCUSDC prices tend to revert to their mean when they move significantly beyond Bollinger Bands, especially when confirmed by Stochastic RSI showing extreme momentum, creating profitable short opportunities in overbought conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": []
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Usage invalide: `stoch['k']` pour indicateur dict 'stochastic'. Sous-cl\u00e9s valides: stoch_d, stoch_k.",
+          "validation_error_retry": "Usage invalide: indicators['stochastic']['rsi'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: stoch_d, stoch_k.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "The previous strategy failed because it relied on RSI alone for mean-reversion signals, which is unreliable in trending markets. This updated version combines BOLLINGER with STOCH_RSI to filter for true mean-reversion opportunities, avoiding false signals during strong trends. The addition of ATR-based stop-loss and take-profit ensures consistent risk management with a 2:1 reward-to-risk ratio, improving profitability while reducing drawdowns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.3504967116641814,
+      "return_pct": -955.9442431988371,
+      "trades": 193,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -955.9%, PF 0.13, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.350, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 2.6%, Trades 193, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "LLM incapable de produire une proposition. V\u00e9rifiez le mod\u00e8le ou l'objectif.",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ]
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "This strategy exploits mean-reversion behavior in BTCUSDC on 30m timeframe by combining Bollinger Bands for identifying extreme price levels, Stochastic RSI for confirming overbought/oversold conditions, and ATR for robust risk management. The short-only approach capitalizes on price retracements toward the mean when price breaches lower Bollinger Band, with confirmation from Stochastic RSI crossing below 20. The ATR-based stop-loss and take-profit ensure consistent risk-reward ratios and protect against adverse volatility spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4117567262906843,
+      "return_pct": -796.4150287695867,
+      "trades": 166,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -796.4%, PF 0.15, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.412, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 2.4%, Trades 166, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "BTCUSDC price tends to revert to its mean when it moves significantly beyond Bollinger Bands, especially when confirmed by Stochastic RSI showing extreme overbought/oversold conditions, making short positions profitable during overbought periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": []
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Usage invalide: `stoch['k']` pour indicateur dict 'stochastic'. Sous-cl\u00e9s valides: stoch_d, stoch_k.",
+          "validation_error_retry": "Usage invalide: indicators['stochastic']['rsi'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: stoch_d, stoch_k.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        }
+      }
+    }
+  ]
+}

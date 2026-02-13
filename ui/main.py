@@ -21,7 +21,6 @@ os.environ["BACKTEST_USE_GPU"] = "0"
 os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 # ============================================================================
 
-import asyncio
 import gc
 import logging
 import math
@@ -56,12 +55,10 @@ from ui.context import (
 from ui.helpers import (
     ProgressMonitor,
     build_strategy_params_for_comparison,
-    render_live_metrics,
     render_progress_monitor,
     safe_load_data,
     load_selected_data,
     safe_run_backtest,
-    safe_run_walk_forward,
     safe_copy_cleanup,
     show_status,
     summarize_comparison_results,
@@ -76,7 +73,6 @@ from ui.components.charts import (
     render_multi_sweep_ranking,
     render_strategy_param_diagram,
     render_ohlcv_with_trades_and_indicators,
-    render_walk_forward_results,
 )
 from ui.components.sweep_monitor import (
     SweepMonitor,
@@ -88,29 +84,6 @@ from utils.run_tracker import RunSignature, get_global_tracker
 
 # Import du worker isolé pour éviter les problèmes de pickling avec hot-reload Streamlit
 from backtest.worker import run_backtest_worker as _isolated_worker
-from backtest.walk_forward import (
-    WalkForwardConfig,
-    check_wfa_feasibility,
-    run_walk_forward,
-)
-
-# ━━━ Throttle central : un seul réglage pour le refresh UI pendant les runs ━━━
-_UI_REFRESH_EVERY_N = int(os.getenv("BACKTEST_UI_REFRESH_EVERY_N", "100000"))
-_UI_REFRESH_MAX_SEC = float(os.getenv("BACKTEST_UI_REFRESH_MAX_SEC", "30"))
-_UI_RICH_MODE = os.getenv("BACKTEST_UI_RICH", "0") == "1"
-
-
-def _safe_streamlit_call(func, *args, **kwargs):
-    """
-    Wrapper pour appels Streamlit qui peuvent échouer lors d'interruption (event loop closed).
-    Capture RuntimeError et CancelledError silencieusement pour éviter cascade d'erreurs.
-    """
-    try:
-        return func(*args, **kwargs)
-    except (RuntimeError, asyncio.CancelledError):
-        return None
-    except Exception:
-        return None
 
 
 # Fonction _run_backtest_multiprocess SUPPRIMÉE (obsolète)
@@ -227,7 +200,7 @@ def _compute_max_safe_combos(total_sweeps: int, max_combos: int) -> int:
     """Limite adaptative pour multi-sweep (mémoire)."""
     if total_sweeps <= 0:
         return max_combos
-    adaptive = max(100_000, 500_000 // max(1, total_sweeps))
+    adaptive = max(50_000, 500_000 // max(1, total_sweeps))
     if max_combos and max_combos > 0:
         return min(max_combos, adaptive)
     return adaptive
@@ -309,15 +282,12 @@ def _run_grid_sequential(
     failed = 0
     last_render = time.perf_counter()
 
-    # ⚡ Performance: fast_metrics=True par défaut (536 bt/s vs 85 bt/s)
-    # Peut être désactivé via BACKTEST_FORCE_SLOW_METRICS=1 pour debug
-    fast_metrics = True
+    fast_metrics = False
     try:
-        force_slow = os.getenv("BACKTEST_FORCE_SLOW_METRICS", "0")
-        if force_slow == "1":
-            fast_metrics = False
+        fast_threshold = int(os.getenv("BACKTEST_SWEEP_FAST_METRICS_THRESHOLD", "500"))
+        fast_metrics = total_runs >= fast_threshold
     except (TypeError, ValueError):
-        fast_metrics = True
+        fast_metrics = False
 
     for param_combo in combo_iter:
         if st.session_state.get("stop_requested", False):
@@ -943,30 +913,6 @@ def render_main(
             st.session_state["last_winner_meta"] = winner_meta
             _maybe_auto_save_run(result)
 
-            # ── Walk-Forward Analysis (post-backtest simple) ──────────
-            if getattr(state, "use_walk_forward", False):
-                with st.spinner("🔬 Walk-Forward Analysis en cours..."):
-                    wfa_summary, wfa_msg = safe_run_walk_forward(
-                        df,
-                        strategy_key,
-                        params,
-                        n_folds=getattr(state, "wfa_n_folds", 5),
-                        train_ratio=getattr(state, "wfa_train_ratio", 0.7),
-                        expanding=getattr(state, "wfa_expanding", False),
-                    )
-                if wfa_summary is not None:
-                    st.session_state["last_wfa_summary"] = wfa_summary
-                    st.divider()
-                    st.subheader("🔬 Walk-Forward Analysis")
-                    render_walk_forward_results(wfa_summary)
-                    # Enrichir winner_metrics pour le résumé
-                    winner_metrics["wfa_test_sharpe"] = wfa_summary.avg_test_sharpe
-                    winner_metrics["wfa_is_robust"] = wfa_summary.is_robust
-                    winner_metrics["wfa_degradation_pct"] = wfa_summary.degradation_pct
-                    winner_metrics["wfa_confidence"] = wfa_summary.confidence_score
-                else:
-                    st.warning(f"WFA : {wfa_msg}")
-
         elif optimization_mode == "Grille de Paramètres":
             n_workers_effective = _resolve_workers(n_workers)
             # Lire threads depuis UI ou fallback env
@@ -1060,8 +1006,9 @@ def render_main(
             except (TypeError, ValueError):
                 error_log_limit = 3
 
-            # Timestamp de référence pour render_live_metrics
-            start_time = time.perf_counter()
+            st.markdown("### 📊 Progression en temps réel")
+            render_progress_monitor(monitor, monitor_placeholder)
+
 
             def _normalize_param_combo(param_combo: Dict[str, Any]) -> Dict[str, Any]:
                 return {
@@ -1174,235 +1121,34 @@ def render_main(
                     completed_params.add(params_str)
 
                     current_time = time.perf_counter()
-                    if completed == 1 or completed % _UI_REFRESH_EVERY_N == 0 or current_time - last_render_time >= _UI_REFRESH_MAX_SEC:
-                        best = sweep_monitor.get_best_result("total_pnl")
-                        render_live_metrics(
-                            sweep_placeholder,
-                            completed,
-                            total_runs,
-                            start_time,
-                            best_pnl=best.metrics.get("total_pnl", 0.0) if best else 0.0,
-                            best_dd=abs(best.metrics.get("max_drawdown", 0.0)) if best else 0.0,
-                        )
+                    # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                    # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                    # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                    if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
+                        with sweep_placeholder.container():
+                            progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
+                            elapsed = time.perf_counter() - start_time
+                            rate = completed / elapsed if elapsed > 0 else 0
+                            remaining = (total_runs - completed) / rate if rate > 0 else 0
+
+                            # Barre de progression simple (pas d'HTML custom lourd)
+                            st.progress(progress_pct / 100.0)
+                            st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
+
+                            # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
+                            if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
+                                best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
+                                best_pnl = best_result.metrics.get("total_pnl", 0)
+                                pnl_color = "green" if best_pnl > 0 else "red"
+                                st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
+
                         last_render_time = current_time
+                        time.sleep(0.01)
 
             if n_workers_effective > 1:
                 os.environ.setdefault("BACKTEST_INDICATOR_DISK_CACHE", "0")
 
-            # Initialiser diag (SweepDiagnostics) avant les zones pour éviter NameError
-            diag = None
-
-            # 🚀 ZONE 1: Tentative d'utilisation de Numba Sweep (performance optimale)
-            use_numba_sweep = False
-
-            numba_supported_strategies = [
-                "bollinger_atr", "bollinger_atr_v2", "bollinger_atr_v3",
-                "ema_cross", "rsi_reversal", "macd_cross",
-                "bollinger_best_longe_3i", "bollinger_best_short_3i",
-            ]
-            strategy_supported = strategy_key in numba_supported_strategies
-
-            if not strategy_supported:
-                logger.info(f"[NUMBA SKIP] Stratégie '{strategy_key}' non supportée par Numba")
-
-            try:
-                NUMBA_MAX_COMBOS = int(os.getenv("NUMBA_MAX_COMBOS", "50000000"))
-            except (TypeError, ValueError):
-                NUMBA_MAX_COMBOS = 50000000
-
-            if strategy_supported and total_runs > NUMBA_MAX_COMBOS:
-                logger.warning(f"[NUMBA SKIP] Grille trop grande: {total_runs:,} > {NUMBA_MAX_COMBOS:,}")
-                strategy_supported = False
-
-            if strategy_supported and total_runs > 1:
-                try:
-                    # ⚡ Performance: désactiver cache disque indicateur pendant Numba sweep
-                    os.environ["INDICATOR_CACHE_DISK_ENABLED"] = "0"
-
-                    from backtest.sweep_numba import run_numba_sweep
-                    use_numba_sweep = True
-                    logger.info(f"[EXECUTION PATH] 🚀 NUMBA SWEEP sélectionné: {total_runs:,} combos")
-                    show_status("info", f"⚡ Numba prange: {total_runs:,} combinaisons (natif)")
-
-                    try:
-                        param_combos_list = list(combo_iter)
-                    except KeyboardInterrupt:
-                        logger.info("⚠️ Conversion paramètres interrompue.")
-                        _safe_streamlit_call(st.warning, "⚠️ Préparation interrompue.")
-                        return
-
-                    _sample = param_combos_list[0] if param_combos_list else {}
-                    _fees = float(_sample.get("fees_bps", 10.0))
-                    _slip = float(_sample.get("slippage_bps", 5.0))
-
-                    # ━━━ SWEEP NUMBA PAR CHUNKS (live updates entre chaque chunk) ━━━
-                    try:
-                        NUMBA_CHUNK = int(os.getenv("NUMBA_CHUNK_SIZE", "100000"))
-                    except (TypeError, ValueError):
-                        NUMBA_CHUNK = 100000
-                    NUMBA_CHUNK = max(1000, NUMBA_CHUNK)
-
-                    n_chunks = math.ceil(total_runs / NUMBA_CHUNK)
-                    logger.info(
-                        f"[NUMBA] Sweep chunké: {total_runs:,} combos en {n_chunks} chunks de ~{NUMBA_CHUNK:,}"
-                    )
-
-                    # ⚡ Performance: accumulation arrays bruts (sans construction Python)
-                    all_pnls = []
-                    all_sharpes = []
-                    all_max_dds = []
-                    all_win_rates = []
-                    all_n_trades = []
-                    _local_best_pnl = 0.0
-                    _local_best_dd = 0.0
-
-                    render_live_metrics(sweep_placeholder, completed, total_runs, start_time)
-
-                    try:
-                        for chunk_idx in range(n_chunks):
-                            chunk_begin = chunk_idx * NUMBA_CHUNK
-                            chunk_end = min(chunk_begin + NUMBA_CHUNK, total_runs)
-                            chunk_grid = param_combos_list[chunk_begin:chunk_end]
-
-                            # ⚡ return_arrays=True → pas de construction dict Python
-                            pnls, sharpes, max_dds, win_rates, n_trades = run_numba_sweep(
-                                df=df,
-                                strategy_key=strategy_key,
-                                param_grid=chunk_grid,
-                                initial_capital=float(state.initial_capital),
-                                fees_bps=_fees,
-                                slippage_bps=_slip,
-                                return_arrays=True,  # ⚡ Mode arrays bruts
-                            )
-
-                            completed += len(pnls)
-                            monitor.runs_completed = completed
-
-                            # Accumulation arrays numpy (léger)
-                            all_pnls.append(pnls)
-                            all_sharpes.append(sharpes)
-                            all_max_dds.append(max_dds)
-                            all_win_rates.append(win_rates)
-                            all_n_trades.append(n_trades)
-
-                            # ⚡ Performance: limiter overhead Python entre chunks
-                            # Meilleur du chunk (calcul vectorisé, rapide)
-                            if len(pnls) > 0:
-                                chunk_best_idx = int(np.argmax(pnls))
-                                pnl = float(pnls[chunk_best_idx])
-                                if pnl > _local_best_pnl:
-                                    _local_best_pnl = pnl
-                                    _local_best_dd = float(max_dds[chunk_best_idx])
-
-                            # ⚡ Render UI seulement tous les N chunks (réduit YOYO CPU)
-                            _ui_refresh_every_n_chunks = max(1, n_chunks // 10)  # Max 10 refreshs
-                            if chunk_idx % _ui_refresh_every_n_chunks == 0 or chunk_idx == n_chunks - 1:
-                                _equity = float(state.initial_capital) + _local_best_pnl if state.initial_capital else None
-                                render_live_metrics(
-                                    sweep_placeholder,
-                                    completed=completed,
-                                    total=total_runs,
-                                    start_time=start_time,
-                                    best_pnl=_local_best_pnl,
-                                    best_dd=_local_best_dd,
-                                    equity=_equity,
-                                )
-
-                    except KeyboardInterrupt:
-                        logger.info(f"⚠️ Sweep Numba interrompu. {completed}/{total_runs} complétés.")
-                        _safe_streamlit_call(st.warning, f"⚠️ Sweep interrompu. {completed:,}/{total_runs:,}")
-                        # Concaténer arrays partiels
-                        if all_pnls:
-                            concat_pnls = np.concatenate(all_pnls)
-                            concat_sharpes = np.concatenate(all_sharpes)
-                            concat_max_dds = np.concatenate(all_max_dds)
-                            concat_win_rates = np.concatenate(all_win_rates)
-                            concat_n_trades = np.concatenate(all_n_trades)
-                            for i in range(len(concat_pnls)):
-                                adapted = {
-                                    "params_dict": param_combos_list[i],
-                                    "total_pnl": float(concat_pnls[i]),
-                                    "sharpe": float(concat_sharpes[i]),
-                                    "max_dd": abs(float(concat_max_dds[i])),
-                                    "win_rate": float(concat_win_rates[i]),
-                                    "trades": int(concat_n_trades[i]),
-                                    "profit_factor": 0.0,
-                                }
-                                record_sweep_result(adapted, param_combos_list[i])
-                        return
-
-                    # ⚡ Concaténation arrays (vectorisé, rapide)
-                    t_batch = time.perf_counter()
-                    concat_pnls = np.concatenate(all_pnls) if all_pnls else np.array([])
-                    concat_sharpes = np.concatenate(all_sharpes) if all_sharpes else np.array([])
-                    concat_max_dds = np.concatenate(all_max_dds) if all_max_dds else np.array([])
-                    concat_win_rates = np.concatenate(all_win_rates) if all_win_rates else np.array([])
-                    concat_n_trades = np.concatenate(all_n_trades) if all_n_trades else np.array([])
-
-                    # Construction results_list vectorisée
-                    for i in range(len(concat_pnls)):
-                        raw_wr = float(concat_win_rates[i])
-                        wr = raw_wr * 100.0 if 0 <= raw_wr <= 1.0 else raw_wr
-                        dd_val = abs(float(concat_max_dds[i]))
-                        pnl = float(concat_pnls[i])
-                        params_str = str(param_combos_list[i])
-                        param_combos_map[params_str] = param_combos_list[i]
-                        results_list.append({
-                            "params": params_str,
-                            "total_pnl": pnl,
-                            "sharpe": float(concat_sharpes[i]),
-                            "max_dd": dd_val,
-                            "win_rate": wr,
-                            "trades": int(concat_n_trades[i]),
-                            "profit_factor": 0.0,
-                        })
-
-                    # Top-50 vectorisé (argpartition pour performance)
-                    if len(concat_pnls) > 0:
-                        k = min(50, len(concat_pnls))
-                        top_indices = np.argpartition(concat_pnls, -k)[-k:]
-                        top_indices = top_indices[np.argsort(concat_pnls[top_indices])[::-1]]
-
-                        for idx in top_indices:
-                            raw_wr = float(concat_win_rates[idx])
-                            wr = raw_wr * 100.0 if 0 <= raw_wr <= 1.0 else raw_wr
-                            dd_val = abs(float(concat_max_dds[idx]))
-                            pnl = float(concat_pnls[idx])
-                            metrics = {
-                                "sharpe_ratio": float(concat_sharpes[idx]),
-                                "total_pnl": pnl,
-                                "total_return_pct": (pnl / state.initial_capital * 100) if state.initial_capital else 0.0,
-                                "max_drawdown_pct": dd_val,
-                                "max_drawdown": dd_val,
-                                "win_rate": wr,
-                                "win_rate_pct": wr,
-                                "total_trades": int(concat_n_trades[idx]),
-                                "profit_factor": 0.0,
-                            }
-                            sweep_monitor.update(params=param_combos_list[idx], metrics=metrics)
-
-                    dt_batch = time.perf_counter() - t_batch
-                    logger.info(f"[NUMBA] Batch terminé en {dt_batch:.1f}s")
-                    logger.info(f"[EXECUTION PATH] ✅ Numba sweep complété: {completed}/{total_runs}")
-                    render_live_metrics(
-                        sweep_placeholder, completed, total_runs, start_time,
-                        best_pnl=_local_best_pnl, best_dd=_local_best_dd,
-                    )
-
-                except KeyboardInterrupt:
-                    logger.info(f"⚠️ Sweep Numba interrompu. {completed}/{total_runs}")
-                    _safe_streamlit_call(st.warning, f"⚠️ Sweep Numba interrompu. {completed:,}/{total_runs:,}")
-                    return
-                except ImportError as e:
-                    use_numba_sweep = False
-                    logger.warning(f"[NUMBA SKIP] Import failed: {e}")
-                except Exception as e:
-                    use_numba_sweep = False
-                    logger.error(f"[NUMBA SKIP] Numba sweep failed: {e}")
-                    logger.error(traceback.format_exc())
-
-            # 🔒 ZONE 2: ProcessPool (avec GUARD pour éviter double exécution)
-            if not use_numba_sweep and completed < total_runs and n_workers_effective > 1 and total_runs > 1:
+            if n_workers_effective > 1 and total_runs > 1:
                 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, TimeoutError as FutureTimeoutError, wait
                 try:
                     from concurrent.futures import BrokenProcessPool
@@ -1601,17 +1347,29 @@ def render_main(
                                 submit_next()
 
                             current_time = time.perf_counter()
-                            if completed == 1 or completed % _UI_REFRESH_EVERY_N == 0 or current_time - last_render_time >= _UI_REFRESH_MAX_SEC:
-                                best = sweep_monitor.get_best_result("total_pnl")
-                                render_live_metrics(
-                                    sweep_placeholder,
-                                    completed,
-                                    total_runs,
-                                    start_time,
-                                    best_pnl=best.metrics.get("total_pnl", 0.0) if best else 0.0,
-                                    best_dd=abs(best.metrics.get("max_drawdown", 0.0)) if best else 0.0,
-                                )
+                            # ⚡ AFFICHAGE MINIMAL: Désactivation render_sweep_progress pendant le sweep (économie CPU/WebSocket)
+                            # Les graphiques temps réel consomment énormément de ressources (Plotly + HTML + WebSocket)
+                            # On garde juste une progression textuelle, l'affichage complet sera fait à la fin
+                            if completed % 1000 == 0 or current_time - last_render_time >= 30.0:
+                                with sweep_placeholder.container():
+                                    progress_pct = (completed / total_runs * 100) if total_runs > 0 else 0
+                                    elapsed = time.perf_counter() - start_time
+                                    rate = completed / elapsed if elapsed > 0 else 0
+                                    remaining = (total_runs - completed) / rate if rate > 0 else 0
+
+                                    # Barre de progression simple (pas d'HTML custom lourd)
+                                    st.progress(progress_pct / 100.0)
+                                    st.text(f"⚡ {completed:,}/{total_runs:,} runs ({progress_pct:.1f}%) | {rate:.1f} bt/s | ETA: {int(remaining//60)}m{int(remaining%60)}s")
+
+                                    # Afficher uniquement le meilleur PnL (pas de graphiques ni tableaux)
+                                    if hasattr(sweep_monitor, '_results') and sweep_monitor._results:
+                                        best_result = max(sweep_monitor._results, key=lambda r: r.metrics.get("total_pnl", float("-inf")))
+                                        best_pnl = best_result.metrics.get("total_pnl", 0)
+                                        pnl_color = "green" if best_pnl > 0 else "red"
+                                        st.markdown(f"💰 **Meilleur PnL**: :{pnl_color}[**${best_pnl:+,.2f}**]")
+
                                 last_render_time = current_time
+                                time.sleep(0.01)
 
                         if pool_failed:
                             diag.log_pool_broken(pool_fail_reason or "unknown", pool_error)
@@ -1652,18 +1410,10 @@ def render_main(
                     diag.log_sequential_fallback(pool_fail_reason, len(pending_combos))
                     fallback_iter = chain(pending_combos, combo_iter)
                     run_sequential_combos(fallback_iter, "sweep_fallback")
-            # 🔒 ZONE 3: Mode Séquentiel (avec GUARD pour éviter double exécution)
-            elif not use_numba_sweep and completed < total_runs:
-                logger.info(f"[EXECUTION PATH] 📋 MODE SEQUENTIEL sélectionné: {total_runs:,} combos")
+            else:
                 run_sequential_combos(combo_iter, "sweep_sequential")
 
-            # ━━━ AFFICHAGE FINAL ━━━
-            render_live_metrics(sweep_placeholder, completed, total_runs, start_time)
-
-            if _UI_RICH_MODE:
-                render_progress_monitor(monitor, monitor_placeholder)
-
-            st.markdown("---")
+            render_progress_monitor(monitor, monitor_placeholder)
             sweep_placeholder.empty()
             with sweep_placeholder.container():
                 render_sweep_progress(
@@ -1677,10 +1427,9 @@ def render_main(
             st.markdown("### 🎯 Résumé de l'Optimisation")
             render_sweep_summary(sweep_monitor, key="sweep_summary")
 
-            # Finalize diagnostics (diag n'existe que pour ZONE 2 ProcessPool)
-            if diag is not None:
-                diag.log_final_summary()
-                st.caption(f"📋 Logs diagnostiques: `{diag.log_file}`")
+            # Finalize diagnostics
+            diag.log_final_summary()
+            st.caption(f"📋 Logs diagnostiques: `{diag.log_file}`")
 
             monitor_placeholder.empty()
             sweep_placeholder.empty()
@@ -2381,15 +2130,13 @@ def render_main(
                     st.stop()
 
         elif optimization_mode == "🏗️ Strategy Builder":
-            # ── Mode Strategy Builder — création de stratégies par IA ──
-            if not LLM_AVAILABLE:
-                show_status("error", "Module agents LLM non disponible")
-                st.code(LLM_IMPORT_ERROR)
-                st.session_state.is_running = False
-                st.stop()
-
             from ui.builder_view import render_builder_view
-            render_builder_view(state, df, status_container)
+
+            render_builder_view(
+                state=state,
+                df=df,
+                status_container=status_container,
+            )
 
         else:
             show_status("error", f"Mode non reconnu: {optimization_mode}")

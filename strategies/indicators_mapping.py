@@ -178,6 +178,16 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         description="Labs: Scalp continuation pullback EMA + Bollinger + RSI cross (grid exploratoire)",
         ui_indicators=["ema", "rsi", "bollinger", "atr"],
     ),
+
+    # 11. Scalping Bollinger + VWAP + ATR
+    "scalping_bollinger_vwap_atr": StrategyIndicators(
+        name="Scalping BB+VWAP+ATR",
+        ui_label="⚡ Scalping BB + VWAP + ATR",
+        required_indicators=["bollinger", "vwap", "atr"],
+        internal_indicators=[],
+        description="Scalping Bollinger filtré VWAP avec stop/TP basés sur ATR",
+        ui_indicators=["bollinger", "vwap", "atr"],
+    ),
 }
 
 

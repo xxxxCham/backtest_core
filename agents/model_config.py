@@ -191,6 +191,15 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         params_billions=8.0,
     ),
 
+    "deepseek-moe-16b-local": ModelInfo(
+        name="deepseek-moe-16b-local",
+        category=ModelCategory.LIGHT,
+        description="DeepSeek MoE 16B Chat (2.8B actifs) - MoE ultra-rapide, Q4_K_M",
+        recommended_for=["analyst", "strategist"],
+        avg_response_time_s=12.0,
+        params_billions=16.4,
+    ),
+
     # Medium models (10-30B) - Équilibrés
     "gemma3:12b": ModelInfo(
         name="gemma3:12b",
@@ -225,6 +234,15 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         params_billions=27.0,
     ),
 
+    "glm-4.7-flash-23b-local": ModelInfo(
+        name="glm-4.7-flash-23b-local",
+        category=ModelCategory.MEDIUM,
+        description="GLM 4.7 Flash 23B (3B actifs) - MoE rapide polyvalent, Q5_K_M",
+        recommended_for=["analyst", "strategist", "critic"],
+        avg_response_time_s=25.0,
+        params_billions=23.0,
+    ),
+
     # Heavy models (> 30B) - Puissants mais lents
     "deepseek-r1:32b": ModelInfo(
         name="deepseek-r1:32b",
@@ -257,6 +275,22 @@ KNOWN_MODELS: Dict[str, ModelInfo] = {
         recommended_for=["analyst"],  # Pour analyse de charts
         avg_response_time_s=180.0,
         params_billions=30.0,
+    ),
+    "deepseek-coder-33b-local": ModelInfo(
+        name="deepseek-coder-33b-local",
+        category=ModelCategory.HEAVY,
+        description="DeepSeek Coder 33B - Dense, spécialisé code, Q5_K_M",
+        recommended_for=["strategist", "critic"],
+        avg_response_time_s=180.0,
+        params_billions=33.3,
+    ),
+    "qwen3-coder-40b-local": ModelInfo(
+        name="qwen3-coder-40b-local",
+        category=ModelCategory.HEAVY,
+        description="Qwen3 Coder 40B (3B actifs) - MoE code generation, Q3_K_XL",
+        recommended_for=["strategist", "critic"],
+        avg_response_time_s=60.0,
+        params_billions=41.0,
     ),
     "deepseek-r1:70b": ModelInfo(
         name="deepseek-r1:70b",
@@ -369,19 +403,22 @@ class RoleModelConfig:
     # Configuration par rôle
     analyst: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="analyst",
-        models=["deepseek-r1:8b", "mistral:7b-instruct", "martain7r/finance-llama-8b:q4_k_m", "gemma3:12b"],
+        models=["deepseek-r1:8b", "mistral:7b-instruct", "martain7r/finance-llama-8b:q4_k_m", "gemma3:12b",
+                "deepseek-moe-16b-local", "glm-4.7-flash-23b-local"],
         allow_heavy_after_iteration=5,
     ))
 
     strategist: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="strategist",
-        models=["deepseek-r1:8b", "gemma3:12b", "deepseek-r1-distill:14b", "mistral:22b"],
+        models=["deepseek-r1:8b", "gemma3:12b", "deepseek-r1-distill:14b", "mistral:22b",
+                "glm-4.7-flash-23b-local", "deepseek-coder-33b-local", "qwen3-coder-40b-local"],
         allow_heavy_after_iteration=3,
     ))
 
     critic: RoleModelAssignment = field(default_factory=lambda: RoleModelAssignment(
         role="critic",
-        models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b"],
+        models=["deepseek-r1-distill:14b", "mistral:22b", "gemma3:27b", "deepseek-r1:32b", "qwq:32b",
+                "deepseek-coder-33b-local"],
         allow_heavy_after_iteration=2,
     ))
 

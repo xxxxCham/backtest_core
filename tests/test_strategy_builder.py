@@ -134,6 +134,33 @@ class TestValidateCode:
         assert not is_valid
         assert "generate_signals" in msg
 
+    def test_reject_nameerror_df_not_defined(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["rsi"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, data, indicators, params):
+                    signals = pd.Series(0.0, index=data.index)
+                    close = df["close"].values
+                    signals[close > 0] = 1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "nameerror" in msg.lower()
+        assert "df" in msg.lower()
+
     def test_dangerous_os_system(self):
         code = textwrap.dedent(f"""\
             import os
@@ -560,10 +587,12 @@ class TestDeterministicFallbackCode:
         is_valid, msg = validate_generated_code(code)
         assert is_valid, msg
 
-    def test_deterministic_fallback_contains_length_alignment(self):
+    def test_deterministic_fallback_conservative_logic(self):
         proposal = {"strategy_name": "Fallback Test", "used_indicators": ["rsi"]}
         code = _build_deterministic_fallback_code(proposal)
-        assert "_align_len" in code
+        assert "rsi_oversold" in code
+        assert "rsi_overbought" in code
+        assert "bollinger" in code
 
 
 # ─── Tests chargement dynamique ──────────────────────────────────────────

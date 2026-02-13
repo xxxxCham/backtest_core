@@ -1,0 +1,544 @@
+{
+  "session_id": "20260212_140128_strat_gie_de_mean_reversion_sur_btcusdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur BTCUSDC 30m. Indicateurs : DONCHIAN + WILLIAMS_R + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de DONCHIAN avec WILLIAMS_R en zone de survente/surachat. Take-profit au retour \u00e0 la bande m\u00e9diane, stop si WILLIAMS_R continue dans la tendance. Long uniquement. Stop-loss = 1.5x ATR, take-profit = 3.0x ATR (RR 2.0:1).",
+  "status": "failed",
+  "best_sharpe": 0.373831104772979,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "This strategy exploits mean-reversion opportunities in BTCUSDC by combining DONCHIAN's trend identification with WILLIAMS_R's overbought/oversold signals. When price touches the upper DONCHIAN band, it indicates a potential exhaustion point, especially when WILLIAMS_R is in overbought territory. The combination creates a robust entry signal where price is likely to revert to the median band. ATR-based risk management ensures consistent risk-reward ratios, with a 2:1 reward-to-risk ratio through 1.5x ATR stop-loss and 3.0x ATR take-profit, aligning with the volatility of BTCUSDC and the 30m timeframe.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3119513205787274,
+      "return_pct": -1214.3346039240803,
+      "trades": 241,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1214.3%, PF 0.11, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.312, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 2.5%, Trades 241, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The previous strategy failed because it relied solely on price touching the Donchian upper band without sufficient confirmation of mean-reversion context. This revised approach uses the Williams %R to identify extreme overbought conditions and combines it with Donchian bands to capture contrarian momentum. The key improvement is adding a dynamic filter that ensures the price is not just touching the band but also in a clear overbought state, reducing false signals. Additionally, the logic now properly incorporates ATR for risk management with realistic stop-loss and take-profit levels that respect market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The previous strategy failed because it required price to touch the upper Donchian band exactly, which is too restrictive. By relaxing this condition to price approaching the upper band and adding a confirmation filter using Williams %R in oversold zone, we allow more entries while maintaining mean-reversion logic. The stop-loss and take-profit are set at 1.5x and 3.0x ATR respectively to ensure a 2:1 risk-reward ratio, with a focus on capturing retracements from extreme overbought levels.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.3716979153142427,
+      "return_pct": 5761.484607824484,
+      "trades": 10,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +5761.5%, PF 115.31, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 50.4%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.372, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 10.0%, Trades 10, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "The combination of Donchian channels with Williams %R creates a robust mean-reversion framework by identifying overbought/oversold extremes. The addition of ATR-based risk management ensures consistent risk-reward ratios, while filtering for strong momentum via Williams %R prevents false signals during trending periods. This approach capitalizes on price reversion after extreme moves, particularly effective in ranging markets where BTCUSDC often oscillates between support and resistance.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.14325310644796208,
+      "return_pct": -913.8347520101452,
+      "trades": 1044,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -913.8%, PF 0.48, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.143, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 11.8%, Trades 1044, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The previous strategy failed because it relied solely on price touching the Donchian upper band without sufficient confirmation of mean-reversion opportunity. By incorporating a momentum filter (Williams %R trending up) and adding a volatility-based entry confirmation (price must be at least 1.5x ATR away from the upper band), we reduce false signals. Additionally, the stop-loss and take-profit are now dynamic and based on ATR, ensuring proper risk management and realistic profit targets that align with BTCUSDC's volatility profile.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.37383110477297893,
+      "return_pct": 6267.2469674758295,
+      "trades": 1,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6267.2%, PF inf, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.374, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 100.0%, Trades 1, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The combination of Donchian channels with Williams %R provides a robust mean-reversion signal when price touches the upper band and Williams %R confirms oversold conditions. By adding a momentum filter using the lagged Williams %R value and ensuring the entry price is at least 1.5x ATR away from the upper band, we reduce false signals and improve risk-adjusted returns. The ATR-based stop-loss and take-profit ensure consistent risk management with a 2:1 reward-to-risk ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'entry_price'",
+          "runtime_fix_applied": true
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "The previous strategy failed because it required price to touch the upper Donchian band AND simultaneously enter oversold territory with Williams %R, which is too restrictive. This revised approach uses Donchian breakout as the primary signal, but adds a momentum filter using Williams %R to confirm mean-reversion sentiment. When price breaks out of the Donchian channel and Williams %R is in oversold territory, we enter long. The trade is exited when price returns to the Donchian middle band or when Williams %R shows continuation momentum, ensuring we capture mean-reversion while avoiding false breakouts.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "BTCUSDC price tends to revert to its mean after testing extreme levels defined by Donchian channels, especially when Williams %R signals overbought/oversold conditions, creating profitable entry opportunities.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.22580185142318357,
+      "return_pct": -1786.9062715572165,
+      "trades": 1048,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1786.9%, PF 0.61, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.226, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 18.1%, Trades 1048, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_short_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": []
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "The combination of Donchian channels with Williams %R creates a robust mean-reversion framework where price action near extremes signals potential reversal. The addition of ATR-based risk management ensures proper position sizing and consistent risk-reward ratios. By filtering entries with Williams %R in overbought/oversold zones and using Donchian extremes as confirmation, we reduce false signals while maintaining high signal quality. The 1.5x ATR stop-loss and 3.0x ATR take-profit provide a 2:1 risk-reward ratio with sufficient room for price volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.373831104772979,
+      "return_pct": 6127.152043091507,
+      "trades": 1,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6127.2%, PF inf, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.374, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 100.0%, Trades 1, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "Combining Donchian channels with Williams %R creates a robust mean-reversion framework where price touching the lower band signals potential oversold conditions, and Williams %R confirming oversold territory (below -80) validates the reversal signal. Adding ATR for risk management ensures position sizing and stop-loss/take-profit levels scale with volatility. This approach avoids overfitting by using only 3 indicators and focuses on high-probability entry points with strong risk controls.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.373831104772979,
+      "return_pct": 6127.152043091507,
+      "trades": 1,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6127.2%, PF inf, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.374, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 100.0%, Trades 1, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    }
+  ]
+}

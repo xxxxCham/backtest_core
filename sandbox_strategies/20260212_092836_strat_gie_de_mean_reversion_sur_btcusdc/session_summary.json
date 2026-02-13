@@ -1,0 +1,488 @@
+{
+  "session_id": "20260212_092836_strat_gie_de_mean_reversion_sur_btcusdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur BTCUSDC 30m. Indicateurs : BOLLINGER + RSI + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de BOLLINGER avec RSI en zone de survente/surachat. Sortie quand le prix revient vers la moyenne (BOLLINGER neutre). Short uniquement. Stop-loss = 2.0x ATR, take-profit = 5.0x ATR (RR 2.5:1).",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "This strategy exploits mean-reversion opportunities in BTCUSDC on the 30m timeframe by combining Bollinger Bands to identify extreme price levels and RSI to confirm overbought/oversold conditions. When price touches the lower Bollinger band and RSI is in oversold territory (below 30), it signals a potential short setup. The ATR-based stop-loss and take-profit ensure proper risk management with a 2.5:1 reward-to-risk ratio, capturing the typical mean-reversion pullback from extreme levels.",
+      "change_type": "accept",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.3801610739519605,
+      "return_pct": -465.7542746304107,
+      "trades": 118,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -465.8%, PF 0.23, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.380, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 2.5%, Trades 118, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The previous strategy failed because it allowed continuous short entries without proper trend confirmation, leading to repeated losses during strong upward moves. This improved version adds a trend filter using RSI divergence and requires confirmation that price is moving away from the Bollinger lower band before entering short, reducing false signals during strong uptrends. Additionally, the stop-loss and take-profit multipliers are reduced to prevent over-trading and increase risk-adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (125367,) (125366,) ",
+          "runtime_fix_retry_error": "ValueError: operands could not be broadcast together with shapes (125367,) (125366,) ",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The previous strategy failed because it allowed entries on both sides without proper confirmation of trend direction and overrelied on RSI alone for momentum. This version improves by using a dual filter: 1) Bollinger Band touch with RSI confirmation in overbought/oversold zones, and 2) EMA trend filter to ensure short entries only occur during downtrends. Additionally, the risk management is strengthened with ATR-based stops and take-profits to prevent drawdowns.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "LLM incapable de produire une proposition. V\u00e9rifiez le mod\u00e8le ou l'objectif.",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ]
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "This strategy exploits mean-reversion patterns in BTCUSDC on 30m timeframe by combining Bollinger Bands for volatility-based entry signals, RSI for momentum confirmation in overbought/oversold zones, and ATR for dynamic risk management. When price touches the lower Bollinger band (indicating potential oversold conditions) and RSI confirms momentum reversal (below 30), it signals a short opportunity. The strategy exits when price reverts toward the Bollinger middle band, and uses ATR-based stop-loss and take-profit levels (1.5x and 3.0x respectively) to ensure risk-reward ratios above 2:1.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.23344907308004018,
+      "return_pct": -489.53934743917256,
+      "trades": 121,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -489.5%, PF 0.22, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.233, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 2.5%, Trades 121, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "LLM incapable de produire une proposition. V\u00e9rifiez le mod\u00e8le ou l'objectif.",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ]
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "This strategy exploits mean-reversion opportunities in BTCUSDC on 30m timeframe by combining Bollinger Bands to identify extreme price movements and RSI to confirm overbought/oversold conditions. When price touches the lower Bollinger band with RSI in overbought territory, it signals a potential short setup. ATR is used for dynamic stop-loss and take-profit levels to manage risk effectively, ensuring a consistent 2.5:1 risk-reward ratio. This combination reduces false signals and improves trade execution quality by filtering entries with RSI while managing risk with ATR-based TP/SL.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "The previous logic was too restrictive by requiring price to exactly touch the Bollinger band, which rarely happens on 30m charts. This revised strategy uses a more robust mean-reversion approach: entering short when price touches or crosses below the lower Bollinger band AND RSI is in overbought zone, with a dynamic exit when price crosses back above the middle Bollinger band. This improves signal quality and reduces false signals while maintaining the core mean-reversion logic.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "LLM incapable de produire une proposition. V\u00e9rifiez le mod\u00e8le ou l'objectif.",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ]
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "This strategy exploits mean-reversion patterns in BTCUSDC by identifying extreme price movements near Bollinger Bands, confirmed by RSI overbought/oversold signals. Short entries are taken when price touches the lower Bollinger band with RSI in overbought territory, indicating potential exhaustion. The ATR-based stop-loss and take-profit ensure risk-reward consistency with a 2.5:1 ratio, while the 30-minute timeframe balances signal clarity with trade frequency.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    }
+  ]
+}

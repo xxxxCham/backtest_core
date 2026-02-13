@@ -61,16 +61,54 @@ BOTH MODE:
 - Arrays: wrap with `np.nan_to_num(...)` before comparisons.
 - Indicator values are `np.ndarray` (or dict of `np.ndarray`), not pandas Series.
 - Never use `.iloc` / `.loc` / `.shift` / `.rolling` on indicator arrays.
-- Dict indicators (ex: `bollinger`, `macd`, `adx`, `stochastic`) must be accessed by sub-key first.
+- If you create helper methods, NEVER reference `df` / `indicators` / `params` as undefined globals inside them — pass what you need as arguments.
+- Dict indicators (ex: `bollinger`, `macd`, `adx`, `stochastic`, `stoch_rsi`) must be accessed by sub-key first.
   Example: `bb = indicators["bollinger"]; lower = np.nan_to_num(bb["lower"])`.
+  Example: `srsi = indicators["stoch_rsi"]; k = np.nan_to_num(srsi["k"]); d = np.nan_to_num(srsi["d"])`.
+  Example: `st = indicators["stochastic"]; k = np.nan_to_num(st["stoch_k"]); d = np.nan_to_num(st["stoch_d"])`.
 - EMA/RSI/ATR are plain arrays: never use sub-keys like `indicators["ema"]["ema_21"]`.
 - Bollinger must be accessed via `indicators["bollinger"]["upper|middle|lower"]`.
+- Stoch_RSI must be accessed via `indicators["stoch_rsi"]["k|d|signal"]` (NEVER compare `indicators["stoch_rsi"]` directly).
+- Stochastic must be accessed via `indicators["stochastic"]["stoch_k|stoch_d"]` (no `signal` key).
 - ADX must be accessed via `indicators["adx"]["adx|plus_di|minus_di"]` (not `indicators["adx"]` directly).
 - Supertrend must be accessed via `indicators["supertrend"]["supertrend|direction"]` (no `upper/lower` keys).
 - Never request/use fake indicator names like `bollinger_upper`, `bollinger_lower`, `bollinger_middle`.
 - Never do `np.nan_to_num(indicators["bollinger"])` directly.
 - Never access indicators via `df["rsi"]`, `df["bollinger"]`, `df["ema"]`.
 - Do not recalculate indicators from raw OHLCV.
+
+## LEVERAGE AND RISK MANAGEMENT (CRITICAL)
+- ALWAYS include `"leverage": 1` in default_params. The engine defaults to leverage=3 which destroys accounts.
+- To implement ATR-based stop-loss and take-profit, write price levels into DataFrame columns:
+  ```python
+  # Initialize SL/TP columns with NaN (no level = no stop)
+  df.loc[:, "bb_stop_long"] = np.nan
+  df.loc[:, "bb_tp_long"] = np.nan
+  # On entry signal bars only, compute ATR-based levels:
+  atr = np.nan_to_num(indicators["atr"])
+  close = df["close"].values
+  entry_mask = (signals == 1.0)  # boolean mask of long entries
+  df.loc[entry_mask, "bb_stop_long"] = close[entry_mask] - stop_atr_mult * atr[entry_mask]
+  df.loc[entry_mask, "bb_tp_long"] = close[entry_mask] + tp_atr_mult * atr[entry_mask]
+  # For short entries (if applicable):
+  # df.loc[short_mask, "bb_stop_short"] = close[short_mask] + stop_atr_mult * atr[short_mask]
+  # df.loc[short_mask, "bb_tp_short"] = close[short_mask] - tp_atr_mult * atr[short_mask]
+  ```
+  The simulator reads these columns automatically. Only write on entry bars (NaN elsewhere).
+  Without these columns, the only stop-loss is a fixed % from the `k_sl` param (default 1.5%).
+{% if diagnostic_actions %}
+
+## DIAGNOSTIC FROM PREVIOUS ITERATION (MUST ADDRESS)
+{% for action in diagnostic_actions %}
+- {{ action }}
+{% endfor %}
+{% if diagnostic_donts %}
+DO NOT:
+{% for dont in diagnostic_donts %}
+- {{ dont }}
+{% endfor %}
+{% endif %}
+{% endif %}
 
 ## REQUIRED OUTPUT
 Return ONLY a complete Python class in one ```python block.
@@ -97,7 +135,7 @@ class {{ class_name }}(StrategyBase):
 
     @property
     def default_params(self) -> Dict[str, Any]:
-        return {{ proposal.default_params|default({})|tojson }}
+        return {"leverage": 1, "warmup": 50, ...}  # ALWAYS include leverage: 1
 
     @property
     def parameter_specs(self) -> Dict[str, ParameterSpec]:
@@ -116,6 +154,7 @@ class {{ class_name }}(StrategyBase):
         # warmup protection
         warmup = int(params.get("warmup", 50))
         signals.iloc[:warmup] = 0.0
+        # Write SL/TP columns into df if using ATR-based risk management
         return signals
 ```
 
@@ -125,3 +164,4 @@ class {{ class_name }}(StrategyBase):
 3. No triple-quoted docstrings.
 4. No placeholders, no TODO, no pass.
 5. Output Python code only.
+6. MUST include "leverage": 1 in default_params.

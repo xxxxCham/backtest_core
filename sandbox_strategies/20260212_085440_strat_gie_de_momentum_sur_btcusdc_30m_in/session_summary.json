@@ -1,0 +1,553 @@
+{
+  "session_id": "20260212_085440_strat_gie_de_momentum_sur_btcusdc_30m_in",
+  "objective": "Strat\u00e9gie de Momentum sur BTCUSDC 30m. Indicateurs : RSI + MACD + ATR. Entr\u00e9e quand RSI d\u00e9passe son seuil de momentum avec confirmation MACD. Sortie quand le momentum (RSI) s'\u00e9puise ou diverge du prix. Long uniquement. Stop-loss = 2.0x ATR, take-profit = 4.5x ATR (RR 2.2:1).",
+  "status": "failed",
+  "best_sharpe": 0.373831104772979,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "BTCUSDC shows persistent price trends during strong momentum phases, and RSI + MACD confirmation with ATR risk management can capture significant moves while controlling downside.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.373831104772979,
+      "return_pct": 6108.058164612306,
+      "trades": 1,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6108.1%, PF inf, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.374, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 100.0%, Trades 1, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_short_logic"
+          ],
+          "final_kind": "json",
+          "final_valid": false,
+          "fallback_retry_used": true,
+          "issues_after_retry": []
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "backtest": {
+          "runtime_error": "AttributeError: 'numpy.ndarray' object has no attribute 'iloc'",
+          "runtime_fix_applied": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding Bollinger Bands to the RSI + MACD combination creates a more robust momentum entry filter by confirming price strength through volatility bands. When RSI shows momentum with MACD confirmation, we only enter if price is near the upper band (indicating strong bullish momentum) rather than just crossing a simple threshold. This reduces false signals while maintaining the ability to capture strong trends. The Bollinger Band also provides a dynamic support/resistance level that helps define the trade's context and improves risk management.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Usage invalide: indicators['macd']['hist'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: histogram, macd, signal.",
+          "validation_error_retry": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['macd_hist']. Utiliser uniquement les noms du registre.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The previous strategy failed because it used RSI with Bollinger Bands in isolation, leading to frequent false signals and overtrading. This new approach combines RSI momentum confirmation with MACD signal for better entry quality, and uses ATR for dynamic risk management. The MACD filter prevents entries when the trend is weak, reducing whipsaw losses. ATR-based stop-loss and take-profit ensure consistent risk-reward ratios and protect against large drawdowns.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.3732662493674957,
+      "return_pct": 6106.663737074564,
+      "trades": 3,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6106.7%, PF 611.26, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 10.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.373, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.3%, Trades 3, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining RSI with Bollinger Bands enhances entry quality by filtering momentum signals through price volatility and mean-reversion zones. RSI confirms upward momentum while Bollinger Bands ensure the price is not overextended, reducing false signals. ATR-based risk management ensures dynamic stops and profits that scale with market volatility, improving risk-adjusted returns. This combination should generate more reliable and frequent trades than the previous MACD-based approach.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.372335545947517,
+      "return_pct": 5440.996949400122,
+      "trades": 7,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +5441.0%, PF 205.33, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 26.6%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.372, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 14.3%, Trades 7, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining RSI with MACD confirmation improves entry quality by filtering false signals and reducing whipsaws. MACD histogram crossing above zero confirms bullish momentum, while RSI crossing above oversold level signals exhaustion. ATR-based risk management ensures consistent risk-reward ratios and protects against sudden volatility spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.3735120809934353,
+      "return_pct": 6111.14773163695,
+      "trades": 2,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6111.1%, PF 1107.56, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 5.5%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.374, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 50.0%, Trades 2, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining RSI with Bollinger Bands adds a volatility-based filter that reduces false signals during ranging markets. When RSI confirms momentum and price is near the upper Bollinger Band, it signals strong buying pressure. This dual confirmation increases signal reliability and reduces whipsaw trades, leading to higher Sharpe ratio and more consistent trade execution.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.373831104772979,
+      "return_pct": 6206.344936336047,
+      "trades": 1,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6206.3%, PF inf, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.374, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 100.0%, Trades 1, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Combining RSI with MACD confirmation adds robustness to momentum entry signals by filtering false breakouts. MACD histogram crossing above zero confirms bullish momentum, while RSI crossing above oversold level with increasing momentum validates the trend. This dual confirmation reduces whipsaw trades and improves signal quality. ATR-based risk management ensures consistent risk-reward ratios with 2.0x stop and 4.5x take-profit, targeting a 2.25:1 RR ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.3732662493674957,
+      "return_pct": 6106.663737074564,
+      "trades": 3,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +6106.7%, PF 611.26, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 10.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.373, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.3%, Trades 3, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Combining RSI with Bollinger Bands enhances entry quality by filtering momentum signals through price volatility and mean-reversion zones. RSI identifies momentum exhaustion, while Bollinger Bands confirm whether price is near overbought/oversold levels in a volatile environment. This dual confirmation reduces false signals and improves trade selection. ATR-based risk management ensures consistent risk-reward profiles across varying market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6450233244474486,
+      "return_pct": -15.587495098609105,
+      "trades": 3,
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -15.6%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 15.6%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.645, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 3, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "Combining RSI with MACD confirmation filters out weak momentum signals and reduces false entries. RSI crossing above oversold with positive MACD histogram confirms bullish momentum, while divergence between RSI and price acts as a reliable exit signal. This improves signal quality and reduces whipsaw losses, leading to more frequent and profitable trades.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Erreur de syntaxe ligne 29: invalid syntax. Perhaps you forgot a comma?",
+          "validation_error_retry": "Usage invalide: indicators['macd']['macd_histogram'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: histogram, macd, signal.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "The previous strategy failed because it used RSI and Bollinger Bands in isolation, creating too many false signals and overfitting to mean-reversion patterns. This revised approach combines RSI momentum with MACD confirmation to filter high-quality long entries, while using ATR-based stop-loss and take-profit to ensure proper risk management. The MACD histogram crossing above zero confirms bullish momentum, while RSI crossing above 30 (not just oversold) provides a stronger buy signal. The ATR-based risk management ensures consistent risk-reward ratios and prevents catastrophic drawdowns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Usage invalide: `macd['hist']` pour indicateur dict 'macd'. Sous-cl\u00e9s valides: histogram, macd, signal.",
+          "validation_error_retry": "Usage invalide: indicators['macd']['hist'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: histogram, macd, signal.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        }
+      }
+    }
+  ]
+}

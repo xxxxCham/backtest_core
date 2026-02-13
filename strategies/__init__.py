@@ -19,6 +19,7 @@ from .indicators_mapping import (
 from .macd_cross import MACDCrossStrategy
 from .rsi_reversal import RSIReversalStrategy
 from .scalp_ema_bb_rsi_labs import ScalpEmaBbRsiLabsStrategy
+from .scalping_bollinger_vwap_atr import ScalpingBollingerVwapAtrStrategy
 
 __all__ = [
     "StrategyBase",
@@ -32,6 +33,7 @@ __all__ = [
     "MACDCrossStrategy",
     "RSIReversalStrategy",
     "ScalpEmaBbRsiLabsStrategy",
+    "ScalpingBollingerVwapAtrStrategy",
     "get_required_indicators",
     "get_all_indicators",
     "get_strategy_info",

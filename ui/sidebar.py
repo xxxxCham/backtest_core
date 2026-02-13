@@ -78,6 +78,12 @@ from ui.state import SidebarState
 from utils.observability import is_debug_enabled, set_log_level
 from utils.parameters import normalize_param_ranges
 
+try:
+    from agents.strategy_builder import get_catalog_coverage, reset_catalog_exploration
+    _CATALOG_AVAILABLE = True
+except ImportError:
+    _CATALOG_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 POTENTIAL_TOKENS = [
@@ -549,7 +555,8 @@ def render_sidebar() -> SidebarState:
 
     # === MULTI-SÉLECTION TOKENS (multiselect) ===
 
-    default_symbols = ["BTCUSDC"] if "BTCUSDC" in available_tokens else available_tokens[:1]
+    # Tous les tokens disponibles par défaut pour que le LLM ait le choix
+    default_symbols = available_tokens if available_tokens else ["BTCUSDC"]
 
     # Appliquer la sélection des tokens potentiels avant la création du widget
     if st.session_state.get("_apply_potential_tokens", False):
@@ -586,11 +593,12 @@ def render_sidebar() -> SidebarState:
     # Fallback si aucune sélection (double sécurité)
     if not symbols:
         symbols = default_symbols
-        st.sidebar.warning("⚠️ Au moins un symbole requis. BTCUSDC sélectionné par défaut.")
+        st.sidebar.warning("⚠️ Au moins un symbole requis. Défauts restaurés.")
     symbol = symbols[0]  # Compatibilité rétro
 
     # === MULTI-SÉLECTION TIMEFRAMES (multiselect) ===
-    default_timeframes = ["30m"] if "30m" in available_timeframes else available_timeframes[:1]
+    # Tous les timeframes disponibles par défaut pour que le LLM ait le choix
+    default_timeframes = available_timeframes if available_timeframes else ["30m"]
     # IMPORTANT: S'assurer que timeframes_select n'est jamais vide
     if "timeframes_select" not in st.session_state or not st.session_state.get("timeframes_select"):
         st.session_state["timeframes_select"] = default_timeframes
@@ -902,84 +910,98 @@ def render_sidebar() -> SidebarState:
         if cached_msg:
             st.sidebar.caption(f"Cache: {cached_msg}")
 
-    _sidebar_section("🎯 Stratégie")
-
     available_strategies = list_strategies()
     strategy_options = build_strategy_options(available_strategies)
 
-    # === MULTI-SÉLECTION STRATÉGIES (multiselect) ===
-    default_strategies = list(strategy_options.keys())[:1] if strategy_options else []
-    strategy_names = st.sidebar.multiselect(
-        "Stratégie(s)",
-        list(strategy_options.keys()),
-        default=default_strategies,
-        key="strategies_select",
-        help="Sélectionnez une ou plusieurs stratégies",
-    )
+    # Lire le mode actif depuis session_state (défini plus bas ou lors d'un rerun précédent)
+    _current_mode = st.session_state.get("optimization_mode", "Grille de Paramètres")
 
-    # Fallback si aucune sélection
-    if not strategy_names:
-        strategy_names = default_strategies
-        st.sidebar.warning("⚠️ Au moins une stratégie requise. Première stratégie sélectionnée par défaut.")
+    # En mode Builder, le sélecteur de stratégie n'a pas de sens (le builder crée des stratégies)
+    if _current_mode != "🏗️ Strategy Builder":
+        _sidebar_section("🎯 Stratégie")
 
-    # Info multi-stratégies si plusieurs sélections
-    if len(strategy_names) > 1:
-        st.sidebar.info(
-            f"📋 **{len(strategy_names)} stratégies sélectionnées**\n\n"
-            f"Paramètres configurables pour: **{strategy_names[0]}**\n\n"
-            f"Autres stratégies utiliseront leurs paramètres par défaut."
+        # === MULTI-SÉLECTION STRATÉGIES (multiselect) ===
+        default_strategies = list(strategy_options.keys())[:1] if strategy_options else []
+        strategy_names = st.sidebar.multiselect(
+            "Stratégie(s)",
+            list(strategy_options.keys()),
+            default=default_strategies,
+            key="strategies_select",
+            help="Sélectionnez une ou plusieurs stratégies",
         )
 
-    # Compatibilité rétro: première stratégie pour l'affichage des paramètres
-    strategy_name = strategy_names[0]
-    strategy_key = strategy_options[strategy_name]
+        # Fallback si aucune sélection
+        if not strategy_names:
+            strategy_names = default_strategies
+            st.sidebar.warning("⚠️ Au moins une stratégie requise. Première stratégie sélectionnée par défaut.")
 
-    # Message multi-sweep global (stratégies + tokens + timeframes)
-    if len(strategy_names) > 1 or len(symbols) > 1 or len(timeframes) > 1:
-        total_combos = len(strategy_names) * len(symbols) * len(timeframes)
-        parts = []
+        # Info multi-stratégies si plusieurs sélections
         if len(strategy_names) > 1:
-            parts.append(f"{len(strategy_names)} stratégie(s)")
-        if len(symbols) > 1:
-            parts.append(f"{len(symbols)} token(s)")
-        if len(timeframes) > 1:
-            parts.append(f"{len(timeframes)} TF(s)")
-
-        if len(parts) > 1:  # Seulement si au moins 2 dimensions multiples
-            st.sidebar.success(f"🔄 **Multi-sweep total**: {' × '.join(parts)} = **{total_combos} backtests**")
-
-    st.sidebar.caption(get_strategy_description(strategy_key))
-
-    strategy_info = None
-    try:
-        strategy_info = get_strategy_info(strategy_key)
-
-        if strategy_info.required_indicators:
-            indicators_list = ", ".join(
-                [f"**{ind.upper()}**" for ind in strategy_info.required_indicators]
+            st.sidebar.info(
+                f"📋 **{len(strategy_names)} stratégies sélectionnées**\n\n"
+                f"Paramètres configurables pour: **{strategy_names[0]}**\n\n"
+                f"Autres stratégies utiliseront leurs paramètres par défaut."
             )
-            st.sidebar.info(f"📊 Indicateurs requis: {indicators_list}")
+
+        # Compatibilité rétro: première stratégie pour l'affichage des paramètres
+        strategy_name = strategy_names[0]
+        strategy_key = strategy_options[strategy_name]
+
+        # Message multi-sweep global (stratégies + tokens + timeframes)
+        if len(strategy_names) > 1 or len(symbols) > 1 or len(timeframes) > 1:
+            total_combos = len(strategy_names) * len(symbols) * len(timeframes)
+            parts = []
+            if len(strategy_names) > 1:
+                parts.append(f"{len(strategy_names)} stratégie(s)")
+            if len(symbols) > 1:
+                parts.append(f"{len(symbols)} token(s)")
+            if len(timeframes) > 1:
+                parts.append(f"{len(timeframes)} TF(s)")
+
+            if len(parts) > 1:  # Seulement si au moins 2 dimensions multiples
+                st.sidebar.success(f"🔄 **Multi-sweep total**: {' × '.join(parts)} = **{total_combos} backtests**")
+
+        st.sidebar.caption(get_strategy_description(strategy_key))
+
+        strategy_info = None
+        try:
+            strategy_info = get_strategy_info(strategy_key)
+
+            if strategy_info.required_indicators:
+                indicators_list = ", ".join(
+                    [f"**{ind.upper()}**" for ind in strategy_info.required_indicators]
+                )
+                st.sidebar.info(f"📊 Indicateurs requis: {indicators_list}")
+            else:
+                st.sidebar.info("📊 Indicateurs: Calculés internement")
+
+            if strategy_info.internal_indicators:
+                internal_list = ", ".join(
+                    [f"{ind.upper()}" for ind in strategy_info.internal_indicators]
+                )
+                st.sidebar.caption(f"_Calculés: {internal_list}_")
+
+        except KeyError:
+            st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
+
+        _sidebar_section("📈 Indicateurs")
+        available_indicators = get_strategy_ui_indicators(strategy_key)
+        # Tous les indicateurs sont toujours affichés
+        active_indicators: List[str] = available_indicators if available_indicators else []
+
+        if available_indicators:
+            st.sidebar.caption(f"📊 {len(available_indicators)} indicateur(s) : {', '.join(available_indicators)}")
         else:
-            st.sidebar.info("📊 Indicateurs: Calculés internement")
-
-        if strategy_info.internal_indicators:
-            internal_list = ", ".join(
-                [f"{ind.upper()}" for ind in strategy_info.internal_indicators]
-            )
-            st.sidebar.caption(f"_Calculés: {internal_list}_")
-
-    except KeyError:
-        st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
-
-    _sidebar_section("📈 Indicateurs")
-    available_indicators = get_strategy_ui_indicators(strategy_key)
-    # Tous les indicateurs sont toujours affichés
-    active_indicators: List[str] = available_indicators if available_indicators else []
-
-    if available_indicators:
-        st.sidebar.caption(f"📊 {len(available_indicators)} indicateur(s) : {', '.join(available_indicators)}")
+            st.sidebar.caption("Aucun indicateur disponible.")
     else:
-        st.sidebar.caption("Aucun indicateur disponible.")
+        # Mode Builder : pas de sélection de stratégie (le builder les crée)
+        default_strategies = list(strategy_options.keys())[:1] if strategy_options else []
+        strategy_names = default_strategies
+        strategy_name = strategy_names[0] if strategy_names else ""
+        strategy_key = strategy_options.get(strategy_name, "") if strategy_name else ""
+        strategy_info = None
+        available_indicators: List[str] = []
+        active_indicators: List[str] = []
 
     # (Versioned Presets moved to bottom)
 
@@ -1256,6 +1278,30 @@ def render_sidebar() -> SidebarState:
             )
             st.session_state["builder_auto_use_llm"] = builder_auto_use_llm
 
+            # ── Couverture catalogue ──
+            if _CATALOG_AVAILABLE:
+                try:
+                    cov = get_catalog_coverage()
+                    total = cov.get("total_objectives", 0)
+                    explored = cov.get("explored_count", 0)
+                    pct = cov.get("coverage_pct", 0.0)
+                    success_count = cov.get("success_count", 0)
+                    if total > 0:
+                        st.sidebar.caption(
+                            f"Catalogue: {explored}/{total} ({pct:.0f}%) "
+                            f"— {success_count} positifs"
+                        )
+                        st.sidebar.progress(min(pct / 100.0, 1.0))
+                        if st.sidebar.button(
+                            "Reset exploration",
+                            key="builder_reset_catalog",
+                            help="Re-shuffle et remet la couverture a zero.",
+                        ):
+                            reset_catalog_exploration()
+                            st.rerun()
+                except Exception:
+                    pass
+
         pending_objective_sync = st.session_state.pop(
             "_builder_objective_input_sync", None
         )
@@ -1279,14 +1325,17 @@ def render_sidebar() -> SidebarState:
         )
         st.session_state["builder_objective"] = builder_objective
 
+        # auto_market_pick ON par défaut pour que le LLM choisisse le marché
+        _market_pick_default = st.session_state.get("builder_auto_market_pick", True)
         builder_auto_market_pick = st.sidebar.toggle(
             "🧭 LLM choisit token/TF",
-            value=st.session_state.get("builder_auto_market_pick", False),
+            value=_market_pick_default,
             key="builder_auto_market_pick_toggle",
             help=(
                 "Avant chaque session Builder, le LLM sélectionne automatiquement "
                 "le symbole et le timeframe les plus adaptés à l'objectif, puis "
-                "charge les données correspondantes."
+                "charge les données correspondantes. "
+                "Activé par défaut en mode autonome 24/24."
             ),
         )
         st.session_state["builder_auto_market_pick"] = builder_auto_market_pick
@@ -1344,6 +1393,20 @@ def render_sidebar() -> SidebarState:
             key="builder_ollama_host",
             help="Endpoint Ollama utilisé par le mode Strategy Builder.",
         )
+
+        if is_ollama_available():
+            st.sidebar.success("✅ Ollama connecté")
+        else:
+            st.sidebar.warning("⚠️ Ollama non détecté")
+            if st.sidebar.button("🚀 Démarrer Ollama", key="builder_start_ollama"):
+                with st.spinner("Démarrage d'Ollama..."):
+                    success, msg = ensure_ollama_running()
+                    if success:
+                        st.sidebar.success(msg)
+                        st.rerun()
+                    else:
+                        st.sidebar.error(msg)
+
         builder_auto_start_ollama = st.sidebar.toggle(
             "Auto-démarrer Ollama (local)",
             value=st.session_state.get("builder_auto_start_ollama", True),

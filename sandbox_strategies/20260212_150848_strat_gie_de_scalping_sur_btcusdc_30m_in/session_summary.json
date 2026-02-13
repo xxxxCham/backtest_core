@@ -1,0 +1,543 @@
+{
+  "session_id": "20260212_150848_strat_gie_de_scalping_sur_btcusdc_30m_in",
+  "objective": "Strat\u00e9gie de Scalping sur BTCUSDC 30m. Indicateurs : BOLLINGER + VWAP + ATR. Entr\u00e9e quand prix croise BOLLINGER avec VWAP en confirmation, objectif serr\u00e9. Sortie rapide : take-profit serr\u00e9 (1-1.5x ATR), stop-loss serr\u00e9 (0.5-1x ATR). Long et short. Stop-loss = 1.0x ATR, take-profit = 1.5x ATR (RR 1.5:1).",
+  "status": "failed",
+  "best_sharpe": 0.4571468999034835,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "This strategy leverages the confluence of VWAP and Bollinger Bands to identify high-probability scalp entries with strong momentum confirmation. When price crosses Bollinger Bands in the direction of VWAP, it indicates a potential reversal or breakout with significant buying/selling pressure. The tight stop-loss and take-profit levels based on ATR ensure that only the most robust moves are traded, minimizing drawdown while maximizing risk-reward. This combination filters out noise and false signals while capturing short-term momentum swings in BTCUSDC.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.250136126297961,
+      "return_pct": -6111.9365886972555,
+      "trades": 7519,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -6111.9%, PF 0.62, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.250, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.4%, Trades 7519, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The current strategy fails because it relies solely on price crossing Bollinger Bands without proper confirmation, leading to false signals and high drawdown. Adding RSI as a momentum filter will reduce whipsaw trades by ensuring entries occur only when price is not overextended. The RSI oversold/overbought thresholds help identify when momentum is weak, supporting the idea that price should be confirmed by trend direction (VWAP) and volatility (ATR) before entering. This improves signal quality and reduces the number of losing trades that cause ruin.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8080259558588733,
+      "return_pct": -2759.74168394525,
+      "trades": 2559,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2759.7%, PF 0.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.808, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.2%, Trades 2559, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre.",
+          "validation_error_retry": "Usage invalide: indicators['vwap']['vwap'] \u2014 'vwap' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The previous strategy failed because it relied on RSI as a standalone filter, which led to overfitting and poor signal quality in volatile markets. By replacing RSI with VWAP confirmation and using only Bollinger Bands for entry, we eliminate the noisy RSI signal and create a cleaner, more robust signal. The addition of VWAP as a trend filter ensures entries align with the prevailing market direction, while ATR-based risk management provides dynamic, adaptive stops that protect against sudden volatility spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.44252318097585325,
+      "return_pct": 1133.994342995505,
+      "trades": 83,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +1134.0%, PF 3.67, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 67.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.443, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 7.2%, Trades 83, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Adding RSI as a filter improves signal quality by reducing false breakouts from Bollinger Bands. When price crosses Bollinger lower band, we only enter long if RSI is below 30 (oversold), confirming momentum is not overextended. Similarly, short entries are filtered by RSI above 70 (overbought). This reduces whipsaw and improves risk-reward ratio. Combined with VWAP confirmation, this creates a more robust scalping setup with tighter risk management using ATR-based TP/SL.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.440460694685493,
+      "return_pct": 1010.572653827341,
+      "trades": 66,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +1010.6%, PF 4.10, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 40.3%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.440, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 9.1%, Trades 66, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The combination of BOLLINGER and VWAP provides a robust entry signal by confirming price action against both volatility bands and volume-weighted average price, while ATR ensures proper risk management with tight stop-loss and take-profit levels that scale with market volatility. This improves upon previous attempts by focusing on high-probability crossover signals with strong confirmation and tightening the risk parameters to improve win rate while maintaining profitability.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4571468999034835,
+      "return_pct": 1090.0471708133248,
+      "trades": 81,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +1090.0%, PF 3.60, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 59.2%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.457, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 6.2%, Trades 81, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Adding RSI as a filter improves signal quality by confirming overbought/oversold conditions before entering trades, reducing false breakouts. The combination of BOLLINGER crossover with VWAP confirmation and RSI filtering creates a more robust entry mechanism. ATR-based risk management ensures consistent risk-reward ratios, while the tight TP (3x ATR) and moderate SL (1.5x ATR) maintain a 2:1 RR ratio, appropriate for scalping. The inclusion of RSI prevents excessive whipsawing and improves win rate by filtering out weak signals.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.440460694685493,
+      "return_pct": 1010.572653827341,
+      "trades": 66,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +1010.6%, PF 4.10, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 40.3%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.440, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 9.1%, Trades 66, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Combining BOLLINGER with VWAP creates a robust entry signal that filters out false breakouts, while ATR-based risk management ensures tight, profitable exits with a 1.5:1 reward-to-risk ratio. This approach reduces whipsaw effects and improves win rate by focusing on high-probability crossover patterns with strong momentum confirmation.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4334900444028872,
+      "return_pct": 809.7853157316933,
+      "trades": 93,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +809.8%, PF 2.78, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 51.8%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.433, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 4.3%, Trades 93, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Adding RSI as a filter improves signal quality by reducing false breakouts. The combination of BOLLINGER crossing with VWAP confirmation, plus RSI oversold/overbought thresholds, creates a more robust entry signal. This filters out weak trends and reduces drawdown while maintaining high-frequency trading. The ATR-based risk management ensures consistent risk-reward ratios across varying volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.44768856119775247,
+      "return_pct": 894.041291315627,
+      "trades": 73,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +894.0%, PF 3.35, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 42.8%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.448, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 6.8%, Trades 73, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "Replacing RSI with VWAP confirmation in the entry logic improves signal quality by filtering out false breakouts. The combination of BOLLINGER crossover with VWAP trend confirmation adds robustness, while tightening ATR-based TP/SL to 1.5x and 1.0x respectively increases win rate by reducing whipsaw and improving risk-reward ratio.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.45068655709499267,
+      "return_pct": 1139.406408959949,
+      "trades": 82,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +1139.4%, PF 3.72, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 64.4%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.451, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 7.3%, Trades 82, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "Adding RSI as a momentum filter will reduce false signals from Bollinger crossover and VWAP confirmation, particularly during ranging markets. The combination of Bollinger (price band breakout), VWAP (market direction), and RSI (momentum confirmation) creates a more robust entry condition that avoids high-frequency whipsaws. This should improve win rate and reduce drawdown by filtering out entries in weak trends or consolidation phases.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.440460694685493,
+      "return_pct": 1010.572653827341,
+      "trades": 66,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +1010.6%, PF 4.10, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 40.3%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.440, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 9.1%, Trades 66, AvgW/L 0.00/0.00"
+        }
+      },
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['close']. Utiliser uniquement les noms du registre."
+        }
+      }
+    }
+  ]
+}
