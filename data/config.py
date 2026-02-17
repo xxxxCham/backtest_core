@@ -119,19 +119,6 @@ class DataGap(NamedTuple):
 
 
 # ============================================================================
-# CONFIGURATION CONSTANTS
-# ============================================================================
-
-RANDOM_SLOTS_COUNT = 6
-
-TIMEFRAME_PRIORITY_MAP = {
-    "1m": 1, "3m": 2, "5m": 3, "15m": 4, "30m": 5,
-    "1h": 6, "2h": 7, "4h": 8, "6h": 9, "12h": 10,
-    "1d": 11, "1w": 12, "1M": 13
-}
-
-
-# ============================================================================
 # DATA CLASSES
 # ============================================================================
 
@@ -199,12 +186,20 @@ def _get_range_and_gaps(
             return None, None, tuple()
 
         # Calculer l'intervalle attendu entre les barres
-        if "m" in timeframe:
-            expected_interval = pd.Timedelta(minutes=int(timeframe.replace("m", "")))
-        elif "h" in timeframe:
-            expected_interval = pd.Timedelta(hours=int(timeframe.replace("h", "")))
-        elif "d" in timeframe:
-            expected_interval = pd.Timedelta(days=int(timeframe.replace("d", "")))
+        # IMPORTANT: tester 'w' et 'M' AVANT 'm' car "m" in "1M" est False
+        # mais l'ordre explicite évite toute ambiguïté
+        unit = timeframe[-1]
+        amount = int(timeframe[:-1])
+        if unit == "m":
+            expected_interval = pd.Timedelta(minutes=amount)
+        elif unit == "h":
+            expected_interval = pd.Timedelta(hours=amount)
+        elif unit == "d":
+            expected_interval = pd.Timedelta(days=amount)
+        elif unit == "w":
+            expected_interval = pd.Timedelta(weeks=amount)
+        elif unit == "M":
+            expected_interval = pd.Timedelta(days=30 * amount)
         else:
             expected_interval = pd.Timedelta(hours=1)  # Fallback
 
@@ -298,14 +293,18 @@ def check_data_completeness(
 
         # Estimation approximative du nombre de barres attendues
         # (pas parfait car dépend des week-ends/jours fériés, mais donne une idée)
-        if "m" in timeframe:
-            minutes_per_bar = int(timeframe.replace("m", ""))
-            expected_bars_per_day = 1440 / minutes_per_bar  # 24h * 60min
-        elif "h" in timeframe:
-            hours_per_bar = int(timeframe.replace("h", ""))
-            expected_bars_per_day = 24 / hours_per_bar
-        elif "d" in timeframe:
-            expected_bars_per_day = 1
+        unit = timeframe[-1]
+        amount = int(timeframe[:-1])
+        if unit == "m":
+            expected_bars_per_day = 1440 / amount  # 24h * 60min
+        elif unit == "h":
+            expected_bars_per_day = 24 / amount
+        elif unit == "d":
+            expected_bars_per_day = 1 / amount
+        elif unit == "w":
+            expected_bars_per_day = 1 / (7 * amount)
+        elif unit == "M":
+            expected_bars_per_day = 1 / (30 * amount)
         else:
             expected_bars_per_day = 1  # Fallback
 

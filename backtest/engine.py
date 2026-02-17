@@ -147,7 +147,7 @@ class BacktestEngine:
         result = engine.run(
             df=ohlcv_data,
             strategy=BollingerATRStrategy(),
-            params={"entry_z": 2.0, "k_sl": 1.5, "leverage": 3}
+            params={"entry_z": 2.0, "k_sl": 1.5, "leverage": 1}
         )
         print(result.summary())
 

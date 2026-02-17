@@ -52,7 +52,7 @@ class LLMConfig:
     model: str = "llama3.2"
 
     # Ollama
-    ollama_host: str = "http://localhost:11434"
+    ollama_host: str = "http://127.0.0.1:11434"
 
     # OpenAI
     openai_api_key: Optional[str] = None
@@ -79,7 +79,7 @@ class LLMConfig:
         return cls(
             provider=provider,
             model=os.environ.get("BACKTEST_LLM_MODEL", "llama3.2"),
-            ollama_host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"),
+            ollama_host=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"),
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
             openai_base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
             temperature=float(os.environ.get("BACKTEST_LLM_TEMPERATURE", "0.7")),

@@ -99,7 +99,7 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
             if result.metrics.get("liquidation_triggered"):
                 liquidation_time = result.metrics.get("liquidation_time")
                 time_note = f" à {liquidation_time}" if liquidation_time else ""
-                st.warning(
+                st.write(
                     f"💥 Liquidation détectée{time_note}. "
                     "Le mode liquidation coupe les trades dès que le capital atteint 0."
                 )
@@ -191,7 +191,7 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                     st.session_state["versioned_preset_last_saved"] = saved.name
                     st.rerun()
                 except Exception as exc:
-                    st.error(f"Save failed: {exc}")
+                    st.write(f"❌ Save failed: {exc}")
 
         st.subheader("💰 Courbe d'Équité")
 
@@ -204,14 +204,14 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 height=550,
             )
         elif result is not None:
-            st.info("Courbe d'équité non disponible pour cette stratégie")
+            st.write("ℹ️ Courbe d'équité non disponible pour cette stratégie")
 
         st.subheader("📈 Prix et Trades")
 
         if result is not None:
             chart_df = st.session_state.get("ohlcv_df")
             if chart_df is None:
-                st.info("Donnees non chargees. Cliquez sur 'Charger donnees'.")
+                st.write("ℹ️ Donnees non chargees. Cliquez sur 'Charger donnees'.")
             else:
                 chart_params = result.meta.get("params", state.params)
                 indicator_overlays = build_indicator_overlays(
@@ -237,8 +237,8 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                         height=600,
                     )
                 else:
-                    st.info(
-                        "Aucun trade execute, affichage du graphique de prix uniquement"
+                    st.write(
+                        "ℹ️ Aucun trade execute, affichage du graphique de prix uniquement"
                     )
                     render_ohlcv_with_trades(
                         df=chart_df,
@@ -299,7 +299,7 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                             height=400,
                         )
                     else:
-                        st.info("Rendements non disponibles pour cette analyse")
+                        st.write("ℹ️ Rendements non disponibles pour cette analyse")
 
         if result is not None and not result.trades.empty:
             st.subheader("📋 Historique des Trades")
@@ -362,14 +362,14 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 f"Total: {total_trades} | Gagnants: {winners} | Perdants: {losers}"
             )
         elif result is not None:
-            st.info("Aucun trade exécuté pendant cette période")
+            st.write("ℹ️ Aucun trade exécuté pendant cette période")
 
     else:
         render_home(state)
 
 
 def render_home(state: SidebarState) -> None:
-    st.info("👆 Configurez dans la sidebar puis cliquez sur **🚀 Lancer le Backtest**")
+    st.write("👆 Configurez dans la sidebar puis cliquez sur **🚀 Lancer le Backtest**")
 
     llm_mode_active = state.optimization_mode == "🤖 Optimisation LLM"
 

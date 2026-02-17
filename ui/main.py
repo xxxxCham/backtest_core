@@ -1105,6 +1105,7 @@ def render_main(
             completed_params = set()
             completed = 0
             last_render_time = time.perf_counter()
+            start_time = time.perf_counter()
 
             def run_sequential_combos(combo_source, key_prefix: str) -> None:
                 nonlocal completed, last_render_time

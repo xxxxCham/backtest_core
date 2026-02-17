@@ -71,7 +71,7 @@ Exemples:
         print(f"💰 Filtre symbole: {args.symbol} ({len(filtered)} résultats)")
 
     if args.timeframe:
-        filtered = [r for r in filtered if args.timeframe.lower() == r['tf'].lower()]
+        filtered = [r for r in filtered if args.timeframe == r['tf']]
         print(f"⏰ Filtre timeframe: {args.timeframe} ({len(filtered)} résultats)")
 
     if args.profitable:

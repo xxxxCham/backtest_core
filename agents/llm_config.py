@@ -55,7 +55,7 @@ except ImportError as e:
 # CONFIGURATION CONSTANTS
 # ============================================================================
 
-DEFAULT_OLLAMA_HOST = "http://localhost:11434"
+DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
 
 RECOMMENDED_FOR_STRATEGY = [
     "deepseek-r1:8b",

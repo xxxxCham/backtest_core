@@ -29,6 +29,7 @@ from .commands import (
     cmd_benchmark,
     cmd_builder,
     cmd_check_gpu,
+    cmd_cycle,
     cmd_export,
     cmd_grid_backtest,
     cmd_indicators,
@@ -286,12 +287,18 @@ Exemples:
         "--parallel",
         type=int,
         default=4,
-        help="Nombre de workers parallèles (défaut: 12)"
+        help="Nombre de workers parallèles (défaut: 4)"
     )
     sweep_parser.add_argument(
         "-o", "--output",
         type=str,
         help="Fichier de sortie pour les résultats"
+    )
+    sweep_parser.add_argument(
+        "--format",
+        choices=["auto", "json", "csv", "parquet"],
+        default="auto",
+        help="Format de sortie sweep (défaut: auto, inféré depuis le suffixe)"
     )
     sweep_parser.add_argument(
         "--capital",
@@ -761,6 +768,11 @@ Exemples:
         description="Analyse les résultats de backtests stockés dans backtest_results/"
     )
     analyze_parser.add_argument(
+        "-i", "--input",
+        type=str,
+        help="Fichier unique à analyser (JSON/CSV/Parquet), alternative à --results-dir"
+    )
+    analyze_parser.add_argument(
         "--results-dir",
         type=str,
         default="backtest_results",
@@ -784,6 +796,12 @@ Exemples:
         help="Nombre de runs à afficher (défaut: 10)"
     )
     analyze_parser.add_argument(
+        "--min-trades",
+        type=int,
+        default=0,
+        help="Filtrer les runs avec au moins N trades (défaut: 0)",
+    )
+    analyze_parser.add_argument(
         "--stats",
         action="store_true",
         help="Afficher les statistiques globales"
@@ -792,6 +810,236 @@ Exemples:
         "-o", "--output",
         type=str,
         help="Fichier de sortie pour l'analyse"
+    )
+
+    # === CYCLE ===
+    cycle_parser = subparsers.add_parser(
+        "cycle",
+        parents=[common_parser],
+        help="Cycle complet baseline+sweep+validation OOS",
+        description="Automatise un workflow complet: train baseline, sweep, test hors-échantillon, rapport"
+    )
+    cycle_parser.add_argument(
+        "-s", "--strategy",
+        required=True,
+        help="Nom de la stratégie"
+    )
+    cycle_parser.add_argument(
+        "-d", "--data",
+        required=True,
+        help="Chemin vers le fichier de données OHLCV"
+    )
+    cycle_parser.add_argument(
+        "--symbol",
+        type=str,
+        help="Symbole (override si non present dans le nom du fichier)"
+    )
+    cycle_parser.add_argument(
+        "--timeframe",
+        type=str,
+        help="Timeframe (override si non present dans le nom du fichier)"
+    )
+    cycle_parser.add_argument(
+        "--train-start",
+        type=str,
+        help="Date de début train (ISO)"
+    )
+    cycle_parser.add_argument(
+        "--train-end",
+        type=str,
+        help="Date de fin train (ISO)"
+    )
+    cycle_parser.add_argument(
+        "--test-start",
+        type=str,
+        help="Date de début test OOS (ISO)"
+    )
+    cycle_parser.add_argument(
+        "--test-end",
+        type=str,
+        help="Date de fin test OOS (ISO)"
+    )
+    cycle_parser.add_argument(
+        "--split-ratio",
+        type=float,
+        default=0.7,
+        help="Ratio train pour split auto si dates train/test incomplètes (défaut: 0.7)"
+    )
+    cycle_parser.add_argument(
+        "--metric",
+        choices=["sharpe", "sharpe_ratio", "sortino", "sortino_ratio", "total_return", "max_drawdown", "win_rate", "profit_factor"],
+        default="sharpe",
+        help="Métrique de sélection du meilleur candidat sweep (défaut: sharpe)"
+    )
+    cycle_parser.add_argument(
+        "-g", "--granularity",
+        type=float,
+        default=0.5,
+        help="Granularité sweep (0.0=fin, 1.0=grossier, défaut: 0.5)"
+    )
+    cycle_parser.add_argument(
+        "--max-combinations",
+        type=int,
+        default=1000,
+        help="Limite de combinaisons sweep (défaut: 1000)"
+    )
+    cycle_parser.add_argument(
+        "--parallel",
+        type=int,
+        default=4,
+        help="Nombre de workers sweep (défaut: 4)"
+    )
+    cycle_parser.add_argument(
+        "--include-optional-params",
+        action="store_true",
+        help="Inclure les paramètres optionnels dans la grille sweep"
+    )
+    cycle_parser.add_argument(
+        "--top",
+        type=int,
+        default=20,
+        help="Top résultats sweep à conserver/afficher (défaut: 20)"
+    )
+    cycle_parser.add_argument(
+        "--filter-profile",
+        choices=["explore", "balanced", "strict"],
+        default="balanced",
+        help="Profil de filtres candidats: explore (souple), balanced, strict (défaut: balanced)",
+    )
+    cycle_parser.add_argument(
+        "--min-trades",
+        type=int,
+        default=None,
+        help="Filtre minimum de trades. Si omis, dépend de --filter-profile"
+    )
+    cycle_parser.add_argument(
+        "--max-drawdown",
+        type=float,
+        help="Filtre drawdown max admissible en %% (ex: 40 ou -40 pour -40%%)",
+    )
+    cycle_parser.add_argument(
+        "--require-positive-train",
+        action="store_true",
+        help="Exiger un total_return train > 0 pour le candidat retenu"
+    )
+    cycle_parser.add_argument(
+        "--capital",
+        type=float,
+        default=10000.0,
+        help="Capital initial (défaut: 10000)"
+    )
+    cycle_parser.add_argument(
+        "--fees-bps",
+        type=int,
+        default=10,
+        help="Frais en basis points (défaut: 10)"
+    )
+    cycle_parser.add_argument(
+        "--slippage-bps",
+        type=float,
+        help="Slippage en basis points (defaut: config)"
+    )
+    cycle_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="runs",
+        help="Répertoire de sortie des artefacts cycle (défaut: runs)"
+    )
+    cycle_parser.add_argument(
+        "--run-name",
+        type=str,
+        help="Préfixe de nom pour les fichiers de sortie"
+    )
+    cycle_parser.add_argument(
+        "--export-html",
+        action="store_true",
+        help="Exporter aussi les résultats test/full au format HTML"
+    )
+    cycle_parser.add_argument(
+        "--skip-validate",
+        action="store_true",
+        help="Ne pas exécuter validate --all avant le cycle"
+    )
+    cycle_parser.add_argument(
+        "--refine",
+        action="store_true",
+        help="Activer un affinage local des paramètres autour des meilleurs candidats train"
+    )
+    cycle_parser.add_argument(
+        "--refine-top-candidates",
+        type=int,
+        default=5,
+        help="Nombre de candidats coarse à utiliser comme seeds d'affinage (défaut: 5)"
+    )
+    cycle_parser.add_argument(
+        "--refine-granularity",
+        type=float,
+        default=0.5,
+        help="Granularité de l'affinage local (défaut: 0.5)"
+    )
+    cycle_parser.add_argument(
+        "--refine-max-combinations",
+        type=int,
+        default=1000,
+        help="Limite de combinaisons par seed pour l'affinage (défaut: 1000)"
+    )
+    cycle_parser.add_argument(
+        "--refine-range-ratio",
+        type=float,
+        default=0.25,
+        help="Largeur de la fenêtre locale autour du seed (fraction de la plage globale, défaut: 0.25)"
+    )
+    cycle_parser.add_argument(
+        "--report-top",
+        type=int,
+        default=10,
+        help="Nombre de configurations intéressantes à inclure dans le rapport (défaut: 10)"
+    )
+    cycle_parser.add_argument(
+        "--walk-forward",
+        action="store_true",
+        help="Exécuter une validation walk-forward sur les paramètres retenus"
+    )
+    cycle_parser.add_argument(
+        "--wf-mode",
+        choices=["rolling", "expanding", "both"],
+        default="both",
+        help="Mode walk-forward (défaut: both)"
+    )
+    cycle_parser.add_argument(
+        "--wf-folds",
+        type=int,
+        default=6,
+        help="Nombre de folds walk-forward (défaut: 6)"
+    )
+    cycle_parser.add_argument(
+        "--wf-train-ratio",
+        type=float,
+        default=0.75,
+        help="Ratio train walk-forward (défaut: 0.75)"
+    )
+    cycle_parser.add_argument(
+        "--wf-embargo-pct",
+        type=float,
+        default=0.02,
+        help="Embargo walk-forward en fraction (défaut: 0.02)"
+    )
+    cycle_parser.add_argument(
+        "--wf-min-train-bars",
+        type=int,
+        default=500,
+        help="Minimum de barres train par fold WFA (défaut: 500)"
+    )
+    cycle_parser.add_argument(
+        "--wf-min-test-bars",
+        type=int,
+        default=200,
+        help="Minimum de barres test par fold WFA (défaut: 200)"
+    )
+    cycle_parser.add_argument(
+        "--require-wf-robust",
+        action="store_true",
+        help="Échouer le cycle si aucune vue walk-forward n'est robuste"
     )
 
     # === BUILDER ===
@@ -881,6 +1129,7 @@ def main(args: Optional[list] = None) -> int:
         "grid-backtest": cmd_grid_backtest,
         "grid": cmd_grid_backtest,
         "analyze": cmd_analyze,
+        "cycle": cmd_cycle,
         "builder": cmd_builder,
     }
 

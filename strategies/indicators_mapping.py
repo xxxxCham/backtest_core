@@ -79,6 +79,16 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         ui_indicators=["ema"],
     ),
 
+    # 2b. EMA RSI Regime
+    "ema_rsi_regime": StrategyIndicators(
+        name="EMA RSI Regime",
+        ui_label="📈 EMA + RSI Regime",
+        required_indicators=["rsi"],
+        internal_indicators=["ema"],
+        description="Trend-following EMA avec confirmation momentum RSI",
+        ui_indicators=["ema", "rsi"],
+    ),
+
     # 3. Bollinger ATR
     "bollinger_atr": StrategyIndicators(
         name="Bollinger ATR",
@@ -187,6 +197,36 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         internal_indicators=[],
         description="Scalping Bollinger filtré VWAP avec stop/TP basés sur ATR",
         ui_indicators=["bollinger", "vwap", "atr"],
+    ),
+
+    # 12. Scalp EMA RSI Pullback
+    "scalp_ema_rsi_pullback": StrategyIndicators(
+        name="Scalp EMA RSI Pullback",
+        ui_label="⚡ Scalp EMA RSI Pullback",
+        required_indicators=["rsi"],
+        internal_indicators=["ema"],
+        description="Continuation de tendance EMA après micro-pullback, validée par cross RSI",
+        ui_indicators=["ema", "rsi"],
+    ),
+
+    # 13. Scalp BB VWAP RSI
+    "scalp_bb_vwap_rsi": StrategyIndicators(
+        name="Scalp BB VWAP RSI",
+        ui_label="⚡ Scalp BB + VWAP + RSI",
+        required_indicators=["bollinger", "vwap", "rsi"],
+        internal_indicators=[],
+        description="Mean reversion court-terme sur extrêmes Bollinger avec filtre VWAP/RSI",
+        ui_indicators=["bollinger", "vwap", "rsi"],
+    ),
+
+    # 14. Scalp Donchian ADX Breakout
+    "scalp_donchian_adx_breakout": StrategyIndicators(
+        name="Scalp Donchian ADX Breakout",
+        ui_label="⚡ Scalp Donchian + ADX Breakout",
+        required_indicators=["donchian", "adx"],
+        internal_indicators=[],
+        description="Breakout de range Donchian filtré par force de tendance ADX/+DI/-DI",
+        ui_indicators=["donchian", "adx"],
     ),
 }
 

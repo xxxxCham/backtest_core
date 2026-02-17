@@ -108,7 +108,7 @@ def handle_llm_optimization(
     col_info, col_timeline = st.columns([1, 2])
 
     with col_info:
-        st.info(f"""
+        st.write(f"""
 **Configuration LLM:**
 - Provider: {state.llm_config.provider.value}
 - Model: {state.llm_config.model}
@@ -188,7 +188,7 @@ def run_multi_sweep_llm(
     """Exécution du mode Multi-Sweep LLM."""
     total_combinations = len(strategy_keys) * len(symbols) * len(timeframes)
 
-    st.info(
+    st.write(
         f"🤖 **Mode Multi-Sweep LLM activé**\n\n"
         f"- {len(strategy_keys)} stratégie(s): {', '.join(strategy_keys)}\n"
         f"- {len(symbols)} token(s): {', '.join(symbols)}\n"
@@ -275,7 +275,7 @@ def run_multi_sweep_llm(
 
                 # Vérifier arrêt utilisateur
                 if st.session_state.get("stop_requested", False):
-                    st.warning("🛑 Arrêt demandé par l'utilisateur")
+                    st.write("🛑 Arrêt demandé par l'utilisateur")
                     break
 
                 progress_bar.progress(idx / total_combinations)
@@ -285,7 +285,7 @@ def run_multi_sweep_llm(
                     # Charger données pour cette combinaison
                     combo_df = safe_load_data(sym, tf, state.start_date, state.end_date)
                     if combo_df is None:
-                        st.warning(f"❌ Données indisponibles pour {sym}/{tf}")
+                        st.write(f"❌ Données indisponibles pour {sym}/{tf}")
                         continue
 
                     # Créer engine isolé pour cette combinaison
@@ -357,14 +357,14 @@ def run_multi_sweep_llm(
                                 mode="llm_individual"
                             )
                         except Exception as save_exc:
-                            st.warning(f"⚠️ Échec sauvegarde {sweep_id}: {save_exc}")
+                            st.write(f"⚠️ Échec sauvegarde {sweep_id}: {save_exc}")
 
                     # Nettoyage mémoire entre optimisations
                     del combo_df, combo_engine, combo_orchestration_logger
                     gc.collect()
 
                 except Exception as exc:
-                    st.error(f"❌ Erreur optimisation {sk} × {sym} × {tf}: {exc}")
+                    st.write(f"❌ Erreur optimisation {sk} × {sym} × {tf}: {exc}")
 
                     # Sauvegarder l'erreur aussi
                     storage = get_storage()
@@ -407,7 +407,7 @@ def run_multi_sweep_llm(
         # Trouver le meilleur résultat global
         best_overall = results_df.loc[results_df["pnl"].idxmax()]
 
-        st.success(
+        st.write(
             f"🏆 **Meilleur résultat global**: {best_overall['strategy']} × {best_overall['symbol']} × {best_overall['timeframe']}\n\n"
             f"💰 PnL: ${best_overall['pnl']:.2f} | ⚡ Sharpe: {best_overall['sharpe']:.3f} | 📊 MaxDD: {best_overall['max_dd']:.1f}%"
         )
@@ -464,10 +464,10 @@ def run_multi_sweep_llm(
                 metadata=final_metadata
             )
         except Exception as save_exc:
-            st.warning(f"⚠️ Échec sauvegarde résumé final: {save_exc}")
+            st.write(f"⚠️ Échec sauvegarde résumé final: {save_exc}")
 
     else:
-        st.error("❌ Aucune optimisation LLM n'a réussi")
+        st.write("❌ Aucune optimisation LLM n'a réussi")
 
     with status_container:
         show_status("success", f"Multi-Sweep LLM terminé: {len(multi_llm_results)} optimisations")
@@ -489,7 +489,7 @@ def run_single_llm_optimization(
     with st.spinner("🔌 Connexion au LLM..."):
         try:
             _ = create_llm_client(state.llm_config)
-            st.success("✅ LLM connecté")
+            st.write("✅ LLM connecté")
         except Exception as exc:
             with status_container:
                 show_status("error", f"Échec connexion LLM: {exc}")
@@ -512,7 +512,7 @@ def run_single_llm_optimization(
     )
 
     if result:
-        st.success("🎯 Optimisation LLM terminée avec succès!")
+        st.write("🎯 Optimisation LLM terminée avec succès!")
 
         # Stocker les résultats dans la session
         st.session_state["last_run_result"] = result.get("full_result")

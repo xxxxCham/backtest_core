@@ -120,7 +120,7 @@ def simulate_trades(
     exit_pending_reason: Optional[str] = None
 
     # Paramètres avec défauts
-    leverage = params.get("leverage", 3)
+    leverage = params.get("leverage", 1)
     k_sl = params.get("k_sl", 1.5)  # Stop loss en %
     initial_capital = params.get("initial_capital", 10000.0)
     fees_bps = params.get("fees_bps", 10.0)

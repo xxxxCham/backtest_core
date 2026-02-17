@@ -277,7 +277,7 @@ class BollingerATRStrategy(StrategyBase):
         Returns:
             Quantité à trader
         """
-        leverage = params.get("leverage", 3)
+        leverage = params.get("leverage", 1)
         k_sl = params.get("k_sl", 1.5)
         risk_pct = params.get("risk_pct", 0.02)  # 2% du capital par trade
 

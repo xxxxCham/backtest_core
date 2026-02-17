@@ -75,6 +75,7 @@ from ui.helpers import (
     validate_param,
 )
 from ui.state import SidebarState
+from data.loader import is_valid_timeframe
 from utils.observability import is_debug_enabled, set_log_level
 from utils.parameters import normalize_param_ranges
 
@@ -241,20 +242,6 @@ def _render_sidebar_summary_card(
         ),
         unsafe_allow_html=True,
     )
-
-
-def _is_valid_timeframe_format(tf: str) -> bool:
-    """Valide qu'un timeframe est dans un format correct."""
-    if not tf or len(tf) < 2:
-        return False
-    unit = tf[-1]
-    if unit not in ('m', 'h', 'd', 'w', 'M'):
-        return False
-    try:
-        amount = int(tf[:-1])
-        return amount > 0
-    except ValueError:
-        return False
 
 
 def _normalize_signature_value(value: Any) -> Any:
@@ -473,7 +460,7 @@ def render_sidebar() -> SidebarState:
                 del st.session_state["symbol_select"]
 
         if "timeframe_select" in st.session_state:
-            if not _is_valid_timeframe_format(st.session_state["timeframe_select"]) or \
+            if not is_valid_timeframe(st.session_state["timeframe_select"]) or \
                st.session_state["timeframe_select"] not in available_timeframes:
                 del st.session_state["timeframe_select"]
 
@@ -501,7 +488,7 @@ def render_sidebar() -> SidebarState:
 
         if pending_meta.timeframe and pending_meta.timeframe not in available_timeframes:
             # Valider format timeframe (ex: 1m, 5m, 1h, 4h, 1d)
-            if _is_valid_timeframe_format(pending_meta.timeframe):
+            if is_valid_timeframe(pending_meta.timeframe):
                 available_timeframes = [pending_meta.timeframe] + available_timeframes
 
         if pending_meta.symbol:
@@ -624,6 +611,19 @@ def render_sidebar() -> SidebarState:
     # Analyse des données disponibles pour validation (toujours nécessaire)
     from data.config import scan_data_availability
     availability_result = scan_data_availability(symbols, timeframes)
+
+    # Avertir si certaines combinaisons token/TF n'ont pas de données
+    if availability_result.missing_data:
+        n_missing = len(availability_result.missing_data)
+        n_total = len(symbols) * len(timeframes)
+        # Afficher les 5 premières combos manquantes
+        examples = availability_result.missing_data[:5]
+        more = f" ... +{n_missing - 5}" if n_missing > 5 else ""
+        st.sidebar.warning(
+            f"⚠️ **{n_missing}/{n_total}** combo(s) sans données: "
+            f"{', '.join(examples)}{more}. "
+            f"Ces combinaisons seront ignorées automatiquement."
+        )
 
     use_date_filter = st.sidebar.checkbox(
         "Filtrer par dates",
@@ -2051,7 +2051,7 @@ def render_sidebar() -> SidebarState:
 
                 ollama_host = st.sidebar.text_input(
                     "URL Ollama",
-                    value="http://localhost:11434",
+                    value="http://127.0.0.1:11434",
                     help="Adresse du serveur Ollama",
                 )
                 if llm_model:

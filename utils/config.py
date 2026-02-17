@@ -114,7 +114,7 @@ SAFE_RANGES_PRESET = {
     "strategy": {
         "entry_z": {"min": 1.5, "max": 3.0, "default": 2.0},
         "k_sl": {"min": 1.0, "max": 3.0, "default": 1.5},
-        "leverage": {"min": 1, "max": 10, "default": 3}
+        "leverage": {"min": 1, "max": 10, "default": 1}
     }
 }
 

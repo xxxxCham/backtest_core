@@ -71,18 +71,20 @@ def vwap(
         # VWAP ancré (depuis début)
         cumulative_tp_volume = np.cumsum(tp_volume)
         cumulative_volume = np.cumsum(volume)
-        vwap_values = np.where(
-            cumulative_volume != 0,
-            cumulative_tp_volume / cumulative_volume,
-            typical_price
-        )
+        vwap_values = np.empty_like(typical_price)
+        mask = cumulative_volume != 0
+        vwap_values[mask] = cumulative_tp_volume[mask] / cumulative_volume[mask]
+        vwap_values[~mask] = typical_price[~mask]
     else:
         # VWAP glissant
         tp_series = pd.Series(tp_volume)
         vol_series = pd.Series(volume)
         rolling_tp = tp_series.rolling(window=period).sum().values
         rolling_vol = vol_series.rolling(window=period).sum().values
-        vwap_values = np.where(rolling_vol != 0, rolling_tp / rolling_vol, typical_price)
+        vwap_values = np.empty_like(typical_price)
+        mask = rolling_vol != 0
+        vwap_values[mask] = rolling_tp[mask] / rolling_vol[mask]
+        vwap_values[~mask] = typical_price[~mask]
 
     return vwap_values
 

@@ -279,7 +279,7 @@ def _render_latest_run(backtest_overview: pd.DataFrame, runs_overview: pd.DataFr
 
     latest = _pick_latest_from_catalogs(backtest_overview, runs_overview)
     if latest is None:
-        st.info("Aucun run détecté pour le moment.")
+        st.write("ℹ️ Aucun run détecté pour le moment.")
         return
 
     if latest["source"] == "backtest_results":
@@ -306,7 +306,7 @@ def _render_latest_run(backtest_overview: pd.DataFrame, runs_overview: pd.DataFr
             f"{latest.get('timestamp', '')}"
         )
     else:
-        st.info("Dernier run LLM (runs/)")
+        st.write("ℹ️ Dernier run LLM (runs/)")
         metrics = latest.get("metrics", {})
         st.caption(
             f"Mode: {latest.get('kind', '')} | Session: {latest.get('id', '')} | "
@@ -427,7 +427,7 @@ def render_results_hub() -> None:
     st.subheader("🗂️ Catalogue global")
 
     if backtest_overview.empty and runs_overview.empty:
-        st.info("Aucun catalogue disponible. Lancez un run puis cliquez sur Rafraîchir catalogues.")
+        st.write("ℹ️ Aucun catalogue disponible. Lancez un run puis cliquez sur Rafraîchir catalogues.")
         return
 
     # Configuration des colonnes numériques pour tri correct
@@ -447,7 +447,7 @@ def render_results_hub() -> None:
     with tabs[0]:
         df = backtest_overview.copy()
         if df.empty:
-            st.info("Aucun résultat backtest/sweep/grid.")
+            st.write("ℹ️ Aucun résultat backtest/sweep/grid.")
         else:
             df = _render_overview_filters(df)
             df = _sort_by_metrics(df)
@@ -462,7 +462,7 @@ def render_results_hub() -> None:
     with tabs[1]:
         df = backtest_overview[backtest_overview["type"] == "run"].copy() if not backtest_overview.empty else pd.DataFrame()
         if df.empty:
-            st.info("Aucun backtest enregistré.")
+            st.write("ℹ️ Aucun backtest enregistré.")
         else:
             df = _sort_by_metrics(df)
             st.dataframe(
@@ -475,7 +475,7 @@ def render_results_hub() -> None:
     with tabs[2]:
         df = backtest_overview[backtest_overview["type"] == "sweep"].copy() if not backtest_overview.empty else pd.DataFrame()
         if df.empty:
-            st.info("Aucun sweep enregistré.")
+            st.write("ℹ️ Aucun sweep enregistré.")
         else:
             df = _sort_by_metrics(df)
             st.dataframe(
@@ -488,7 +488,7 @@ def render_results_hub() -> None:
     with tabs[3]:
         df = backtest_overview[backtest_overview["type"] == "grid"].copy() if not backtest_overview.empty else pd.DataFrame()
         if df.empty:
-            st.info("Aucun grid enregistré.")
+            st.write("ℹ️ Aucun grid enregistré.")
         else:
             df = _sort_by_metrics(df)
             st.dataframe(
@@ -501,7 +501,7 @@ def render_results_hub() -> None:
     with tabs[4]:
         df = backtest_overview[backtest_overview["type"] == "optuna"].copy() if not backtest_overview.empty else pd.DataFrame()
         if df.empty:
-            st.info("Aucun Optuna enregistré.")
+            st.write("ℹ️ Aucun Optuna enregistré.")
         else:
             df = _sort_by_metrics(df)
             st.dataframe(
@@ -513,7 +513,7 @@ def render_results_hub() -> None:
 
     with tabs[5]:
         if runs_overview.empty:
-            st.info("Aucun run LLM enregistré.")
+            st.write("ℹ️ Aucun run LLM enregistré.")
         else:
             df = runs_overview.copy()
             df["timestamp_dt"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
@@ -527,7 +527,7 @@ def render_results_hub() -> None:
 
     with tabs[6]:
         if backtest_overview.empty:
-            st.info("Aucune donnée pour les catégories.")
+            st.write("ℹ️ Aucune donnée pour les catégories.")
         else:
             col1, col2 = st.columns(2)
             with col1:
@@ -554,7 +554,7 @@ def render_results_hub() -> None:
     with tabs[7]:
         df = backtest_overview[backtest_overview["type"] == "run"].copy() if not backtest_overview.empty else pd.DataFrame()
         if df.empty:
-            st.info("Aucun backtest disponible pour comparaison.")
+            st.write("ℹ️ Aucun backtest disponible pour comparaison.")
         else:
             df = _sort_by_metrics(df)
             options = df["id"].dropna().unique().tolist()

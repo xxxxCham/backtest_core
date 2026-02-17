@@ -849,7 +849,7 @@ def simulate_trades_fast(
         DataFrame des trades
     """
     # Extraire paramètres
-    leverage = float(params.get("leverage", 3))
+    leverage = float(params.get("leverage", 1))
     k_sl = float(params.get("k_sl", 1.5))
     initial_capital = float(params.get("initial_capital", 10000.0))
     fees_bps = float(params.get("fees_bps", 10.0))

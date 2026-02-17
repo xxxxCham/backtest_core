@@ -10,6 +10,7 @@ from .bollinger_atr import BollingerATRStrategy
 from .bollinger_best_longe_3i import BollingerBestLonge3iStrategy
 from .bollinger_best_short_3i import BollingerBestShort3iStrategy
 from .ema_cross import EMACrossStrategy
+from .ema_rsi_regime import EMARSIRegimeStrategy
 from .indicators_mapping import (
     STRATEGY_INDICATORS_MAP,
     get_all_indicators,
@@ -18,6 +19,9 @@ from .indicators_mapping import (
 )
 from .macd_cross import MACDCrossStrategy
 from .rsi_reversal import RSIReversalStrategy
+from .scalp_bb_vwap_rsi import ScalpBollingerVwapRsiStrategy
+from .scalp_donchian_adx_breakout import ScalpDonchianAdxBreakoutStrategy
+from .scalp_ema_rsi_pullback import ScalpEmaRsiPullbackStrategy
 from .scalp_ema_bb_rsi_labs import ScalpEmaBbRsiLabsStrategy
 from .scalping_bollinger_vwap_atr import ScalpingBollingerVwapAtrStrategy
 
@@ -30,8 +34,12 @@ __all__ = [
     "BollingerBestLonge3iStrategy",
     "BollingerBestShort3iStrategy",
     "EMACrossStrategy",
+    "EMARSIRegimeStrategy",
     "MACDCrossStrategy",
     "RSIReversalStrategy",
+    "ScalpBollingerVwapRsiStrategy",
+    "ScalpDonchianAdxBreakoutStrategy",
+    "ScalpEmaRsiPullbackStrategy",
     "ScalpEmaBbRsiLabsStrategy",
     "ScalpingBollingerVwapAtrStrategy",
     "get_required_indicators",

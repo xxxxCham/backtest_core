@@ -50,7 +50,7 @@ def render_run_button() -> bool:
     cfg_validated = st.session_state.get("cfg_validated", False)
 
     if not cfg_validated:
-        st.warning("⚠️ Validez d'abord la configuration dans la sidebar")
+        st.write("⚠️ Validez d'abord la configuration dans la sidebar")
         return False
 
     # Bouton Run
@@ -94,7 +94,7 @@ def execute_backtest_with_frozen_config(cfg_frozen: Dict[str, Any]) -> Optional[
                 return None
 
             load_duration = time.time() - start_load
-            st.success(f"✅ Données chargées: {len(df):,} bougies ({load_duration:.2f}s)")
+            st.write(f"✅ Données chargées: {len(df):,} bougies ({load_duration:.2f}s)")
 
         # === PHASE 2: EXÉCUTION BACKTEST ===
         with st.spinner("⚙️ Exécution backtest..."):
@@ -123,7 +123,7 @@ def execute_backtest_with_frozen_config(cfg_frozen: Dict[str, Any]) -> Optional[
                 show_status("error", f"Backtest échoué: {msg}")
                 return None
 
-            st.success(f"✅ Backtest terminé ({bt_duration:.2f}s)")
+            st.write(f"✅ Backtest terminé ({bt_duration:.2f}s)")
 
             return {
                 "result": result,
@@ -175,7 +175,7 @@ def render_backtest_results(backtest_output: Dict[str, Any]) -> None:
         st.json(config)
 
     # TODO: Ajouter graphiques, liste des trades, etc.
-    st.info("🚧 Graphiques et détails à venir")
+    st.write("🚧 Graphiques et détails à venir")
 
 
 def main():
@@ -199,12 +199,12 @@ def main():
     # Afficher statut configuration
     if config_validated:
         cfg = st.session_state.get("cfg_draft", {})
-        st.success(
+        st.write(
             f"✅ Configuration validée: {cfg.get('strategy_key')} | "
             f"{cfg.get('symbol')} | {cfg.get('timeframe')}"
         )
     else:
-        st.info("💡 Configurez et validez les paramètres dans la sidebar →")
+        st.write("💡 Configurez et validez les paramètres dans la sidebar →")
         st.stop()
 
     # Bouton Run
@@ -219,7 +219,7 @@ def main():
             show_status("error", "Configuration non validée")
             st.stop()
 
-        st.info("🔒 Configuration figée pour exécution")
+        st.write("🔒 Configuration figée pour exécution")
 
         # Exécuter backtest
         backtest_output = execute_backtest_with_frozen_config(cfg_frozen)
@@ -236,7 +236,7 @@ def main():
 
     # Afficher derniers résultats si disponibles
     elif "last_backtest_output" in st.session_state:
-        st.info("📊 Derniers résultats disponibles")
+        st.write("📊 Derniers résultats disponibles")
         render_backtest_results(st.session_state["last_backtest_output"])
 
 

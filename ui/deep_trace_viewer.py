@@ -179,7 +179,7 @@ def render_timeline_panel(logger: OrchestrationLogger, filters: Dict[str, Any]):
             ]
 
     if not filtered_logs:
-        st.info("Aucun événement ne correspond aux filtres sélectionnés")
+        st.write("Aucun événement ne correspond aux filtres sélectionnés")
         return
 
     st.caption(f"Affichage de {len(filtered_logs)} événements sur {len(logger.logs)} total")
@@ -320,7 +320,7 @@ def render_llm_inspector_panel(logger: OrchestrationLogger):
     ]
 
     if not agent_events:
-        st.info("Aucun événement LLM enregistré")
+        st.write("Aucun événement LLM enregistré")
         return
 
     # Grouper par rôle
@@ -417,7 +417,7 @@ def render_proposals_panel(logger: OrchestrationLogger):
     ]
 
     if not proposal_events:
-        st.info("Aucune proposition enregistrée")
+        st.write("Aucune proposition enregistrée")
         return
 
     # Compter les propositions générées vs testées
@@ -461,7 +461,7 @@ def render_proposals_panel(logger: OrchestrationLogger):
         df = pd.DataFrame(test_data)
         st.dataframe(df, width="stretch", hide_index=True)
     else:
-        st.info("Aucun test de proposition enregistré")
+        st.write("Aucun test de proposition enregistré")
 
 
 # ============================================================================
@@ -484,7 +484,7 @@ def render_state_machine_panel(logger: OrchestrationLogger):
     ]
 
     if not state_events:
-        st.info("Aucun événement d'état enregistré")
+        st.write("Aucun événement d'état enregistré")
         return
 
     # État actuel (dernier STATE_ENTER)
@@ -528,7 +528,7 @@ def render_state_machine_panel(logger: OrchestrationLogger):
         df = pd.DataFrame(transitions_data)
         st.dataframe(df, width="stretch", hide_index=True)
     else:
-        st.info("Aucune transition enregistrée")
+        st.write("ℹ️ Aucune transition enregistrée")
 
 
 # ============================================================================
@@ -613,11 +613,11 @@ def render_metrics_panel(logger: OrchestrationLogger):
                     dd = details.get("max_drawdown", 0)
                     st.metric("Max Drawdown", f"{dd:.2%}" if dd else "N/A")
             else:
-                st.info("Données de meilleur résultat non disponibles")
+                st.write("ℹ️ Données de meilleur résultat non disponibles")
         else:
-            st.info("Aucune métrique Sharpe enregistrée")
+            st.write("ℹ️ Aucune métrique Sharpe enregistrée")
     else:
-        st.info("Aucune itération enregistrée")
+        st.write("ℹ️ Aucune itération enregistrée")
 
 
 # ============================================================================
@@ -762,13 +762,13 @@ def render_export_panel(logger: OrchestrationLogger, filters: Dict[str, Any]):
         if st.button("📥 Exporter JSON complet"):
             export_path = Path(f"orchestration_export_{logger.session_id}.json")
             logger.save_to_file(export_path)
-            st.success(f"✅ Exporté vers {export_path}")
+            st.write(f"✅ Exporté vers {export_path}")
 
     with col2:
         if st.button("📥 Exporter JSONL"):
             export_path = Path(f"orchestration_export_{logger.session_id}.jsonl")
             logger.save_to_jsonl(export_path)
-            st.success(f"✅ Exporté vers {export_path}")
+            st.write(f"✅ Exporté vers {export_path}")
 
 
 # ============================================================================
@@ -789,7 +789,7 @@ def render_deep_trace_viewer(logger: Optional[OrchestrationLogger] = None):
         logger = render_session_selector()
 
     if logger is None:
-        st.info("👈 Sélectionnez une session dans la sidebar pour commencer")
+        st.write("👈 Sélectionnez une session dans la sidebar pour commencer")
         return
 
     # Informations de session

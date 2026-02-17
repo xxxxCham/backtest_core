@@ -31,6 +31,8 @@ import ast
 import hashlib
 import importlib.util
 import json
+import math
+import os
 import pprint
 import random
 import re
@@ -45,6 +47,7 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import pandas as pd
+import numpy as np
 from agents.llm_client import LLMClient, LLMConfig, LLMMessage, create_llm_client
 from backtest.engine import BacktestEngine
 from indicators.registry import calculate_indicator, list_indicators
@@ -76,6 +79,22 @@ MAX_DRAWDOWN_PCT_FOR_ACCEPT = 60.0
 MIN_RETURN_PCT_FOR_ACCEPT = 0.0
 # Nombre max de fallbacks déterministes avant arrêt de la session
 MAX_DETERMINISTIC_FALLBACKS = 4
+PROPOSAL_REALIGN_ATTEMPTS = 1
+MIN_BUILDER_BARS = 300
+
+# Mode safe-path JSON+DSL (off|prefer|strict)
+SAFE_PATH_MODE_ENV = "BACKTEST_BUILDER_SAFE_PATH"
+
+# Codes d'erreur stables
+ERR_CLASS = "CLASS001"
+ERR_AST = "AST001"
+ERR_IND = "IND001"
+ERR_SIG = "SIG001"
+ERR_WARM = "WARM001"
+ERR_PARAM = "PARAM001"
+ERR_JSON = "JSON001"
+ERR_DSL = "DSL001"
+ERR_SANDBOX = "SANDBOX001"
 
 _DICT_INDICATOR_NAMES = {
     "bollinger",
@@ -135,6 +154,23 @@ _PROPOSAL_PLACEHOLDER_VALUES = {
     "when to buy",
     "when to sell",
     "when to close",
+}
+
+_BUILDER_PROPOSAL_REQUIRED_KEYS = {
+    "strategy_name",
+    "used_indicators",
+    "entry_long_logic",
+    "exit_logic",
+    "risk_management",
+    "default_params",
+    "parameter_specs",
+}
+
+_BUILDER_ALLOWED_WRITE_DF_COLUMNS = {
+    "bb_stop_long",
+    "bb_tp_long",
+    "bb_stop_short",
+    "bb_tp_short",
 }
 
 _LOG_PREFIX_RE = re.compile(r"^\s*\d{2}:\d{2}:\d{2}\s*\|\s*\w+\s*\|", re.IGNORECASE)
@@ -199,6 +235,152 @@ class BuilderSession:
     initial_capital: float = 10000.0
 
 
+def _err(code: str, message: str) -> str:
+    """Formate un message d'erreur avec code stable."""
+    return f"[{code}] {message}"
+
+
+def _safe_path_mode() -> str:
+    """Retourne le mode safe-path normalisé: off|prefer|strict."""
+    raw = os.getenv(SAFE_PATH_MODE_ENV, "off").strip().lower()
+    if raw in {"prefer", "strict", "off"}:
+        return raw
+    if raw in {"1", "true", "yes", "on"}:
+        return "prefer"
+    return "off"
+
+
+def _is_allowed_import(module_name: str) -> bool:
+    """Allowlist stricte des imports dans le code généré."""
+    root = (module_name or "").split(".")[0]
+    return root in {"typing", "numpy", "pandas", "strategies", "utils"}
+
+
+def _strict_sandbox_enabled() -> bool:
+    """Active/désactive la sandbox runtime stricte."""
+    raw = os.getenv("BACKTEST_BUILDER_STRICT_SANDBOX", "1").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
+def _sandbox_safe_builtins() -> Dict[str, Any]:
+    """Construit un set minimal de builtins autorisés dans la sandbox."""
+    return {
+        "__build_class__": __build_class__,
+        "abs": abs,
+        "all": all,
+        "any": any,
+        "bool": bool,
+        "Exception": Exception,
+        "dict": dict,
+        "enumerate": enumerate,
+        "float": float,
+        "int": int,
+        "object": object,
+        "len": len,
+        "list": list,
+        "max": max,
+        "min": min,
+        "pow": pow,
+        "property": property,
+        "range": range,
+        "set": set,
+        "staticmethod": staticmethod,
+        "super": super,
+        "sum": sum,
+        "tuple": tuple,
+        "type": type,
+        "zip": zip,
+        "isinstance": isinstance,
+    }
+
+
+def _sandbox_import(name: str, global_ns=None, local_ns=None, fromlist=(), level=0):
+    """Import guard pour sandbox runtime."""
+    if not _is_allowed_import(name):
+        raise ImportError(_err(ERR_SANDBOX, f"Import runtime interdit: '{name}'"))
+    return __import__(name, global_ns, local_ns, fromlist, level)
+
+
+def _validate_signal_loop_and_warmup(tree: ast.AST) -> tuple[bool, str]:
+    """Valide des patterns signaux/warmup dangereux.
+
+    - Interdit les boucles indexées qui écrivent `signals.iloc[i]`
+    - Interdit warmup destructif (`signals.iloc[x:] = 0`, `signals[:] = 0`)
+    """
+    for fn in _iter_generate_signals_functions(tree):
+        for node in ast.walk(fn):
+            if isinstance(node, ast.For):
+                if (
+                    isinstance(node.target, ast.Name)
+                    and isinstance(node.iter, ast.Call)
+                    and isinstance(node.iter.func, ast.Name)
+                    and node.iter.func.id == "range"
+                ):
+                    return False, _err(
+                        ERR_SIG,
+                        "Boucle `for i in range(...)` interdite dans generate_signals. "
+                        "Utiliser une logique vectorisée.",
+                    )
+                for sub in ast.walk(node):
+                    if not isinstance(sub, ast.Subscript):
+                        continue
+                    # signals.iloc[i] = ...
+                    if (
+                        isinstance(sub.value, ast.Attribute)
+                        and sub.value.attr == "iloc"
+                        and isinstance(sub.value.value, ast.Name)
+                        and sub.value.value.id == "signals"
+                    ):
+                        return False, _err(
+                            ERR_SIG,
+                            "Boucle indexée avec `signals.iloc[i]` interdite. "
+                            "Utiliser des masques vectorisés.",
+                        )
+
+            # Warmup checks sur assignations
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for tgt in targets:
+                    if not isinstance(tgt, ast.Subscript):
+                        continue
+
+                    # Pattern signals[...] ou signals.iloc[...]
+                    is_signals_sub = (
+                        isinstance(tgt.value, ast.Name) and tgt.value.id == "signals"
+                    )
+                    is_signals_iloc_sub = (
+                        isinstance(tgt.value, ast.Attribute)
+                        and tgt.value.attr == "iloc"
+                        and isinstance(tgt.value.value, ast.Name)
+                        and tgt.value.value.id == "signals"
+                    )
+                    if not (is_signals_sub or is_signals_iloc_sub):
+                        continue
+
+                    sl = tgt.slice
+                    if isinstance(sl, ast.Slice):
+                        lower = _const_value(sl.lower) if sl.lower is not None else None
+                        upper = _const_value(sl.upper) if sl.upper is not None else None
+                        # Autorisé: [:N] = 0 (warmup préfixe), N constant ou variable
+                        if lower is None and sl.upper is not None:
+                            continue
+                        # Interdit: [N:] / [:] / [N:M]
+                        return False, _err(
+                            ERR_WARM,
+                            "Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` "
+                            "(ou `signals[:N] = 0.0`) est autorisée.",
+                        )
+
+            if isinstance(node, ast.While):
+                return False, _err(
+                    ERR_SIG,
+                    "Boucle `while` interdite dans generate_signals. "
+                    "Utiliser une logique vectorisée.",
+                )
+
+    return True, ""
+
+
 # ---------------------------------------------------------------------------
 # Validation du code généré
 # ---------------------------------------------------------------------------
@@ -220,7 +402,33 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
     try:
         tree = ast.parse(code)
     except SyntaxError as e:
-        return False, f"Erreur de syntaxe ligne {e.lineno}: {e.msg}"
+        return False, _err(ERR_AST, f"Erreur de syntaxe ligne {e.lineno}: {e.msg}")
+
+    # 1b. Sécurité sandbox prioritaire
+    dangerous_patterns = [
+        "os.system", "subprocess", "eval(", "exec(",
+        "__import__", "shutil.rmtree", "open(",
+    ]
+    code_lower = code.lower()
+    for pattern in dangerous_patterns:
+        if pattern.lower() in code_lower:
+            return False, _err(ERR_SANDBOX, f"Import/appel dangereux détecté: '{pattern}'")
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if not _is_allowed_import(alias.name):
+                    return False, _err(
+                        ERR_SANDBOX,
+                        f"Import interdit en sandbox: '{alias.name}'.",
+                    )
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if not _is_allowed_import(mod):
+                return False, _err(
+                    ERR_SANDBOX,
+                    f"Import interdit en sandbox: 'from {mod} import ...'.",
+                )
 
     # 2. Vérifier la classe attendue
     class_names = [
@@ -228,26 +436,85 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
         if isinstance(node, ast.ClassDef)
     ]
     if GENERATED_CLASS_NAME not in class_names:
-        return False, (
-            f"Classe '{GENERATED_CLASS_NAME}' absente. "
-            f"Classes trouvées: {class_names}"
+        return False, _err(
+            ERR_CLASS,
+            f"Classe '{GENERATED_CLASS_NAME}' absente. Classes trouvées: {class_names}",
         )
 
     # 3. Vérifier generate_signals (dans la classe attendue)
     generate_fns = _iter_generate_signals_functions(tree)
     if not generate_fns:
-        return False, "Méthode 'generate_signals' absente."
+        return False, _err(ERR_CLASS, "Méthode 'generate_signals' absente.")
+
+    # 3a. Héritage strict StrategyBase (après vérif structure minimale)
+    class_node = next(
+        (
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef) and node.name == GENERATED_CLASS_NAME
+        ),
+        None,
+    )
+    if class_node is not None:
+        base_names = {
+            getattr(base, "id", None)
+            for base in class_node.bases
+            if isinstance(base, ast.Name)
+        }
+        base_names.update(
+            getattr(base, "attr", None)
+            for base in class_node.bases
+            if isinstance(base, ast.Attribute)
+        )
+        if "StrategyBase" not in base_names:
+            return False, _err(
+                ERR_CLASS,
+                "La classe générée doit hériter explicitement de StrategyBase.",
+            )
 
     # 3b. Signature minimale (évite TypeError runtime)
     fn = generate_fns[0]
     if len(fn.args.args) < 4 and fn.args.vararg is None:
         return (
             False,
-            "Signature invalide: generate_signals doit accepter "
-            "(self, df, indicators, params).",
+            _err(
+                ERR_CLASS,
+                "Signature invalide: generate_signals doit accepter "
+                "(self, df, indicators, params).",
+            ),
         )
 
-    # 3c. NameError probable: variables coeur utilisées sans définition
+    # 3c. default_params doit retourner un dict concret (pas une variable globale implicite)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != GENERATED_CLASS_NAME:
+            continue
+        for item in node.body:
+            if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if item.name != "default_params":
+                continue
+            arg_names = {a.arg for a in item.args.args}
+            arg_names.update(a.arg for a in item.args.kwonlyargs)
+            _, store_names = _collect_name_load_store_sets(item)
+            for sub in ast.walk(item):
+                if not isinstance(sub, ast.Return):
+                    continue
+                if isinstance(sub.value, ast.Name):
+                    name_id = sub.value.id
+                    if name_id not in arg_names and name_id not in store_names:
+                        return (
+                            False,
+                            _err(
+                                ERR_PARAM,
+                                "default_params invalide: `return "
+                                f"{name_id}` référence un nom non défini. "
+                                "Retourner un dict explicite (ex: {'leverage': 1, ...}) "
+                                "ou un attribut `self.<...>`."
+                            ),
+                        )
+        break
+
+    # 3d. NameError probable: variables coeur utilisées sans définition
     #     (fréquent quand le LLM renomme l'argument `df` mais garde `df[...]` dans le corps)
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef) or node.name != GENERATED_CLASS_NAME:
@@ -262,21 +529,83 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
                 if core in load_names and core not in arg_names and core not in store_names:
                     return (
                         False,
-                        f"NameError probable: `{core}` utilisé dans `{item.name}` "
-                        "mais non défini (paramètre manquant ou variable non assignée).",
+                        _err(
+                            ERR_CLASS,
+                            f"NameError probable: `{core}` utilisé dans `{item.name}` "
+                            "mais non défini (paramètre manquant ou variable non assignée).",
+                        ),
                     )
         break
 
-    # 4. Imports dangereux
-    dangerous_patterns = [
-        "os.system", "subprocess", "eval(", "exec(",
-        "__import__", "shutil.rmtree", "open(",
-    ]
-    code_lower = code.lower()
-    for pattern in dangerous_patterns:
-        if pattern.lower() in code_lower:
-            return False, f"Import/appel dangereux détecté: '{pattern}'"
+    # 3f. Verrouillage required_indicators: lecture seule (pas d'assignation)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        for target in targets:
+            if (
+                isinstance(target, ast.Attribute)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "self"
+                and target.attr == "required_indicators"
+            ):
+                return False, _err(
+                    ERR_CLASS,
+                    "required_indicators est en lecture seule: assignation interdite.",
+                )
 
+    # 3g. Écriture df limitée aux colonnes SL/TP autorisées
+    ohlcv_cols = {"open", "high", "low", "close", "volume"}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            continue
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, ast.AugAssign):
+            targets = [node.target]
+        else:
+            targets = [node.target]
+        for target in targets:
+            if not isinstance(target, ast.Subscript):
+                continue
+            is_df = isinstance(target.value, ast.Name) and target.value.id == "df"
+            is_df_loc = (
+                isinstance(target.value, ast.Attribute)
+                and target.value.attr == "loc"
+                and isinstance(target.value.value, ast.Name)
+                and target.value.value.id == "df"
+            )
+            if not (is_df or is_df_loc):
+                continue
+            col = _const_value(target.slice)
+            if col is None and is_df_loc and isinstance(target.slice, ast.Tuple):
+                items = list(target.slice.elts)
+                if len(items) >= 2:
+                    col = _const_value(items[1])
+            if not isinstance(col, str):
+                continue
+            low = col.lower()
+            if low in ohlcv_cols:
+                return False, _err(
+                    ERR_IND,
+                    f"Écriture interdite dans df['{col}'] (OHLCV read-only).",
+                )
+            if col not in _BUILDER_ALLOWED_WRITE_DF_COLUMNS:
+                return False, _err(
+                    ERR_IND,
+                    f"Écriture df['{col}'] non autorisée. Colonnes autorisées: "
+                    "bb_stop_long, bb_tp_long, bb_stop_short, bb_tp_short.",
+                )
+
+    # 3e. Interdictions structurées signaux/warmup
+    flow_ok, flow_err = _validate_signal_loop_and_warmup(tree)
+    if not flow_ok:
+        return False, flow_err
+
+    # 4. Imports dangereux
     # 5. Accès invalide aux indicateurs via df[...] au lieu de indicators[...]
     try:
         known_indicators = {ind.lower() for ind in list_indicators()}
@@ -317,8 +646,11 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
     if bad_df_cols:
         return (
             False,
-            "Accès indicateur invalide via df[...] détecté: "
-            f"{bad_df_cols}. Utiliser indicators['name'].",
+            _err(
+                ERR_IND,
+                "Accès indicateur invalide via df[...] détecté: "
+                f"{bad_df_cols}. Utiliser indicators['name'].",
+            ),
         )
 
     # 6. Mauvais usage de np.nan_to_num sur indicateurs dict (bollinger, macd, ...)
@@ -331,14 +663,32 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
         if re.search(bad_pattern, code):
             return (
                 False,
-                f"Usage invalide: np.nan_to_num(indicators['{ind}']) (dict). "
-                "Appliquer np.nan_to_num sur ses sous-clés.",
+                _err(
+                    ERR_IND,
+                    f"Usage invalide: np.nan_to_num(indicators['{ind}']) (dict). "
+                    "Appliquer np.nan_to_num sur ses sous-clés.",
+                ),
             )
 
     # 7. Validation sémantique AST (usage indicateurs/arrays)
     semantics_ok, semantics_err = _validate_indicator_usage_semantics(code)
     if not semantics_ok:
-        return False, semantics_err
+        return False, _err(ERR_IND, semantics_err)
+
+    # 8. Validation légère ParameterSpec: rejeter aliases/typos source de dérive
+    forbidden_paramspec_keys = (
+        "min_value=",
+        "max_value=",
+        "minimum=",
+        "maximum=",
+        "paramtype=",
+    )
+    for key in forbidden_paramspec_keys:
+        if key in code_lower:
+            return False, _err(
+                ERR_PARAM,
+                "ParameterSpec invalide: utiliser min_val/max_val/param_type/step.",
+            )
 
     return True, ""
 
@@ -431,6 +781,31 @@ def sanitize_objective_text(objective: Any) -> str:
     return cleaned
 
 
+def _normalize_llm_text(value: Any, *, fallback: str = "", max_len: int = 1200) -> str:
+    """Normalise un payload LLM potentiellement structuré en texte affichable."""
+    text = ""
+    if isinstance(value, str):
+        text = value
+    elif isinstance(value, (dict, list, tuple, set)):
+        try:
+            text = json.dumps(value, ensure_ascii=False, indent=2)
+        except Exception:
+            text = str(value)
+    elif value is None:
+        text = ""
+    else:
+        text = str(value)
+
+    text = text.strip()
+    if not text:
+        text = str(fallback or "").strip()
+    if not text:
+        return ""
+    if len(text) > max_len:
+        text = text[:max_len].rstrip()
+    return text
+
+
 def _looks_like_log_pollution(text: str) -> bool:
     """Heuristique simple pour détecter un collage de logs/traceback."""
     if not text:
@@ -449,6 +824,41 @@ def _looks_like_log_pollution(text: str) -> bool:
     ):
         return True
     return False
+
+
+def _safe_format_exception(exc: BaseException) -> str:
+    """
+    Formate une exception sans passer par traceback.format_exc/format_exception.
+
+    Évite les crashs secondaires Python 3.12 quand le moteur de suggestion
+    d'erreur évalue des propriétés qui relèvent elles-mêmes des exceptions.
+    """
+    try:
+        tb = exc.__traceback__
+    except Exception:
+        tb = None
+
+    lines: List[str] = []
+    if tb is not None:
+        try:
+            for frame in traceback.extract_tb(tb):
+                code_line = (frame.line or "").strip()
+                lines.append(
+                    f'  File "{frame.filename}", line {frame.lineno}, in {frame.name}'
+                )
+                if code_line:
+                    lines.append(f"    {code_line}")
+        except Exception:
+            lines = []
+
+    header = f"{type(exc).__name__}: {exc}"
+    if lines:
+        return (
+            "Traceback (most recent call last):\n"
+            + "\n".join(lines)
+            + f"\n{header}"
+        )
+    return header
 
 
 def _metric_float(metrics: Dict[str, Any], key: str, default: float = 0.0) -> float:
@@ -1033,6 +1443,99 @@ def _extract_python_from_response(text: str) -> str:
     return text.strip()
 
 
+def _timeframe_to_timedelta(timeframe: str) -> Optional[pd.Timedelta]:
+    """Convertit un timeframe texte en timedelta."""
+    tf = str(timeframe or "").strip()
+    match = re.match(r"^(\d+)([mhdwM])$", tf)
+    if not match:
+        return None
+    n = int(match.group(1))
+    unit = match.group(2)
+    if unit == "m":
+        return pd.Timedelta(minutes=n)
+    if unit == "h":
+        return pd.Timedelta(hours=n)
+    if unit == "d":
+        return pd.Timedelta(days=n)
+    if unit == "w":
+        return pd.Timedelta(weeks=n)
+    if unit == "M":
+        return pd.Timedelta(days=30 * n)
+    return None
+
+
+def _max_contiguous_segment_bars(df: pd.DataFrame, timeframe: str) -> int:
+    """Retourne la taille max d'un segment continu hors gaps majeurs."""
+    if df.empty:
+        return 0
+    expected = _timeframe_to_timedelta(timeframe)
+    if expected is None:
+        return len(df)
+    idx = df.index
+    if not isinstance(idx, pd.DatetimeIndex) or len(idx) <= 1:
+        return len(df)
+    diffs = idx[1:] - idx[:-1]
+    major_gap = diffs > (expected * 3)
+    if not np.any(major_gap):
+        return len(df)
+    cut_positions = np.where(major_gap)[0]
+    starts = [0, *[int(pos) + 1 for pos in cut_positions]]
+    ends = [*[int(pos) + 1 for pos in cut_positions], len(df)]
+    lengths = [end - start for start, end in zip(starts, ends)]
+    return max(lengths) if lengths else len(df)
+
+
+def _validate_builder_dataset_exploitability(
+    data: pd.DataFrame,
+    *,
+    symbol: str,
+    timeframe: str,
+) -> tuple[bool, str]:
+    """Valide que le dataset/timeframe est exploitable pour le Builder."""
+    n_bars = int(len(data))
+    if n_bars < MIN_BUILDER_BARS:
+        return (
+            False,
+            (
+                f"Dataset insuffisant pour Builder: {n_bars} barres (< {MIN_BUILDER_BARS}) "
+                f"sur {symbol}/{timeframe}."
+            ),
+        )
+
+    if symbol and symbol != "UNKNOWN":
+        try:
+            from data.config import find_optimal_periods
+
+            periods = find_optimal_periods([symbol], [timeframe], min_period_days=30, max_periods=1)
+            if not periods:
+                return (
+                    False,
+                    (
+                        "Aucun segment exploitable sans gaps majeurs détecté "
+                        f"par data.config pour {symbol}/{timeframe}."
+                    ),
+                )
+        except Exception as exc:
+            logger.warning(
+                "builder_dataset_quality_check_fallback symbol=%s timeframe=%s error=%s",
+                symbol,
+                timeframe,
+                exc,
+            )
+
+    max_segment = _max_contiguous_segment_bars(data, timeframe)
+    if max_segment < MIN_BUILDER_BARS:
+        return (
+            False,
+            (
+                "Aucun segment continu exploitable détecté: "
+                f"segment max={max_segment} barres (< {MIN_BUILDER_BARS}) sur {symbol}/{timeframe}."
+            ),
+        )
+
+    return True, ""
+
+
 def _fix_class_name(code: str) -> str:
     """Renomme la première sous-classe StrategyBase en GENERATED_CLASS_NAME."""
     if re.search(rf"\bclass\s+{GENERATED_CLASS_NAME}\s*\(", code):
@@ -1287,6 +1790,188 @@ def _repair_code(code: str) -> str:
     code = _inject_generate_signals_core_param_aliases(code)
 
     return code
+
+
+def _extract_generate_signals_logic_block(code: str) -> str:
+    """Extrait le bloc logique de generate_signals depuis une réponse LLM."""
+    try:
+        tree = ast.parse(code)
+    except Exception:
+        return ""
+
+    lines = code.splitlines()
+    for fn in _iter_generate_signals_functions(tree):
+        if not fn.body:
+            continue
+        start = int(fn.body[0].lineno) - 1
+        end = int(getattr(fn.body[-1], "end_lineno", fn.body[-1].lineno))
+        block_lines = lines[start:end]
+        stripped: List[str] = []
+        for line in block_lines:
+            s = line.strip()
+            if not s:
+                stripped.append(line)
+                continue
+            if re.match(r"^(signals|n|warmup)\s*=", s):
+                continue
+            if s == "return signals":
+                continue
+            stripped.append(line)
+        return textwrap.dedent("\n".join(stripped)).strip()
+    return ""
+
+
+def _normalize_signal_assignments(logic: str) -> str:
+    """Normalise les affectations de signaux vers -1.0/0.0/1.0."""
+    logic = re.sub(r"(signals\s*\[[^\n]+\]\s*=\s*)1(?![\d.])", r"\g<1>1.0", logic)
+    logic = re.sub(r"(signals\s*\[[^\n]+\]\s*=\s*)-1(?![\d.])", r"\g<1>-1.0", logic)
+    logic = re.sub(r"(signals\s*\[[^\n]+\]\s*=\s*)0(?![\d.])", r"\g<1>0.0", logic)
+    return logic
+
+
+def _postprocess_llm_logic_block(logic: str, required_indicators: List[str]) -> str:
+    """Corrige automatiquement des fautes mineures de logique LLM."""
+    fixed = logic
+    for ind in required_indicators:
+        fixed = re.sub(
+            rf"df\s*\[\s*['\"]{re.escape(ind)}['\"]\s*\]",
+            f"indicators['{ind}']",
+            fixed,
+        )
+    fixed = _normalize_signal_assignments(fixed)
+    return fixed
+
+
+def _validate_llm_logic_block(logic: str) -> tuple[bool, str]:
+    """Valide le bloc logique LLM avant assemblage final."""
+    if not logic.strip():
+        return False, _err(ERR_CLASS, "Bloc logique LLM vide.")
+    if ".iloc[" in logic:
+        return False, _err(ERR_SIG, "`.iloc[` interdit dans la logique Builder.")
+    if re.search(r"\bfor\s+\w+\s+in\s+range\s*\(", logic):
+        return False, _err(ERR_SIG, "`for i in range(...)` interdit dans la logique Builder.")
+    if re.search(r"\bwhile\b", logic):
+        return False, _err(ERR_SIG, "`while` interdit dans la logique Builder.")
+    if re.search(r"\bTrue\b|\bFalse\b", logic):
+        return False, _err(ERR_SIG, "Constantes booléennes True/False interdites dans les signaux.")
+    return True, ""
+
+
+def _looks_like_valid_python_logic(logic: str) -> bool:
+    """Vérifie qu'un bloc logique ressemble à du Python exécutable."""
+    candidate = textwrap.dedent(str(logic or "")).strip()
+    if not candidate:
+        return False
+    if not re.search(r"\b(if|signals|indicators|params|np\.|df\.|return|=)\b", candidate):
+        return False
+    wrapped = "def _tmp(df, indicators, params, signals):\n" + "\n".join(
+        f"    {line}" if line.strip() else ""
+        for line in candidate.splitlines()
+    )
+    try:
+        ast.parse(wrapped)
+    except SyntaxError:
+        return False
+    return True
+
+
+def _format_parameter_specs_code(specs: Dict[str, Any]) -> str:
+    """Construit le code Python pour la propriété parameter_specs."""
+    if not isinstance(specs, dict) or not specs:
+        return "        return {}\n"
+
+    out: List[str] = ["        return {\n"]
+    for name, spec in specs.items():
+        if not isinstance(name, str) or not isinstance(spec, dict):
+            continue
+        min_v = spec.get("min")
+        max_v = spec.get("max")
+        default_v = spec.get("default")
+        ptype = str(spec.get("type", "float"))
+        step_v = spec.get("step")
+        if min_v is None or max_v is None or default_v is None or ptype not in {"int", "float", "bool"}:
+            continue
+        if step_v is None:
+            step_v = 1 if ptype == "int" else 0.1
+        out.extend(
+            [
+                f"            {name!r}: ParameterSpec(\n",
+                f"                name={name!r},\n",
+                f"                min_val={min_v!r},\n",
+                f"                max_val={max_v!r},\n",
+                f"                default={default_v!r},\n",
+                f"                param_type={ptype!r},\n",
+                f"                step={step_v!r},\n",
+                "            ),\n",
+            ]
+        )
+    out.append("        }\n")
+    return "".join(out)
+
+
+def _build_deterministic_strategy_code(
+    proposal: Dict[str, Any],
+    llm_logic: str,
+) -> str:
+    """Assemble un code stratégie à squelette 100% déterministe."""
+    strategy_name = str(proposal.get("strategy_name", "BuilderGenerated")).strip() or "BuilderGenerated"
+    strategy_name = strategy_name.replace('"', "").replace("'", "")
+
+    used = proposal.get("used_indicators", [])
+    required_indicators: List[str] = []
+    if isinstance(used, list):
+        for item in used:
+            if isinstance(item, str):
+                ind = item.strip().lower()
+                if ind and ind not in required_indicators:
+                    required_indicators.append(ind)
+
+    default_params = proposal.get("default_params", {})
+    if not isinstance(default_params, dict):
+        default_params = {}
+    default_params.setdefault("leverage", 1)
+
+    default_params_literal = _format_python_dict_literal(default_params)
+    default_params_lines = default_params_literal.splitlines() or ["{}"]
+    if len(default_params_lines) == 1:
+        default_params_block = f"        return {default_params_lines[0]}\n\n"
+    else:
+        default_params_block = "        return " + default_params_lines[0] + "\n"
+        default_params_block += "".join(f"        {line}\n" for line in default_params_lines[1:])
+        default_params_block += "\n"
+
+    specs_block = _format_parameter_specs_code(proposal.get("parameter_specs", {}))
+    normalized_logic = textwrap.dedent(llm_logic).strip("\n")
+    logic_lines = normalized_logic.splitlines() if normalized_logic else ["pass"]
+    logic_block = "\n".join(
+        f"        {line}" if line.strip() else ""
+        for line in logic_lines
+    )
+
+    return (
+        "from typing import Any, Dict, List\n\n"
+        "import numpy as np\n"
+        "import pandas as pd\n\n"
+        "from utils.parameters import ParameterSpec\n"
+        "from strategies.base import StrategyBase\n\n\n"
+        f"class {GENERATED_CLASS_NAME}(StrategyBase):\n"
+        "    def __init__(self):\n"
+        f"        super().__init__(name={strategy_name!r})\n\n"
+        "    @property\n"
+        "    def required_indicators(self) -> List[str]:\n"
+        f"        return {required_indicators!r}\n\n"
+        "    @property\n"
+        "    def default_params(self) -> Dict[str, Any]:\n"
+        f"{default_params_block}"
+        "    @property\n"
+        "    def parameter_specs(self) -> Dict[str, ParameterSpec]:\n"
+        f"{specs_block}\n"
+        "    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:\n"
+        "        signals = pd.Series(0.0, index=df.index, dtype=np.float64)\n"
+        "        # === LOGIQUE LLM INSÉRÉE ICI UNIQUEMENT ===\n"
+        f"{logic_block}\n"
+        "        return signals\n"
+    )
 
 
 def _build_deterministic_fallback_code(
@@ -1616,13 +2301,134 @@ def _normalize_proposal_keys(proposal: Dict[str, Any]) -> Dict[str, Any]:
         canonical = lower_map.get(key.lower().replace(" ", "_"), key)
         normalized[canonical] = value
 
+    # Canonicaliser parameter_specs et aliases de clés
+    if isinstance(normalized.get("parameter_specs"), dict):
+        normalized_specs: Dict[str, Any] = {}
+        for param_name, raw_spec in normalized["parameter_specs"].items():
+            if not isinstance(raw_spec, dict):
+                normalized_specs[param_name] = raw_spec
+                continue
+            spec_lower = {
+                str(k).strip().lower().replace(" ", "_"): v
+                for k, v in raw_spec.items()
+            }
+            normalized_specs[param_name] = {
+                "min": spec_lower.get("min", spec_lower.get("min_val", spec_lower.get("min_value"))),
+                "max": spec_lower.get("max", spec_lower.get("max_val", spec_lower.get("max_value"))),
+                "default": spec_lower.get("default"),
+                "type": spec_lower.get("type", spec_lower.get("param_type")),
+                "step": spec_lower.get("step"),
+            }
+        normalized["parameter_specs"] = normalized_specs
+
     # Normaliser change_type (certains LLM retournent "logic|params|both")
     if "change_type" in normalized:
         normalized["change_type"] = _normalize_change_type(
             normalized.get("change_type", "")
         )
+    else:
+        normalized["change_type"] = "logic"
+
+    if "hypothesis" not in normalized:
+        normalized["hypothesis"] = ""
 
     return normalized
+
+
+def _sanitize_proposal_payload(
+    proposal: Dict[str, Any],
+    *,
+    available_indicators: List[str],
+) -> Dict[str, Any]:
+    """Nettoie/sauve une proposition LLM sans relâcher le contrat final."""
+    if not isinstance(proposal, dict):
+        return {}
+
+    allowed = {
+        "strategy_name",
+        "hypothesis",
+        "change_type",
+        "used_indicators",
+        "indicator_params",
+        "entry_long_logic",
+        "entry_short_logic",
+        "exit_logic",
+        "risk_management",
+        "default_params",
+        "parameter_specs",
+    }
+    cleaned: Dict[str, Any] = {
+        k: v for k, v in proposal.items() if k in allowed
+    }
+
+    # Fallbacks champs fréquents
+    if not cleaned.get("entry_long_logic"):
+        cleaned["entry_long_logic"] = str(
+            proposal.get("long_logic")
+            or proposal.get("long_entry")
+            or proposal.get("long")
+            or ""
+        ).strip()
+    if not cleaned.get("entry_short_logic"):
+        cleaned["entry_short_logic"] = str(
+            proposal.get("short_logic")
+            or proposal.get("short_entry")
+            or proposal.get("short")
+            or ""
+        ).strip()
+    if not cleaned.get("exit_logic"):
+        cleaned["exit_logic"] = "sortie sur signal inverse"
+
+    if not cleaned.get("risk_management"):
+        risk_raw = proposal.get("risk") or proposal.get("risk_rules")
+        if isinstance(risk_raw, (dict, list)):
+            cleaned["risk_management"] = json.dumps(risk_raw, ensure_ascii=False)
+        else:
+            cleaned["risk_management"] = str(risk_raw or "ATR stop/take-profit")
+
+    # Indicateurs: normalisation + filtrage registre
+    known = {x.lower() for x in available_indicators}
+    used = cleaned.get("used_indicators", [])
+    normalized_used: List[str] = []
+    if isinstance(used, list):
+        for item in used:
+            if not isinstance(item, str):
+                continue
+            ind = item.strip().lower()
+            if ind and ind in known and ind not in normalized_used:
+                normalized_used.append(ind)
+    if not normalized_used:
+        normalized_used = ["atr"] if "atr" in known else sorted(known)[:2]
+    cleaned["used_indicators"] = normalized_used
+
+    # Params sécurisés (diagnostics ruine/no-trades)
+    default_params = cleaned.get("default_params")
+    if not isinstance(default_params, dict):
+        default_params = {}
+    default_params["leverage"] = min(2, max(1, int(default_params.get("leverage", 1) or 1)))
+    default_params.setdefault("stop_atr_mult", 1.5)
+    default_params.setdefault("tp_atr_mult", 3.0)
+    default_params.setdefault("warmup", 50)
+    cleaned["default_params"] = default_params
+
+    specs = cleaned.get("parameter_specs")
+    if not isinstance(specs, dict):
+        specs = {}
+    if "leverage" not in specs:
+        specs["leverage"] = {"min": 1, "max": 2, "default": default_params["leverage"], "type": "int", "step": 1}
+    if "stop_atr_mult" not in specs:
+        specs["stop_atr_mult"] = {"min": 1.0, "max": 2.0, "default": default_params["stop_atr_mult"], "type": "float", "step": 0.1}
+    if "tp_atr_mult" not in specs:
+        specs["tp_atr_mult"] = {"min": 2.0, "max": 4.5, "default": default_params["tp_atr_mult"], "type": "float", "step": 0.1}
+    cleaned["parameter_specs"] = specs
+
+    cleaned["change_type"] = _normalize_change_type(cleaned.get("change_type", "logic"))
+    cleaned["hypothesis"] = str(cleaned.get("hypothesis", "") or "").strip()
+    if not cleaned["hypothesis"]:
+        cleaned["hypothesis"] = "Ajustement structurel basé sur le diagnostic précédent."
+
+    cleaned["strategy_name"] = str(cleaned.get("strategy_name", "builder_strategy") or "builder_strategy").strip()
+    return cleaned
 
 
 def _is_empty_proposal(proposal: Dict[str, Any]) -> bool:
@@ -1650,6 +2456,50 @@ def _normalize_change_type(change_type: Any) -> str:
     if "accept" in raw:
         return "accept"
     return "logic"
+
+
+def _build_deterministic_proposal_fallback(
+    *,
+    objective: str,
+    available_indicators: List[str],
+    last_iteration: Optional["BuilderIteration"] = None,
+) -> Dict[str, Any]:
+    """Construit une proposition contractuelle minimale quand le LLM dérape."""
+    known = [x.strip().lower() for x in available_indicators if isinstance(x, str) and x.strip()]
+    preferred = [
+        x for x in ["rsi", "ema", "atr", "bollinger", "supertrend", "adx", "stochastic"]
+        if x in known
+    ]
+    used = preferred[:3] if len(preferred) >= 3 else (preferred or known[:2] or ["atr"])
+
+    change_type = "logic"
+    if last_iteration and (last_iteration.diagnostic_category or "").strip().lower() in {"approaching_target", "stable_positive"}:
+        change_type = "params"
+
+    return {
+        "strategy_name": "builder_strategy",
+        "hypothesis": (
+            "Fallback contractuel: proposition générée automatiquement pour maintenir "
+            "la progression quand la sortie LLM n'est pas exploitable."
+        ),
+        "change_type": change_type,
+        "used_indicators": used,
+        "entry_long_logic": "Entrée long si momentum haussier confirmé et risque contrôlé.",
+        "entry_short_logic": "Entrée short si momentum baissier confirmé et risque contrôlé.",
+        "exit_logic": "Sortie sur signal inverse ou invalidation momentum.",
+        "risk_management": "Leverage modéré, stop ATR, take-profit ATR.",
+        "default_params": {
+            "leverage": 1,
+            "stop_atr_mult": 1.5,
+            "tp_atr_mult": 3.0,
+            "warmup": 50,
+        },
+        "parameter_specs": {
+            "leverage": {"min": 1, "max": 2, "default": 1, "type": "int", "step": 1},
+            "stop_atr_mult": {"min": 1.0, "max": 2.0, "default": 1.5, "type": "float", "step": 0.1},
+            "tp_atr_mult": {"min": 2.0, "max": 4.5, "default": 3.0, "type": "float", "step": 0.1},
+        },
+    }
 
 
 def _policy_change_type_override(
@@ -1716,6 +2566,29 @@ def _proposal_issues(proposal: Dict[str, Any]) -> List[str]:
         issues.append("empty_payload")
         return issues
 
+    allowed_top_keys = {
+        "strategy_name",
+        "hypothesis",
+        "change_type",
+        "used_indicators",
+        "indicator_params",
+        "entry_long_logic",
+        "entry_short_logic",
+        "exit_logic",
+        "risk_management",
+        "default_params",
+        "parameter_specs",
+    }
+    required_top_keys = set(_BUILDER_PROPOSAL_REQUIRED_KEYS)
+
+    unknown_keys = sorted(set(proposal.keys()) - allowed_top_keys)
+    if unknown_keys:
+        issues.append("json_additional_properties_root")
+
+    missing_keys = sorted(k for k in required_top_keys if k not in proposal)
+    if missing_keys:
+        issues.append("json_missing_required")
+
     hyp = str(proposal.get("hypothesis", "")).strip()
     inds = proposal.get("used_indicators", [])
     if not hyp or hyp in ("—", "-", "N/A", ""):
@@ -1726,7 +2599,6 @@ def _proposal_issues(proposal: Dict[str, Any]) -> List[str]:
     critical_fields = (
         "hypothesis",
         "entry_long_logic",
-        "entry_short_logic",
         "exit_logic",
         "risk_management",
     )
@@ -1738,11 +2610,51 @@ def _proposal_issues(proposal: Dict[str, Any]) -> List[str]:
     if default_params is not None and not isinstance(default_params, dict):
         issues.append("default_params_not_dict")
 
+    parameter_specs = proposal.get("parameter_specs")
+    if parameter_specs is not None and not isinstance(parameter_specs, dict):
+        issues.append("parameter_specs_not_dict")
+    elif isinstance(parameter_specs, dict):
+        allowed_spec_keys = {"min", "max", "default", "type", "step"}
+        for param_name, spec in parameter_specs.items():
+            if not isinstance(spec, dict):
+                issues.append("parameter_spec_item_not_dict")
+                continue
+            extra_spec_keys = set(spec.keys()) - allowed_spec_keys
+            if extra_spec_keys:
+                issues.append("parameter_spec_additional_properties")
+            # strict minimum schema
+            for required in ("min", "max", "default", "type"):
+                if spec.get(required) is None:
+                    issues.append("parameter_spec_missing_required")
+                    break
+            ptype = str(spec.get("type", "")).strip().lower()
+            if ptype and ptype not in {"int", "float", "bool"}:
+                issues.append("parameter_spec_invalid_type")
+            try:
+                min_v = float(spec.get("min"))
+                max_v = float(spec.get("max"))
+                if min_v > max_v:
+                    issues.append("parameter_spec_min_gt_max")
+            except Exception:
+                issues.append("parameter_spec_non_numeric_bounds")
+            if "step" in spec and spec.get("step") is not None:
+                try:
+                    step = float(spec.get("step"))
+                    if step <= 0:
+                        issues.append("parameter_spec_invalid_step")
+                except Exception:
+                    issues.append("parameter_spec_invalid_step")
+
     ct = _normalize_change_type(proposal.get("change_type", "logic"))
     if ct not in ("logic", "params", "both", "accept"):
         issues.append("invalid_change_type")
 
-    return issues
+    # Dédupliquer en conservant l'ordre
+    dedup: List[str] = []
+    for issue in issues:
+        if issue not in dedup:
+            dedup.append(issue)
+    return dedup
 
 
 def _proposal_has_placeholder_fields(proposal: Dict[str, Any]) -> bool:
@@ -1763,6 +2675,65 @@ def _proposal_has_placeholder_fields(proposal: Dict[str, Any]) -> bool:
 def _is_invalid_proposal(proposal: Dict[str, Any]) -> bool:
     """Validation minimale d'une proposition avant phase code."""
     return bool(_proposal_issues(proposal))
+
+
+def _proposal_error_code(issues: List[str]) -> str:
+    """Mappe les issues de proposition vers un code d'erreur stable."""
+    if not issues:
+        return ""
+    joined = "|".join(issues)
+    if "json_" in joined or "parameter_spec_" in joined:
+        return ERR_JSON
+    if "parameter" in joined or "default_params" in joined:
+        return ERR_PARAM
+    return ERR_DSL
+
+
+def _build_code_from_proposal_dsl(proposal: Dict[str, Any]) -> str:
+    """Safe path déterministe JSON+DSL -> template Python.
+
+    Réutilise le template déterministe interne pour garantir un code
+    syntaxiquement valide, rapide à générer et conforme au contrat moteur.
+    """
+    return _build_deterministic_fallback_code(proposal, variant=0)
+
+
+def _coerce_and_validate_signals_runtime(signals: Any, df: pd.DataFrame) -> pd.Series:
+    """Valide runtime les signaux selon le contrat moteur (-1/0/+1)."""
+    if isinstance(signals, pd.Series):
+        series = signals.copy()
+    else:
+        series = pd.Series(signals)
+
+    # Règle de priorité same-bar: last-write-wins si index dupliqué.
+    if getattr(series.index, "has_duplicates", False):
+        series = series.groupby(level=0).last()
+
+    if not series.index.equals(df.index):
+        series = series.reindex(df.index)
+
+    if len(series) != len(df):
+        raise ValueError(
+            _err(
+                ERR_SIG,
+                f"Longueur des signaux invalide: {len(series)} != {len(df)}.",
+            )
+        )
+    series = pd.to_numeric(series, errors="coerce").fillna(0.0).astype(float)
+
+    # Priorité documentée: la valeur finale de la barre est l'intention exécutable.
+    # Toute amplitude non standard est réduite à son signe pour conformité moteur.
+    values = series.values
+    coerced = np.where(values > 0, 1.0, np.where(values < 0, -1.0, 0.0))
+    series = pd.Series(coerced, index=df.index, dtype=np.float64)
+
+    unique = set(np.unique(series.values).tolist())
+    if not unique.issubset({-1.0, 0.0, 1.0}):
+        raise ValueError(
+            _err(ERR_SIG, f"Valeurs signaux hors contrat détectées: {sorted(unique)}")
+        )
+
+    return series
 
 
 def _is_empty_code(code: str) -> bool:
@@ -2373,6 +3344,10 @@ class StrategyBuilder:
             "issues": [],
         }
         proposal = _normalize_proposal_keys(_extract_json_from_response(raw))
+        proposal = _sanitize_proposal_payload(
+            proposal,
+            available_indicators=self.available_indicators,
+        )
         issues = _proposal_issues(proposal)
         feedback["issues"] = issues
         if not issues:
@@ -2382,9 +3357,10 @@ class StrategyBuilder:
             feedback["final_kind"] = feedback["initial_kind"]
             feedback["final_valid"] = True
             return proposal, feedback
+        feedback["error_code"] = _proposal_error_code(issues)
 
         # Phase guard: certains modèles répondent du code / texte libre.
-        for attempt in range(1, MAX_PHASE_REALIGN_ATTEMPTS + 1):
+        for attempt in range(1, PROPOSAL_REALIGN_ATTEMPTS + 1):
             if _looks_like_python_code(raw):
                 mismatch = "You answered with Python code, but this is PROPOSAL phase."
             elif _looks_like_json_object(raw):
@@ -2398,9 +3374,9 @@ class StrategyBuilder:
                 "Return EXACTLY one valid JSON object and nothing else.\n"
                 "Forbidden in this phase: Python code, markdown, commentary, objective rewrite.\n"
                 "All fields must be concrete (no placeholders like 'brief description').\n"
-                "Required keys: strategy_name, hypothesis, change_type, "
-                "used_indicators, entry_long_logic, entry_short_logic, exit_logic, "
-                "risk_management, default_params, parameter_specs.\n"
+                "Required keys: strategy_name, used_indicators, entry_long_logic, "
+                "exit_logic, risk_management, default_params, parameter_specs.\n"
+                "Optional keys: hypothesis, change_type, entry_short_logic.\n"
                 "change_type must be one of: logic, params, both, accept."
             )
             response = self._chat_llm(
@@ -2416,6 +3392,10 @@ class StrategyBuilder:
             raw = response.content or ""
             feedback["realign_attempts"] = attempt
             proposal = _normalize_proposal_keys(_extract_json_from_response(raw))
+            proposal = _sanitize_proposal_payload(
+                proposal,
+                available_indicators=self.available_indicators,
+            )
             issues = _proposal_issues(proposal)
             feedback["issues"] = issues
             if not issues:
@@ -2429,6 +3409,7 @@ class StrategyBuilder:
 
         feedback["final_kind"] = _classify_raw_response(raw)
         feedback["final_valid"] = False
+        feedback["error_code"] = _proposal_error_code(feedback.get("issues", []))
         return proposal, feedback
 
     def _ask_code(
@@ -2437,7 +3418,7 @@ class StrategyBuilder:
         proposal: Dict[str, Any],
         last_iteration: Optional[BuilderIteration] = None,
     ) -> tuple[str, Dict[str, Any]]:
-        """Demande au LLM de générer le code Python complet.
+        """Demande au LLM de générer la logique Python de generate_signals.
 
         Returns:
             (code, feedback)
@@ -2473,6 +3454,35 @@ class StrategyBuilder:
         }
 
         prompt = render_prompt("strategy_builder_code.jinja2", context)
+        safe_mode = _safe_path_mode()
+
+        # Safe path JSON+DSL -> template (strict)
+        if safe_mode == "strict":
+            dsl_issues = _proposal_issues(proposal)
+            if dsl_issues:
+                fallback = _build_deterministic_fallback_code(proposal, variant=1)
+                return fallback, {
+                    "phase": "code",
+                    "initial_kind": "dsl",
+                    "realign_attempts": 0,
+                    "realign_success": False,
+                    "final_kind": "python",
+                    "final_valid": True,
+                    "source": "dsl_template_fallback",
+                    "safe_path_mode": safe_mode,
+                    "error_code": _proposal_error_code(dsl_issues) or ERR_DSL,
+                }
+            return _build_code_from_proposal_dsl(proposal), {
+                "phase": "code",
+                "initial_kind": "dsl",
+                "realign_attempts": 0,
+                "realign_success": False,
+                "final_kind": "python",
+                "final_valid": True,
+                "source": "dsl_template",
+                "safe_path_mode": safe_mode,
+            }
+
         base_messages = [
             LLMMessage(role="system", content=self._system_prompt_code()),
             LLMMessage(role="user", content=prompt),
@@ -2489,9 +3499,10 @@ class StrategyBuilder:
             "initial_kind": _classify_raw_response(raw),
             "realign_attempts": 0,
             "realign_success": False,
+            "safe_path_mode": safe_mode,
         }
         code = _extract_python_from_response(raw)
-        if _looks_like_strategy_code(raw, code):
+        if code.strip() and _looks_like_valid_python_logic(code):
             feedback["final_kind"] = feedback["initial_kind"]
             feedback["final_valid"] = True
             return code, feedback
@@ -2499,22 +3510,18 @@ class StrategyBuilder:
         # Phase guard: certains modèles reviennent en mode JSON/proposition.
         for attempt in range(1, MAX_PHASE_REALIGN_ATTEMPTS + 1):
             if _looks_like_json_object(raw):
-                mismatch = "You answered JSON/proposal content, but this is CODE phase."
+                mismatch = "You answered JSON/proposal content, but this is LOGIC phase."
             elif _looks_like_python_code(raw):
-                mismatch = (
-                    "You answered Python but not a full strategy class. "
-                    "Return a complete class."
-                )
+                mismatch = "You answered Python but no usable logic body was extracted."
             else:
                 mismatch = "You answered non-code text, not executable Python."
 
             correction = (
-                "PHASE LOCK: CODE ONLY.\n"
+                "PHASE LOCK: LOGIC ONLY.\n"
                 f"{mismatch}\n\n"
-                f"Return ONLY executable Python code for class {GENERATED_CLASS_NAME}.\n"
-                "Do not output JSON, strategy objective rewrite, or commentary.\n"
-                "Must include: class definition, required_indicators, default_params, "
-                "generate_signals.\n"
+                "Return ONLY Python statements for generate_signals body.\n"
+                "Do not output imports, class definition, function signature, JSON, "
+                "objective rewrite, or commentary.\n"
                 "No placeholders."
             )
             response = self._chat_llm(
@@ -2529,7 +3536,7 @@ class StrategyBuilder:
             raw = response.content or ""
             feedback["realign_attempts"] = attempt
             code = _extract_python_from_response(raw)
-            if _looks_like_strategy_code(raw, code):
+            if code.strip() and _looks_like_valid_python_logic(code):
                 feedback["realign_success"] = True
                 feedback["final_kind"] = _classify_raw_response(raw)
                 feedback["final_valid"] = True
@@ -2537,6 +3544,24 @@ class StrategyBuilder:
 
         feedback["final_kind"] = _classify_raw_response(raw)
         feedback["final_valid"] = False
+        if safe_mode == "prefer":
+            dsl_issues = _proposal_issues(proposal)
+            dsl_code = (
+                _build_code_from_proposal_dsl(proposal)
+                if not dsl_issues
+                else _build_deterministic_fallback_code(proposal, variant=1)
+            )
+            return dsl_code, {
+                "phase": "code",
+                "initial_kind": feedback.get("initial_kind", "unknown"),
+                "realign_attempts": feedback.get("realign_attempts", 0),
+                "realign_success": feedback.get("realign_success", False),
+                "final_kind": "python",
+                "final_valid": True,
+                "source": "dsl_template_prefer_fallback",
+                "safe_path_mode": safe_mode,
+                "error_code": _proposal_error_code(dsl_issues) or ERR_DSL,
+            }
         return code, feedback
 
     def _retry_proposal_simple(self, objective: str) -> Dict[str, Any]:
@@ -2608,14 +3633,15 @@ class StrategyBuilder:
         entry_l = proposal.get("entry_long_logic", "RSI < 30")
         entry_s = proposal.get("entry_short_logic", "RSI > 70")
         prompt = (
-            f"Generate a COMPLETE Python class called BuilderGeneratedStrategy.\n"
-            f"It must inherit from StrategyBase.\n"
-            f"Indicators: {inds}\n"
-            f"LONG when: {entry_l}\n"
-            f"SHORT when: {entry_s}\n\n"
+            "Generate ONLY the body lines to insert inside generate_signals.\n"
+            "Do NOT generate class/imports/function signature.\n"
+            f"Indicators available in this method: {inds}\n"
+            f"LONG intent: {entry_l}\n"
+            f"SHORT intent: {entry_s}\n\n"
             "IMPORTANT:\n"
             "- indicator values are numpy arrays (or dict of numpy arrays)\n"
             "- never use .iloc/.loc on indicators; use arr[i] or vectorized masks\n"
+            "- never use for i in range(...) or while\n"
             "- bollinger must be indicators['bollinger']['upper|middle|lower']\n\n"
             "- adx must be indicators['adx']['adx|plus_di|minus_di'] (not indicators['adx'] directly)\n"
             "- supertrend must be indicators['supertrend']['supertrend|direction'] (no upper/lower)\n"
@@ -2625,26 +3651,11 @@ class StrategyBuilder:
             "- ema/rsi/atr are plain arrays: NEVER use indicators['ema']['ema_21'] style\n\n"
             "- ALWAYS include leverage=1 in default_params\n"
             "- If using ATR-based SL/TP: write df['bb_stop_long/bb_tp_long/bb_stop_short/bb_tp_short'] on entry bars\n\n"
-            "EXACT structure:\n\n"
-            "```python\n"
-            "from typing import Any, Dict, List\n"
-            "import numpy as np\n"
-            "import pandas as pd\n"
-            "from strategies.base import StrategyBase\n\n"
-            "class BuilderGeneratedStrategy(StrategyBase):\n"
-            "    def __init__(self):\n"
-            '        super().__init__(name="generated")\n\n'
-            "    @property\n"
-            "    def required_indicators(self):\n"
-            f"        return {inds}\n\n"
-            "    @property\n"
-            "    def default_params(self):\n"
-            "        return {\"leverage\": 1, \"warmup\": 50, \"stop_atr_mult\": 1.5, \"tp_atr_mult\": 3.0}\n\n"
-            "    def generate_signals(self, df, indicators, params):\n"
-            "        signals = pd.Series(0.0, index=df.index)\n"
-            "        return signals\n"
-            "```\n\n"
-            "Generate the COMPLETE code with ACTUAL logic (no placeholders)."
+            "- write only statements compatible with this pre-existing context:\n"
+            "  signals = pd.Series(0.0, index=df.index, dtype=np.float64)\n"
+            "- assign signals[...] only with 1.0, -1.0 or 0.0\n"
+            "- never use True/False in signal assignments\n"
+            "- return only a ```python code block with body lines\n"
         )
         response = self._chat_llm(
             messages=[
@@ -2817,9 +3828,15 @@ class StrategyBuilder:
         )
 
         parsed = _extract_json_from_response(response.content)
-        analysis = parsed.get("analysis", response.content[:500])
-        decision = parsed.get("decision", "continue")
+        fallback_analysis = _normalize_llm_text(response.content, max_len=500)
+        analysis = _normalize_llm_text(
+            parsed.get("analysis", fallback_analysis),
+            fallback=fallback_analysis,
+            max_len=1200,
+        )
 
+        decision_raw = parsed.get("decision", "continue")
+        decision = str(decision_raw or "").strip().lower()
         if decision not in ("continue", "accept", "stop"):
             decision = "continue"
 
@@ -2849,26 +3866,26 @@ Focus on signal quality, risk management, and robustness."""
 
     @staticmethod
     def _system_prompt_code() -> str:
-        return f"""You are an expert Python developer specializing in trading systems.
-Generate a COMPLETE, WORKING Python strategy class.
+        return """You are an expert Python developer specializing in trading systems.
+Generate ONLY the logic body for generate_signals.
 
 CRITICAL RULES:
-1. Class name MUST be EXACTLY '{GENERATED_CLASS_NAME}' — any other name = FATAL ERROR
-2. Inherit from StrategyBase
-3. generate_signals returns pd.Series: 1.0=LONG, -1.0=SHORT, 0.0=FLAT
+1. Do NOT generate class/imports/function signature.
+2. The host will inject your logic into a deterministic class skeleton.
+3. generate_signals uses signals pd.Series with 1.0=LONG, -1.0=SHORT, 0.0=FLAT.
 4. Use indicators from the 'indicators' dict (pre-computed by engine)
 5. ALWAYS wrap indicators with np.nan_to_num() before any comparison
 6. NEVER use os, subprocess, eval, exec, open, or __import__
 7. ONLY import: numpy, pandas, strategies.base, utils.parameters
 8. Do NOT use triple-quoted docstrings — use single-line # comments ONLY
-9. Output ONLY Python code in a ```python block. No text before or after.
+9. Output ONLY Python code body lines in a ```python block. No text before or after.
 10. Skip warmup: set signals.iloc[:50] = 0.0 to avoid NaN-driven false signals
 11. STRICT CHANGE CONTRACT:
    - if proposal.change_type == "params": keep same required_indicators and same generate_signals logic.
      Only edit default_params (and optionally parameter_specs).
    - if proposal.change_type == "logic": modify logic/indicators/filters.
    - if proposal.change_type == "both": modify both logic and params.
-12. This phase is code-only: NEVER output JSON/proposal/objective rewrite.
+12. This phase is logic-only: NEVER output JSON/proposal/objective rewrite.
 13. Never access indicators via df['rsi']/df['ema']/df['bollinger']; always use indicators['name'].
 14. For dict indicators (bollinger/macd/adx/stochastic/etc), access sub-keys before np.nan_to_num.
 15. Indicator values are numpy arrays (or dict of numpy arrays): NEVER use .iloc/.loc/.shift/.rolling on indicators.
@@ -2879,13 +3896,15 @@ CRITICAL RULES:
 20. Stochastic must be used as indicators['stochastic']['stoch_k|stoch_d'] (no 'signal' key).
 21. For bitwise '&' and '|', both sides must be boolean mask expressions (never float/int scalars).
 22. ALWAYS set "leverage": 1 in default_params. The backtest engine defaults to leverage=3 which ruins accounts.
+23. Never assign `required_indicators` anywhere.
+24. Never use `for i in range(...)` or `while` in signal logic.
 23. To implement ATR-based SL/TP, write price levels into the DataFrame columns:
     - df.loc[:, "bb_stop_long"] = entry_price - stop_atr_mult * atr  (NaN where no entry)
     - df.loc[:, "bb_tp_long"]   = entry_price + tp_atr_mult * atr    (NaN where no entry)
     - df.loc[:, "bb_stop_short"] / df.loc[:, "bb_tp_short"] for short positions.
     The simulator reads these columns automatically. Only write values on entry signal bars (NaN elsewhere).
 
-The code must be ready to execute with ZERO modifications."""
+The logic block must be ready to execute inside generate_signals with ZERO modifications."""
 
     # ------------------------------------------------------------------
     # Core: load strategy dynamically
@@ -2917,18 +3936,33 @@ The code must be ready to execute with ZERO modifications."""
         if module_name in sys.modules:
             del sys.modules[module_name]
 
-        spec = importlib.util.spec_from_file_location(module_name, strategy_path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Impossible de créer spec pour {strategy_path}")
+        if _strict_sandbox_enabled():
+            safe_builtins = _sandbox_safe_builtins()
+            safe_builtins["__import__"] = _sandbox_import
+            sandbox_globals: Dict[str, Any] = {
+                "__name__": module_name,
+                "__file__": str(strategy_path),
+                "__builtins__": safe_builtins,
+            }
+            compiled = compile(code, str(strategy_path), "exec")
+            exec(compiled, sandbox_globals, sandbox_globals)
+            cls = sandbox_globals.get(GENERATED_CLASS_NAME)
+        else:
+            spec = importlib.util.spec_from_file_location(module_name, strategy_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Impossible de créer spec pour {strategy_path}")
 
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[module_name] = module
-        spec.loader.exec_module(module)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+            cls = getattr(module, GENERATED_CLASS_NAME, None)
 
-        cls = getattr(module, GENERATED_CLASS_NAME, None)
         if cls is None or not isinstance(cls, type):
             raise AttributeError(
-                f"Classe '{GENERATED_CLASS_NAME}' absente du module généré"
+                _err(
+                    ERR_CLASS,
+                    f"Classe '{GENERATED_CLASS_NAME}' absente du module généré",
+                )
             )
 
         return cast(type, cls)
@@ -2949,52 +3983,7 @@ The code must be ready to execute with ZERO modifications."""
         Returns:
             La classe (éventuellement patchée)
         """
-        # Extraire tous les noms d'indicateurs référencés dans le code
-        try:
-            tree = ast.parse(code)
-            used_in_code = _collect_indicator_names(tree)
-        except Exception:
-            used_in_code = set(
-                re.findall(r'indicators\s*\[\s*["\'](\w+)["\']\s*\]', code)
-            )
-
-        if not used_in_code:
-            return strategy_cls
-
-        # Comparer avec required_indicators déclarés
-        try:
-            instance = strategy_cls()
-            declared = set(
-                name.lower() for name in instance.required_indicators
-            )
-        except Exception:
-            return strategy_cls
-
-        # Vérifier contre le registre réel
-        known_indicators = set(name.lower() for name in list_indicators())
-        missing = {
-            ind for ind in used_in_code
-            if ind.lower() in known_indicators and ind.lower() not in declared
-        }
-
-        if not missing:
-            return strategy_cls
-
-        # Monkey-patch required_indicators pour ajouter les manquants
-        new_required = list(instance.required_indicators) + sorted(missing)
-        logger.warning(
-            "auto_fix_required_indicators added=%s total=%s",
-            sorted(missing), new_required
-        )
-
-        strategy_cls._patched_required = new_required
-
-        @property
-        def _patched_required_indicators(self):
-            return type(self)._patched_required
-
-        strategy_cls.required_indicators = _patched_required_indicators
-
+        # Verrouillé: required_indicators doit rester déterministe via code généré.
         return strategy_cls
 
     # ------------------------------------------------------------------
@@ -3021,6 +4010,13 @@ The code must be ready to execute with ZERO modifications."""
 
         # Instancier la stratégie
         strategy_instance = strategy_cls()
+        original_generate_signals = strategy_instance.generate_signals
+
+        def _guarded_generate_signals(df_local, indicators_local, params_local):
+            raw = original_generate_signals(df_local, indicators_local, params_local)
+            return _coerce_and_validate_signals_runtime(raw, df_local)
+
+        strategy_instance.generate_signals = _guarded_generate_signals
 
         # Injecter fees/slippage dans params pour le moteur
         merged_params = dict(params)
@@ -3035,6 +4031,9 @@ The code must be ready to execute with ZERO modifications."""
             symbol=symbol,
             timeframe=timeframe,
             silent_mode=True,
+            # Builder privilégie la fiabilité des métriques (ruine, Sharpe, DD)
+            # plutôt que la vitesse brute.
+            fast_metrics=False,
         )
 
         # Convertir en résultat léger avec .metrics dict
@@ -3133,6 +4132,25 @@ The code must be ready to execute with ZERO modifications."""
             initial_capital=initial_capital,
         )
 
+        dataset_ok, dataset_msg = _validate_builder_dataset_exploitability(
+            data,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
+        if not dataset_ok:
+            logger.warning(
+                "builder_timeframe_rejected symbol=%s timeframe=%s reason=%s",
+                symbol,
+                timeframe,
+                dataset_msg,
+            )
+            session.status = "failed"
+            iteration = BuilderIteration(iteration=1)
+            iteration.error = dataset_msg
+            session.iterations.append(iteration)
+            self._save_session_summary(session)
+            return session
+
         logger.info(
             "strategy_builder_start session=%s objective='%s' indicators=%d",
             session_id, objective, len(self.available_indicators),
@@ -3187,35 +4205,27 @@ The code must be ready to execute with ZERO modifications."""
                 # Garde : proposition vide → retry avec prompt simplifié
                 if _is_invalid_proposal(proposal):
                     ts.warning(
-                        "Proposition invalide/hors phase — retry avec prompt simplifié"
+                        "Proposition invalide après retry contractuel — fallback déterministe"
                     )
-                    ts.retry("proposition", 2)
-                    logger.warning(
-                        "builder_iter_%d_invalid_proposal proposal=%s — retrying",
-                        i, proposal,
+                    issues = _proposal_issues(proposal)
+                    iteration.phase_feedback.setdefault("proposal", {})[
+                        "issues_after_retry"
+                    ] = issues
+                    proposal = _build_deterministic_proposal_fallback(
+                        objective=session.objective,
+                        available_indicators=self.available_indicators,
+                        last_iteration=last_iteration,
                     )
-                    t0 = time.perf_counter()
-                    proposal = self._retry_proposal_simple(objective)
-                    iteration.phase_feedback.setdefault(
-                        "proposal", {}
-                    )["fallback_retry_used"] = True
-                    iteration.phase_feedback.setdefault(
-                        "proposal", {}
-                    )["issues_after_retry"] = _proposal_issues(proposal)
-                    dt_proposal = time.perf_counter() - t0
-
-                    if _is_invalid_proposal(proposal):
-                        ts.warning(
-                            "Proposition toujours invalide après retry — skip itération"
-                        )
-                        iteration.error = (
-                            "LLM incapable de produire une proposition. "
-                            "Vérifiez le modèle ou l'objectif."
-                        )
-                        consecutive_failures += 1
-                        session.iterations.append(iteration)
-                        last_iteration = iteration
-                        continue
+                    proposal = _sanitize_proposal_payload(
+                        proposal,
+                        available_indicators=self.available_indicators,
+                    )
+                    iteration.phase_feedback.setdefault("proposal", {})[
+                        "fallback_deterministic_used"
+                    ] = True
+                    iteration.phase_feedback.setdefault("proposal", {})[
+                        "source"
+                    ] = "deterministic_fallback"
 
                 iteration.hypothesis = proposal.get(
                     "hypothesis", f"Itération {i}"
@@ -3290,6 +4300,7 @@ The code must be ready to execute with ZERO modifications."""
                     proposal["change_type"] = "logic"
                     iteration.change_type = "logic"
                 code: str
+                raw_code: str = ""
                 code_feedback: Dict[str, Any] = {
                     "phase": "code",
                     "initial_kind": "local_patch",
@@ -3311,45 +4322,74 @@ The code must be ready to execute with ZERO modifications."""
                             i,
                         )
                     else:
-                        code, code_feedback = self._ask_code(
+                        raw_code, code_feedback = self._ask_code(
                             session, proposal, last_iteration
                         )
                         iteration.phase_feedback["code"] = code_feedback
                 else:
-                    code, code_feedback = self._ask_code(
+                    raw_code, code_feedback = self._ask_code(
                         session, proposal, last_iteration
                     )
                     iteration.phase_feedback["code"] = code_feedback
+
+                if not (change_type == "params" and has_stable_base_code and last_iteration and last_iteration.code and "source" in code_feedback and code_feedback.get("source") == "params_patch"):
+                    req_inds = [
+                        str(x).strip().lower()
+                        for x in proposal.get("used_indicators", [])
+                        if isinstance(x, str) and str(x).strip()
+                    ]
+                    logic_block = _extract_generate_signals_logic_block(raw_code)
+                    if not logic_block.strip():
+                        logic_block = _extract_python_from_response(raw_code)
+                    logic_block = _postprocess_llm_logic_block(logic_block, req_inds)
+                    logic_ok, logic_err = _validate_llm_logic_block(logic_block)
+                    if not logic_ok:
+                        code_feedback["validation_error"] = logic_err
+                        ts.warning(f"Bloc logique invalide: {logic_err}")
+                        retry_logic_raw = self._retry_code_simple(proposal)
+                        retry_logic = _extract_python_from_response(retry_logic_raw)
+                        retry_logic = _postprocess_llm_logic_block(retry_logic, req_inds)
+                        retry_ok, retry_err = _validate_llm_logic_block(retry_logic)
+                        if not retry_ok:
+                            code_feedback["validation_error_retry"] = retry_err
+                            fallback_code = _build_deterministic_fallback_code(
+                                proposal,
+                                variant=fallback_count,
+                            )
+                            fallback_count += 1
+                            fallback_code = _repair_code(fallback_code)
+                            is_valid_fb, error_msg_fb = validate_generated_code(fallback_code)
+                            if is_valid_fb:
+                                code = fallback_code
+                                code_feedback["fallback_deterministic_used"] = True
+                                code_feedback["source"] = "deterministic_fallback"
+                                code_feedback["fallback_variant"] = fallback_count - 1
+                                iteration.phase_feedback["code"] = code_feedback
+                                ts.warning(
+                                    "Bloc logique invalide après retry: fallback déterministe appliqué."
+                                )
+                                logger.warning(
+                                    "builder_iter_%d_logic_invalid_retry_fallback variant=%d",
+                                    i,
+                                    fallback_count - 1,
+                                )
+                            else:
+                                iteration.error = (
+                                    "Bloc logique LLM invalide après retry + fallback invalide: "
+                                    f"{error_msg_fb or retry_err}"
+                                )
+                                iteration.phase_feedback["code"] = code_feedback
+                                consecutive_failures += 1
+                                session.iterations.append(iteration)
+                                last_iteration = iteration
+                                continue
+                        else:
+                            logic_block = retry_logic
+                            code_feedback["logic_retry_used"] = True
+                            code = _build_deterministic_strategy_code(proposal, logic_block)
+                    if "source" not in code_feedback:
+                        code = _build_deterministic_strategy_code(proposal, logic_block)
                 dt_code = time.perf_counter() - t0
-
-                # Garde : code vide/trivial → retry avec prompt simplifié
-                if not _looks_like_strategy_code(code, code):
-                    ts.warning(
-                        f"Code invalide/hors phase ({len(code.strip().splitlines())} lignes)"
-                        " — retry avec prompt simplifié"
-                    )
-                    ts.retry("code", 2)
-                    logger.warning("builder_iter_%d_empty_code — retrying", i)
-                    t0 = time.perf_counter()
-                    code = self._retry_code_simple(proposal)
-                    iteration.phase_feedback.setdefault("code", {})[
-                        "fallback_retry_used"
-                    ] = True
-                    dt_code = time.perf_counter() - t0
-
-                    if not _looks_like_strategy_code(code, code):
-                        ts.warning(
-                            "Code toujours invalide après retry — skip itération"
-                        )
-                        iteration.code = code
-                        iteration.error = (
-                            "LLM incapable de générer du code valide. "
-                            f"Reçu: {len(code.strip().splitlines())} lignes."
-                        )
-                        consecutive_failures += 1
-                        session.iterations.append(iteration)
-                        last_iteration = iteration
-                        continue
 
                 iteration.code = code
                 ts.codegen_received(code, dt_code)
@@ -3405,9 +4445,22 @@ The code must be ready to execute with ZERO modifications."""
                     iteration.phase_feedback.setdefault("code", {})[
                         "validation_error"
                     ] = error_msg
-                    retry_code = self._retry_code_simple(proposal)
-                    retry_code = _repair_code(retry_code)
-                    is_valid_r, error_msg_r = validate_generated_code(retry_code)
+                    req_inds = [
+                        str(x).strip().lower()
+                        for x in proposal.get("used_indicators", [])
+                        if isinstance(x, str) and str(x).strip()
+                    ]
+                    retry_logic_raw = self._retry_code_simple(proposal)
+                    retry_logic = _extract_python_from_response(retry_logic_raw)
+                    retry_logic = _postprocess_llm_logic_block(retry_logic, req_inds)
+                    logic_ok, logic_err = _validate_llm_logic_block(retry_logic)
+                    if not logic_ok:
+                        is_valid_r, error_msg_r = False, logic_err
+                        retry_code = ""
+                    else:
+                        retry_code = _build_deterministic_strategy_code(proposal, retry_logic)
+                        retry_code = _repair_code(retry_code)
+                        is_valid_r, error_msg_r = validate_generated_code(retry_code)
                     if is_valid_r:
                         code = retry_code
                         iteration.code = code
@@ -3477,7 +4530,7 @@ The code must be ready to execute with ZERO modifications."""
                     )
                 except Exception as bt_exc:
                     bt_error = f"{type(bt_exc).__name__}: {bt_exc}"
-                    tb = traceback.format_exc()
+                    tb = _safe_format_exception(bt_exc)
                     tb_tail = ""
                     if tb:
                         tb_lines = [line.rstrip() for line in tb.splitlines() if line.rstrip()]
@@ -3777,7 +4830,7 @@ The code must be ready to execute with ZERO modifications."""
                 consecutive_failures += 1
                 logger.error(
                     "builder_iter_%d_error error=%s\n%s",
-                    i, e, traceback.format_exc(),
+                    i, e, _safe_format_exception(e),
                 )
                 session.iterations.append(iteration)
                 last_iteration = iteration
@@ -3933,6 +4986,19 @@ _INDICATOR_FAMILIES: Dict[str, Dict[str, Any]] = {
             "Sortie progressive : réduction quand {ind1} diverge, clôture si {ind2} se retourne.",
         ],
     },
+    "regime-adaptive": {
+        "label": "Regime-adaptatif",
+        "primary": ["adx", "atr", "bollinger", "keltner", "supertrend", "rsi", "vwap", "obv", "ema"],
+        "entry_templates": [
+            "Entrée en mode tendance si {ind1} signale un regime fort, sinon bascule en mode reversion avec {ind2}.",
+            "Signal adaptatif : si volatilite elevee ({ind1}), suivre la cassure ; sinon trader le retour a la moyenne via {ind2}.",
+            "Déclencher uniquement quand {ind1} et {ind2} confirment le meme regime de marche.",
+        ],
+        "exit_templates": [
+            "Sortie lors d'un changement de regime detecte par {ind1}.",
+            "Sortie adaptative : TP agressif en tendance, TP prudent en range.",
+        ],
+    },
 }
 
 # Templates de risk management
@@ -4005,6 +5071,8 @@ def generate_random_objective(
     risk = random.choice(_RISK_TEMPLATES).format(
         sl_mult=sl_mult, tp_mult=tp_mult, rr=rr,
     )
+    novelty_variant = random.choice(_CATALOG_DIVERSITY_VARIANTS)
+    novelty_clause = str(novelty_variant.get("clause", "")).strip()
 
     indicators_str = " + ".join(ind.upper() for ind in selected)
 
@@ -4015,8 +5083,51 @@ def generate_random_objective(
         f"{exit_rule} "
         f"{risk}"
     )
+    if novelty_clause:
+        objective += f" Axe de diversification : {novelty_clause}"
 
     return objective
+
+
+def _build_positive_objective_bias_instruction(max_items: int = 3) -> str:
+    """Construit une instruction de prompt à partir des objectifs historiquement positifs."""
+    try:
+        tracker = _get_exploration_tracker()
+        summary = tracker.get_positive_bias_summary(limit=max_items)
+    except Exception:
+        return ""
+
+    positive_count = int(summary.get("positive_count", 0) or 0)
+    if positive_count <= 0:
+        return ""
+
+    def _extract_names(items: List[Dict[str, Any]]) -> List[str]:
+        names: List[str] = []
+        for item in items[:max(1, max_items)]:
+            name = str(item.get("name", "")).strip()
+            if name:
+                names.append(name)
+        return names
+
+    family_names = _extract_names(cast(List[Dict[str, Any]], summary.get("top_families", [])))
+    indicator_patterns = _extract_names(cast(List[Dict[str, Any]], summary.get("top_indicator_patterns", [])))
+    novelty_names = _extract_names(cast(List[Dict[str, Any]], summary.get("top_novelty_angles", [])))
+
+    lines = ["Ancrages performants issus des sessions precedentes:"]
+    if family_names:
+        lines.append(f"- Familles robustes detectees: {', '.join(family_names)}.")
+    if indicator_patterns:
+        lines.append(
+            "- Combinaisons indicateurs deja positives: "
+            f"{', '.join(indicator_patterns)}."
+        )
+    if novelty_names:
+        lines.append(f"- Angles de nouveaute deja prometteurs: {', '.join(novelty_names)}.")
+    lines.append(
+        "- Reutilise au moins un ancrage positif, mais MUTER au moins deux dimensions "
+        "(direction, filtre, risk management, ou contexte marche) pour eviter la copie."
+    )
+    return "\n".join(lines) + "\n\n"
 
 
 def generate_llm_objective(
@@ -4081,12 +5192,41 @@ def generate_llm_objective(
             "Réponds UNIQUEMENT avec l'objectif, sans explication ni formatage markdown."
         ),
     )
+    novelty_axes = [
+        "asymetrie long/short (seuils differents)",
+        "adaptation de regime (trend vs range)",
+        "filtre anti-faux-signaux (confirmation inverse partielle)",
+        "filtre horaire de liquidite",
+        "gestion du risque non lineaire (SL/TP adaptes a la volatilite)",
+        "gating par volatilite implicite/realisee",
+        "combinaison de signaux contradictoires avec vote majoritaire",
+    ]
+    random.shuffle(novelty_axes)
+    selected_axes = novelty_axes[:4]
+
+    random_behaviors = [
+        "mode_offbeat: prioriser des paires d'indicateurs rarement combinees",
+        "mode_inverse: tester une logique inversee puis filtrer par regime",
+        "mode_microstructure: ajouter un filtre de session/horaire et liquidite",
+        "mode_risk_rotation: alterner profile risque serre/large selon volatilite",
+        "mode_counter_consensus: exiger une confirmation contrarienne partielle",
+    ]
+    random.shuffle(random_behaviors)
+    selected_behaviors = random_behaviors[:2]
+    positive_bias_instruction = _build_positive_objective_bias_instruction(max_items=3)
+
     user_msg = LLMMessage(
         role="user",
         content=(
             f"Génère un objectif de stratégie de trading.\n\n"
             f"{market_instruction}"
             f"Indicateurs disponibles : {indicators_list}\n\n"
+            f"{positive_bias_instruction}"
+            "Contraintes de diversification:\n"
+            f"- Intègre au moins un axe 'hors sentiers battus' parmi: {', '.join(selected_axes)}.\n"
+            f"- Comportements aleatoires imposes pour cette generation: {', '.join(selected_behaviors)}.\n"
+            "- Evite les formulations generiques de type 'RSI<30/RSI>70' sans filtre additionnel.\n"
+            "- Propose une hypothese testable et falsifiable.\n\n"
             "Format attendu :\n"
             "[Style] sur [marché] [timeframe]. "
             "Indicateurs : [ind1] + [ind2] + [ind3]. "
@@ -4163,6 +5303,7 @@ class CatalogObjective:
     indicators: List[str]
     direction: str          # "long_only", "short_only", "long_short"
     risk_profile: str       # "tight", "balanced", "wide"
+    novelty_angle: str      # "classic", "regime_adaptive", "asymmetric", ...
     description: str        # Objectif formaté ({symbol} et {timeframe} en placeholders)
     sl_mult: float
     tp_mult: float
@@ -4176,6 +5317,8 @@ def _make_catalog_entry(
     risk_name: str,
     sl_mult: float,
     tp_mult: float,
+    novelty_angle: str = "classic",
+    novelty_clause: str = "",
     tags: Optional[List[str]] = None,
     entry_idx: int = 0,
     exit_idx: int = 0,
@@ -4204,15 +5347,19 @@ def _make_catalog_entry(
     rr = round(tp_mult / max(sl_mult, 0.1), 1)
     risk = f"Stop-loss = {sl_mult}x ATR, take-profit = {tp_mult}x ATR (RR {rr}:1)."
     indicators_str = " + ".join(ind.upper() for ind in indicators)
+    novelty_text = f" Axe de diversification : {novelty_clause}" if novelty_clause else ""
 
     description = (
         f"Stratégie de {family['label']} sur {{symbol}} {{timeframe}}. "
         f"Indicateurs : {indicators_str}. "
-        f"{entry} {exit_rule} {dir_label} {risk}"
+        f"{entry} {exit_rule} {dir_label} {risk}{novelty_text}"
     )
 
     obj_id = hashlib.md5(
-        f"{family_key}_{'-'.join(indicators)}_{direction}_{risk_name}_{entry_idx}".encode()
+        (
+            f"{family_key}_{'-'.join(indicators)}_{direction}_{risk_name}_"
+            f"{entry_idx}_{exit_idx}_{novelty_angle}"
+        ).encode()
     ).hexdigest()[:12]
 
     return CatalogObjective(
@@ -4221,6 +5368,7 @@ def _make_catalog_entry(
         indicators=list(indicators),
         direction=direction,
         risk_profile=risk_name,
+        novelty_angle=novelty_angle,
         description=description,
         sl_mult=sl_mult,
         tp_mult=tp_mult,
@@ -4245,24 +5393,126 @@ _SCALP_RISK_PROFILES = {
     "balanced": (1.0, 1.5),
 }
 
+_CATALOG_DIVERSITY_VARIANTS: List[Dict[str, Any]] = [
+    {
+        "name": "classic",
+        "clause": "",
+        "entry_shift": 0,
+        "exit_shift": 0,
+        "tags": ["baseline"],
+    },
+    {
+        "name": "regime_adaptive",
+        "clause": (
+            "Adapter la logique selon le regime (trend/range/volatilite) "
+            "avec des seuils dynamiques."
+        ),
+        "entry_shift": 1,
+        "exit_shift": 1,
+        "tags": ["regime_adaptive", "dynamic_thresholds"],
+    },
+    {
+        "name": "asymmetric_execution",
+        "clause": (
+            "Imposer des regles asymetriques long/short et filtrer les heures "
+            "de faible liquidite."
+        ),
+        "entry_shift": 2,
+        "exit_shift": 0,
+        "tags": ["asymmetric", "liquidity_window"],
+    },
+    {
+        "name": "contrarian_overlay",
+        "clause": (
+            "Ajouter un filtre contrarien pour eviter les signaux trop consensuels "
+            "et limiter les faux breakouts."
+        ),
+        "entry_shift": 0,
+        "exit_shift": 1,
+        "tags": ["contrarian", "offbeat"],
+    },
+    {
+        "name": "volatility_compression",
+        "clause": (
+            "N'entrer qu'apres une phase de compression de volatilite puis expansion "
+            "confirmee sur la bougie suivante."
+        ),
+        "entry_shift": 1,
+        "exit_shift": 2,
+        "tags": ["volatility", "compression_breakout"],
+    },
+    {
+        "name": "session_rotation",
+        "clause": (
+            "Differencier la logique selon les sessions horaires (Asie/Europe/US) "
+            "pour reduire les faux signaux hors liquidite."
+        ),
+        "entry_shift": 2,
+        "exit_shift": 2,
+        "tags": ["session_filter", "liquidity_rotation"],
+    },
+    {
+        "name": "meta_risk_feedback",
+        "clause": (
+            "Ajuster dynamiquement l'agressivite apres une serie de trades perdants "
+            "ou gagnants afin d'eviter la sur-exposition."
+        ),
+        "entry_shift": 0,
+        "exit_shift": 2,
+        "tags": ["meta_risk", "adaptive_sizing"],
+    },
+]
+
 
 def _build_objective_catalog() -> List[CatalogObjective]:
-    """Construit le catalogue complet d'objectifs pré-définis (~150)."""
+    """Construit le catalogue complet d'objectifs pré-définis (diversifie)."""
     catalog: List[CatalogObjective] = []
 
-    def _add(family: str, pairs: list, directions: list, risks: dict,
-             tags_base: Optional[List[str]] = None):
+    def _add(
+        family: str,
+        pairs: list,
+        directions: list,
+        risks: dict,
+        tags_base: Optional[List[str]] = None,
+        *,
+        variant_count: int = 2,
+    ) -> None:
+        family_cfg = _INDICATOR_FAMILIES[family]
+        n_entry_tpl = max(len(family_cfg["entry_templates"]), 1)
+        n_exit_tpl = max(len(family_cfg["exit_templates"]), 1)
+        n_variants = len(_CATALOG_DIVERSITY_VARIANTS)
+        variant_span = max(1, min(variant_count, n_variants))
         for pi, (inds, tags) in enumerate(pairs):
             full_inds = _ensure_atr(inds)
             all_tags = (tags_base or []) + tags
+            start_idx = (pi * variant_span) % max(1, n_variants)
+            variants = [
+                _CATALOG_DIVERSITY_VARIANTS[(start_idx + vi) % n_variants]
+                for vi in range(variant_span)
+            ]
             for direction in directions:
                 for risk_name, (sl, tp) in risks.items():
-                    catalog.append(_make_catalog_entry(
-                        family, full_inds, direction, risk_name, sl, tp,
-                        tags=all_tags, entry_idx=pi, exit_idx=pi,
-                    ))
+                    for variant in variants:
+                        entry_idx = (pi + int(variant.get("entry_shift", 0))) % n_entry_tpl
+                        exit_idx = (pi + int(variant.get("exit_shift", 0))) % n_exit_tpl
+                        variant_tags = all_tags + list(variant.get("tags", []))
+                        catalog.append(
+                            _make_catalog_entry(
+                                family,
+                                full_inds,
+                                direction,
+                                risk_name,
+                                sl,
+                                tp,
+                                novelty_angle=str(variant.get("name", "classic")),
+                                novelty_clause=str(variant.get("clause", "")),
+                                tags=sorted(set(variant_tags)),
+                                entry_idx=entry_idx,
+                                exit_idx=exit_idx,
+                            )
+                        )
 
-    # ── Trend-following (~42) ──
+    # ── Trend-following ──
     _add("trend-following", [
         (["ema", "macd"],        ["trending", "momentum"]),
         (["sma", "adx"],         ["trending", "strong_trend"]),
@@ -4271,9 +5521,9 @@ def _build_objective_catalog() -> List[CatalogObjective]:
         (["macd", "supertrend"], ["trending", "momentum"]),
         (["ema", "vortex"],      ["trending", "oscillator"]),
         (["sma", "aroon"],       ["trending", "pullback"]),
-    ], ["long_only", "short_only"], _RISK_PROFILES)
+    ], ["long_only", "short_only"], _RISK_PROFILES, variant_count=3)
 
-    # ── Mean-reversion (~42) ──
+    # ── Mean-reversion ──
     _add("mean-reversion", [
         (["bollinger", "rsi"],        ["ranging", "oversold"]),
         (["bollinger", "stochastic"], ["ranging", "overbought"]),
@@ -4282,26 +5532,26 @@ def _build_objective_catalog() -> List[CatalogObjective]:
         (["bollinger", "stoch_rsi"],  ["ranging", "extreme"]),
         (["keltner", "rsi"],          ["ranging", "mean_revert"]),
         (["donchian", "rsi"],         ["ranging", "pullback"]),
-    ], ["long_only", "short_only"], _RISK_PROFILES)
+    ], ["long_only", "short_only"], _RISK_PROFILES, variant_count=3)
 
-    # ── Momentum (~30) ──
+    # ── Momentum ──
     _add("momentum", [
         (["rsi", "macd"],         ["momentum", "divergence"]),
         (["macd", "roc"],         ["momentum", "acceleration"]),
         (["momentum", "stochastic"], ["momentum", "oscillator"]),
         (["rsi", "mfi"],          ["momentum", "volume"]),
         (["macd", "stochastic"],  ["momentum", "confirmation"]),
-    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.0), "wide": (2.0, 4.5)})
+    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.0), "wide": (2.0, 4.5)}, variant_count=4)
 
-    # ── Breakout (~24) ──
+    # ── Breakout ──
     _add("breakout", [
         (["bollinger", "adx"],      ["volatile", "expansion"]),
         (["donchian", "atr"],       ["breakout", "channel"]),
         (["keltner", "supertrend"], ["breakout", "trending"]),
         (["bollinger", "supertrend"], ["volatile", "trending"]),
-    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.5), "wide": (2.0, 5.0)})
+    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.5), "wide": (2.0, 5.0)}, variant_count=4)
 
-    # ── Scalping (~12) ──
+    # ── Scalping ──
     _add("scalping", [
         (["ema", "stochastic"], ["scalp", "short_term"]),
         (["macd", "rsi"],       ["scalp", "momentum"]),
@@ -4309,17 +5559,36 @@ def _build_objective_catalog() -> List[CatalogObjective]:
         (["ema", "rsi"],        ["scalp", "pullback"]),
         (["stochastic", "vwap"], ["scalp", "oscillator"]),
         (["ema", "macd"],       ["scalp", "cross"]),
-    ], ["long_short"], _SCALP_RISK_PROFILES)
+    ], ["long_short"], _SCALP_RISK_PROFILES, variant_count=3)
 
-    # ── Multi-factor (~12) ──
+    # ── Multi-factor ──
     _add("multi-factor", [
         (["ema", "rsi", "bollinger"],         ["composite", "three_factor"]),
         (["supertrend", "adx", "stochastic"], ["composite", "trend_confirm"]),
         (["macd", "bollinger", "obv"],        ["composite", "volume"]),
         (["ema", "macd", "rsi"],              ["composite", "momentum"]),
-    ], ["long_short"], _RISK_PROFILES)
+    ], ["long_short"], _RISK_PROFILES, variant_count=4)
 
-    logger.info("objective_catalog_built count=%d", len(catalog))
+    # ── Regime-adaptatif ──
+    _add("regime-adaptive", [
+        (["adx", "bollinger"],        ["regime", "switching"]),
+        (["supertrend", "rsi"],       ["regime", "trend_vs_revert"]),
+        (["keltner", "vwap"],         ["regime", "volatility"]),
+        (["ema", "atr"],              ["regime", "adaptive_filter"]),
+    ], ["long_only", "long_short"], {"balanced": (1.5, 3.0), "wide": (2.0, 4.5)}, variant_count=4)
+
+    family_counts: Dict[str, int] = {}
+    novelty_counts: Dict[str, int] = {}
+    for obj in catalog:
+        family_counts[obj.family] = family_counts.get(obj.family, 0) + 1
+        novelty_counts[obj.novelty_angle] = novelty_counts.get(obj.novelty_angle, 0) + 1
+
+    logger.info(
+        "objective_catalog_built count=%d families=%s novelty=%s",
+        len(catalog),
+        family_counts,
+        novelty_counts,
+    )
     return catalog
 
 
@@ -4346,6 +5615,7 @@ class ExplorationTracker:
     """
 
     STATE_FILE = SANDBOX_ROOT / "_exploration_state.json"
+    _SELECTION_MODES = ("diversify", "hybrid", "exploit", "wildcard")
 
     def __init__(self, catalog: List[CatalogObjective]):
         self.catalog = catalog
@@ -4367,7 +5637,7 @@ class ExplorationTracker:
                 with open(self.STATE_FILE, "r", encoding="utf-8") as f:
                     state = json.load(f)
                 if state.get("catalog_hash") == self._catalog_hash:
-                    return state
+                    return self._migrate_state(state)
                 logger.info("exploration_tracker_catalog_changed — reset")
             except Exception:
                 pass
@@ -4376,13 +5646,41 @@ class ExplorationTracker:
     def _fresh_state(self) -> Dict[str, Any]:
         order = [obj.id for obj in self.catalog]
         random.shuffle(order)
+        selection_mode_counts = {mode: 0 for mode in self._SELECTION_MODES}
         return {
-            "version": "1.0",
+            "version": "2.0",
             "catalog_hash": self._catalog_hash,
             "exploration_order": order,
             "current_index": 0,
             "explored": {},
+            "selection_mode_counts": selection_mode_counts,
+            "last_selection_mode": "diversify",
         }
+
+    def _migrate_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(state, dict):
+            return self._fresh_state()
+
+        if not isinstance(state.get("exploration_order"), list):
+            state["exploration_order"] = [obj.id for obj in self.catalog]
+        if not isinstance(state.get("explored"), dict):
+            state["explored"] = {}
+        if not isinstance(state.get("current_index"), int):
+            state["current_index"] = 0
+
+        mode_counts = state.get("selection_mode_counts")
+        if not isinstance(mode_counts, dict):
+            mode_counts = {}
+        for mode in self._SELECTION_MODES:
+            mode_counts[mode] = int(mode_counts.get(mode, 0) or 0)
+        state["selection_mode_counts"] = mode_counts
+
+        last_mode = str(state.get("last_selection_mode", "")).strip()
+        if last_mode not in self._SELECTION_MODES:
+            state["last_selection_mode"] = "diversify"
+
+        state["version"] = "2.0"
+        return state
 
     def _save(self) -> None:
         self.STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -4391,20 +5689,315 @@ class ExplorationTracker:
             json.dump(self.state, f, indent=2, ensure_ascii=False)
         tmp.replace(self.STATE_FILE)
 
+    @staticmethod
+    def _normalized_entropy(counts: Dict[str, int]) -> float:
+        total = sum(int(v) for v in counts.values())
+        if total <= 0:
+            return 0.0
+        values = [int(v) for v in counts.values() if int(v) > 0]
+        if len(values) <= 1:
+            return 0.0
+        entropy = 0.0
+        for count in values:
+            p = count / total
+            entropy -= p * math.log(p)
+        return round(entropy / math.log(len(values)), 4)
+
+    @staticmethod
+    def _safe_float(value: Any, default: float = 0.0) -> float:
+        try:
+            out = float(value)
+        except Exception:
+            return default
+        if not math.isfinite(out):
+            return default
+        return out
+
+    def _payload_positive_weight(self, payload: Dict[str, Any]) -> float:
+        status = str(payload.get("status", "")).strip().lower()
+        sharpe = self._safe_float(payload.get("best_sharpe", 0.0), default=0.0)
+        ret_pct = self._safe_float(payload.get("best_return_pct", 0.0), default=0.0)
+
+        baseline = 0.0
+        if status == "success":
+            baseline += 1.2
+        if ret_pct > 0:
+            baseline += min(ret_pct, 80.0) / 25.0
+        if sharpe > 0:
+            baseline += min(sharpe, 3.0) * 0.6
+
+        if baseline <= 0.0 and status != "success":
+            return 0.0
+        if ret_pct <= 0 and sharpe < 0.4 and status != "success":
+            return 0.0
+        return round(max(baseline, 0.0), 4)
+
+    def _build_positive_profiles(self) -> Dict[str, Any]:
+        explored = self.state.get("explored", {})
+        family_counts: Dict[str, float] = {}
+        direction_counts: Dict[str, float] = {}
+        risk_counts: Dict[str, float] = {}
+        novelty_counts: Dict[str, float] = {}
+        indicator_counts: Dict[str, float] = {}
+        pattern_counts: Dict[str, float] = {}
+        total_positive = 0
+        weighted_total = 0.0
+
+        for obj_id, payload_raw in explored.items():
+            obj = self.catalog_by_id.get(obj_id)
+            if obj is None:
+                continue
+            payload = cast(Dict[str, Any], payload_raw)
+            weight = self._payload_positive_weight(payload)
+            if weight <= 0:
+                continue
+
+            total_positive += 1
+            weighted_total += weight
+            family_counts[obj.family] = family_counts.get(obj.family, 0.0) + weight
+            direction_counts[obj.direction] = direction_counts.get(obj.direction, 0.0) + weight
+            risk_counts[obj.risk_profile] = risk_counts.get(obj.risk_profile, 0.0) + weight
+            novelty_counts[obj.novelty_angle] = novelty_counts.get(obj.novelty_angle, 0.0) + weight
+
+            clean_inds = [ind.lower() for ind in obj.indicators]
+            for ind in clean_inds:
+                indicator_counts[ind] = indicator_counts.get(ind, 0.0) + weight
+
+            pattern_legs = [ind.upper() for ind in clean_inds if ind != "atr"]
+            if not pattern_legs:
+                pattern_legs = [ind.upper() for ind in clean_inds]
+            if pattern_legs:
+                pattern_name = " + ".join(sorted(pattern_legs[:3]))
+                pattern_counts[pattern_name] = pattern_counts.get(pattern_name, 0.0) + weight
+
+        return {
+            "positive_count": total_positive,
+            "weighted_total": round(weighted_total, 4),
+            "family": family_counts,
+            "direction": direction_counts,
+            "risk": risk_counts,
+            "novelty": novelty_counts,
+            "indicator": indicator_counts,
+            "pattern": pattern_counts,
+        }
+
+    def _choose_selection_mode(self, positive_count: int, explored_count: int) -> str:
+        roll = random.random()
+        if positive_count <= 0:
+            if roll < 0.62:
+                return "diversify"
+            if roll < 0.88:
+                return "hybrid"
+            return "wildcard"
+
+        if explored_count < 12:
+            if roll < 0.55:
+                return "diversify"
+            if roll < 0.90:
+                return "hybrid"
+            return "wildcard"
+
+        if roll < 0.35:
+            return "diversify"
+        if roll < 0.72:
+            return "hybrid"
+        if roll < 0.93:
+            return "exploit"
+        return "wildcard"
+
+    def _recent_explored_ids(self, limit: int = 8) -> List[str]:
+        explored = self.state.get("explored", {})
+        ranked: List[Tuple[str, str]] = []
+        for obj_id, payload in explored.items():
+            if obj_id not in self.catalog_by_id:
+                continue
+            tested_at = str(payload.get("tested_at", ""))
+            ranked.append((tested_at, obj_id))
+        ranked.sort(reverse=True)
+        return [obj_id for _, obj_id in ranked[:max(1, limit)]]
+
+    def _build_explored_distributions(self) -> Dict[str, Dict[str, int]]:
+        explored = self.state.get("explored", {})
+        family_counts: Dict[str, int] = {}
+        direction_counts: Dict[str, int] = {}
+        risk_counts: Dict[str, int] = {}
+        novelty_counts: Dict[str, int] = {}
+        for obj_id in explored.keys():
+            obj = self.catalog_by_id.get(obj_id)
+            if obj is None:
+                continue
+            family_counts[obj.family] = family_counts.get(obj.family, 0) + 1
+            direction_counts[obj.direction] = direction_counts.get(obj.direction, 0) + 1
+            risk_counts[obj.risk_profile] = risk_counts.get(obj.risk_profile, 0) + 1
+            novelty_counts[obj.novelty_angle] = novelty_counts.get(obj.novelty_angle, 0) + 1
+        return {
+            "family": family_counts,
+            "direction": direction_counts,
+            "risk": risk_counts,
+            "novelty": novelty_counts,
+        }
+
     # -- API --
 
     def get_next_objective(self) -> Optional[CatalogObjective]:
-        """Retourne le prochain objectif non exploré, ou None si épuisé."""
-        order = self.state["exploration_order"]
-        explored = self.state["explored"]
-        idx = self.state["current_index"]
-        while idx < len(order):
-            obj_id = order[idx]
+        """Retourne un objectif non exploré en combinant diversité et exploitation."""
+        order = self.state.get("exploration_order", [])
+        explored = self.state.get("explored", {})
+        idx = int(self.state.get("current_index", 0))
+        total = len(order)
+        if total == 0:
+            return None
+
+        lookahead = min(max(24, total // 6), total)
+        candidates: List[Tuple[int, str]] = []
+        for pos in range(idx, min(total, idx + lookahead)):
+            obj_id = order[pos]
             if obj_id not in explored and obj_id in self.catalog_by_id:
-                self.state["current_index"] = idx
-                return self.catalog_by_id[obj_id]
+                candidates.append((pos, obj_id))
+
+        if not candidates:
+            for pos, obj_id in enumerate(order):
+                if obj_id not in explored and obj_id in self.catalog_by_id:
+                    candidates.append((pos, obj_id))
+                    if len(candidates) >= lookahead:
+                        break
+        if not candidates:
+            return None
+
+        dists = self._build_explored_distributions()
+        family_counts = dists["family"]
+        direction_counts = dists["direction"]
+        risk_counts = dists["risk"]
+        novelty_counts = dists["novelty"]
+
+        recent_ids = self._recent_explored_ids(limit=8)
+        recent_objs = [self.catalog_by_id[obj_id] for obj_id in recent_ids if obj_id in self.catalog_by_id]
+        latest_obj = recent_objs[0] if recent_objs else None
+        recent_indicator_sets = [set(obj.indicators) for obj in recent_objs[:3]]
+        positive_profiles = self._build_positive_profiles()
+        positive_count = int(positive_profiles.get("positive_count", 0) or 0)
+
+        selection_mode = self._choose_selection_mode(
+            positive_count=positive_count,
+            explored_count=len(explored),
+        )
+        mode_cfg = {
+            "diversify": {"diversity_w": 1.35, "positive_w": 0.40, "random_w": 0.14, "top_k": 14},
+            "hybrid": {"diversity_w": 1.00, "positive_w": 0.95, "random_w": 0.10, "top_k": 10},
+            "exploit": {"diversity_w": 0.72, "positive_w": 1.70, "random_w": 0.06, "top_k": 6},
+            "wildcard": {"diversity_w": 0.70, "positive_w": 0.65, "random_w": 0.36, "top_k": 18},
+        }
+        cfg = mode_cfg.get(selection_mode, mode_cfg["hybrid"])
+
+        pos_family = cast(Dict[str, float], positive_profiles.get("family", {}))
+        pos_direction = cast(Dict[str, float], positive_profiles.get("direction", {}))
+        pos_risk = cast(Dict[str, float], positive_profiles.get("risk", {}))
+        pos_novelty = cast(Dict[str, float], positive_profiles.get("novelty", {}))
+        pos_indicator = cast(Dict[str, float], positive_profiles.get("indicator", {}))
+        pos_pattern = cast(Dict[str, float], positive_profiles.get("pattern", {}))
+
+        max_family = max(pos_family.values(), default=0.0)
+        max_direction = max(pos_direction.values(), default=0.0)
+        max_risk = max(pos_risk.values(), default=0.0)
+        max_novelty = max(pos_novelty.values(), default=0.0)
+        max_indicator = max(pos_indicator.values(), default=0.0)
+        max_pattern = max(pos_pattern.values(), default=0.0)
+
+        def _norm(value: float, max_value: float) -> float:
+            if max_value <= 0:
+                return 0.0
+            return float(value) / max_value
+
+        scored_candidates: List[Tuple[int, str, float]] = []
+        for pos, obj_id in candidates:
+            obj = self.catalog_by_id[obj_id]
+
+            diversity_score = 0.0
+            diversity_score += 2.8 / (1.0 + family_counts.get(obj.family, 0))
+            diversity_score += 1.6 / (1.0 + direction_counts.get(obj.direction, 0))
+            diversity_score += 1.1 / (1.0 + risk_counts.get(obj.risk_profile, 0))
+            diversity_score += 1.3 / (1.0 + novelty_counts.get(obj.novelty_angle, 0))
+
+            if latest_obj is not None:
+                if obj.family == latest_obj.family:
+                    diversity_score -= 1.8
+                if obj.direction == latest_obj.direction:
+                    diversity_score -= 0.6
+                if obj.risk_profile == latest_obj.risk_profile:
+                    diversity_score -= 0.4
+                if obj.novelty_angle == latest_obj.novelty_angle:
+                    diversity_score -= 0.5
+
+            if recent_indicator_sets:
+                overlap = max(len(set(obj.indicators) & inds) for inds in recent_indicator_sets)
+                diversity_score -= 0.35 * float(overlap)
+
+            indicators_key = [ind.lower() for ind in obj.indicators]
+            pattern_legs = [ind.upper() for ind in indicators_key if ind != "atr"]
+            if not pattern_legs:
+                pattern_legs = [ind.upper() for ind in indicators_key]
+            pattern_name = " + ".join(sorted(pattern_legs[:3])) if pattern_legs else ""
+            indicator_scores = [
+                _norm(pos_indicator.get(ind, 0.0), max_indicator)
+                for ind in set(indicators_key)
+            ]
+            indicator_hit = (
+                sum(indicator_scores) / len(indicator_scores)
+                if indicator_scores else 0.0
+            )
+
+            positive_score = 0.0
+            positive_score += 1.5 * _norm(pos_family.get(obj.family, 0.0), max_family)
+            positive_score += 1.1 * _norm(pos_direction.get(obj.direction, 0.0), max_direction)
+            positive_score += 0.9 * _norm(pos_risk.get(obj.risk_profile, 0.0), max_risk)
+            positive_score += 1.1 * _norm(pos_novelty.get(obj.novelty_angle, 0.0), max_novelty)
+            positive_score += 1.7 * indicator_hit
+            positive_score += 0.9 * _norm(pos_pattern.get(pattern_name, 0.0), max_pattern)
+
+            score = cfg["diversity_w"] * diversity_score
+            score += cfg["positive_w"] * positive_score
+            score -= 0.002 * max(pos - idx, 0)
+
+            if selection_mode == "wildcard" and obj.novelty_angle != "classic":
+                score += 0.15 + random.random() * 0.25
+            if selection_mode == "exploit" and positive_count > 0 and obj.family in pos_family:
+                score += 0.2
+            score += random.random() * float(cfg["random_w"])
+
+            scored_candidates.append((pos, obj_id, score))
+
+        ranked = sorted(scored_candidates, key=lambda item: item[2], reverse=True)
+        top_k = max(1, min(int(cfg["top_k"]), len(ranked)))
+        sample_pool = ranked[:top_k]
+        floor = min(score for _, _, score in sample_pool)
+        weights = [max((score - floor) + 0.05, 0.01) for _, _, score in sample_pool]
+        best_pos, best_id, best_score = random.choices(sample_pool, weights=weights, k=1)[0]
+
+        self.state["current_index"] = best_pos
+        mode_counts = self.state.get("selection_mode_counts", {})
+        if not isinstance(mode_counts, dict):
+            mode_counts = {}
+        mode_counts[selection_mode] = int(mode_counts.get(selection_mode, 0) or 0) + 1
+        self.state["selection_mode_counts"] = mode_counts
+        self.state["last_selection_mode"] = selection_mode
+
+        logger.info(
+            "exploration_tracker_pick mode=%s candidates=%d positive=%d pick=%s score=%.3f",
+            selection_mode,
+            len(candidates),
+            positive_count,
+            best_id,
+            best_score,
+        )
+        return self.catalog_by_id[best_id]
+
+    def _advance_index(self) -> None:
+        order = self.state.get("exploration_order", [])
+        explored = self.state.get("explored", {})
+        idx = int(self.state.get("current_index", 0)) + 1
+        while idx < len(order) and order[idx] in explored:
             idx += 1
-        return None
+        self.state["current_index"] = idx
 
     def mark_explored(
         self,
@@ -4412,20 +6005,62 @@ class ExplorationTracker:
         *,
         status: str,
         best_sharpe: float,
+        best_return_pct: float,
         session_id: str,
         symbol: str,
         timeframe: str,
     ) -> None:
+        selection_mode = str(self.state.get("last_selection_mode", "diversify"))
         self.state["explored"][obj_id] = {
             "tested_at": datetime.now().isoformat(),
             "status": status,
             "best_sharpe": best_sharpe,
+            "best_return_pct": best_return_pct,
             "session_id": session_id,
             "symbol": symbol,
             "timeframe": timeframe,
+            "selection_mode": selection_mode,
         }
-        self.state["current_index"] = self.state.get("current_index", 0) + 1
+        self._advance_index()
         self._save()
+
+    @staticmethod
+    def _top_weighted_entries(counts: Dict[str, float], limit: int = 3) -> List[Dict[str, Any]]:
+        ranked = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+        top = ranked[:max(1, limit)]
+        return [
+            {"name": name, "weight": round(float(weight), 4)}
+            for name, weight in top
+        ]
+
+    def get_positive_bias_summary(self, limit: int = 3) -> Dict[str, Any]:
+        profiles = self._build_positive_profiles()
+        positive_count = int(profiles.get("positive_count", 0) or 0)
+        if positive_count <= 0:
+            return {
+                "positive_count": 0,
+                "weighted_total": 0.0,
+                "top_families": [],
+                "top_indicator_patterns": [],
+                "top_novelty_angles": [],
+            }
+
+        return {
+            "positive_count": positive_count,
+            "weighted_total": float(profiles.get("weighted_total", 0.0) or 0.0),
+            "top_families": self._top_weighted_entries(
+                cast(Dict[str, float], profiles.get("family", {})),
+                limit=limit,
+            ),
+            "top_indicator_patterns": self._top_weighted_entries(
+                cast(Dict[str, float], profiles.get("pattern", {})),
+                limit=limit,
+            ),
+            "top_novelty_angles": self._top_weighted_entries(
+                cast(Dict[str, float], profiles.get("novelty", {})),
+                limit=limit,
+            ),
+        }
 
     def get_coverage_stats(self) -> Dict[str, Any]:
         total = len(self.catalog)
@@ -4436,12 +6071,59 @@ class ExplorationTracker:
             (v.get("best_sharpe", float("-inf")) for v in explored.values()),
             default=0.0,
         )
+        dists = self._build_explored_distributions()
+        family_counts = dists["family"]
+        direction_counts = dists["direction"]
+        risk_counts = dists["risk"]
+        novelty_counts = dists["novelty"]
+        positive_profiles = self._build_positive_profiles()
+        positive_count = int(positive_profiles.get("positive_count", 0) or 0)
+        selection_mode_counts = self.state.get("selection_mode_counts", {})
+        if not isinstance(selection_mode_counts, dict):
+            selection_mode_counts = {}
+        selection_mode_counts = {
+            mode: int(selection_mode_counts.get(mode, 0) or 0)
+            for mode in self._SELECTION_MODES
+        }
+
         return {
             "total_objectives": total,
             "explored_count": n_explored,
             "success_count": n_success,
             "coverage_pct": round(100.0 * n_explored / max(total, 1), 1),
             "best_sharpe_overall": round(best, 3),
+            "selection_modes": selection_mode_counts,
+            "diversity": {
+                "family_entropy": self._normalized_entropy(family_counts),
+                "direction_entropy": self._normalized_entropy(direction_counts),
+                "risk_entropy": self._normalized_entropy(risk_counts),
+                "novelty_entropy": self._normalized_entropy(novelty_counts),
+                "family_distribution": dict(sorted(family_counts.items())),
+                "direction_distribution": dict(sorted(direction_counts.items())),
+                "risk_distribution": dict(sorted(risk_counts.items())),
+                "novelty_distribution": dict(sorted(novelty_counts.items())),
+            },
+            "positive_frontier": {
+                "positive_count": positive_count,
+                "positive_rate_pct": round(100.0 * positive_count / max(n_explored, 1), 1),
+                "weighted_total": round(float(positive_profiles.get("weighted_total", 0.0) or 0.0), 4),
+                "family_distribution": {
+                    k: round(v, 4)
+                    for k, v in sorted(cast(Dict[str, float], positive_profiles.get("family", {})).items())
+                },
+                "indicator_distribution": {
+                    k: round(v, 4)
+                    for k, v in sorted(cast(Dict[str, float], positive_profiles.get("indicator", {})).items())
+                },
+                "novelty_distribution": {
+                    k: round(v, 4)
+                    for k, v in sorted(cast(Dict[str, float], positive_profiles.get("novelty", {})).items())
+                },
+                "top_patterns": self._top_weighted_entries(
+                    cast(Dict[str, float], positive_profiles.get("pattern", {})),
+                    limit=5,
+                ),
+            },
         }
 
     def reset(self) -> None:
@@ -4469,7 +6151,9 @@ def get_next_catalog_objective(
     """Retourne (description, obj_id) du prochain objectif non exploré.
 
     Accepte des listes de symboles/timeframes : un couple est choisi
-    aléatoirement pour diversifier l'exploration du catalogue.
+    aléatoirement. La sélection d'objectif est ensuite pondérée pour
+    combiner diversité (exploration) et motifs historiquement positifs
+    (exploitation), avec comportements aléatoires contrôlés.
 
     Returns:
         ``(objective_text, obj_id)`` ou ``None`` si le catalogue est épuisé.
@@ -4493,6 +6177,7 @@ def mark_catalog_objective_explored(
     *,
     status: str,
     best_sharpe: float,
+    best_return_pct: float = 0.0,
     session_id: str,
     symbol: str,
     timeframe: str,
@@ -4503,6 +6188,7 @@ def mark_catalog_objective_explored(
         obj_id,
         status=status,
         best_sharpe=best_sharpe,
+        best_return_pct=best_return_pct,
         session_id=session_id,
         symbol=symbol,
         timeframe=timeframe,
@@ -4556,6 +6242,55 @@ def recommend_market_context(
             out.append(val)
         return out
 
+    def _find_objective_market_hints(
+        objective_text: str,
+        *,
+        allowed_symbols: List[str],
+        allowed_timeframes: List[str],
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Extrait les indices explicites symbol/timeframe présents dans l'objectif."""
+        text = sanitize_objective_text(objective_text)
+        if not text:
+            return None, None
+
+        text_upper = text.upper()
+
+        symbol_hits: List[Tuple[int, str]] = []
+        for symbol in allowed_symbols:
+            match = re.search(
+                rf"(?<![A-Z0-9]){re.escape(symbol)}(?![A-Z0-9])",
+                text_upper,
+            )
+            if match:
+                symbol_hits.append((match.start(), symbol))
+
+        timeframe_hits: List[Tuple[int, str]] = []
+        for timeframe in allowed_timeframes:
+            tf = str(timeframe or "").strip()
+            if not tf:
+                continue
+            if re.fullmatch(r"\d+[mhdwM]", tf):
+                match = re.search(
+                    rf"(?<![A-Za-z0-9]){re.escape(tf[:-1])}\s*{re.escape(tf[-1])}(?![A-Za-z0-9])",
+                    text,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                match = re.search(
+                    rf"(?<![A-Za-z0-9]){re.escape(tf)}(?![A-Za-z0-9])",
+                    text,
+                    flags=re.IGNORECASE,
+                )
+            if match:
+                timeframe_hits.append((match.start(), tf))
+
+        hinted_symbol = min(symbol_hits, key=lambda x: x[0])[1] if symbol_hits else None
+        hinted_timeframe = (
+            min(timeframe_hits, key=lambda x: x[0])[1]
+            if timeframe_hits else None
+        )
+        return hinted_symbol, hinted_timeframe
+
     symbol_re = re.compile(r"^[A-Za-z0-9_.-]{2,24}$")
     timeframe_re = re.compile(r"^\d+[mhdwM]$")
 
@@ -4571,8 +6306,16 @@ def recommend_market_context(
     )
     timeframes = [tf for tf in timeframes if timeframe_re.match(tf)]
 
-    fallback_symbol = symbols[0] if symbols else "BTCUSDC"
-    fallback_timeframe = timeframes[0] if timeframes else "1h"
+    fallback_symbol = (
+        str(default_symbol).strip().upper()
+        if str(default_symbol).strip().upper() in symbols
+        else (symbols[0] if symbols else "BTCUSDC")
+    )
+    fallback_timeframe = (
+        str(default_timeframe).strip()
+        if str(default_timeframe).strip() in timeframes
+        else (timeframes[0] if timeframes else "1h")
+    )
 
     if not symbols or not timeframes:
         return {
@@ -4587,6 +6330,26 @@ def recommend_market_context(
     if not clean_objective:
         clean_objective = str(objective or "").strip()
 
+    hinted_symbol, hinted_timeframe = _find_objective_market_hints(
+        clean_objective,
+        allowed_symbols=symbols,
+        allowed_timeframes=timeframes,
+    )
+
+    # Si l'objectif contient déjà un couple explicite valide, on le respecte
+    # (les templates/catalogue injectent ce couple en amont).
+    if hinted_symbol and hinted_timeframe:
+        return {
+            "symbol": hinted_symbol,
+            "timeframe": hinted_timeframe,
+            "confidence": 1.0,
+            "reason": (
+                "Couple token/timeframe explicitement présent dans l'objectif; "
+                "priorité donnée à cette instruction."
+            ),
+            "source": "objective_hint",
+        }
+
     # Mélanger pour réduire le biais de position
     shuffled_symbols = symbols.copy()
     random.shuffle(shuffled_symbols)
@@ -4600,6 +6363,21 @@ def recommend_market_context(
             f"\n- DÉJÀ UTILISÉS récemment : {recent_str}. "
             "Tu DOIS choisir un couple DIFFÉRENT. Varie tokens ET timeframes."
         )
+
+    objective_hint_instruction = ""
+    hint_lines: List[str] = []
+    if hinted_symbol:
+        hint_lines.append(
+            f"- L'objectif mentionne explicitement le symbole `{hinted_symbol}` : "
+            "conserve ce symbole."
+        )
+    if hinted_timeframe:
+        hint_lines.append(
+            f"- L'objectif mentionne explicitement le timeframe `{hinted_timeframe}` : "
+            "conserve ce timeframe."
+        )
+    if hint_lines:
+        objective_hint_instruction = "\n" + "\n".join(hint_lines)
 
     system_msg = LLMMessage(
         role="system",
@@ -4616,6 +6394,7 @@ def recommend_market_context(
             "Contraintes:\n"
             f"- symbol MUST be one of: {', '.join(shuffled_symbols)}\n"
             f"- timeframe MUST be one of: {', '.join(shuffled_timeframes)}\n"
+            f"{objective_hint_instruction}\n"
             "- Retourne un JSON strict, sans markdown:\n"
             '{"symbol":"...","timeframe":"...","confidence":0.0,"reason":"..."}\n'
             f"- confidence doit être entre 0 et 1.{diversity_instruction}"
@@ -4653,8 +6432,6 @@ def recommend_market_context(
     confidence = max(0.0, min(1.0, confidence))
 
     reason = str(payload.get("reason", "") or "").strip()
-    if len(reason) > 280:
-        reason = reason[:280].rstrip()
 
     source = "llm"
     if symbol not in symbols:
@@ -4672,11 +6449,29 @@ def recommend_market_context(
         if not reason:
             reason = "Réponse LLM non parseable en JSON. Fallback appliqué."
 
+    hint_overrides: List[str] = []
+    if hinted_symbol and symbol != hinted_symbol:
+        symbol = hinted_symbol
+        hint_overrides.append(f"symbol={hinted_symbol}")
+    if hinted_timeframe and timeframe != hinted_timeframe:
+        timeframe = hinted_timeframe
+        hint_overrides.append(f"timeframe={hinted_timeframe}")
+    if hint_overrides:
+        source = "llm_with_objective_hint" if source == "llm" else "objective_hint_fallback"
+        confidence = max(confidence, 0.85)
+        applied = ", ".join(hint_overrides)
+        if reason:
+            reason = f"{reason} Contraintes objectif appliquées ({applied})."
+        else:
+            reason = f"Contraintes objectif appliquées ({applied})."
+
     if not reason:
         if source == "llm":
             reason = "Choix basé sur style de stratégie, volatilité attendue et fréquence des signaux."
         else:
             reason = "Choix par défaut suite à une réponse LLM non exploitable."
+    if len(reason) > 280:
+        reason = reason[:280].rstrip()
 
     return {
         "symbol": symbol,

@@ -174,7 +174,7 @@ def discover_available_data() -> Tuple[List[str], List[str]]:
             symbol, tf = parts
             # Valider que le timeframe est dans un format attendu
             # Format valide: <nombre><unité> où unité = m|h|d|w|M
-            if _is_valid_timeframe(tf):
+            if is_valid_timeframe(tf):
                 tokens.add(symbol.upper())
                 timeframes.add(tf)
 
@@ -193,7 +193,7 @@ def discover_available_data() -> Tuple[List[str], List[str]]:
     return sorted(tokens), sorted(timeframes, key=tf_sort_key)
 
 
-def _is_valid_timeframe(tf: str) -> bool:
+def is_valid_timeframe(tf: str) -> bool:
     """
     Valide qu'un timeframe est dans un format correct.
 
@@ -250,12 +250,17 @@ def _read_file(path: Path) -> pd.DataFrame:
 
 
 def _find_data_file(symbol: str, timeframe: str) -> Optional[Path]:
-    """Cherche le fichier de données correspondant."""
+    """Cherche le fichier de données correspondant.
+
+    IMPORTANT: Le symbole est comparé en case-insensitive (BTCUSDC = btcusdc),
+    mais le timeframe est comparé en case-SENSITIVE pour distinguer
+    '1m' (1 minute) de '1M' (1 mois).
+    """
     symbol = symbol.upper()
-    target = f"{symbol}_{timeframe}"
 
     for file_path in _scan_data_files():
-        if file_path.stem.upper() == target.upper():
+        parts = file_path.stem.split("_", 1)
+        if len(parts) == 2 and parts[0].upper() == symbol and parts[1] == timeframe:
             return file_path
 
     return None
