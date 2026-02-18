@@ -653,9 +653,14 @@ def cmd_backtest(args) -> int:
         print_info("Chargement des données...")
 
     # Utiliser les fonctions internes pour charger directement depuis le fichier
-    from data.loader import _normalize_ohlcv, _read_file
+    from data.loader import _mark_data_quality, _normalize_ohlcv, _read_file, _trim_launch_period
     df = _read_file(data_path)
     df = _normalize_ohlcv(df)
+    # timeframe résolu plus bas (ligne ~689), on a besoin ici du stem
+    _stem = data_path.stem
+    _tf = args.timeframe or (_stem.split("_")[1] if len(_stem.split("_")) > 1 else "1h")
+    df = _trim_launch_period(df, _tf)
+    df = _mark_data_quality(df)
     try:
         df = _apply_date_filter(df, args.start, args.end)
     except ValueError as e:
@@ -3377,10 +3382,14 @@ def cmd_builder(args) -> int:
     print(f"  Sharpe cible   : {args.target_sharpe}")
     print()
 
-    # Charger les données
+    # Charger les données (via load_ohlcv pour bénéficier du trim post-listing + data quality)
     try:
-        from data.loader import _normalize_ohlcv, _read_file
-        df = _normalize_ohlcv(_read_file(data_path))
+        from data.loader import load_ohlcv
+        stem = data_path.stem
+        parts = stem.split("_", 1)
+        _symbol = args.symbol if hasattr(args, "symbol") and args.symbol else (parts[0] if parts else "UNKNOWN")
+        _tf = args.timeframe if hasattr(args, "timeframe") and args.timeframe else (parts[1] if len(parts) > 1 else "1h")
+        df = load_ohlcv(_symbol, _tf, start=getattr(args, "start", None), end=getattr(args, "end", None))
         print(f"  📊 Données chargées : {len(df)} barres")
     except Exception as e:
         print(f"{Colors.RED}❌ Erreur chargement données: {e}{Colors.RESET}")

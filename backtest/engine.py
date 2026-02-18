@@ -266,6 +266,14 @@ class BacktestEngine:
             self.counters.start("signals")
             with trace_span(self.logger, "signals"):
                 signals = strategy.generate_signals(df, indicators, final_params)
+                # Masquer entrées sur barres non-tradables (volume=0)
+                if "_tradable" in df.columns:
+                    mask = ~df["_tradable"]
+                    n_masked = int((signals[mask] != 0).sum())
+                    if n_masked > 0:
+                        signals = signals.copy()
+                        signals[mask] = 0
+                        self.logger.debug("signals_masked_untradable count=%s", n_masked)
                 n_signals = int((signals != 0).sum())
             self.counters.stop("signals")
             self.counters.increment("signals_count", n_signals)
@@ -695,6 +703,11 @@ class BacktestEngine:
 
             # 2. Signaux
             signals = strategy.generate_signals(df, indicators, final_params)
+            if "_tradable" in df.columns:
+                mask = ~df["_tradable"]
+                if mask.any():
+                    signals = signals.copy()
+                    signals[mask] = 0
 
             # 3. Simulation
             if USE_FAST_SIMULATOR:

@@ -32,6 +32,102 @@ from utils.log import get_logger
 
 logger = get_logger(__name__)
 
+# ---------------------------------------------------------------------------
+# Trim post-listing : supprime les premières barres erratiques d'un token
+#   max(TRIM_MIN_HOURS, TRIM_PCT% du total)
+# Désactivé si TRIM_PCT = 0.  Défaut : 2% avec plancher 24h.
+# ---------------------------------------------------------------------------
+TRIM_LAUNCH_PCT = float(os.environ.get("BACKTEST_TRIM_LAUNCH_PCT", "2"))
+TRIM_LAUNCH_MIN_HOURS = int(os.environ.get("BACKTEST_TRIM_LAUNCH_MIN_HOURS", "24"))
+
+# Mapping timeframe → timedelta (réutilisé par detect_gaps et trim)
+_TF_UNIT_MAP = {"m": "min", "h": "h", "d": "D", "w": "W", "M": "ME"}
+
+
+def _timeframe_to_timedelta(timeframe: str) -> pd.Timedelta:
+    """Convertit un timeframe string ('1h', '15m', '1d') en pd.Timedelta."""
+    unit = timeframe[-1]
+    amount = int(timeframe[:-1])
+    freq = f"{amount}{_TF_UNIT_MAP.get(unit, 'h')}"
+    return pd.Timedelta(freq)
+
+
+def _trim_launch_period(
+    df: pd.DataFrame,
+    timeframe: str,
+    trim_pct: Optional[float] = None,
+    min_hours: Optional[int] = None,
+) -> pd.DataFrame:
+    """
+    Supprime les premières barres post-listing d'un DataFrame OHLCV.
+
+    Nombre de barres supprimées = max(floor_24h, pct% du total).
+
+    Args:
+        df: DataFrame avec DatetimeIndex trié
+        timeframe: Timeframe des barres ('1h', '15m', …)
+        trim_pct: % de barres à couper (None → env BACKTEST_TRIM_LAUNCH_PCT)
+        min_hours: Plancher en heures (None → env BACKTEST_TRIM_LAUNCH_MIN_HOURS)
+
+    Returns:
+        DataFrame tronqué (inchangé si désactivé ou données insuffisantes)
+    """
+    pct = trim_pct if trim_pct is not None else TRIM_LAUNCH_PCT
+    if pct <= 0 or df.empty:
+        return df
+
+    floor_h = min_hours if min_hours is not None else TRIM_LAUNCH_MIN_HOURS
+
+    # Nombre de barres correspondant au plancher horaire
+    bar_delta = _timeframe_to_timedelta(timeframe)
+    floor_bars = max(1, int(pd.Timedelta(hours=floor_h) / bar_delta))
+
+    # Nombre de barres correspondant au pourcentage
+    pct_bars = int(len(df) * pct / 100)
+
+    trim_count = max(floor_bars, pct_bars)
+
+    # Sécurité : ne jamais trimmer plus de 50 % des données
+    if trim_count >= len(df) * 0.5:
+        logger.warning(
+            f"⚠️  Trim launch: {trim_count} barres ({pct}% / floor {floor_h}h) "
+            f"≥ 50 % du dataset ({len(df)} barres). Trim ignoré."
+        )
+        return df
+
+    trimmed = df.iloc[trim_count:]
+    trim_end_ts = trimmed.index[0]
+    logger.info(
+        f"✂️  Trim post-listing: {trim_count} barres supprimées "
+        f"({df.index[0]} → {trim_end_ts}, "
+        f"max({floor_bars} barres/{floor_h}h, {pct_bars} barres/{pct}%))"
+    )
+    return trimmed
+
+
+def _mark_data_quality(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ajoute la colonne ``_tradable`` au DataFrame OHLCV.
+
+    _tradable = False pour les bougies à volume nul (synthétiques ou suspectes).
+    Le moteur de backtest masque les signaux d'entrée sur ces barres.
+    Les barres restent dans le DataFrame pour la continuité des indicateurs.
+    """
+    if df.empty:
+        return df
+
+    df["_tradable"] = df["volume"] > 0
+
+    n_untradable = int((~df["_tradable"]).sum())
+    if n_untradable > 0:
+        ratio = n_untradable / len(df)
+        logger.info(
+            f"📊 Data quality: {n_untradable}/{len(df)} barres non-tradables "
+            f"({ratio:.1%}) — volume=0"
+        )
+
+    return df
+
 
 def detect_gaps(
     df: pd.DataFrame,
@@ -52,14 +148,7 @@ def detect_gaps(
     if len(df) < 2:
         return []
 
-    # Convertir timeframe en Timedelta
-    timeframe_map = {
-        "m": "min", "h": "h", "d": "D", "w": "W", "M": "M"
-    }
-    unit = timeframe[-1]
-    amount = int(timeframe[:-1])
-    freq = f"{amount}{timeframe_map.get(unit, 'h')}"
-    expected_delta = pd.Timedelta(freq)
+    expected_delta = _timeframe_to_timedelta(timeframe)
 
     gaps = []
     timestamps = df.index
@@ -355,7 +444,8 @@ def load_ohlcv(
     symbol: str,
     timeframe: str,
     start: Optional[str] = None,
-    end: Optional[str] = None
+    end: Optional[str] = None,
+    trim_launch_pct: Optional[float] = None,
 ) -> pd.DataFrame:
     """
     Charge les données OHLCV pour un symbole et timeframe.
@@ -367,6 +457,8 @@ def load_ohlcv(
         end: Date de fin (optionnel, format ISO)
             - Si date pure (ex: "2025-02-28"), inclut toute la journée
             - Si date+heure (ex: "2025-02-28 12:00:00"), précision stricte
+        trim_launch_pct: % de barres post-listing à couper (plancher 24h).
+            None = utilise BACKTEST_TRIM_LAUNCH_PCT (env var, défaut 2).
 
     Returns:
         DataFrame OHLCV normalisé avec index datetime UTC
@@ -394,6 +486,9 @@ def load_ohlcv(
     df = _normalize_ohlcv(df)
 
     logger.info(f"  Période: {df.index[0]} → {df.index[-1]} ({len(df)} barres)")
+
+    # Trim post-listing (données erratiques des premiers jours d'un token)
+    df = _trim_launch_period(df, timeframe, trim_pct=trim_launch_pct)
 
     # Détecter gaps AVANT filtrage par dates
     gaps = detect_gaps(df, timeframe, max_gap_multiplier=2.0)
@@ -456,6 +551,9 @@ def load_ohlcv(
         )
 
     logger.info(f"  Après filtrage: {len(df)} barres")
+
+    # Marquer barres non-tradables (volume=0)
+    df = _mark_data_quality(df)
 
     return df
 

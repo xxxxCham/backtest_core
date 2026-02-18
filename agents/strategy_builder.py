@@ -73,6 +73,9 @@ MIN_CODE_LINES = 10
 MAX_PHASE_REALIGN_ATTEMPTS = 2
 # Nombre mini d'itérations backtestées avant d'autoriser un arrêt LLM "stop"
 MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 3
+# Checkpoints de progression positive pour arrêter tôt les sessions peu prometteuses
+POSITIVE_PROGRESS_GATE_CHECKPOINTS: Dict[int, int] = {3: 1, 6: 2}
+MIN_TRADES_FOR_POSITIVE_PROGRESS = 1
 # Nombre mini de trades pour accepter une stratégie en cours d'optimisation
 MIN_TRADES_FOR_ACCEPT = 10
 MAX_DRAWDOWN_PCT_FOR_ACCEPT = 60.0
@@ -133,12 +136,87 @@ _DICT_INDICATOR_ALLOWED_KEYS: Dict[str, set[str]] = {
 }
 
 _INDICATOR_ALIAS_HINTS = {
+    # Bollinger
     "bollinger_upper": "indicators['bollinger']['upper']",
     "bollinger_middle": "indicators['bollinger']['middle']",
     "bollinger_lower": "indicators['bollinger']['lower']",
+    "bb_upper": "indicators['bollinger']['upper']",
+    "bb_middle": "indicators['bollinger']['middle']",
+    "bb_lower": "indicators['bollinger']['lower']",
+    "bb_mid": "indicators['bollinger']['middle']",
+    "bb_std": "indicators['bollinger']['upper']",
+    # MACD
     "macd_line": "indicators['macd']['macd']",
     "macd_signal": "indicators['macd']['signal']",
     "macd_histogram": "indicators['macd']['histogram']",
+    # Keltner
+    "keltner_upper": "indicators['keltner']['upper']",
+    "keltner_middle": "indicators['keltner']['middle']",
+    "keltner_lower": "indicators['keltner']['lower']",
+    "kelt_upper": "indicators['keltner']['upper']",
+    "kelt_middle": "indicators['keltner']['middle']",
+    "kelt_lower": "indicators['keltner']['lower']",
+    # Donchian
+    "donchian_upper": "indicators['donchian']['upper']",
+    "donchian_middle": "indicators['donchian']['middle']",
+    "donchian_lower": "indicators['donchian']['lower']",
+    "dc_upper": "indicators['donchian']['upper']",
+    "dc_middle": "indicators['donchian']['middle']",
+    "dc_lower": "indicators['donchian']['lower']",
+    # CCI (plain array — common wrong patterns)
+    "cci_value": "indicators['cci']",
+    "cci_values": "indicators['cci']",
+    # Ichimoku
+    "ichimoku_tenkan": "indicators['ichimoku']['tenkan']",
+    "ichimoku_kijun": "indicators['ichimoku']['kijun']",
+    "ichimoku_senkou_a": "indicators['ichimoku']['senkou_a']",
+    "ichimoku_senkou_b": "indicators['ichimoku']['senkou_b']",
+    "ichimoku_chikou": "indicators['ichimoku']['chikou']",
+    "ichimoku_cloud": "indicators['ichimoku']['cloud_position']",
+    # PSAR
+    "psar_sar": "indicators['psar']['sar']",
+    "psar_trend": "indicators['psar']['trend']",
+    "psar_signal": "indicators['psar']['signal']",
+    "parabolic_sar": "indicators['psar']['sar']",
+    # Vortex
+    "vortex_vi_plus": "indicators['vortex']['vi_plus']",
+    "vortex_vi_minus": "indicators['vortex']['vi_minus']",
+    "vortex_signal": "indicators['vortex']['signal']",
+    "vortex_oscillator": "indicators['vortex']['oscillator']",
+    "vi_plus": "indicators['vortex']['vi_plus']",
+    "vi_minus": "indicators['vortex']['vi_minus']",
+    # Aroon
+    "aroon_up": "indicators['aroon']['aroon_up']",
+    "aroon_down": "indicators['aroon']['aroon_down']",
+    "aroon_upper": "indicators['aroon']['aroon_up']",
+    "aroon_lower": "indicators['aroon']['aroon_down']",
+    # Pivot Points
+    "pivot_points_pivot": "indicators['pivot_points']['pivot']",
+    "pivot_points_r1": "indicators['pivot_points']['r1']",
+    "pivot_points_s1": "indicators['pivot_points']['s1']",
+    "pivot_points_r2": "indicators['pivot_points']['r2']",
+    "pivot_points_s2": "indicators['pivot_points']['s2']",
+    "pivot_points_r3": "indicators['pivot_points']['r3']",
+    "pivot_points_s3": "indicators['pivot_points']['s3']",
+    # ADX
+    "adx_value": "indicators['adx']['adx']",
+    "plus_di": "indicators['adx']['plus_di']",
+    "minus_di": "indicators['adx']['minus_di']",
+    # Supertrend
+    "supertrend_value": "indicators['supertrend']['supertrend']",
+    "supertrend_direction": "indicators['supertrend']['direction']",
+    # Stochastic
+    "stoch_k": "indicators['stochastic']['stoch_k']",
+    "stoch_d": "indicators['stochastic']['stoch_d']",
+    # Stoch RSI
+    "stoch_rsi_k": "indicators['stoch_rsi']['k']",
+    "stoch_rsi_d": "indicators['stoch_rsi']['d']",
+    "stoch_rsi_signal": "indicators['stoch_rsi']['signal']",
+    "srsi_k": "indicators['stoch_rsi']['k']",
+    "srsi_d": "indicators['stoch_rsi']['d']",
+    # Fibonacci levels
+    "fibonacci_levels_high": "indicators['fibonacci_levels']['high']",
+    "fibonacci_levels_low": "indicators['fibonacci_levels']['low']",
 }
 
 _PROPOSAL_PLACEHOLDER_VALUES = {
@@ -171,6 +249,8 @@ _BUILDER_ALLOWED_WRITE_DF_COLUMNS = {
     "bb_tp_long",
     "bb_stop_short",
     "bb_tp_short",
+    "sl_level",
+    "tp_level",
 }
 
 _LOG_PREFIX_RE = re.compile(r"^\s*\d{2}:\d{2}:\d{2}\s*\|\s*\w+\s*\|", re.IGNORECASE)
@@ -594,10 +674,14 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
                     f"Écriture interdite dans df['{col}'] (OHLCV read-only).",
                 )
             if col not in _BUILDER_ALLOWED_WRITE_DF_COLUMNS:
+                hint = ""
+                if "signal" in col.lower():
+                    hint = " Use the `signals` variable instead of df columns for signal values."
                 return False, _err(
                     ERR_IND,
                     f"Écriture df['{col}'] non autorisée. Colonnes autorisées: "
-                    "bb_stop_long, bb_tp_long, bb_stop_short, bb_tp_short.",
+                    f"{', '.join(sorted(_BUILDER_ALLOWED_WRITE_DF_COLUMNS))}."
+                    f"{hint}",
                 )
 
     # 3e. Interdictions structurées signaux/warmup
@@ -923,6 +1007,32 @@ def _is_accept_candidate(
     if max_dd > MAX_DRAWDOWN_PCT_FOR_ACCEPT:
         return False, "drawdown_too_high"
     return True, "ok"
+
+
+def _is_positive_progress_iteration(metrics: Dict[str, Any]) -> bool:
+    """Détermine si une itération compte comme "positive" pour la progression."""
+    if _is_ruined_metrics(metrics):
+        return False
+    ret = _metric_float(metrics, "total_return_pct", 0.0)
+    trades = int(metrics.get("total_trades", 0) or 0)
+    return ret > 0.0 and trades >= MIN_TRADES_FOR_POSITIVE_PROGRESS
+
+
+def _count_positive_iterations(iterations: List[BuilderIteration]) -> int:
+    """Compte les itérations backtestées positives dans l'historique de session."""
+    count = 0
+    for it in iterations:
+        if it.backtest_result is None:
+            continue
+        metrics = it.backtest_result.metrics or {}
+        if _is_positive_progress_iteration(metrics):
+            count += 1
+    return count
+
+
+def _required_positive_count_for_iteration(iteration_index: int) -> int:
+    """Retourne le quota de runs positifs requis au checkpoint courant."""
+    return int(POSITIVE_PROGRESS_GATE_CHECKPOINTS.get(iteration_index, 0) or 0)
 
 
 def _const_value(node: ast.AST) -> Any:
@@ -1789,6 +1899,31 @@ def _repair_code(code: str) -> str:
     # 10. Alias variables coeur dans generate_signals (évite NameError df/indicators/params)
     code = _inject_generate_signals_core_param_aliases(code)
 
+    # 11. Bare indicator variable repair — fix keltner['upper'] → indicators['keltner']['upper']
+    #     and keltner_upper → np.nan_to_num(indicators['keltner']['upper'])
+    for dict_ind, subkeys in _DICT_INDICATOR_ALLOWED_KEYS.items():
+        # Pattern A: bare_name['subkey'] → indicators['bare_name']['subkey']
+        # Only match if NOT preceded by indicators[ (already correct)
+        code = re.sub(
+            r"(?<!\[)\b" + re.escape(dict_ind) + r"\s*\[\s*(['\"])(\w+)\1\s*\]",
+            lambda m, ind=dict_ind: (
+                f'indicators["{ind}"]["{m.group(2)}"]'
+                if m.group(2) in _DICT_INDICATOR_ALLOWED_KEYS.get(ind, set())
+                else m.group(0)
+            ),
+            code,
+        )
+        # Pattern B: bare_name_subkey used as variable → np.nan_to_num(indicators['name']['subkey'])
+        for subkey in sorted(subkeys, key=len, reverse=True):
+            alias = f"{dict_ind}_{subkey}"
+            # Only replace bare assignments like: keltner_upper = ... (don't touch indicators[...])
+            # Replace usages in comparisons: (keltner_upper > X) → (np.nan_to_num(indicators[...]) > X)
+            pattern = r"\b" + re.escape(alias) + r"\b"
+            replacement = f"np.nan_to_num(indicators['{dict_ind}']['{subkey}'])"
+            # Only if alias is used as a standalone name (not part of a string or indicators[])
+            if re.search(pattern, code) and f"indicators['{dict_ind}']['{subkey}']" not in code:
+                code = re.sub(pattern, replacement, code)
+
     return code
 
 
@@ -1846,8 +1981,10 @@ def _validate_llm_logic_block(logic: str) -> tuple[bool, str]:
     """Valide le bloc logique LLM avant assemblage final."""
     if not logic.strip():
         return False, _err(ERR_CLASS, "Bloc logique LLM vide.")
-    if ".iloc[" in logic:
-        return False, _err(ERR_SIG, "`.iloc[` interdit dans la logique Builder.")
+    # Autoriser signals.iloc[:warmup] (slice warmup du template) mais interdire
+    # tout autre .iloc[ (accès indexé non-vectorisé)
+    if re.search(r"\.iloc\[(?!\s*:)", logic):
+        return False, _err(ERR_SIG, "`.iloc[i]` interdit (accès indexé). Seul `signals.iloc[:warmup]` est autorisé.")
     if re.search(r"\bfor\s+\w+\s+in\s+range\s*\(", logic):
         return False, _err(ERR_SIG, "`for i in range(...)` interdit dans la logique Builder.")
     if re.search(r"\bwhile\b", logic):
@@ -1968,6 +2105,9 @@ def _build_deterministic_strategy_code(
         f"{specs_block}\n"
         "    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:\n"
         "        signals = pd.Series(0.0, index=df.index, dtype=np.float64)\n"
+        "        n = len(df)\n"
+        "        long_mask = np.zeros(n, dtype=bool)\n"
+        "        short_mask = np.zeros(n, dtype=bool)\n"
         "        # === LOGIQUE LLM INSÉRÉE ICI UNIQUEMENT ===\n"
         f"{logic_block}\n"
         "        return signals\n"
@@ -3693,13 +3833,19 @@ class StrategyBuilder:
             "pass what you need as arguments.\n"
             "- Use indicators dict correctly (dict indicators via sub-keys)\n"
             "- Indicator values are numpy arrays; never call .iloc/.loc on indicators\n"
-            "- Use bollinger as indicators['bollinger']['upper|middle|lower'] only\n"
-            "- Use adx as indicators['adx']['adx|plus_di|minus_di'] only\n"
-            "- Use supertrend as indicators['supertrend']['supertrend|direction'] only\n"
-            "- Use stochastic as indicators['stochastic']['stoch_k|stoch_d'] only\n"
+            "- Plain arrays (no sub-keys): ema, rsi, atr, cci, obv, mfi\n"
+            "- Dict indicators (access sub-keys first):\n"
+            "  bollinger['upper|middle|lower'], keltner['upper|middle|lower'],\n"
+            "  donchian['upper|middle|lower'], macd['macd|signal|histogram'],\n"
+            "  adx['adx|plus_di|minus_di'], supertrend['supertrend|direction'],\n"
+            "  stochastic['stoch_k|stoch_d'], stoch_rsi['k|d|signal'],\n"
+            "  ichimoku['tenkan|kijun|senkou_a|senkou_b|chikou|cloud_position'],\n"
+            "  psar['sar|trend|signal'], vortex['vi_plus|vi_minus|signal|oscillator'],\n"
+            "  aroon['aroon_up|aroon_down'], pivot_points['pivot|r1|s1|r2|s2|r3|s3']\n"
+            "- NEVER create bare variables like keltner_upper or donchian_lower\n"
             "- Do NOT compare dict indicators directly (e.g. avoid `adx > threshold`)\n"
             "- For bitwise `&` / `|`, each side must be a boolean mask expression\n"
-            "- ema/rsi/atr are arrays: do not use sub-keys like indicators['ema']['ema_21']\n"
+            "- ALWAYS define long_mask/short_mask before using: long_mask = np.zeros(len(df), dtype=bool)\n"
             "- Do not use df['rsi']/df['ema']/df['bollinger']\n"
             "- Return only Python code in one ```python block\n\n"
             f"Current proposal context: {proposal}\n\n"
@@ -3708,22 +3854,34 @@ class StrategyBuilder:
             f"{failing_code}\n"
             "```"
         )
-        response = self._chat_llm(
-            messages=[
-                LLMMessage(
-                    role="system",
-                    content=(
-                        "You are a senior Python quant developer. "
-                        "Fix runtime errors in trading strategy code. "
-                        "Output code only."
+        try:
+            response = self._chat_llm(
+                messages=[
+                    LLMMessage(
+                        role="system",
+                        content=(
+                            "You are a senior Python quant developer. "
+                            "Fix runtime errors in trading strategy code. "
+                            "Output code only."
+                        ),
                     ),
-                ),
-                LLMMessage(role="user", content=prompt),
-            ],
-            phase="retry_code_runtime",
-            max_tokens=4096,
-        )
-        return _extract_python_from_response(response.content)
+                    LLMMessage(role="user", content=prompt),
+                ],
+                phase="retry_code_runtime",
+                max_tokens=4096,
+            )
+            return _extract_python_from_response(response.content)
+        except Exception as llm_exc:
+            logger.error(
+                "retry_code_runtime_fix LLM call failed: %s\n"
+                "runtime_error=%s\nfailing_code (first 500 chars)=%.500s",
+                llm_exc,
+                runtime_error,
+                failing_code,
+            )
+            # Return empty string to let the orchestrator fall back to
+            # deterministic fallback code instead of crashing.
+            return ""
 
     def _ask_analysis(
         self,
@@ -3890,15 +4048,27 @@ CRITICAL RULES:
 14. For dict indicators (bollinger/macd/adx/stochastic/etc), access sub-keys before np.nan_to_num.
 15. Indicator values are numpy arrays (or dict of numpy arrays): NEVER use .iloc/.loc/.shift/.rolling on indicators.
 16. Bollinger must be used as indicators['bollinger']['upper|middle|lower'] (never indicators['bollinger_upper']).
-17. EMA/RSI/ATR are plain arrays: NEVER use sub-keys like indicators['ema']['ema_21'].
+17. EMA/RSI/ATR/CCI are plain arrays: NEVER use sub-keys like indicators['ema']['ema_21'].
+    CCI is a plain array: use np.nan_to_num(indicators['cci']) directly.
 18. ADX must be used as indicators['adx']['adx|plus_di|minus_di'] (never compare indicators['adx'] directly).
 19. Supertrend must be used as indicators['supertrend']['supertrend|direction'] (no upper/lower keys).
 20. Stochastic must be used as indicators['stochastic']['stoch_k|stoch_d'] (no 'signal' key).
-21. For bitwise '&' and '|', both sides must be boolean mask expressions (never float/int scalars).
-22. ALWAYS set "leverage": 1 in default_params. The backtest engine defaults to leverage=3 which ruins accounts.
-23. Never assign `required_indicators` anywhere.
-24. Never use `for i in range(...)` or `while` in signal logic.
-23. To implement ATR-based SL/TP, write price levels into the DataFrame columns:
+21. Keltner must be used as indicators['keltner']['upper|middle|lower'] (same pattern as Bollinger).
+22. Donchian must be used as indicators['donchian']['upper|middle|lower'] (same pattern as Bollinger).
+23. Ichimoku must be used as indicators['ichimoku']['tenkan|kijun|senkou_a|senkou_b|chikou|cloud_position'].
+24. PSAR must be used as indicators['psar']['sar|trend|signal'].
+25. Vortex must be used as indicators['vortex']['vi_plus|vi_minus|signal|oscillator'].
+26. Stoch_RSI must be used as indicators['stoch_rsi']['k|d|signal'] (NEVER compare indicators['stoch_rsi'] directly).
+27. Aroon must be used as indicators['aroon']['aroon_up|aroon_down'].
+28. Pivot_points must be used as indicators['pivot_points']['pivot|r1|s1|r2|s2|r3|s3'].
+29. NEVER create bare variables like keltner_upper, donchian_lower, cci_value etc.
+    Always extract from the indicators dict: e.g. kelt = indicators['keltner']; upper = np.nan_to_num(kelt['upper']).
+30. For bitwise '&' and '|', both sides must be boolean mask expressions (never float/int scalars).
+31. ALWAYS set "leverage": 1 in default_params. The backtest engine defaults to leverage=3 which ruins accounts.
+32. Never assign `required_indicators` anywhere.
+33. Never use `for i in range(...)` or `while` in signal logic.
+34. ALWAYS define long_mask/short_mask before using them. Initialize with: long_mask = np.zeros(len(df), dtype=bool).
+35. To implement ATR-based SL/TP, write price levels into the DataFrame columns:
     - df.loc[:, "bb_stop_long"] = entry_price - stop_atr_mult * atr  (NaN where no entry)
     - df.loc[:, "bb_tp_long"]   = entry_price + tp_atr_mult * atr    (NaN where no entry)
     - df.loc[:, "bb_stop_short"] / df.loc[:, "bb_tp_short"] for short positions.
@@ -4013,7 +4183,20 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
         original_generate_signals = strategy_instance.generate_signals
 
         def _guarded_generate_signals(df_local, indicators_local, params_local):
-            raw = original_generate_signals(df_local, indicators_local, params_local)
+            try:
+                raw = original_generate_signals(df_local, indicators_local, params_local)
+            except IndexError as exc:
+                # Enrichir le message pour que l'auto-fix LLM comprenne la cause
+                raise IndexError(
+                    f"{exc}. "
+                    f"FIX: a boolean mask used for indexing has the wrong length. "
+                    f"df has {len(df_local)} rows. Every boolean mask MUST also "
+                    f"have exactly {len(df_local)} elements. "
+                    f"Common cause: np.diff() returns n-1 elements, or "
+                    f"array[window:] returns n-window elements. "
+                    f"Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with "
+                    f"conditional fill instead of slicing."
+                ) from exc
             return _coerce_and_validate_signals_runtime(raw, df_local)
 
         strategy_instance.generate_signals = _guarded_generate_signals
@@ -4699,6 +4882,46 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                         diag.get("change_type", "logic")
                     )
                 ts.diagnostic(diag)
+
+                positive_required = _required_positive_count_for_iteration(i)
+                if positive_required > 0:
+                    positive_count = _count_positive_iterations(session.iterations)
+                    if _is_positive_progress_iteration(metrics_cur):
+                        positive_count += 1
+                    iteration.phase_feedback.setdefault("decision", {})[
+                        "positive_progress_gate"
+                    ] = {
+                        "iteration": i,
+                        "required_positive": positive_required,
+                        "observed_positive": positive_count,
+                    }
+                    if positive_count < positive_required:
+                        gate_msg = (
+                            "Arrêt anticipé: progression positive insuffisante "
+                            f"au checkpoint {i} ({positive_count}/{positive_required})."
+                        )
+                        ts.warning(gate_msg)
+                        logger.info(
+                            "builder_iter_%d_positive_gate_stop observed=%d required=%d",
+                            i,
+                            positive_count,
+                            positive_required,
+                        )
+                        iteration.analysis = (
+                            "[Policy] early stop triggered by positive progression gate "
+                            f"at iteration {i}: {positive_count}/{positive_required}."
+                        )
+                        iteration.decision = "stop"
+                        session.iterations.append(iteration)
+                        last_iteration = iteration
+                        session.status = "failed"
+                        break
+                    logger.info(
+                        "builder_iter_%d_positive_gate_pass observed=%d required=%d",
+                        i,
+                        positive_count,
+                        positive_required,
+                    )
 
                 logger.info(
                     "builder_iter_%d_analysis diag=%s sev=%s",
