@@ -67,7 +67,7 @@ Required behavior:
 {% if iteration_history and iteration_history|length > 0 %}
 ## ITERATION HISTORY (LAST 5)
 {% for h in iteration_history %}
-- iter={{ h.iteration }} change={{ h.change_type|default("?") }} sharpe={{ h.sharpe|default("N/A") }} trades={{ h.trades|default("N/A") }} diag={{ h.diagnostic_category|default("-") }}{% if h.error %} error={{ h.error }}{% endif %}
+- iter={{ h.iteration }} change={{ h.change_type|default("?") }} sharpe={{ h.sharpe|default("N/A") }} trades={{ h.trades|default("N/A") }} diag={{ h.diagnostic_category|default("-") }}{% if h.is_fallback %} [FALLBACK-NOT-SCORED]{% endif %}{% if h.error %} error={{ h.error }}{% endif %}
 {% endfor %}
 {% endif %}
 
@@ -78,6 +78,10 @@ Required behavior:
 - hypothesis and logic fields must be concrete and actionable.
 - Include ATR risk management in risk_management and params.
 - change_type must be exactly one of: logic, params, both, accept.
+- NEVER use pandas idioms (.iloc, .loc, .rolling, .shift, df['signal']) in logic fields.
+  Logic must describe vectorized numpy boolean conditions only.
+- SEMANTIC CHECKS: ATR is a distance (not a price), RSI/MFI are 0-100 oscillators.
+  Never compare close vs ATR directly; use ATR as a filter (e.g. ATR > threshold).
 
 ## REQUIRED JSON SCHEMA
 {

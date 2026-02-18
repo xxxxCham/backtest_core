@@ -28,6 +28,7 @@ Skip-if: Vous utilisez uniquement les stratégies existantes ou l'AutonomousStra
 from __future__ import annotations
 
 import ast
+import concurrent.futures
 import hashlib
 import importlib.util
 import json
@@ -84,6 +85,20 @@ MIN_RETURN_PCT_FOR_ACCEPT = 0.0
 MAX_DETERMINISTIC_FALLBACKS = 4
 PROPOSAL_REALIGN_ATTEMPTS = 1
 MIN_BUILDER_BARS = 300
+
+# Per-phase LLM call timeouts (seconds).
+# Prevents single outlier calls (e.g. 8-minute code generation) from
+# blocking the entire session. Env-overridable.
+_LLM_PHASE_TIMEOUT_PROPOSAL = int(os.getenv("BACKTEST_BUILDER_TIMEOUT_PROPOSAL", "120"))
+_LLM_PHASE_TIMEOUT_CODE = int(os.getenv("BACKTEST_BUILDER_TIMEOUT_CODE", "180"))
+_LLM_PHASE_TIMEOUT_ANALYSIS = int(os.getenv("BACKTEST_BUILDER_TIMEOUT_ANALYSIS", "90"))
+_LLM_PHASE_TIMEOUT_DEFAULT = int(os.getenv("BACKTEST_BUILDER_TIMEOUT_DEFAULT", "120"))
+
+_LLM_PHASE_TIMEOUTS: Dict[str, int] = {
+    "proposal": _LLM_PHASE_TIMEOUT_PROPOSAL,
+    "code": _LLM_PHASE_TIMEOUT_CODE,
+    "analysis": _LLM_PHASE_TIMEOUT_ANALYSIS,
+}
 
 # Mode safe-path JSON+DSL (off|prefer|strict)
 SAFE_PATH_MODE_ENV = "BACKTEST_BUILDER_SAFE_PATH"
@@ -282,6 +297,7 @@ class BuilderIteration:
     diagnostic_detail: Dict[str, Any] = field(default_factory=dict)
     phase_feedback: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
+    is_fallback: bool = False  # True if deterministic fallback was used
 
 
 @dataclass
@@ -1019,10 +1035,16 @@ def _is_positive_progress_iteration(metrics: Dict[str, Any]) -> bool:
 
 
 def _count_positive_iterations(iterations: List[BuilderIteration]) -> int:
-    """Compte les itérations backtestées positives dans l'historique de session."""
+    """Compte les itérations backtestées positives dans l'historique de session.
+
+    Fallback iterations (deterministic code) are excluded: they don't
+    represent genuine LLM progress.
+    """
     count = 0
     for it in iterations:
         if it.backtest_result is None:
+            continue
+        if it.is_fallback:
             continue
         metrics = it.backtest_result.metrics or {}
         if _is_positive_progress_iteration(metrics):
@@ -1967,10 +1989,25 @@ def _normalize_signal_assignments(logic: str) -> str:
 def _postprocess_llm_logic_block(logic: str, required_indicators: List[str]) -> str:
     """Corrige automatiquement des fautes mineures de logique LLM."""
     fixed = logic
+    # Fix df['indicator_name'] -> indicators['indicator_name'] (required indicators)
     for ind in required_indicators:
         fixed = re.sub(
             rf"df\s*\[\s*['\"]{re.escape(ind)}['\"]\s*\]",
             f"indicators['{ind}']",
+            fixed,
+        )
+    # Fix df['signal'] = X -> signals[...] = X (common LLM mistake)
+    fixed = re.sub(
+        r"df\s*\[\s*['\"]signals?['\"]\s*\]",
+        "signals",
+        fixed,
+    )
+    # Fix flat alias patterns: bollinger_upper -> indicators['bollinger']['upper'] etc.
+    for alias, correct in _INDICATOR_ALIAS_HINTS.items():
+        # Only fix bare-name usage (not already inside quotes/brackets)
+        fixed = re.sub(
+            rf"(?<!['\"\[])\b{re.escape(alias)}\b(?!['\"\]])",
+            correct,
             fixed,
         )
     fixed = _normalize_signal_assignments(fixed)
@@ -2568,6 +2605,26 @@ def _sanitize_proposal_payload(
         cleaned["hypothesis"] = "Ajustement structurel basé sur le diagnostic précédent."
 
     cleaned["strategy_name"] = str(cleaned.get("strategy_name", "builder_strategy") or "builder_strategy").strip()
+
+    # Scrub proposal logic fields: rewrite pandas idioms into numpy/vectorized hints.
+    # This catches cases where the LLM embeds .iloc / df['signal'] / .rolling in
+    # natural-language logic descriptions, which later leak into code generation.
+    _PROPOSAL_SCRUB_PATTERNS = [
+        (re.compile(r"\.iloc\b"), " (use numpy boolean indexing)"),
+        (re.compile(r"\.loc\b"), " (use numpy boolean indexing)"),
+        (re.compile(r"\.rolling\b"), " (pre-computed by indicator)"),
+        (re.compile(r"\.shift\b"), " (use np.roll)"),
+        (re.compile(r"\.ewm\b"), " (pre-computed by indicator)"),
+        (re.compile(r"df\s*\[\s*['\"]signal['\"]\s*\]"), "signals array"),
+    ]
+    for key in ("entry_long_logic", "entry_short_logic", "exit_logic"):
+        val = cleaned.get(key, "")
+        if not isinstance(val, str):
+            continue
+        for pat, repl in _PROPOSAL_SCRUB_PATTERNS:
+            val = pat.sub(repl, val)
+        cleaned[key] = val
+
     return cleaned
 
 
@@ -3335,26 +3392,48 @@ class StrategyBuilder:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
     ) -> Any:
-        """Appel LLM avec streaming optionnel.
+        """Appel LLM avec streaming optionnel et timeout par phase.
 
         Si ``self.stream_callback`` est défini et que le client supporte
         ``chat_stream``, chaque token généré est relayé via
         ``stream_callback(phase, chunk)`` à l'UI.
+
+        Un timeout par phase empêche les outliers de bloquer la session
+        (ex: un appel code qui prend 8 min au lieu de 15 s en médiane).
         """
-        if self.stream_callback and hasattr(self.llm, "chat_stream"):
-            return self.llm.chat_stream(
+        # Resolve phase-specific timeout
+        base_phase = phase.split("_")[0] if phase else ""
+        timeout_sec = _LLM_PHASE_TIMEOUTS.get(
+            base_phase, _LLM_PHASE_TIMEOUT_DEFAULT
+        )
+
+        def _do_call():
+            if self.stream_callback and hasattr(self.llm, "chat_stream"):
+                return self.llm.chat_stream(
+                    messages,
+                    on_chunk=lambda c: self.stream_callback(phase, c),
+                    json_mode=json_mode,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            return self.llm.chat(
                 messages,
-                on_chunk=lambda c: self.stream_callback(phase, c),
                 json_mode=json_mode,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-        return self.llm.chat(
-            messages,
-            json_mode=json_mode,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(_do_call)
+            try:
+                return future.result(timeout=timeout_sec)
+            except concurrent.futures.TimeoutError:
+                logger.warning(
+                    "builder_llm_timeout phase=%s timeout=%ds",
+                    phase, timeout_sec,
+                )
+                # Return a stub response so callers can handle gracefully
+                return SimpleNamespace(content="")
 
     # ------------------------------------------------------------------
     # Session helpers
@@ -3459,6 +3538,7 @@ class StrategyBuilder:
                         if it.backtest_result else None
                     ),
                     "error": it.error,
+                    "is_fallback": it.is_fallback,
                 }
                 for it in session.iterations[-5:]
             ]
@@ -4020,6 +4100,15 @@ RULES:
 - Never output placeholder values (e.g. "brief description", "when to BUY")
 - This phase is proposal-only: NEVER output Python code
 
+SEMANTIC CORRECTNESS:
+- ATR is a volatility/distance metric, NOT a price level. Never compare close vs ATR directly.
+  Good: "close crosses below lower Bollinger band AND ATR > threshold (volatile regime)"
+  Bad: "EMA crosses above ATR" (meaningless — different units)
+- Bollinger/Keltner/Donchian bands ARE price levels — compare close vs band.
+- RSI/Stochastic/MFI are oscillators (0-100) — compare vs thresholds, not price.
+- ADX measures trend strength (0-100) — use as a filter (ADX > 25), not as entry signal.
+- Always ensure comparisons are between values of the same nature (price vs price, oscillator vs threshold).
+
 Focus on signal quality, risk management, and robustness."""
 
     @staticmethod
@@ -4073,6 +4162,16 @@ CRITICAL RULES:
     - df.loc[:, "bb_tp_long"]   = entry_price + tp_atr_mult * atr    (NaN where no entry)
     - df.loc[:, "bb_stop_short"] / df.loc[:, "bb_tp_short"] for short positions.
     The simulator reads these columns automatically. Only write values on entry signal bars (NaN elsewhere).
+
+COMMON MISTAKES (BAD → GOOD):
+  BAD: rsi = df['rsi']                    → GOOD: rsi = np.nan_to_num(indicators['rsi'])
+  BAD: upper = indicators['bollinger_upper'] → GOOD: upper = np.nan_to_num(indicators['bollinger']['upper'])
+  BAD: signals.iloc[i] = 1.0              → GOOD: signals[long_mask] = 1.0
+  BAD: atr.rolling(14).mean()             → GOOD: (already computed, just use the array)
+  BAD: df['signal'] = 1                   → GOOD: signals[mask] = 1.0
+  BAD: for i in range(n): signals[i]=...  → GOOD: signals[long_mask] = 1.0
+  BAD: mask = close[50:] > ema[50:]       → GOOD: mask = (close > ema)  # full-length arrays
+  BAD: diff = np.diff(close)              → GOOD: diff = np.insert(np.diff(close), 0, 0.0)  # keep length n
 
 The logic block must be ready to execute inside generate_signals with ZERO modifications."""
 
@@ -4830,13 +4929,31 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                 consecutive_failures = 0
 
                 # ── Phase 6 : Mise à jour best ──
+                # Detect if this iteration used a deterministic fallback
+                _code_fb = iteration.phase_feedback.get("code", {})
+                _prop_fb = iteration.phase_feedback.get("proposal", {})
+                if (
+                    _code_fb.get("fallback_deterministic_used")
+                    or _code_fb.get("source") == "deterministic_fallback"
+                    or _prop_fb.get("fallback_deterministic_used")
+                    or _code_fb.get("runtime_fix_fallback_deterministic_used")
+                ):
+                    iteration.is_fallback = True
+
                 metrics_cur = bt_result.metrics or {}
                 sharpe = _metric_float(metrics_cur, "sharpe_ratio", float("-inf"))
                 rank_sharpe = _ranking_sharpe(metrics_cur)
-                if rank_sharpe > session.best_sharpe:
+                # Fallback iterations are NOT eligible for best — they use
+                # generic deterministic logic, not the LLM's actual proposal.
+                if rank_sharpe > session.best_sharpe and not iteration.is_fallback:
                     session.best_sharpe = rank_sharpe
                     session.best_iteration = iteration
                     ts.best_update(rank_sharpe, i)
+                elif iteration.is_fallback:
+                    logger.info(
+                        "builder_iter_%d_fallback_not_scored rank_sharpe=%.3f",
+                        i, rank_sharpe,
+                    )
 
                 # ── Phase 6b : Détection de stagnation ──
                 cur_fp = _metrics_fingerprint(metrics_cur)
@@ -5113,6 +5230,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                         it.diagnostic_detail.get("score_card")
                         if it.diagnostic_detail else None
                     ),
+                    "is_fallback": it.is_fallback,
                     "phase_feedback": it.phase_feedback or None,
                 }
                 for it in session.iterations

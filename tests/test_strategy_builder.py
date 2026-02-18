@@ -218,7 +218,8 @@ class TestValidateCode:
         """)
         is_valid, msg = validate_generated_code(code)
         assert not is_valid
-        assert "iloc" in msg.lower()
+        # May be rejected for iloc or for-range (both are banned patterns)
+        assert "iloc" in msg.lower() or "range" in msg.lower()
 
     def test_reject_unknown_indicator_alias(self):
         code = textwrap.dedent(f"""\
