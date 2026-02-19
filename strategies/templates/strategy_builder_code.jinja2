@@ -107,6 +107,11 @@ BOTH MODE:
 - Never do `np.nan_to_num(indicators["bollinger"])` directly on a dict indicator.
 - Never access indicators via `df["rsi"]`, `df["bollinger"]`, `df["ema"]`.
 - Do not recalculate indicators from raw OHLCV.
+- If proposal logic contains `cross_up(x, y)` / `cross_down(x, y)` / `cross_any(x, y)`,
+  implement vectorized helpers only:
+  `prev_x = np.roll(x, 1); prev_y = np.roll(y, 1); prev_x[0] = np.nan; prev_y[0] = np.nan`
+  then `cross_up = (x > y) & (prev_x <= prev_y)`, `cross_down = (x < y) & (prev_x >= prev_y)`,
+  `cross_any = cross_up | cross_down`.
 - ALWAYS define `long_mask`/`short_mask` before using them: `long_mask = np.zeros(len(df), dtype=bool)`.
 - NEVER write `df["signal"]` or `df["signals"]`. Signal values go in the `signals` variable ONLY.
 - The ONLY columns you may write to `df` are: `bb_stop_long`, `bb_tp_long`, `bb_stop_short`, `bb_tp_short`, `sl_level`, `tp_level`.
@@ -215,6 +220,12 @@ class {{ class_name }}(StrategyBase):
         return signals
 ```
 
+## CODE COMPLETENESS — CRITICAL
+- Your code MUST be COMPLETE. Never truncate, abbreviate, or use "..." / "# ..." / "# etc".
+- Every boolean mask must be fully computed and applied to `signals`.
+- The function must end with `return signals`.
+- If you run out of space, simplify the logic rather than leaving it incomplete.
+
 ## NON-NEGOTIABLE RULES
 1. Use only imports: typing, numpy, pandas, StrategyBase, ParameterSpec.
 2. No os/subprocess/eval/exec/open/__import__.
@@ -222,3 +233,4 @@ class {{ class_name }}(StrategyBase):
 4. No placeholders, no TODO, no pass.
 5. Output Python code only.
 6. MUST include "leverage": 1 in default_params.
+7. Code MUST be complete — never output partial or truncated code.

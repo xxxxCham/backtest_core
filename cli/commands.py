@@ -221,6 +221,135 @@ def _print_metrics_summary(prefix: str, metrics: dict):
     )
 
 
+_RESULT_STORE_SINGLETON = None
+
+
+def _resolve_results_write_mode(args=None) -> str:
+    """Résout le mode de persistance résultats: legacy|shadow|v2."""
+    mode = getattr(args, "results_write_mode", None) if args is not None else None
+    if not mode:
+        mode = os.environ.get("BACKTEST_RESULTS_WRITE_MODE")
+    if not mode:
+        mode = "shadow"
+    mode = str(mode).strip().lower()
+    if mode not in {"legacy", "shadow", "v2"}:
+        mode = "shadow"
+    return mode
+
+
+def _should_persist_results_v2(args=None) -> bool:
+    return _resolve_results_write_mode(args) in {"shadow", "v2"}
+
+
+def _get_result_store():
+    global _RESULT_STORE_SINGLETON
+    if _RESULT_STORE_SINGLETON is None:
+        from backtest.result_store import ResultStore
+        root_dir = os.environ.get("BACKTEST_RESULTS_DIR", "backtest_results")
+        _RESULT_STORE_SINGLETON = ResultStore(root_dir)
+    return _RESULT_STORE_SINGLETON
+
+
+def _infer_result_status(metrics: dict, trades_count: int = 0) -> str:
+    """Déduit un statut standardisé pour l'index global."""
+    if not metrics:
+        return "invalid"
+    account_ruined = bool(metrics.get("account_ruined", False))
+    if account_ruined:
+        return "blown_up"
+    if trades_count <= 0:
+        return "no_trades"
+    return "ok"
+
+
+def _persist_backtest_result_v2(
+    *,
+    result,
+    mode: str,
+    data_path: Path,
+    strategy_name: str,
+    symbol: str,
+    timeframe: str,
+    args,
+    diagnostics: dict | None = None,
+) -> str | None:
+    """Persiste un RunResult via l'API centrale de stockage."""
+    if not _should_persist_results_v2(args):
+        return None
+
+    metrics = result.metrics.to_dict() if hasattr(result.metrics, "to_dict") else dict(result.metrics)
+    status = _infer_result_status(metrics, trades_count=len(result.trades))
+    try:
+        store = _get_result_store()
+        record = store.save_backtest_result(
+            result,
+            requested_run_id=result.meta.get("run_id"),
+            mode=mode,
+            status=status,
+            metadata_extra={
+                "strategy_name": strategy_name,
+                "strategy_module": result.meta.get("strategy_module"),
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "params": result.meta.get("params", {}),
+                "period_start": result.meta.get("period_start"),
+                "period_end": result.meta.get("period_end"),
+                "seed": getattr(args, "seed", None),
+                "data_source": {
+                    "path": str(data_path),
+                    "rows": len(result.equity) if hasattr(result, "equity") else None,
+                },
+                "engine_settings": {
+                    "initial_capital": getattr(args, "capital", None),
+                    "fees_bps": getattr(args, "fees_bps", None),
+                    "slippage_bps": getattr(args, "slippage_bps", None),
+                    "fast_metrics": getattr(args, "fast_metrics", None),
+                },
+                "config_snapshot_extra": {
+                    "command": getattr(args, "command", None),
+                },
+            },
+            diagnostics=diagnostics,
+        )
+        return record.run_id
+    except Exception:
+        return None
+
+
+def _persist_summary_result_v2(
+    *,
+    mode: str,
+    strategy: str,
+    symbol: str,
+    timeframe: str,
+    params: dict,
+    metrics: dict,
+    diagnostics: dict,
+    metadata: dict | None = None,
+    run_id: str | None = None,
+    status: str = "ok",
+) -> str | None:
+    if not _should_persist_results_v2():
+        return None
+    try:
+        store = _get_result_store()
+        record = store.save_summary_run(
+            mode=mode,
+            strategy=strategy,
+            symbol=symbol,
+            timeframe=timeframe,
+            params=params,
+            metrics=metrics,
+            requested_run_id=run_id,
+            metadata_extra=metadata or {},
+            diagnostics=diagnostics,
+            status=status,
+        )
+        return record.run_id
+    except Exception:
+        return None
+
+
 def _to_native_value(value):
     """Normalise les scalaires numpy/pandas vers des types Python natifs."""
     if isinstance(value, np.generic):
@@ -700,6 +829,16 @@ def cmd_backtest(args) -> int:
         timeframe=timeframe
     )
 
+    persisted_run_id = _persist_backtest_result_v2(
+        result=result,
+        mode="backtest",
+        data_path=data_path,
+        strategy_name=strategy_name,
+        symbol=symbol,
+        timeframe=timeframe,
+        args=args,
+    )
+
     # Affichage résultats
     if not args.quiet:
         print()
@@ -708,6 +847,8 @@ def cmd_backtest(args) -> int:
         if result.meta.get("period_start") and result.meta.get("period_end"):
             print(f"    Period: {result.meta['period_start']} -> {result.meta['period_end']}")
         print(f"\n  Trades: {len(result.trades)}")
+        if persisted_run_id:
+            print(f"  Run ID: {persisted_run_id}")
 
     # Export si demandé
     if args.output:
@@ -998,6 +1139,37 @@ def cmd_sweep(args) -> int:
         if not args.quiet:
             print()
             print_success(f"Résultats exportés: {output_path} ({output_format})")
+
+    best_entry = results[0] if results else {"params": {}, "metrics": {}}
+    persisted_run_id = _persist_summary_result_v2(
+        mode="sweep",
+        strategy=strategy_name,
+        symbol=symbol,
+        timeframe=timeframe,
+        params=best_entry.get("params", {}) or {},
+        metrics=best_entry.get("metrics", {}) or {},
+        diagnostics={
+            "results": results,
+            "n_combinations": len(grid),
+            "metric": args.metric,
+            "granularity": args.granularity,
+        },
+        metadata={
+            "period_start": str(df.index[0]) if len(df) else None,
+            "period_end": str(df.index[-1]) if len(df) else None,
+            "seed": getattr(args, "seed", None),
+            "engine_settings": {
+                "initial_capital": args.capital,
+                "fees_bps": args.fees_bps,
+                "slippage_bps": args.slippage_bps,
+            },
+            "data_source": {"path": str(data_path), "rows": len(df)},
+            "config_snapshot_extra": {"command": "sweep", "top": args.top},
+        },
+        status="ok" if results else "invalid",
+    )
+    if persisted_run_id and not args.quiet:
+        print_success(f"Run sweep indexé: {persisted_run_id}")
 
     return 0
 
@@ -1488,6 +1660,64 @@ def cmd_optuna(args) -> int:
 
         if not args.quiet:
             print_success(f"Résultats exportés: {output_path}")
+
+    if args.multi_objective:
+        top_solution = (result.pareto_front[0] if result.pareto_front else {}) if result else {}
+        if isinstance(top_solution, dict):
+            metric_keys = set(metrics) if "metrics" in locals() else set()
+            reserved = {"trial"} | metric_keys
+            persist_params = {k: v for k, v in top_solution.items() if k not in reserved}
+        else:
+            persist_params = {}
+        persist_metrics = {}
+        diagnostics = {
+            "type": "optuna_multi_objective",
+            "metrics": metrics,
+            "pareto_front": result.pareto_front if result else [],
+            "n_trials": args.n_trials,
+        }
+    else:
+        persist_params = result.best_params if result else {}
+        persist_metrics = result.best_metrics if result else {}
+        diagnostics = {
+            "type": "optuna_single_objective",
+            "metric": args.metric,
+            "best_value": result.best_value if result else None,
+            "n_trials": args.n_trials,
+            "n_completed": result.n_completed if result else None,
+            "n_pruned": result.n_pruned if result else None,
+            "history": result.history if result else [],
+        }
+
+    persisted_run_id = _persist_summary_result_v2(
+        mode="optuna",
+        strategy=strategy_name,
+        symbol=symbol,
+        timeframe=timeframe,
+        params=persist_params or {},
+        metrics=persist_metrics or {},
+        diagnostics=diagnostics,
+        metadata={
+            "period_start": str(df.index[0]) if len(df) else args.start,
+            "period_end": str(df.index[-1]) if len(df) else args.end,
+            "seed": getattr(args, "seed", None),
+            "engine_settings": {
+                "initial_capital": args.capital,
+                "fees_bps": args.fees_bps,
+                "slippage_bps": args.slippage_bps,
+            },
+            "data_source": {"path": str(data_path), "rows": len(df)},
+            "config_snapshot_extra": {
+                "command": "optuna",
+                "sampler": args.sampler,
+                "pruner": args.pruner if args.pruning else "none",
+                "multi_objective": bool(args.multi_objective),
+            },
+        },
+        status="ok",
+    )
+    if persisted_run_id and not args.quiet:
+        print_success(f"Run optuna indexé: {persisted_run_id}")
 
     return 0
 
@@ -1981,6 +2211,41 @@ def cmd_llm_optimize(args) -> int:
             print()
             print_success(f"Résultats exportés: {output_path}")
 
+    best_entry = results[0] if results else {"params": {}, "metrics": {}}
+    persisted_run_id = _persist_summary_result_v2(
+        mode="grid_backtest",
+        strategy=args.strategy,
+        symbol=args.symbol,
+        timeframe=args.timeframe,
+        params=best_entry.get("params", {}) or {},
+        metrics=best_entry.get("metrics", {}) or {},
+        diagnostics={
+            "results": results,
+            "n_combinations": len(all_combinations),
+            "metric": args.metric,
+            "param_grid": param_grid,
+        },
+        metadata={
+            "period_start": str(df.index[0]) if len(df) else args.start,
+            "period_end": str(df.index[-1]) if len(df) else args.end,
+            "seed": getattr(args, "seed", None),
+            "engine_settings": {
+                "initial_capital": args.capital,
+                "fees_bps": args.fees_bps,
+                "slippage_bps": args.slippage_bps,
+            },
+            "data_source": {
+                "symbol": args.symbol,
+                "timeframe": args.timeframe,
+                "rows": len(df),
+            },
+            "config_snapshot_extra": {"command": "grid-backtest", "top": args.top},
+        },
+        status="ok" if results else "invalid",
+    )
+    if persisted_run_id and not args.quiet:
+        print_success(f"Run grille indexé: {persisted_run_id}")
+
     return 0
 
 
@@ -2210,6 +2475,36 @@ def cmd_grid_backtest(args) -> int:
         if not args.quiet:
             print()
             print_success(f"Résultats exportés: {output_path}")
+
+    persisted_run_id = _persist_summary_result_v2(
+        mode="agent",
+        strategy=args.strategy,
+        symbol=args.symbol,
+        timeframe=args.timeframe,
+        params=result.final_params or {},
+        metrics=result.final_metrics or {},
+        diagnostics={
+            "decision": result.decision,
+            "iterations": result.iterations,
+            "reason": result.reason,
+            "history": result.history if hasattr(result, "history") else None,
+        },
+        metadata={
+            "period_start": args.start,
+            "period_end": args.end,
+            "seed": getattr(args, "seed", None),
+            "engine_settings": {"initial_capital": args.capital},
+            "data_source": {"symbol": args.symbol, "timeframe": args.timeframe, "rows": len(df)},
+            "config_snapshot_extra": {
+                "command": "llm-optimize",
+                "model": args.model,
+                "max_iterations": args.max_iterations,
+            },
+        },
+        status="ok" if result.decision == "APPROVED" else "invalid",
+    )
+    if persisted_run_id and not args.quiet:
+        print_success(f"Run agent indexé: {persisted_run_id}")
 
     return 0
 
@@ -2696,7 +2991,7 @@ def cmd_analyze(args) -> int:
             print_error(f"Impossible de lire {input_path}: {e}")
             return 1
     else:
-        # Mode historique index.json (legacy)
+        # Mode historique index.parquet (v2) ou index.json (legacy)
         results_dir = Path(args.results_dir)
         print(f"  Répertoire: {results_dir}")
         print()
@@ -2705,28 +3000,76 @@ def cmd_analyze(args) -> int:
             print_error(f"Répertoire non trouvé: {results_dir}")
             return 1
 
-        index_path = results_dir / "index.json"
-        if not index_path.exists():
-            print_error(f"Fichier index.json non trouvé dans {results_dir}")
-            return 1
-
-        with open(index_path, encoding="utf-8") as f:
-            index = json_module.load(f)
+        index_parquet = results_dir / "index.parquet"
+        index_csv = results_dir / "index.csv"
+        index_json = results_dir / "index.json"
 
         records = []
-        for run_id, data in index.items():
-            records.append(
-                {
-                    "run_id": run_id,
-                    "strategy": data.get("strategy", "N/A"),
-                    "symbol": data.get("symbol", "N/A"),
-                    "timeframe": data.get("timeframe", "N/A"),
-                    "period_start": data.get("period_start", "N/A"),
-                    "period_end": data.get("period_end", "N/A"),
-                    "params": data.get("params", {}) or {},
-                    "metrics": data.get("metrics", {}) or {},
-                }
-            )
+        if index_parquet.exists():
+            idx_df = pd.read_parquet(index_parquet)
+            for _, row in idx_df.iterrows():
+                records.append(
+                    {
+                        "run_id": str(row.get("run_id", "N/A")),
+                        "strategy": str(row.get("strategy", "N/A")),
+                        "symbol": str(row.get("symbol", "N/A")),
+                        "timeframe": str(row.get("timeframe", "N/A")),
+                        "period_start": "N/A",
+                        "period_end": "N/A",
+                        "params": {},
+                        "metrics": {
+                            "total_return_pct": float(row.get("total_return_pct", 0) or 0),
+                            "max_drawdown_pct": float(row.get("max_drawdown_pct", 0) or 0),
+                            "sharpe_ratio": float(row.get("sharpe", 0) or 0),
+                            "sortino_ratio": float(row.get("sortino", 0) or 0),
+                            "profit_factor": float(row.get("profit_factor", 0) or 0),
+                            "win_rate_pct": float(row.get("win_rate", 0) or 0),
+                            "total_trades": float(row.get("trades_count", 0) or 0),
+                        },
+                    }
+                )
+        elif index_csv.exists():
+            idx_df = pd.read_csv(index_csv)
+            for _, row in idx_df.iterrows():
+                records.append(
+                    {
+                        "run_id": str(row.get("run_id", "N/A")),
+                        "strategy": str(row.get("strategy", "N/A")),
+                        "symbol": str(row.get("symbol", "N/A")),
+                        "timeframe": str(row.get("timeframe", "N/A")),
+                        "period_start": "N/A",
+                        "period_end": "N/A",
+                        "params": {},
+                        "metrics": {
+                            "total_return_pct": float(row.get("total_return_pct", 0) or 0),
+                            "max_drawdown_pct": float(row.get("max_drawdown_pct", 0) or 0),
+                            "sharpe_ratio": float(row.get("sharpe", 0) or 0),
+                            "sortino_ratio": float(row.get("sortino", 0) or 0),
+                            "profit_factor": float(row.get("profit_factor", 0) or 0),
+                            "win_rate_pct": float(row.get("win_rate", 0) or 0),
+                            "total_trades": float(row.get("trades_count", 0) or 0),
+                        },
+                    }
+                )
+        elif index_json.exists():
+            with open(index_json, encoding="utf-8") as f:
+                index = json_module.load(f)
+            for run_id, data in index.items():
+                records.append(
+                    {
+                        "run_id": run_id,
+                        "strategy": data.get("strategy", "N/A"),
+                        "symbol": data.get("symbol", "N/A"),
+                        "timeframe": data.get("timeframe", "N/A"),
+                        "period_start": data.get("period_start", "N/A"),
+                        "period_end": data.get("period_end", "N/A"),
+                        "params": data.get("params", {}) or {},
+                        "metrics": data.get("metrics", {}) or {},
+                    }
+                )
+        else:
+            print_error(f"Aucun index trouvé dans {results_dir} (index.parquet / index.csv / index.json)")
+            return 1
 
     print_info(f"Nombre total de runs: {len(records)}")
     print()
@@ -3275,6 +3618,52 @@ def cmd_cycle(args) -> int:
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, default=str)
 
+    persisted_cycle_id = _persist_summary_result_v2(
+        mode="cycle",
+        strategy=args.strategy,
+        symbol=args.symbol or "UNKNOWN",
+        timeframe=args.timeframe or "N/A",
+        params=best_params,
+        metrics=full_metrics,
+        diagnostics=summary,
+        metadata={
+            "period_start": global_start,
+            "period_end": global_end,
+            "seed": getattr(args, "seed", None),
+            "engine_settings": {
+                "initial_capital": args.capital,
+                "fees_bps": args.fees_bps,
+                "slippage_bps": args.slippage_bps,
+            },
+            "data_source": {"path": str(data_path), "rows": len(df_window)},
+            "config_snapshot_extra": {
+                "command": "cycle",
+                "run_name": run_name,
+                "selected_source": best_source,
+            },
+        },
+        run_id=run_name,
+        status="ok",
+    )
+    if persisted_cycle_id and walk_forward_summary and _should_persist_results_v2():
+        try:
+            store = _get_result_store()
+            store.save_walk_forward_folds(
+                parent_run_id=persisted_cycle_id,
+                strategy=args.strategy,
+                symbol=args.symbol or "UNKNOWN",
+                timeframe=args.timeframe or "N/A",
+                params=best_params,
+                walk_forward_payload=walk_forward_summary,
+                metadata_extra={
+                    "period_start": global_start,
+                    "period_end": global_end,
+                    "seed": getattr(args, "seed", None),
+                },
+            )
+        except Exception:
+            pass
+
     if args.export_html:
         cmd_export(
             Namespace(
@@ -3337,6 +3726,8 @@ def cmd_cycle(args) -> int:
             return 2
     if report_written:
         print(f"  Rapport intéressant: {report_path}")
+    if persisted_cycle_id:
+        print(f"  Run cycle indexé: {persisted_cycle_id}")
     print(f"  Fichier résumé: {summary_path}")
 
     return 0
@@ -3453,6 +3844,47 @@ def cmd_builder(args) -> int:
             sharpe_str = f" | Sharpe={s:.3f}"
         error_str = f" | ⚠️ {it.error[:60]}" if it.error else ""
         print(f"  {icon} Iter {it.iteration}: {it.hypothesis[:50]}{sharpe_str}{error_str}")
+
+    best_bt = session.best_iteration.backtest_result if session.best_iteration else None
+    builder_metrics = {
+        "sharpe_ratio": getattr(best_bt, "sharpe_ratio", 0.0) if best_bt else 0.0,
+        "total_return_pct": getattr(best_bt, "total_return_pct", 0.0) if best_bt else 0.0,
+        "max_drawdown_pct": getattr(best_bt, "max_drawdown_pct", 0.0) if best_bt else 0.0,
+        "total_trades": getattr(best_bt, "total_trades", 0) if best_bt else 0,
+    }
+    persisted_builder_id = _persist_summary_result_v2(
+        mode="builder",
+        strategy="strategy_builder",
+        symbol="UNKNOWN",
+        timeframe="N/A",
+        params={},
+        metrics=builder_metrics,
+        diagnostics={
+            "objective": objective,
+            "session_id": session.session_id,
+            "status": session.status,
+            "iterations": len(session.iterations),
+            "best_iteration": session.best_iteration.iteration if session.best_iteration else None,
+            "session_dir": str(session.session_dir),
+        },
+        metadata={
+            "period_start": str(df.index[0]) if len(df) else None,
+            "period_end": str(df.index[-1]) if len(df) else None,
+            "seed": getattr(args, "seed", None),
+            "data_source": {"path": str(data_path), "rows": len(df)},
+            "config_snapshot_extra": {
+                "command": "builder",
+                "model": llm_config.model,
+                "max_iterations": args.max_iterations,
+                "target_sharpe": args.target_sharpe,
+                "session_id": session.session_id,
+            },
+        },
+        run_id=f"builder_{session.session_id}",
+        status="ok" if session.status in {"completed", "success"} else "invalid",
+    )
+    if persisted_builder_id:
+        print(f"  Run builder indexé: {persisted_builder_id}")
 
     print()
     return 0

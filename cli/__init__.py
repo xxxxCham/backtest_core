@@ -21,6 +21,7 @@ Skip-if: Vous appelez main() depuis __main__.py.
 """
 
 import argparse
+import os
 from typing import Optional
 
 from .commands import (
@@ -87,6 +88,15 @@ Exemples:
         "--config",
         type=str,
         help="Fichier de configuration TOML"
+    )
+    common_parser.add_argument(
+        "--results-write-mode",
+        choices=["legacy", "shadow", "v2"],
+        default=None,
+        help=(
+            "Mode persistance résultats: legacy (ancien), shadow (double écriture), "
+            "v2 (nouveau store uniquement)"
+        ),
     )
 
     # Sous-commandes
@@ -1109,6 +1119,8 @@ def main(args: Optional[list] = None) -> int:
     # Configuration globale
     import numpy as np
     np.random.seed(parsed.seed)
+    if getattr(parsed, "results_write_mode", None):
+        os.environ["BACKTEST_RESULTS_WRITE_MODE"] = parsed.results_write_mode
 
     # Dispatcher vers la commande appropriée
     commands = {

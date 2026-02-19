@@ -80,7 +80,12 @@ from utils.observability import is_debug_enabled, set_log_level
 from utils.parameters import normalize_param_ranges
 
 try:
-    from agents.strategy_builder import get_catalog_coverage, reset_catalog_exploration
+    from agents.strategy_builder import (
+        generate_random_objective,
+        get_catalog_coverage,
+        get_next_catalog_objective,
+        reset_catalog_exploration,
+    )
     _CATALOG_AVAILABLE = True
 except ImportError:
     _CATALOG_AVAILABLE = False
@@ -1308,6 +1313,30 @@ def render_sidebar() -> SidebarState:
         if isinstance(pending_objective_sync, str):
             # Assignation autorisée ici: la clé widget n'est pas encore instanciée.
             st.session_state["builder_objective_input"] = pending_objective_sync
+
+        # ── Bouton objectif aléatoire (mode manuel uniquement) ──
+        if not builder_autonomous and _CATALOG_AVAILABLE:
+            if st.sidebar.button(
+                "🎲 Objectif aléatoire",
+                key="builder_random_objective_btn",
+                help="Pré-remplit avec un objectif du catalogue. Vous pouvez le modifier avant de lancer.",
+            ):
+                _sym = (
+                    st.session_state.get("selected_symbol")
+                    or "BTCUSDC"
+                )
+                _tf = (
+                    st.session_state.get("selected_timeframe")
+                    or "1h"
+                )
+                _cat = get_next_catalog_objective(symbol=_sym, timeframe=_tf)
+                if _cat is not None:
+                    _rand_obj, _ = _cat
+                else:
+                    _rand_obj = generate_random_objective(symbol=_sym, timeframe=_tf)
+                st.session_state["builder_objective"] = _rand_obj
+                st.session_state["builder_objective_input"] = _rand_obj
+                st.rerun()
 
         builder_objective = st.sidebar.text_area(
             "🎯 Objectif de la stratégie",

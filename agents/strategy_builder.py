@@ -98,6 +98,7 @@ _LLM_PHASE_TIMEOUTS: Dict[str, int] = {
     "proposal": _LLM_PHASE_TIMEOUT_PROPOSAL,
     "code": _LLM_PHASE_TIMEOUT_CODE,
     "analysis": _LLM_PHASE_TIMEOUT_ANALYSIS,
+    "pre": _LLM_PHASE_TIMEOUT_ANALYSIS,  # pre_reflection — same budget as analysis
 }
 
 # Mode safe-path JSON+DSL (off|prefer|strict)
@@ -621,7 +622,10 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
             arg_names = {a.arg for a in item.args.args}
             arg_names.update(a.arg for a in item.args.kwonlyargs)
             load_names, store_names = _collect_name_load_store_sets(item)
-            for core in ("df", "indicators", "params"):
+            core_names = ("df", "indicators", "params")
+            if item.name == "generate_signals":
+                core_names = ("df", "indicators", "params", "warmup")
+            for core in core_names:
                 if core in load_names and core not in arg_names and core not in store_names:
                     return (
                         False,
@@ -652,6 +656,31 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
                     ERR_CLASS,
                     "required_indicators est en lecture seule: assignation interdite.",
                 )
+
+    # 3f-bis. Éviter l'écrasement des aliases d'import numpy/pandas.
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != GENERATED_CLASS_NAME:
+            continue
+        for item in node.body:
+            if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for sub in ast.walk(item):
+                if isinstance(sub, ast.Assign):
+                    targets = sub.targets
+                elif isinstance(sub, ast.AnnAssign):
+                    targets = [sub.target]
+                elif isinstance(sub, ast.AugAssign):
+                    targets = [sub.target]
+                else:
+                    continue
+                for target in targets:
+                    if isinstance(target, ast.Name) and target.id in {"np", "pd"}:
+                        return False, _err(
+                            ERR_CLASS,
+                            f"Alias réservé `{target.id}` écrasé dans `{item.name}`. "
+                            f"Ne jamais réassigner `{target.id}`.",
+                        )
+        break
 
     # 3g. Écriture df limitée aux colonnes SL/TP autorisées
     ohlcv_cols = {"open", "high", "low", "close", "volume"}
@@ -713,7 +742,7 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
         known_indicators = set()
 
     # 5b. Indicateurs inconnus via indicators[...] / indicators.get(...)
-    used_indicators = _collect_indicator_names(tree)
+    used_indicators = _collect_indicator_names(tree) | _collect_indicator_names_in_class(tree)
     if known_indicators and used_indicators:
         unknown = sorted(
             {
@@ -722,6 +751,20 @@ def validate_generated_code(code: str) -> tuple[bool, str]:
             }
         )
         if unknown:
+            ohlcv_and_runtime_cols = {
+                "open", "high", "low", "close", "volume",
+                *_BUILDER_ALLOWED_WRITE_DF_COLUMNS,
+            }
+            wrong_df_cols = [name for name in unknown if name.lower() in ohlcv_and_runtime_cols]
+            if wrong_df_cols:
+                return (
+                    False,
+                    _err(
+                        ERR_IND,
+                        "Colonnes de prix/runtime utilisées via `indicators[...]`: "
+                        f"{wrong_df_cols}. Utiliser `df['colonne']` pour OHLCV/SL-TP.",
+                    ),
+                )
             hints = [
                 f"{name} -> {_INDICATOR_ALIAS_HINTS[name.lower()]}"
                 for name in unknown
@@ -1198,6 +1241,23 @@ def _collect_indicator_names(tree: ast.AST) -> set[str]:
     return names
 
 
+def _collect_indicator_names_in_class(tree: ast.AST) -> set[str]:
+    """Collecte les indicateurs référencés dans toute la classe générée."""
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name != GENERATED_CLASS_NAME:
+            continue
+        for sub in ast.walk(node):
+            sub_name = _indicator_name_from_subscript(sub)
+            if sub_name:
+                names.add(sub_name)
+            get_name = _indicator_name_from_get_call(sub)
+            if get_name:
+                names.add(get_name)
+        break
+    return names
+
+
 def _dict_indicator_key_is_valid(indicator_name: str, key: Any) -> bool:
     """Valide une sous-clé pour un indicateur dict connu."""
     if not isinstance(key, str):
@@ -1299,6 +1359,16 @@ def _validate_indicator_usage_semantics(code: str) -> tuple[bool, str]:
             # ndarray.shift(...) / ndarray.rolling(...)
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
                 attr = node.func.attr
+                if isinstance(node.func.value, ast.Name):
+                    var = node.func.value.id
+                    b = bindings.get(var)
+                    if b and b["kind"] == "dict" and attr not in {"get"}:
+                        return (
+                            False,
+                            f"Usage invalide: `{var}.{attr}(...)` alors que `{var}` est "
+                            "un indicator dict. Extraire une sous-clé puis travailler "
+                            "sur le ndarray correspondant.",
+                        )
                 if (
                     attr in {"shift", "rolling", "ewm"}
                     and isinstance(node.func.value, ast.Name)
@@ -1730,6 +1800,11 @@ def _inject_generate_signals_core_param_aliases(code: str) -> str:
             alias_raw.append(f"indicators = {ind_arg}")
         if "params" in load_names and "params" not in args and "params" not in store_names and params_arg != "params":
             alias_raw.append(f"params = {params_arg}")
+        if "warmup" in load_names and "warmup" not in args and "warmup" not in store_names:
+            warmup_source = "params"
+            if params_arg and params_arg in args and params_arg != "params":
+                warmup_source = params_arg
+            alias_raw.append(f"warmup = int({warmup_source}.get('warmup', 50))")
 
         if not alias_raw:
             continue
@@ -1946,6 +2021,44 @@ def _repair_code(code: str) -> str:
             if re.search(pattern, code) and f"indicators['{dict_ind}']['{subkey}']" not in code:
                 code = re.sub(pattern, replacement, code)
 
+    # 12. Normaliser les noms d'indicateurs en lowercase (évite KeyError: 'SMA')
+    code = re.sub(
+        r"indicators\s*\[\s*['\"]([A-Za-z0-9_]+)['\"]\s*\]",
+        lambda m: f"indicators['{m.group(1).lower()}']",
+        code,
+    )
+    code = re.sub(
+        r"indicators\.get\(\s*['\"]([A-Za-z0-9_]+)['\"]",
+        lambda m: f"indicators.get('{m.group(1).lower()}'",
+        code,
+    )
+
+    # 13. Notation pointée LLM (donchian.upper, adx.adx, ...) -> dict indicators.
+    for dict_ind, subkeys in _DICT_INDICATOR_ALLOWED_KEYS.items():
+        for subkey in subkeys:
+            code = re.sub(
+                rf"\b{re.escape(dict_ind)}\s*\.\s*{re.escape(subkey)}\b",
+                f"indicators['{dict_ind}']['{subkey}']",
+                code,
+                flags=re.IGNORECASE,
+            )
+
+    # 14. Colonnes OHLCV / runtime SL-TP doivent venir de df (pas indicators).
+    df_cols = {"open", "high", "low", "close", "volume", *_BUILDER_ALLOWED_WRITE_DF_COLUMNS}
+    for col in sorted(df_cols):
+        code = re.sub(
+            rf"indicators\s*\[\s*['\"]{re.escape(col)}['\"]\s*\]",
+            f"df['{col}']",
+            code,
+            flags=re.IGNORECASE,
+        )
+        code = re.sub(
+            rf"indicators\.get\(\s*['\"]{re.escape(col)}['\"]\s*(?:,\s*[^)]*)?\)",
+            f"df['{col}']",
+            code,
+            flags=re.IGNORECASE,
+        )
+
     return code
 
 
@@ -2026,7 +2139,9 @@ def _validate_llm_logic_block(logic: str) -> tuple[bool, str]:
         return False, _err(ERR_SIG, "`for i in range(...)` interdit dans la logique Builder.")
     if re.search(r"\bwhile\b", logic):
         return False, _err(ERR_SIG, "`while` interdit dans la logique Builder.")
-    if re.search(r"\bTrue\b|\bFalse\b", logic):
+    if re.search(r"\bsignals\s*(?:\.[A-Za-z_]\w*)?\s*\[[^\]]*\]\s*=\s*(?:True|False)\b", logic):
+        return False, _err(ERR_SIG, "Constantes booléennes True/False interdites dans les signaux.")
+    if re.search(r"\bsignals\s*=\s*(?:True|False)\b", logic):
         return False, _err(ERR_SIG, "Constantes booléennes True/False interdites dans les signaux.")
     return True, ""
 
@@ -2104,6 +2219,7 @@ def _build_deterministic_strategy_code(
     if not isinstance(default_params, dict):
         default_params = {}
     default_params.setdefault("leverage", 1)
+    default_params.setdefault("warmup", 50)
 
     default_params_literal = _format_python_dict_literal(default_params)
     default_params_lines = default_params_literal.splitlines() or ["{}"]
@@ -2143,10 +2259,12 @@ def _build_deterministic_strategy_code(
         "    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:\n"
         "        signals = pd.Series(0.0, index=df.index, dtype=np.float64)\n"
         "        n = len(df)\n"
+        "        warmup = int(params.get('warmup', 50))\n"
         "        long_mask = np.zeros(n, dtype=bool)\n"
         "        short_mask = np.zeros(n, dtype=bool)\n"
         "        # === LOGIQUE LLM INSÉRÉE ICI UNIQUEMENT ===\n"
         f"{logic_block}\n"
+        "        signals.iloc[:warmup] = 0.0\n"
         "        return signals\n"
     )
 
@@ -2165,6 +2283,7 @@ def _build_deterministic_fallback_code(
         0 — mean-reversion RSI/Bollinger + SL/TP ATR (impulsions, overtrading-safe)
         1 — trend-following Supertrend/ADX + SL/TP ATR (impulsions)
         2 — momentum RSI/EMA + SL/TP ATR (impulsions)
+        3 — breakout Donchian/ADX + SL/TP ATR (aligné archetype breakout)
     """
     strategy_name = str(proposal.get("strategy_name", "BuilderFallback")).strip()
     if not strategy_name:
@@ -2193,7 +2312,9 @@ def _build_deterministic_fallback_code(
     default_params.setdefault("tp_atr_mult", 3.0)
     default_params["leverage"] = 1  # Force leverage=1 (not setdefault)
 
-    effective_variant = variant % 3
+    effective_variant = variant % 4
+    if "donchian" in safe_used and "adx" in safe_used:
+        effective_variant = 3
 
     if effective_variant == 1:
         # ── Variante 1: trend-following Supertrend/ADX ──
@@ -2288,6 +2409,57 @@ def _build_deterministic_fallback_code(
             "        short_prev[:1] = False\n"
             "        long_entry = long_cond & (~long_prev)\n"
             "        short_entry = short_cond & (~short_prev)\n"
+            "        long_entry[:warmup] = False\n"
+            "        short_entry[:warmup] = False\n"
+            "        signals[long_entry] = 1.0\n"
+            "        signals[short_entry] = -1.0\n"
+            "        df.loc[long_entry, 'bb_stop_long'] = close[long_entry] - stop_atr_mult * atr[long_entry]\n"
+            "        df.loc[long_entry, 'bb_tp_long'] = close[long_entry] + tp_atr_mult * atr[long_entry]\n"
+            "        df.loc[short_entry, 'bb_stop_short'] = close[short_entry] + stop_atr_mult * atr[short_entry]\n"
+            "        df.loc[short_entry, 'bb_tp_short'] = close[short_entry] - tp_atr_mult * atr[short_entry]\n"
+        )
+    elif effective_variant == 3:
+        # ── Variante 3: breakout Donchian/ADX ──
+        for needed in ("donchian", "adx", "atr"):
+            if needed not in safe_used:
+                safe_used.append(needed)
+        default_params.setdefault("adx_threshold", 18.0)
+        signals_body = (
+            "        stop_atr_mult = float(params.get('stop_atr_mult', 1.5))\n"
+            "        tp_atr_mult = float(params.get('tp_atr_mult', 3.0))\n"
+            "        adx_threshold = float(params.get('adx_threshold', 18.0))\n"
+            "        close = np.nan_to_num(df['close'].values.astype(np.float64))\n"
+            "        if len(close) < warmup + 2:\n"
+            "            return signals\n"
+            "        atr_raw = indicators.get('atr')\n"
+            "        if isinstance(atr_raw, np.ndarray):\n"
+            "            atr = np.nan_to_num(atr_raw.astype(np.float64))\n"
+            "        else:\n"
+            "            atr = np.full(n, 0.0)\n"
+            "        dc_raw = indicators.get('donchian')\n"
+            "        if isinstance(dc_raw, dict):\n"
+            "            dc_upper = np.nan_to_num(dc_raw.get('upper', np.full(n, np.inf)).astype(np.float64))\n"
+            "            dc_lower = np.nan_to_num(dc_raw.get('lower', np.full(n, -np.inf)).astype(np.float64))\n"
+            "        else:\n"
+            "            dc_upper = np.full(n, np.inf)\n"
+            "            dc_lower = np.full(n, -np.inf)\n"
+            "        adx_raw = indicators.get('adx')\n"
+            "        if isinstance(adx_raw, dict):\n"
+            "            adx = np.nan_to_num(adx_raw.get('adx', np.zeros(n))).astype(np.float64)\n"
+            "        else:\n"
+            "            adx = np.full(n, 0.0)\n"
+            "        df.loc[:, 'bb_stop_long'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_long'] = np.nan\n"
+            "        df.loc[:, 'bb_stop_short'] = np.nan\n"
+            "        df.loc[:, 'bb_tp_short'] = np.nan\n"
+            "        prev_close = np.roll(close, 1)\n"
+            "        prev_upper = np.roll(dc_upper, 1)\n"
+            "        prev_lower = np.roll(dc_lower, 1)\n"
+            "        prev_close[:1] = close[:1]\n"
+            "        prev_upper[:1] = dc_upper[:1]\n"
+            "        prev_lower[:1] = dc_lower[:1]\n"
+            "        long_entry = (close > dc_upper) & (prev_close <= prev_upper) & (adx >= adx_threshold)\n"
+            "        short_entry = (close < dc_lower) & (prev_close >= prev_lower) & (adx >= adx_threshold)\n"
             "        long_entry[:warmup] = False\n"
             "        short_entry[:warmup] = False\n"
             "        signals[long_entry] = 1.0\n"
@@ -2512,6 +2684,51 @@ def _normalize_proposal_keys(proposal: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
+def _flatten_nested_logic(val: Any) -> str:
+    """Flatten a nested dict/list logic field into a plain string.
+
+    LLMs sometimes output structures like:
+      {"cross_any(close, donchian.middle) or adx < 25": {"description": "...", "indicators": [...]}}
+    or nested "logic_expression" keys repeated multiple times.
+    This extracts the meaningful rule as a plain string.
+    """
+    if isinstance(val, str):
+        return val
+    if isinstance(val, list):
+        return " AND ".join(str(item) for item in val if item)
+    if not isinstance(val, dict):
+        return str(val)
+
+    # Strategy 1: look for a "description" key anywhere in the nested structure
+    desc = val.get("description", "")
+    if isinstance(desc, str) and desc.strip():
+        return desc.strip()
+
+    # Strategy 2: if the dict has logic-like keys (conditions as keys), take the first one
+    # e.g. {"close > bollinger.upper AND rsi > 50": {...}}
+    for key in val:
+        if key in ("logic_expression", "indicators", "description"):
+            continue
+        # The key itself is likely the logic expression
+        inner = val[key]
+        if isinstance(inner, dict):
+            inner_desc = inner.get("description", "")
+            if isinstance(inner_desc, str) and inner_desc.strip():
+                return inner_desc.strip()
+        # Fall back to using the key as the logic string
+        return str(key).strip()
+
+    # Strategy 3: recursively flatten the first nested dict value
+    for key, inner in val.items():
+        if isinstance(inner, dict):
+            result = _flatten_nested_logic(inner)
+            if result:
+                return result
+
+    # Last resort: serialize to compact string
+    return json.dumps(val, ensure_ascii=False)[:200]
+
+
 def _sanitize_proposal_payload(
     proposal: Dict[str, Any],
     *,
@@ -2605,6 +2822,18 @@ def _sanitize_proposal_payload(
         cleaned["hypothesis"] = "Ajustement structurel basé sur le diagnostic précédent."
 
     cleaned["strategy_name"] = str(cleaned.get("strategy_name", "builder_strategy") or "builder_strategy").strip()
+
+    # Flatten nested JSON in logic fields: LLMs sometimes output dicts/lists
+    # instead of plain strings for entry/exit logic (e.g. nested logic_expression).
+    for key in ("entry_long_logic", "entry_short_logic", "exit_logic"):
+        val = cleaned.get(key, "")
+        if isinstance(val, dict):
+            # Extract the first key or description from the nested dict
+            val = _flatten_nested_logic(val)
+        elif isinstance(val, list):
+            # Join list items into a single string
+            val = " AND ".join(str(item) for item in val if item)
+        cleaned[key] = str(val or "").strip()
 
     # Scrub proposal logic fields: rewrite pandas idioms into numpy/vectorized hints.
     # This catches cases where the LLM embeds .iloc / df['signal'] / .rolling in
@@ -3425,6 +3654,25 @@ class StrategyBuilder:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(_do_call)
+            # Quand le Builder est appelé depuis Streamlit, le callback de streaming
+            # peut exécuter des `st.*` depuis ce worker thread. On propage donc le
+            # ScriptRunContext pour éviter le spam "missing ScriptRunContext".
+            try:
+                from streamlit.runtime.scriptrunner import (
+                    add_script_run_ctx as _st_add_ctx,
+                    get_script_run_ctx as _st_get_ctx,
+                )
+
+                st_ctx = _st_get_ctx()
+                if st_ctx is not None:
+                    for th in list(getattr(pool, "_threads", ())):
+                        try:
+                            _st_add_ctx(th, st_ctx)
+                        except Exception:
+                            pass
+            except Exception:
+                # En mode non-Streamlit (CLI/tests), ignorer silencieusement.
+                pass
             try:
                 return future.result(timeout=timeout_sec)
             except concurrent.futures.TimeoutError:
@@ -3968,11 +4216,13 @@ class StrategyBuilder:
         session: BuilderSession,
         iteration: BuilderIteration,
         diagnostic: Optional[Dict[str, Any]] = None,
+        pre_reflection: str = "",
     ) -> tuple[str, str]:
         """Analyse le résultat et décide de continuer ou accepter.
 
         Args:
             diagnostic: résultat de compute_diagnostic() — enrichit le prompt.
+            pre_reflection: self-critique du LLM faite pendant le backtest.
 
         Returns:
             (analysis_text, decision) où decision ∈ {"continue", "accept", "stop"}
@@ -4040,6 +4290,13 @@ class StrategyBuilder:
                 lines.append("⚠️ STAGNATION DÉTECTÉE — même catégorie 3× de suite.")
                 lines.append("Tu DOIS changer d'approche radicalement.")
 
+        # Inject pre-reflection (self-critique done during backtest)
+        if pre_reflection:
+            lines.append("")
+            lines.append("### Pré-réflexion (auto-critique avant résultats)")
+            lines.append(pre_reflection)
+            lines.append("Utilise cette pré-réflexion pour enrichir ton analyse.")
+
         remaining = session.max_iterations - iteration.iteration
         lines.append("")
         lines.append(f"Itérations restantes: {remaining}")
@@ -4080,6 +4337,75 @@ class StrategyBuilder:
 
         return analysis, decision
 
+    def _ask_pre_reflection(
+        self,
+        session: "BuilderSession",
+        proposal: Dict[str, Any],
+        code: str,
+        iteration_num: int,
+    ) -> str:
+        """Pre-reflection: the LLM self-critiques the code BEFORE seeing results.
+
+        Called in parallel with the backtest so the LLM is productively occupied
+        instead of idle. The output is injected into the analysis phase for
+        better next-iteration planning.
+        """
+        history_lines = []
+        for it in session.iterations[-3:]:
+            if it.backtest_result:
+                m = it.backtest_result.metrics
+                history_lines.append(
+                    f"  iter={it.iteration} sharpe={m.get('sharpe_ratio', 0):.3f} "
+                    f"trades={m.get('total_trades', 0)} "
+                    f"return={m.get('total_return_pct', 0):+.2f}%"
+                )
+
+        history_block = "\n".join(history_lines) if history_lines else "  (first iteration)"
+
+        prompt = (
+            f"ITERATION {iteration_num}/{session.max_iterations}\n"
+            f"Objective: {session.objective}\n"
+            f"Market: {session.symbol} {session.timeframe} ({session.n_bars} bars)\n\n"
+            f"Hypothesis: {proposal.get('hypothesis', '?')}\n"
+            f"Indicators: {', '.join(proposal.get('used_indicators', []))}\n"
+            f"Entry long: {proposal.get('entry_long_logic', '?')}\n"
+            f"Exit: {proposal.get('exit_logic', '?')}\n\n"
+            f"Recent history:\n{history_block}\n\n"
+            "The backtest is running NOW. You have NOT seen results yet.\n"
+            "While waiting, prepare for the next iteration:\n"
+            "1. What are the potential weaknesses of this strategy?\n"
+            "2. If results are poor (negative return), what specific change would you try?\n"
+            "3. If results are mediocre (low Sharpe), what parameter adjustments would help?\n"
+            "4. What alternative approach would you try if the current one fails?\n\n"
+            "Be concise (3-5 sentences max). Output ONLY a JSON: "
+            '{"pre_reflection": "...", "backup_plan": "..."}'
+        )
+
+        try:
+            response = self._chat_llm(
+                messages=[
+                    LLMMessage(role="system", content=(
+                        "You are a quant strategy critic. The backtest is still running — "
+                        "you have NOT seen results. Self-critique the strategy and prepare "
+                        "a backup plan. Be concise and concrete."
+                    )),
+                    LLMMessage(role="user", content=prompt),
+                ],
+                phase="pre_reflection",
+                json_mode=True,
+                max_tokens=512,
+            )
+            parsed = _extract_json_from_response(response.content or "")
+            reflection = str(parsed.get("pre_reflection", "")).strip()
+            backup = str(parsed.get("backup_plan", "")).strip()
+            if reflection or backup:
+                return f"[Pre-reflection] {reflection}" + (
+                    f"\n[Backup plan] {backup}" if backup else ""
+                )
+        except Exception as exc:
+            logger.debug("pre_reflection_failed: %s", exc)
+        return ""
+
     # ------------------------------------------------------------------
     # System prompts
     # ------------------------------------------------------------------
@@ -4099,6 +4425,13 @@ RULES:
 - hypothesis must explain WHY this combination should work, not just WHAT it does
 - Never output placeholder values (e.g. "brief description", "when to BUY")
 - This phase is proposal-only: NEVER output Python code
+
+OUTPUT FORMAT — CRITICAL:
+- entry_long_logic, entry_short_logic, exit_logic MUST be plain strings.
+- NEVER nest JSON objects, dicts, "logic_expression", or "indicators" arrays inside logic fields.
+- BAD: "exit_logic": {"logic_expression": {"close < donchian.middle": {"description": "...", "indicators": [...]}}}
+- GOOD: "exit_logic": "close crosses below donchian middle band OR adx < 25"
+- Keep each logic field to ONE concise sentence describing the boolean condition.
 
 SEMANTIC CORRECTNESS:
 - ATR is a volatility/distance metric, NOT a price level. Never compare close vs ATR directly.
@@ -4162,6 +4495,13 @@ CRITICAL RULES:
     - df.loc[:, "bb_tp_long"]   = entry_price + tp_atr_mult * atr    (NaN where no entry)
     - df.loc[:, "bb_stop_short"] / df.loc[:, "bb_tp_short"] for short positions.
     The simulator reads these columns automatically. Only write values on entry signal bars (NaN elsewhere).
+36. If proposal logic contains cross_up(x, y), cross_down(x, y), or cross_any(x, y),
+    implement them with vectorized numpy masks only (no shift/iloc/loops):
+    prev_x = np.roll(x, 1); prev_y = np.roll(y, 1)
+    prev_x[0] = np.nan; prev_y[0] = np.nan
+    cross_up = (x > y) & (prev_x <= prev_y)
+    cross_down = (x < y) & (prev_x >= prev_y)
+    cross_any = cross_up | cross_down
 
 COMMON MISTAKES (BAD → GOOD):
   BAD: rsi = df['rsi']                    → GOOD: rsi = np.nan_to_num(indicators['rsi'])
@@ -4798,10 +5138,23 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     strategy_cls, code
                 )
 
-                # ── Phase 5 : Backtest ──
+                # ── Phase 5 : Backtest + Pre-reflection (parallel) ──
                 logger.info("builder_iter_%d_backtest", i)
                 ts.backtest_start()
                 default_params = proposal.get("default_params", {})
+
+                # Launch pre-reflection in parallel with backtest
+                pre_reflection_future = None
+                pre_reflection_text = ""
+                _pre_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                try:
+                    pre_reflection_future = _pre_pool.submit(
+                        self._ask_pre_reflection,
+                        session, proposal, code, i,
+                    )
+                except Exception:
+                    pass
+
                 try:
                     bt_result = self._run_backtest(
                         strategy_cls, data, default_params, initial_capital,
@@ -4924,6 +5277,20 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     ] = True
                 iteration.backtest_result = bt_result
                 ts.backtest_result(bt_result.metrics)
+
+                # Collect pre-reflection result (ran in parallel with backtest)
+                if pre_reflection_future is not None:
+                    try:
+                        pre_reflection_text = pre_reflection_future.result(timeout=5)
+                        if pre_reflection_text:
+                            iteration.phase_feedback.setdefault("pre_reflection", {})[
+                                "text"
+                            ] = pre_reflection_text
+                            ts._append(f"🧠  PRÉ-RÉFLEXION (pendant backtest)\n    {pre_reflection_text[:300]}\n\n")
+                    except Exception:
+                        pass
+                    finally:
+                        _pre_pool.shutdown(wait=False)
 
                 # Backtest réussi → reset circuit breaker
                 consecutive_failures = 0
@@ -5048,6 +5415,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                 t0 = time.perf_counter()
                 analysis, decision = self._ask_analysis(
                     session, iteration, diag,
+                    pre_reflection=pre_reflection_text,
                 )
                 dt_analysis = time.perf_counter() - t0
 
@@ -5412,9 +5780,6 @@ def generate_random_objective(
     risk = random.choice(_RISK_TEMPLATES).format(
         sl_mult=sl_mult, tp_mult=tp_mult, rr=rr,
     )
-    novelty_variant = random.choice(_CATALOG_DIVERSITY_VARIANTS)
-    novelty_clause = str(novelty_variant.get("clause", "")).strip()
-
     indicators_str = " + ".join(ind.upper() for ind in selected)
 
     objective = (
@@ -5424,8 +5789,6 @@ def generate_random_objective(
         f"{exit_rule} "
         f"{risk}"
     )
-    if novelty_clause:
-        objective += f" Axe de diversification : {novelty_clause}"
 
     return objective
 
@@ -5651,284 +6014,720 @@ class CatalogObjective:
     tags: List[str] = field(default_factory=list)
 
 
-def _make_catalog_entry(
-    family_key: str,
+_CURATED_RISK_SL_TP = {
+    "tight": (1.0, 2.0),
+    "balanced": (1.5, 3.0),
+    "wide": (2.0, 5.0),
+    "neutral": (1.5, 3.0),
+}
+
+def _co(
+    obj_id: str,
+    family: str,
     indicators: List[str],
     direction: str,
-    risk_name: str,
-    sl_mult: float,
-    tp_mult: float,
-    novelty_angle: str = "classic",
-    novelty_clause: str = "",
+    risk_profile: str,
+    description: str,
     tags: Optional[List[str]] = None,
-    entry_idx: int = 0,
-    exit_idx: int = 0,
 ) -> CatalogObjective:
-    """Construit un CatalogObjective à partir des templates existants."""
-    family = _INDICATOR_FAMILIES[family_key]
-    entries = family["entry_templates"]
-    exits = family["exit_templates"]
-    entry_tpl = entries[entry_idx % len(entries)]
-    exit_tpl = exits[exit_idx % len(exits)]
-
-    inds_upper = {
-        "ind1": indicators[0].upper(),
-        "ind2": indicators[1].upper() if len(indicators) > 1 else indicators[0].upper(),
-        "ind3": indicators[2].upper() if len(indicators) > 2 else indicators[0].upper(),
-    }
-    entry = entry_tpl.format(**inds_upper)
-    exit_rule = exit_tpl.format(**inds_upper)
-
-    dir_label = {
-        "long_only": "Long uniquement.",
-        "short_only": "Short uniquement.",
-        "long_short": "Long et short.",
-    }.get(direction, "Long et short.")
-
-    rr = round(tp_mult / max(sl_mult, 0.1), 1)
-    risk = f"Stop-loss = {sl_mult}x ATR, take-profit = {tp_mult}x ATR (RR {rr}:1)."
-    indicators_str = " + ".join(ind.upper() for ind in indicators)
-    novelty_text = f" Axe de diversification : {novelty_clause}" if novelty_clause else ""
-
-    description = (
-        f"Stratégie de {family['label']} sur {{symbol}} {{timeframe}}. "
-        f"Indicateurs : {indicators_str}. "
-        f"{entry} {exit_rule} {dir_label} {risk}{novelty_text}"
-    )
-
-    obj_id = hashlib.md5(
-        (
-            f"{family_key}_{'-'.join(indicators)}_{direction}_{risk_name}_"
-            f"{entry_idx}_{exit_idx}_{novelty_angle}"
-        ).encode()
-    ).hexdigest()[:12]
-
+    """Raccourci pour construire un CatalogObjective curé."""
+    sl, tp = _CURATED_RISK_SL_TP.get(risk_profile, (1.5, 3.0))
+    if "atr" not in [i.lower() for i in indicators]:
+        indicators = list(indicators) + ["atr"]
     return CatalogObjective(
         id=obj_id,
-        family=family_key,
-        indicators=list(indicators),
+        family=family,
+        indicators=indicators,
         direction=direction,
-        risk_profile=risk_name,
-        novelty_angle=novelty_angle,
+        risk_profile=risk_profile,
+        novelty_angle="curated",
         description=description,
-        sl_mult=sl_mult,
-        tp_mult=tp_mult,
+        sl_mult=sl,
+        tp_mult=tp,
         tags=tags or [],
     )
 
 
-def _ensure_atr(inds: List[str]) -> List[str]:
-    if "atr" not in [i.lower() for i in inds]:
-        return list(inds) + ["atr"]
-    return list(inds)
+# ---------------------------------------------------------------------------
+# Catalogue curé — 50 fiches d'objectifs réalistes
+# ---------------------------------------------------------------------------
 
-
-_RISK_PROFILES = {
-    "tight":    (1.0, 2.0),
-    "balanced": (1.5, 3.0),
-    "wide":     (2.0, 5.0),
-}
-
-_SCALP_RISK_PROFILES = {
-    "tight":    (0.5, 1.0),
-    "balanced": (1.0, 1.5),
-}
-
-_CATALOG_DIVERSITY_VARIANTS: List[Dict[str, Any]] = [
+_CURATED_CATALOG_RAW: List[Dict[str, Any]] = [
+    # ── Momentum / Trend-following ──
     {
-        "name": "classic",
-        "clause": "",
-        "entry_shift": 0,
-        "exit_shift": 0,
-        "tags": ["baseline"],
+        "id": "momentum_ema_cross_sma_long_tight",
+        "family": "momentum", "indicators": ["ema", "sma"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["momentum", "trend_following", "cross"],
+        "desc": (
+            "Strategie de Momentum / Trend-following sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), SMA(50), ATR. "
+            "Entree long lorsque EMA(20) croise au-dessus de SMA(50), "
+            "sortie sur retournement ou stop serre. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
     },
     {
-        "name": "regime_adaptive",
-        "clause": (
-            "Adapter la logique selon le regime (trend/range/volatilite) "
-            "avec des seuils dynamiques."
+        "id": "momentum_ema_cross_sma_short_tight",
+        "family": "momentum", "indicators": ["ema", "sma"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["momentum", "trend_following", "cross"],
+        "desc": (
+            "Strategie de Momentum / Trend-following sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), SMA(50), ATR. "
+            "Entree short lorsque EMA(20) croise en dessous de SMA(50), "
+            "sortie sur retournement. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
         ),
-        "entry_shift": 1,
-        "exit_shift": 1,
-        "tags": ["regime_adaptive", "dynamic_thresholds"],
     },
     {
-        "name": "asymmetric_execution",
-        "clause": (
-            "Imposer des regles asymetriques long/short et filtrer les heures "
-            "de faible liquidite."
+        "id": "momentum_macd_signal_long_balanced",
+        "family": "momentum", "indicators": ["macd"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "trend_following", "macd"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : MACD (macd, signal, histogram), ATR. "
+            "Entree long quand MACD au-dessus de sa ligne de signal "
+            "et momentum positif durable. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
         ),
-        "entry_shift": 2,
-        "exit_shift": 0,
-        "tags": ["asymmetric", "liquidity_window"],
     },
     {
-        "name": "contrarian_overlay",
-        "clause": (
-            "Ajouter un filtre contrarien pour eviter les signaux trop consensuels "
-            "et limiter les faux breakouts."
+        "id": "momentum_macd_signal_short_balanced",
+        "family": "momentum", "indicators": ["macd"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "trend_following", "macd"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : MACD (macd, signal, histogram), ATR. "
+            "Entree short quand MACD en dessous de sa ligne de signal "
+            "et momentum negatif. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
         ),
-        "entry_shift": 0,
-        "exit_shift": 1,
-        "tags": ["contrarian", "offbeat"],
     },
     {
-        "name": "volatility_compression",
-        "clause": (
-            "N'entrer qu'apres une phase de compression de volatilite puis expansion "
-            "confirmee sur la bougie suivante."
+        "id": "momentum_rsi_filtered_long_balanced",
+        "family": "momentum", "indicators": ["rsi", "ema"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "rsi", "trend_filter"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), EMA(20), ATR. "
+            "Entree long quand RSI > 50 et EMA(20) haussiere. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
         ),
-        "entry_shift": 1,
-        "exit_shift": 2,
-        "tags": ["volatility", "compression_breakout"],
     },
     {
-        "name": "session_rotation",
-        "clause": (
-            "Differencier la logique selon les sessions horaires (Asie/Europe/US) "
-            "pour reduire les faux signaux hors liquidite."
+        "id": "momentum_rsi_filtered_short_balanced",
+        "family": "momentum", "indicators": ["rsi", "ema"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "rsi", "trend_filter"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), EMA(20), ATR. "
+            "Entree short quand RSI < 50 et EMA(20) baissiere. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
         ),
-        "entry_shift": 2,
-        "exit_shift": 2,
-        "tags": ["session_filter", "liquidity_rotation"],
     },
     {
-        "name": "meta_risk_feedback",
-        "clause": (
-            "Ajuster dynamiquement l'agressivite apres une serie de trades perdants "
-            "ou gagnants afin d'eviter la sur-exposition."
+        "id": "momentum_double_ema_trend_long_wide",
+        "family": "momentum", "indicators": ["ema", "adx"],
+        "direction": "long_only", "risk": "wide",
+        "tags": ["momentum", "trend_following", "adx_filter"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(10), EMA(30), ADX, ATR. "
+            "Entree long quand EMA(10) > EMA(30) avec filtre ADX >= 25. "
+            "Stop-loss = 2.0x ATR, take-profit = 5.0x ATR."
         ),
-        "entry_shift": 0,
-        "exit_shift": 2,
-        "tags": ["meta_risk", "adaptive_sizing"],
+    },
+    {
+        "id": "momentum_double_ema_trend_short_wide",
+        "family": "momentum", "indicators": ["ema", "adx"],
+        "direction": "short_only", "risk": "wide",
+        "tags": ["momentum", "trend_following", "adx_filter"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(10), EMA(30), ADX, ATR. "
+            "Entree short quand EMA(10) < EMA(30), ADX >= 25 confirme la tendance. "
+            "Stop-loss = 2.0x ATR, take-profit = 5.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_volume_confirmed_long_balanced",
+        "family": "momentum", "indicators": ["ema", "obv"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "volume", "trend_following"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), OBV, ATR. "
+            "Entree long sur hausse de volume (OBV croissant) + EMA haussiere. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_volume_confirmed_short_balanced",
+        "family": "momentum", "indicators": ["ema", "obv"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "volume", "trend_following"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), OBV, ATR. "
+            "Entree short sur volume croissant + tendance baissiere (EMA). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Mean-reversion ──
+    {
+        "id": "meanrev_bb_rsi_long_tight",
+        "family": "mean-reversion", "indicators": ["bollinger", "rsi"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["mean_reversion", "bollinger", "rsi", "oversold"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands(20,2), RSI(14), ATR. "
+            "Entree long quand prix sous bande inferieure et RSI < 30. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_bb_rsi_short_tight",
+        "family": "mean-reversion", "indicators": ["bollinger", "rsi"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["mean_reversion", "bollinger", "rsi", "overbought"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands(20,2), RSI(14), ATR. "
+            "Entree short quand prix dessus bande superieure et RSI > 70. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_keltner_rsi_long_balanced",
+        "family": "mean-reversion", "indicators": ["keltner", "rsi"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["mean_reversion", "keltner", "rsi"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Keltner Channels, RSI(14), ATR. "
+            "Entree long quand prix touche bande inferieure Keltner et RSI bas. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_keltner_rsi_short_balanced",
+        "family": "mean-reversion", "indicators": ["keltner", "rsi"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["mean_reversion", "keltner", "rsi"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Keltner Channels, RSI(14), ATR. "
+            "Entree short quand prix touche bande superieure Keltner et RSI haut. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_zscore_pair_spread_neutral",
+        "family": "mean-reversion", "indicators": ["bollinger", "rsi"],
+        "direction": "long_short", "risk": "balanced",
+        "tags": ["mean_reversion", "stat_arb", "zscore"],
+        "desc": (
+            "Strategie de Mean-reversion / StatArb sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands (pour z-score), RSI(14), ATR. "
+            "Entree long quand z-score (close - BB middle) / BB std < -2, "
+            "entree short quand z-score > +2. Sortie retour a la moyenne. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_rsi_oscillator_long_balanced",
+        "family": "mean-reversion", "indicators": ["rsi"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["mean_reversion", "rsi", "double_rsi"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), ATR. "
+            "Utiliser RSI court terme (params rsi_period=3) extreme bas (< 10) "
+            "comme signal d'entree long, attente retour moyenne. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_rsi_oscillator_short_balanced",
+        "family": "mean-reversion", "indicators": ["rsi"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["mean_reversion", "rsi", "double_rsi"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), ATR. "
+            "Utiliser RSI court terme (params rsi_period=3) extreme haut (> 90) "
+            "comme signal d'entree short, repli anticipe. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Breakout ──
+    {
+        "id": "breakout_pivot_point_long_balanced",
+        "family": "breakout", "indicators": ["pivot_points", "obv"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["breakout", "pivot", "volume"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Pivot Points, OBV, ATR. "
+            "Entree long sur cassure du pivot R1 avec hausse de volume (OBV). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_pivot_point_short_balanced",
+        "family": "breakout", "indicators": ["pivot_points", "obv"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["breakout", "pivot", "volume"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Pivot Points, OBV, ATR. "
+            "Entree short sur cassure du support S1 avec volume croissant. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_atr_volatility_long_wide",
+        "family": "breakout", "indicators": ["ema"],
+        "direction": "long_only", "risk": "wide",
+        "tags": ["breakout", "volatility", "atr_expansion"],
+        "desc": (
+            "Strategie de Breakout / Volatility sur {symbol} {timeframe}. "
+            "Indicateurs : ATR, EMA(20). "
+            "Entree long quand ATR depasse 1.5x sa moyenne (expansion de volatilite) "
+            "et prix au-dessus de EMA(20). Continuation haussiere attendue. "
+            "Stop-loss = 2.0x ATR, take-profit = 5.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_atr_volatility_short_wide",
+        "family": "breakout", "indicators": ["ema"],
+        "direction": "short_only", "risk": "wide",
+        "tags": ["breakout", "volatility", "atr_expansion"],
+        "desc": (
+            "Strategie de Breakout / Volatility sur {symbol} {timeframe}. "
+            "Indicateurs : ATR, EMA(20). "
+            "Entree short quand ATR en expansion + prix sous EMA(20). "
+            "Tendance baissiere amplifiee par la volatilite. "
+            "Stop-loss = 2.0x ATR, take-profit = 5.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_adx_threshold_long_balanced",
+        "family": "breakout", "indicators": ["adx", "ema"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["breakout", "adx", "trend_strength"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : ADX, EMA(20), ATR. "
+            "Entree long quand ADX > 30 (tendance forte) et prix casse "
+            "au-dessus de EMA(20). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_adx_threshold_short_balanced",
+        "family": "breakout", "indicators": ["adx", "ema"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["breakout", "adx", "trend_strength"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : ADX, EMA(20), ATR. "
+            "Entree short quand ADX > 30 et prix casse sous EMA(20). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Momentum (suite) ──
+    {
+        "id": "momentum_macd_histogram_long_balanced",
+        "family": "momentum", "indicators": ["macd"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "macd", "histogram"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : MACD (histogram), ATR. "
+            "Entree long quand MACD histogram croissant et positif (signal fort). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_macd_histogram_short_balanced",
+        "family": "momentum", "indicators": ["macd"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "macd", "histogram"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : MACD (histogram), ATR. "
+            "Entree short quand MACD histogram decroissant et negatif. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Mean-reversion (suite) ──
+    {
+        "id": "meanrev_stddev_extreme_long_tight",
+        "family": "mean-reversion", "indicators": ["bollinger"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["mean_reversion", "stddev", "extreme"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands (ecart type), ATR. "
+            "Entree long quand prix tombe sous bande inferieure (ecart type extreme). "
+            "Retour attendu vers la moyenne. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_stddev_extreme_short_tight",
+        "family": "mean-reversion", "indicators": ["bollinger"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["mean_reversion", "stddev", "extreme"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands (ecart type), ATR. "
+            "Entree short quand prix depasse bande superieure (exces haussier). "
+            "Repli attendu. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    # ── Momentum (ROC) ──
+    {
+        "id": "momentum_roc_confirmation_long_balanced",
+        "family": "momentum", "indicators": ["ema"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "roc", "confirmation"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(10), EMA(30), ATR. "
+            "Calculer ROC = (close - close[12]) / close[12]. "
+            "Entree long quand ROC > 0 et EMA(10) > EMA(30). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_roc_confirmation_short_balanced",
+        "family": "momentum", "indicators": ["ema"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "roc", "confirmation"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(10), EMA(30), ATR. "
+            "Calculer ROC = (close - close[12]) / close[12]. "
+            "Entree short quand ROC < 0 et EMA(10) < EMA(30). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Breakout (stochastic) ──
+    {
+        "id": "breakout_stoch_exit_long_tight",
+        "family": "breakout", "indicators": ["stochastic", "bollinger"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["breakout", "stochastic", "confirmation"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Stochastic, Bollinger Bands, ATR. "
+            "Entree long apres breakout de la bande superieure Bollinger "
+            "confirme par Stochastique > 80. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_stoch_exit_short_tight",
+        "family": "breakout", "indicators": ["stochastic", "bollinger"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["breakout", "stochastic", "confirmation"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Stochastic, Bollinger Bands, ATR. "
+            "Entree short apres breakout baissier de la bande inferieure "
+            "confirme par Stochastique < 20. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    # ── Momentum (EMA slope) ──
+    {
+        "id": "momentum_ema_slope_trend_long_balanced",
+        "family": "momentum", "indicators": ["ema"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "ema_slope", "acceleration"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), ATR. "
+            "Calculer la pente de EMA(20) via np.diff. "
+            "Entree long quand la pente est positive et accelere. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_ema_slope_trend_short_balanced",
+        "family": "momentum", "indicators": ["ema"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "ema_slope", "acceleration"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), ATR. "
+            "Calculer la pente de EMA(20) via np.diff. "
+            "Entree short quand la pente est negative et accelere. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Mean-reversion (Bollinger mid revert) ──
+    {
+        "id": "meanrev_bollinger_mid_revert_long_balanced",
+        "family": "mean-reversion", "indicators": ["bollinger"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["mean_reversion", "bollinger", "mid_revert"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands(20,2), ATR. "
+            "Entree long quand prix rebondit depuis bande inferieure "
+            "vers bande mediane. Sortie a la bande mediane. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_bollinger_mid_revert_short_balanced",
+        "family": "mean-reversion", "indicators": ["bollinger"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["mean_reversion", "bollinger", "mid_revert"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : Bollinger Bands(20,2), ATR. "
+            "Entree short quand prix rejete depuis bande superieure "
+            "vers bande mediane. Sortie a la mediane. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Breakout (pivot retrace) ──
+    {
+        "id": "breakout_vwap_retrace_long_tight",
+        "family": "breakout", "indicators": ["ema", "obv"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["breakout", "retrace", "pullback"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), OBV, ATR. "
+            "Entree long apres cassure de EMA(20) suivie d'un pullback "
+            "leger (retracement < 50% du breakout) avec OBV en hausse. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_vwap_retrace_short_tight",
+        "family": "breakout", "indicators": ["ema", "obv"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["breakout", "retrace", "pullback"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : EMA(20), OBV, ATR. "
+            "Entree short apres cassure sous EMA(20) + pullback leger "
+            "avec OBV en baisse. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    # ── Momentum (double RSI) ──
+    {
+        "id": "momentum_double_rsi_long_balanced",
+        "family": "momentum", "indicators": ["rsi"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "double_rsi", "cross"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), ATR. "
+            "Calculer RSI rapide (period=5) et RSI lent (period=14). "
+            "Entree long quand RSI(5) croise au-dessus de RSI(14). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_double_rsi_short_balanced",
+        "family": "momentum", "indicators": ["rsi"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["momentum", "double_rsi", "cross"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), ATR. "
+            "Calculer RSI rapide (period=5) et RSI lent (period=14). "
+            "Entree short quand RSI(5) croise en dessous de RSI(14). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Mean-reversion (ADX range) ──
+    {
+        "id": "meanrev_adx_range_long_tight",
+        "family": "mean-reversion", "indicators": ["adx", "rsi"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["mean_reversion", "adx_range", "low_trend"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : ADX, RSI(14), ATR. "
+            "Entree long quand ADX < 20 (marche lateral) et RSI < 30. "
+            "Reversion en marche sans tendance. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_adx_range_short_tight",
+        "family": "mean-reversion", "indicators": ["adx", "rsi"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["mean_reversion", "adx_range", "low_trend"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : ADX, RSI(14), ATR. "
+            "Entree short quand ADX < 20 (range) et RSI > 70. "
+            "Retournement en marche lateral. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    # ── Momentum (volume surge) ──
+    {
+        "id": "momentum_breakout_vol_surge_long_wide",
+        "family": "momentum", "indicators": ["obv", "ema"],
+        "direction": "long_only", "risk": "wide",
+        "tags": ["momentum", "volatility", "volume_surge"],
+        "desc": (
+            "Strategie de Momentum / Volatility sur {symbol} {timeframe}. "
+            "Indicateurs : OBV, EMA(20), ATR. "
+            "Entree long sur fort sursaut de volume (OBV acceleration) "
+            "avec ATR en expansion et prix au-dessus de EMA(20). "
+            "Stop-loss = 2.0x ATR, take-profit = 5.0x ATR."
+        ),
+    },
+    {
+        "id": "momentum_breakout_vol_surge_short_wide",
+        "family": "momentum", "indicators": ["obv", "ema"],
+        "direction": "short_only", "risk": "wide",
+        "tags": ["momentum", "volatility", "volume_surge"],
+        "desc": (
+            "Strategie de Momentum / Volatility sur {symbol} {timeframe}. "
+            "Indicateurs : OBV, EMA(20), ATR. "
+            "Entree short quand baisse accompagnee de volume (OBV chute) "
+            "et prix sous EMA(20). "
+            "Stop-loss = 2.0x ATR, take-profit = 5.0x ATR."
+        ),
+    },
+    # ── Breakout (multi-timeframe proxy) ──
+    {
+        "id": "breakout_multiple_timeframe_long_balanced",
+        "family": "breakout", "indicators": ["donchian", "adx"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["breakout", "multi_tf_proxy", "donchian"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Donchian Channels, ADX, ATR. "
+            "Entree long sur cassure du Donchian upper (proxy multi-echelle) "
+            "confirmee par ADX > 25. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_multiple_timeframe_short_balanced",
+        "family": "breakout", "indicators": ["donchian", "adx"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["breakout", "multi_tf_proxy", "donchian"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Donchian Channels, ADX, ATR. "
+            "Entree short sur cassure du Donchian lower confirmee par ADX > 25. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Mean-reversion (momentum filter) ──
+    {
+        "id": "meanrev_momentum_filter_long_balanced",
+        "family": "mean-reversion", "indicators": ["rsi", "ema"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["mean_reversion", "momentum_filter", "trend_neutral"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), EMA(20), ATR. "
+            "Entree long quand RSI extreme bas (< 25) "
+            "ET tendance neutre (prix proche de EMA, pas de forte pente). "
+            "Reversion hors forte tendance. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    {
+        "id": "meanrev_momentum_filter_short_balanced",
+        "family": "mean-reversion", "indicators": ["rsi", "ema"],
+        "direction": "short_only", "risk": "balanced",
+        "tags": ["mean_reversion", "momentum_filter", "trend_neutral"],
+        "desc": (
+            "Strategie de Mean-reversion sur {symbol} {timeframe}. "
+            "Indicateurs : RSI(14), EMA(20), ATR. "
+            "Entree short quand RSI extreme haut (> 75) "
+            "ET tendance neutre. Reversion short hors tendance forte. "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
+    },
+    # ── Breakout (support/resistance) ──
+    {
+        "id": "breakout_sup_res_long_tight",
+        "family": "breakout", "indicators": ["pivot_points"],
+        "direction": "long_only", "risk": "tight",
+        "tags": ["breakout", "support_resistance", "pivot"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Pivot Points, ATR. "
+            "Entree long quand prix monte au-dessus du pivot R1 (resistance cle). "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    {
+        "id": "breakout_sup_res_short_tight",
+        "family": "breakout", "indicators": ["pivot_points"],
+        "direction": "short_only", "risk": "tight",
+        "tags": ["breakout", "support_resistance", "pivot"],
+        "desc": (
+            "Strategie de Breakout sur {symbol} {timeframe}. "
+            "Indicateurs : Pivot Points, ATR. "
+            "Entree short quand prix casse sous le support S1. "
+            "Stop-loss = 1.0x ATR, take-profit = 2.0x ATR."
+        ),
+    },
+    # ── Momentum (MACD zero cross) ──
+    {
+        "id": "momentum_macd_zero_cross_long_balanced",
+        "family": "momentum", "indicators": ["macd"],
+        "direction": "long_only", "risk": "balanced",
+        "tags": ["momentum", "macd", "zero_cross"],
+        "desc": (
+            "Strategie de Momentum sur {symbol} {timeframe}. "
+            "Indicateurs : MACD, ATR. "
+            "Entree long quand MACD passe de negatif a positif (zero cross). "
+            "Stop-loss = 1.5x ATR, take-profit = 3.0x ATR."
+        ),
     },
 ]
 
 
 def _build_objective_catalog() -> List[CatalogObjective]:
-    """Construit le catalogue complet d'objectifs pré-définis (diversifie)."""
-    catalog: List[CatalogObjective] = []
-
-    def _add(
-        family: str,
-        pairs: list,
-        directions: list,
-        risks: dict,
-        tags_base: Optional[List[str]] = None,
-        *,
-        variant_count: int = 2,
-    ) -> None:
-        family_cfg = _INDICATOR_FAMILIES[family]
-        n_entry_tpl = max(len(family_cfg["entry_templates"]), 1)
-        n_exit_tpl = max(len(family_cfg["exit_templates"]), 1)
-        n_variants = len(_CATALOG_DIVERSITY_VARIANTS)
-        variant_span = max(1, min(variant_count, n_variants))
-        for pi, (inds, tags) in enumerate(pairs):
-            full_inds = _ensure_atr(inds)
-            all_tags = (tags_base or []) + tags
-            start_idx = (pi * variant_span) % max(1, n_variants)
-            variants = [
-                _CATALOG_DIVERSITY_VARIANTS[(start_idx + vi) % n_variants]
-                for vi in range(variant_span)
-            ]
-            for direction in directions:
-                for risk_name, (sl, tp) in risks.items():
-                    for variant in variants:
-                        entry_idx = (pi + int(variant.get("entry_shift", 0))) % n_entry_tpl
-                        exit_idx = (pi + int(variant.get("exit_shift", 0))) % n_exit_tpl
-                        variant_tags = all_tags + list(variant.get("tags", []))
-                        catalog.append(
-                            _make_catalog_entry(
-                                family,
-                                full_inds,
-                                direction,
-                                risk_name,
-                                sl,
-                                tp,
-                                novelty_angle=str(variant.get("name", "classic")),
-                                novelty_clause=str(variant.get("clause", "")),
-                                tags=sorted(set(variant_tags)),
-                                entry_idx=entry_idx,
-                                exit_idx=exit_idx,
-                            )
-                        )
-
-    # ── Trend-following ──
-    _add("trend-following", [
-        (["ema", "macd"],        ["trending", "momentum"]),
-        (["sma", "adx"],         ["trending", "strong_trend"]),
-        (["supertrend", "adx"],  ["trending", "breakout"]),
-        (["ema", "aroon"],       ["trending", "reversal"]),
-        (["macd", "supertrend"], ["trending", "momentum"]),
-        (["ema", "vortex"],      ["trending", "oscillator"]),
-        (["sma", "aroon"],       ["trending", "pullback"]),
-    ], ["long_only", "short_only"], _RISK_PROFILES, variant_count=3)
-
-    # ── Mean-reversion ──
-    _add("mean-reversion", [
-        (["bollinger", "rsi"],        ["ranging", "oversold"]),
-        (["bollinger", "stochastic"], ["ranging", "overbought"]),
-        (["keltner", "cci"],          ["ranging", "channel"]),
-        (["donchian", "williams_r"],  ["ranging", "breakout"]),
-        (["bollinger", "stoch_rsi"],  ["ranging", "extreme"]),
-        (["keltner", "rsi"],          ["ranging", "mean_revert"]),
-        (["donchian", "rsi"],         ["ranging", "pullback"]),
-    ], ["long_only", "short_only"], _RISK_PROFILES, variant_count=3)
-
-    # ── Momentum ──
-    _add("momentum", [
-        (["rsi", "macd"],         ["momentum", "divergence"]),
-        (["macd", "roc"],         ["momentum", "acceleration"]),
-        (["momentum", "stochastic"], ["momentum", "oscillator"]),
-        (["rsi", "mfi"],          ["momentum", "volume"]),
-        (["macd", "stochastic"],  ["momentum", "confirmation"]),
-    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.0), "wide": (2.0, 4.5)}, variant_count=4)
-
-    # ── Breakout ──
-    _add("breakout", [
-        (["bollinger", "adx"],      ["volatile", "expansion"]),
-        (["donchian", "atr"],       ["breakout", "channel"]),
-        (["keltner", "supertrend"], ["breakout", "trending"]),
-        (["bollinger", "supertrend"], ["volatile", "trending"]),
-    ], ["long_only", "short_only", "long_short"], {"balanced": (1.5, 3.5), "wide": (2.0, 5.0)}, variant_count=4)
-
-    # ── Scalping ──
-    _add("scalping", [
-        (["ema", "stochastic"], ["scalp", "short_term"]),
-        (["macd", "rsi"],       ["scalp", "momentum"]),
-        (["bollinger", "vwap"], ["scalp", "mean_revert"]),
-        (["ema", "rsi"],        ["scalp", "pullback"]),
-        (["stochastic", "vwap"], ["scalp", "oscillator"]),
-        (["ema", "macd"],       ["scalp", "cross"]),
-    ], ["long_short"], _SCALP_RISK_PROFILES, variant_count=3)
-
-    # ── Multi-factor ──
-    _add("multi-factor", [
-        (["ema", "rsi", "bollinger"],         ["composite", "three_factor"]),
-        (["supertrend", "adx", "stochastic"], ["composite", "trend_confirm"]),
-        (["macd", "bollinger", "obv"],        ["composite", "volume"]),
-        (["ema", "macd", "rsi"],              ["composite", "momentum"]),
-    ], ["long_short"], _RISK_PROFILES, variant_count=4)
-
-    # ── Regime-adaptatif ──
-    _add("regime-adaptive", [
-        (["adx", "bollinger"],        ["regime", "switching"]),
-        (["supertrend", "rsi"],       ["regime", "trend_vs_revert"]),
-        (["keltner", "vwap"],         ["regime", "volatility"]),
-        (["ema", "atr"],              ["regime", "adaptive_filter"]),
-    ], ["long_only", "long_short"], {"balanced": (1.5, 3.0), "wide": (2.0, 4.5)}, variant_count=4)
+    """Construit le catalogue cure de 50 objectifs pre-definis."""
+    catalog = [
+        _co(
+            obj_id=entry["id"],
+            family=entry["family"],
+            indicators=list(entry["indicators"]),
+            direction=entry["direction"],
+            risk_profile=entry["risk"],
+            description=entry["desc"],
+            tags=entry.get("tags"),
+        )
+        for entry in _CURATED_CATALOG_RAW
+    ]
 
     family_counts: Dict[str, int] = {}
-    novelty_counts: Dict[str, int] = {}
     for obj in catalog:
         family_counts[obj.family] = family_counts.get(obj.family, 0) + 1
-        novelty_counts[obj.novelty_angle] = novelty_counts.get(obj.novelty_angle, 0) + 1
 
     logger.info(
-        "objective_catalog_built count=%d families=%s novelty=%s",
+        "objective_catalog_built count=%d families=%s",
         len(catalog),
         family_counts,
-        novelty_counts,
     )
     return catalog
 
@@ -6821,3 +7620,320 @@ def recommend_market_context(
         "reason": reason,
         "source": source,
     }
+
+
+# ---------------------------------------------------------------------------
+# Public wrapper – catalog integration
+# ---------------------------------------------------------------------------
+
+def compile_proposal_to_code(proposal: Dict[str, Any], variant: int = 0) -> str:
+    """Compile un proposal JSON en code Python stratégie exécutable.
+
+    Wrapper public autour de _build_deterministic_fallback_code, destiné
+    au module catalog.gating pour le mini-backtest sans LLM.
+    """
+    return _build_deterministic_fallback_code(proposal, variant=variant)
+
+
+# ---------------------------------------------------------------------------
+# Parametric catalog — bridge avec le module catalog/
+# ---------------------------------------------------------------------------
+
+_PARAMETRIC_VARIANTS: Optional[List[Dict[str, Any]]] = None
+_PARAMETRIC_INDEX: int = 0
+_PARAMETRIC_DSL_OPERAND = r"[A-Za-z0-9_.]+"
+_PARAMETRIC_FORBIDDEN_PATTERNS: Tuple[Tuple[str, re.Pattern[str]], ...] = (
+    ("crosses", re.compile(r"\bcrosses\b", re.IGNORECASE)),
+    (".iloc[", re.compile(r"\.iloc\s*\[", re.IGNORECASE)),
+    ("df[", re.compile(r"\bdf\s*\[", re.IGNORECASE)),
+    ("shift(", re.compile(r"\bshift\s*\(", re.IGNORECASE)),
+    ("future", re.compile(r"\bfuture\b", re.IGNORECASE)),
+    ("repaint", re.compile(r"\brepaint\w*\b", re.IGNORECASE)),
+)
+
+
+def _normalize_cross_syntax(text: str) -> str:
+    """Normalise les tokens "crosses" en helpers DSL non ambigus."""
+    if not text:
+        return ""
+
+    normalized = str(text)
+
+    # Legacy aliases -> contrat unique.
+    normalized = re.sub(r"\bcross_above\s*\(", "cross_up(", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\bcross_below\s*\(", "cross_down(", normalized, flags=re.IGNORECASE)
+
+    # "x crosses above y" / "x crosses below y"
+    normalized = re.sub(
+        rf"\b({_PARAMETRIC_DSL_OPERAND})\s+crosses\s+above\s+({_PARAMETRIC_DSL_OPERAND})\b",
+        r"cross_up(\1, \2)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        rf"\b({_PARAMETRIC_DSL_OPERAND})\s+crosses\s+below\s+({_PARAMETRIC_DSL_OPERAND})\b",
+        r"cross_down(\1, \2)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+
+    # "x crosses_above y" / "x crosses_below y"
+    normalized = re.sub(
+        rf"\b({_PARAMETRIC_DSL_OPERAND})\s+crosses_above\s+({_PARAMETRIC_DSL_OPERAND})\b",
+        r"cross_up(\1, \2)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        rf"\b({_PARAMETRIC_DSL_OPERAND})\s+crosses_below\s+({_PARAMETRIC_DSL_OPERAND})\b",
+        r"cross_down(\1, \2)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+
+    # "x crosses y" -> cross_any(x, y)
+    normalized = re.sub(
+        rf"\b({_PARAMETRIC_DSL_OPERAND})\s+crosses\s+({_PARAMETRIC_DSL_OPERAND})\b",
+        r"cross_any(\1, \2)",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+
+    return normalized
+
+
+def _scan_forbidden_parametric_tokens(text: str) -> List[str]:
+    """Retourne les tokens interdits détectés dans un texte de variant."""
+    if not text:
+        return []
+    found: List[str] = []
+    for token, pattern in _PARAMETRIC_FORBIDDEN_PATTERNS:
+        if pattern.search(text):
+            found.append(token)
+    return found
+
+
+def normalize_variant_for_builder(
+    variant: Any,
+    *,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    run_id: str = "",
+) -> Optional[Dict[str, Any]]:
+    """Normalise et valide un variant paramétrique pour injection Builder."""
+    raw: Dict[str, Any]
+    if isinstance(variant, dict):
+        raw = dict(variant)
+    elif hasattr(variant, "to_dict") and callable(getattr(variant, "to_dict")):
+        raw = cast(Dict[str, Any], variant.to_dict())
+    else:
+        raw = {
+            "variant_id": str(getattr(variant, "variant_id", "") or ""),
+            "archetype_id": str(getattr(variant, "archetype_id", "") or ""),
+            "param_pack_id": str(getattr(variant, "param_pack_id", "") or ""),
+            "params": getattr(variant, "params", {}) or {},
+            "proposal": getattr(variant, "proposal", {}) or {},
+            "builder_text": str(getattr(variant, "builder_text", "") or ""),
+            "fingerprint": str(getattr(variant, "fingerprint", "") or ""),
+            "provenance": getattr(variant, "provenance", {}) or {},
+        }
+
+    proposal = raw.get("proposal", {})
+    if not isinstance(proposal, dict):
+        proposal = {}
+    proposal = dict(proposal)
+    for field_name in ("entry_long_logic", "entry_short_logic", "exit_logic"):
+        val = proposal.get(field_name, "")
+        if isinstance(val, str) and val.strip():
+            proposal[field_name] = _normalize_cross_syntax(val)
+
+    builder_text = str(raw.get("builder_text", "") or "")
+    if not builder_text and proposal:
+        try:
+            from catalog.builder_export import to_text_v1
+            builder_text = to_text_v1(proposal)
+        except Exception:
+            builder_text = ""
+    builder_text = _normalize_cross_syntax(builder_text)
+
+    if symbol is not None:
+        builder_text = builder_text.replace("{symbol}", str(symbol))
+    if timeframe is not None:
+        builder_text = builder_text.replace("{timeframe}", str(timeframe))
+
+    objective_text = sanitize_objective_text(builder_text)
+    if not objective_text:
+        objective_text = builder_text.strip()
+
+    issues: List[str] = []
+    for field_name in ("entry_long_logic", "entry_short_logic", "exit_logic"):
+        issues.extend(
+            f"{field_name}:{token}"
+            for token in _scan_forbidden_parametric_tokens(str(proposal.get(field_name, "") or ""))
+        )
+    issues.extend(f"builder_text:{token}" for token in _scan_forbidden_parametric_tokens(builder_text))
+    issues.extend(f"objective_text:{token}" for token in _scan_forbidden_parametric_tokens(objective_text))
+    if not objective_text.strip():
+        issues.append("objective_text:empty")
+
+    if issues:
+        logger.warning(
+            "parametric_variant_rejected variant_id=%s issues=%s",
+            raw.get("variant_id", ""),
+            ",".join(issues),
+        )
+        return None
+
+    provenance = raw.get("provenance", {})
+    if not isinstance(provenance, dict):
+        provenance = {}
+    resolved_run_id = (
+        str(run_id or "").strip()
+        or str(raw.get("run_id", "") or "").strip()
+        or str(provenance.get("run_id", "") or "").strip()
+    )
+
+    return {
+        "run_id": resolved_run_id,
+        "variant_id": str(raw.get("variant_id", "") or ""),
+        "archetype_id": str(raw.get("archetype_id", "") or ""),
+        "param_pack_id": str(raw.get("param_pack_id", "") or ""),
+        "params": raw.get("params", {}) if isinstance(raw.get("params", {}), dict) else {},
+        "proposal": proposal,
+        "builder_text": builder_text,
+        "fingerprint": str(raw.get("fingerprint", "") or ""),
+        "objective_text": objective_text,
+    }
+
+
+def generate_parametric_catalog(
+    config_path: Optional[str] = None,
+    n_variants: int = 200,
+    seed: int = 42,
+) -> int:
+    """Génère le catalogue paramétrique et le stocke en mémoire.
+
+    Args:
+        config_path: Chemin vers un CatalogConfig JSON. Si None, utilise
+            les archetypes/param_packs par défaut du module catalog.
+        n_variants: Nombre de variants cible (ignoré si config_path fourni).
+        seed: Seed pour reproductibilité (ignoré si config_path fourni).
+
+    Returns:
+        Nombre de variants générés et valides.
+    """
+    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX
+
+    from catalog.chainer import generate_catalog
+    from catalog.models import CatalogConfig
+
+    if config_path:
+        from pathlib import Path
+        config = CatalogConfig.load(Path(config_path))
+    else:
+        config = CatalogConfig(
+            seed=seed,
+            n_variants_target=n_variants,
+            batch_size=50,
+            archetypes_dir="catalog/archetypes",
+            param_packs_dir="catalog/param_packs",
+        )
+    if not str(getattr(config, "run_id", "") or "").strip():
+        config.run_id = f"parametric_{generate_run_id()}"
+
+    result = generate_catalog(config)
+
+    normalized_variants: List[Dict[str, Any]] = []
+    bridge_rejected = 0
+    for variant in result.variants:
+        normalized = normalize_variant_for_builder(
+            variant,
+            run_id=str(result.run_id or "").strip(),
+        )
+        if normalized is None:
+            bridge_rejected += 1
+            continue
+        normalized_variants.append(normalized)
+
+    _PARAMETRIC_VARIANTS = normalized_variants
+    _PARAMETRIC_INDEX = 0
+
+    logger.info(
+        "parametric_catalog_generated total=%d after_sanity=%d after_bridge=%d bridge_rejected=%d",
+        result.total_generated,
+        len(result.variants),
+        len(normalized_variants),
+        bridge_rejected,
+    )
+    return len(normalized_variants)
+
+
+def get_next_parametric_objective(
+    symbol: "str | List[str]" = "BTCUSDC",
+    timeframe: "str | List[str]" = "1h",
+) -> Optional[Dict[str, Any]]:
+    """Retourne un objectif paramétrique structuré pour le prochain variant.
+
+    Si le catalogue n'est pas encore généré, le génère automatiquement.
+    Quand tous les variants ont été consommés, recommence (cycle).
+
+    Returns:
+        Dict structuré (incluant objective_text + métadonnées variant) ou None.
+    """
+    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX
+
+    if _PARAMETRIC_VARIANTS is None:
+        count = generate_parametric_catalog()
+        if count == 0:
+            return None
+
+    if not _PARAMETRIC_VARIANTS:
+        return None
+
+    # Résoudre symbol/timeframe
+    if isinstance(symbol, list):
+        sym = random.choice(symbol) if symbol else "BTCUSDC"
+    else:
+        sym = symbol
+    if isinstance(timeframe, list):
+        tf = random.choice(timeframe) if timeframe else "1h"
+    else:
+        tf = timeframe
+
+    # Sélection du variant courant (cycle) + sanity d'injection.
+    attempts = len(_PARAMETRIC_VARIANTS)
+    while attempts > 0:
+        raw_variant = _PARAMETRIC_VARIANTS[_PARAMETRIC_INDEX % len(_PARAMETRIC_VARIANTS)]
+        _PARAMETRIC_INDEX += 1
+        attempts -= 1
+
+        normalized = normalize_variant_for_builder(
+            raw_variant,
+            symbol=str(sym),
+            timeframe=str(tf),
+        )
+        if normalized is not None:
+            return normalized
+
+    logger.warning("parametric_catalog_empty_after_injection_sanity")
+    return None
+
+
+def get_parametric_catalog_stats() -> Dict[str, Any]:
+    """Retourne les statistiques du catalogue paramétrique."""
+    if _PARAMETRIC_VARIANTS is None:
+        return {"generated": False, "total": 0, "index": 0}
+    return {
+        "generated": True,
+        "total": len(_PARAMETRIC_VARIANTS),
+        "index": _PARAMETRIC_INDEX,
+        "coverage_pct": min(100.0, (_PARAMETRIC_INDEX / max(1, len(_PARAMETRIC_VARIANTS))) * 100),
+    }
+
+
+def reset_parametric_catalog() -> None:
+    """Reset le catalogue paramétrique (force re-génération au prochain appel)."""
+    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX
+    _PARAMETRIC_VARIANTS = None
+    _PARAMETRIC_INDEX = 0
+    logger.info("parametric_catalog_reset")
