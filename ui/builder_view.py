@@ -22,24 +22,38 @@ Skip-if: Logique backend du builder (voir agents/strategy_builder.py)
 
 from __future__ import annotations
 
+import logging
 import time
 import traceback
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import streamlit as st
 
 import httpx
 
+# ── Logging de diagnostic (TEMPORAIRE) ──
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Force INFO level
+# Ajouter un handler console si absent
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setLevel(logging.INFO)
+    _formatter = logging.Formatter('%(asctime)s | %(levelname)-7s | %(name)s | %(message)s', datefmt='%H:%M:%S')
+    _handler.setFormatter(_formatter)
+    logger.addHandler(_handler)
+
 from agents.llm_client import LLMConfig, LLMProvider, create_llm_client
 from agents.ollama_manager import ensure_ollama_running
 from agents.strategy_builder import (
     StrategyBuilder,
     generate_llm_objective,
+    generate_parametric_catalog,
     generate_random_objective,
     get_catalog_coverage,
     get_next_catalog_objective,
+    get_next_parametric_objective,
     mark_catalog_objective_explored,
     recommend_market_context,
     reset_catalog_exploration,
@@ -848,14 +862,17 @@ def _render_autonomous_recap(history: List[Dict[str, Any]]) -> None:
     st.markdown("---")
     st.markdown("## 📊 Récapitulatif des sessions autonomes")
 
-    header = "| # | Objectif (résumé) | Statut | Sharpe | Return | Trades | Durée |"
-    separator = "|---|---|---|---|---|---|---|"
+    header = "| # | Source | Objectif (résumé) | Statut | Sharpe | Return | Trades | Durée |"
+    separator = "|---|---|---|---|---|---|---|---|"
     rows = [header, separator]
 
     for i, h in enumerate(history, 1):
         obj_short = h.get("objective", "")[:60]
         if len(h.get("objective", "")) > 60:
             obj_short += "…"
+        source = h.get("parametric_variant_id", "") or h.get("catalog_id", "") or "-"
+        if len(source) > 28:
+            source = source[:28] + "…"
         status = h.get("status", "?")
         sharpe = h.get("best_sharpe", 0)
         ret = h.get("best_return", 0)
@@ -866,7 +883,7 @@ def _render_autonomous_recap(history: List[Dict[str, Any]]) -> None:
             status, "❓"
         )
         rows.append(
-            f"| {i} | {obj_short} | {status_icon} {status} | "
+            f"| {i} | {source} | {obj_short} | {status_icon} {status} | "
             f"{sharpe:.3f} | {ret:+.2f}% | {trades} | {duration:.0f}s |"
         )
 
@@ -895,6 +912,22 @@ def _render_autonomous_recap(history: List[Dict[str, Any]]) -> None:
             st.progress(min(pct / 100.0, 1.0))
     except Exception:
         pass
+
+    # Dernière fiche paramétrique (métadonnées utiles pour debug UI)
+    parametric_runs = [h for h in history if h.get("parametric_variant_id")]
+    if parametric_runs:
+        last = parametric_runs[-1]
+        st.markdown("**Dernier variant paramétrique**")
+        st.json({
+            "run_id": last.get("parametric_run_id", ""),
+            "variant_id": last.get("parametric_variant_id", ""),
+            "archetype_id": last.get("parametric_archetype_id", ""),
+            "param_pack_id": last.get("parametric_param_pack_id", ""),
+            "params": last.get("parametric_params", {}),
+            "proposal": last.get("parametric_proposal", {}),
+            "builder_text": last.get("parametric_builder_text", ""),
+            "fingerprint": last.get("parametric_fingerprint", ""),
+        })
 
 
 # ---------------------------------------------------------------------------
@@ -931,20 +964,49 @@ def render_builder_view(
     except (TypeError, ValueError):
         capital = 10000.0
 
-    # Contexte de marché
-    symbol = str(
+    # Contexte de marché — si rien n'est sélectionné, on pioche parmi les tokens disponibles
+    available_tokens = list(getattr(state, "available_tokens", []) or [])
+    available_tfs = list(getattr(state, "available_timeframes", []) or [])
+
+    _raw_symbol = (
         getattr(state, "symbol", None)
         or st.session_state.get("selected_symbol")
-        or "UNKNOWN"
+        or ""
     )
-    timeframe = str(
+    _raw_timeframe = (
         getattr(state, "timeframe", None)
         or st.session_state.get("selected_timeframe")
-        or "1h"
+        or ""
     )
+
+    # Fallback intelligent quand rien n'est sélectionné
+    symbol = str(_raw_symbol) if _raw_symbol else (available_tokens[0] if available_tokens else "BTCUSDC")
+    timeframe = str(_raw_timeframe) if _raw_timeframe else "1h"
+
+    # ── DIAG: Mode auto-sélection marché ──
+    logger.info(
+        "🔍 [DIAG] auto_market_pick = %s | Symbole/TF par défaut: %s/%s",
+        "✅ ACTIVÉ" if auto_market_pick else "❌ DÉSACTIVÉ",
+        symbol,
+        timeframe,
+    )
+
     # Listes complètes pour le mode autonome (diversification multi-market)
-    all_symbols = list(getattr(state, "symbols", []) or [symbol])
-    all_timeframes = list(getattr(state, "timeframes", []) or [timeframe])
+    user_symbols = list(getattr(state, "symbols", []) or [])
+    user_timeframes = list(getattr(state, "timeframes", []) or [])
+    # Si l'utilisateur n'a rien sélectionné, utiliser les top tokens disponibles
+    all_symbols = user_symbols if user_symbols else (available_tokens[:20] if available_tokens else [symbol])
+    all_timeframes = user_timeframes if user_timeframes else ([tf for tf in available_tfs if tf != "3m"] or [timeframe])
+
+    # ── DIAG: Univers de sélection ──
+    logger.info(
+        "🔍 [DIAG] Univers disponible: %d symboles × %d timeframes = %d combinaisons | "
+        "Symboles: %s | Timeframes: %s",
+        len(all_symbols), len(all_timeframes), len(all_symbols) * len(all_timeframes),
+        ", ".join(all_symbols[:10]) + ("..." if len(all_symbols) > 10 else ""),
+        ", ".join(all_timeframes),
+    )
+
     fees_bps_raw = getattr(state, "fees_bps", None)
     if fees_bps_raw is None:
         fees_bps_raw = st.session_state.get("fees_bps", 10.0)
@@ -961,13 +1023,53 @@ def render_builder_view(
     except (TypeError, ValueError):
         slippage_bps = 5.0
 
-    if df is None or len(df) == 0:
-        with status_container:
-            show_status("error", "Aucune donnée OHLCV chargée")
-        st.session_state.is_running = False
-        return
-
     autonomous = getattr(state, "builder_autonomous", False)
+
+    if (df is None or len(df) == 0) and not autonomous:
+        # Mode manuel : on a besoin des données pré-chargées
+        # Tenter un chargement automatique si symbol/timeframe sont définis
+        if symbol and timeframe and symbol != "UNKNOWN":
+            try:
+                from data.loader import load_ohlcv
+                df = load_ohlcv(symbol, timeframe)
+                st.caption(f"📥 Données chargées automatiquement: {symbol} {timeframe}")
+            except Exception:
+                pass
+        if df is None or len(df) == 0:
+            with status_container:
+                show_status("error", "Aucune donnée OHLCV chargée — sélectionnez un token et timeframe, ou activez le mode autonome.")
+            st.session_state.is_running = False
+            return
+    elif (df is None or len(df) == 0) and autonomous:
+        # Mode autonome sans données pré-chargées : le builder chargera ses propres données
+        # via auto_market_pick ou fallback aléatoire
+        if symbol and timeframe and symbol != "UNKNOWN":
+            try:
+                from data.loader import load_ohlcv
+                df = load_ohlcv(symbol, timeframe)
+            except Exception:
+                pass
+        if df is None:
+            # Charger le premier token disponible comme point de départ
+            for _try_sym in all_symbols[:3]:
+                for _try_tf in all_timeframes[:2]:
+                    try:
+                        from data.loader import load_ohlcv
+                        df = load_ohlcv(_try_sym, _try_tf)
+                        if df is not None and len(df) > 0:
+                            symbol = _try_sym
+                            timeframe = _try_tf
+                            break
+                    except Exception:
+                        continue
+                if df is not None:
+                    break
+        if df is None or len(df) == 0:
+            with status_container:
+                show_status("error", "Aucune donnée OHLCV disponible pour démarrer le mode autonome.")
+            st.session_state.is_running = False
+            return
+        st.caption(f"📥 Données initiales: {symbol} {timeframe} ({len(df)} barres)")
 
     # ══════════════════════════════════════════════════════════════════════
     # Mode MANUEL (comportement original)
@@ -1100,6 +1202,13 @@ def render_builder_view(
     # ══════════════════════════════════════════════════════════════════════
     auto_pause = getattr(state, "builder_auto_pause", 10)
     use_llm_objectives = getattr(state, "builder_auto_use_llm", False)
+    use_parametric_catalog = getattr(state, "builder_use_parametric_catalog", False)
+
+    # Pré-génération du catalogue paramétrique si activé
+    if use_parametric_catalog:
+        with st.spinner("📐 Génération du catalogue paramétrique..."):
+            n_variants = generate_parametric_catalog()
+        st.caption(f"📐 {n_variants} fiches paramétriques générées")
 
     st.markdown("## 🔄 Strategy Builder — Mode Autonome 24/24")
     _market_display = (
@@ -1112,7 +1221,7 @@ def render_builder_view(
         f"Sharpe cible: {target_sharpe} | Capital: ${capital:,.0f} | "
         f"Marchés: {_market_display} | "
         f"Pause entre runs: {auto_pause}s | "
-        f"Objectifs: {'LLM' if use_llm_objectives else 'Templates'} | "
+        f"Objectifs: {'Param.' if use_parametric_catalog else 'LLM' if use_llm_objectives else 'Templates'} | "
         f"Auto marché: {'ON' if auto_market_pick else 'OFF'}"
     )
 
@@ -1179,9 +1288,42 @@ def render_builder_view(
             if h.get("symbol") and h.get("timeframe")
         ]
 
+        # ── DIAG: Historique de diversité ──
+        logger.info(
+            "🔍 [DIAG] Session #%d | Historique total: %d runs | Marchés récents (6 derniers): %s",
+            session_num,
+            len(history),
+            _recent_markets if _recent_markets else "❌ VIDE (premier run ou historique perdu)",
+        )
+
         # ── Générer l'objectif (multi-market : listes symbols/timeframes) ──
         current_catalog_id: Optional[str] = None
-        if use_llm_objectives and llm_client_for_obj is not None:
+        current_parametric_meta: Dict[str, Any] = {}
+        if use_parametric_catalog:
+            # Priorité : fiches paramétriques (archetypes × param_packs)
+            # Si auto_market_pick activé, ne PAS injecter symbol/TF dans le template
+            parametric_result = get_next_parametric_objective(
+                symbol=None if auto_market_pick else all_symbols,
+                timeframe=None if auto_market_pick else all_timeframes,
+            )
+            if parametric_result is not None:
+                objective = str(parametric_result.get("objective_text", "") or "")
+                current_catalog_id = (
+                    str(parametric_result.get("variant_id", "") or "").strip() or None
+                )
+                current_parametric_meta = dict(parametric_result)
+            else:
+                st.info("📐 Catalogue paramétrique vide — fallback templates")
+                catalog_result = get_next_catalog_objective(
+                    symbol=all_symbols, timeframe=all_timeframes,
+                )
+                if catalog_result is not None:
+                    objective, current_catalog_id = catalog_result
+                else:
+                    objective = generate_random_objective(
+                        symbol=all_symbols, timeframe=all_timeframes,
+                    )
+        elif use_llm_objectives and llm_client_for_obj is not None:
             with st.spinner("🧠 Génération de l'objectif par LLM..."):
                 objective = generate_llm_objective(
                     llm_client_for_obj,
@@ -1203,6 +1345,13 @@ def render_builder_view(
                     timeframe=all_timeframes,
                 )
         objective = sanitize_objective_text(objective)
+        if current_parametric_meta:
+            st.caption(
+                "📐 Variant "
+                f"{current_parametric_meta.get('variant_id', 'n/a')} | "
+                f"archetype={current_parametric_meta.get('archetype_id', 'n/a')} | "
+                f"pack={current_parametric_meta.get('param_pack_id', 'n/a')}"
+            )
 
         session_symbol = symbol
         session_timeframe = timeframe
@@ -1225,6 +1374,39 @@ def render_builder_view(
             st.caption(
                 f"🧭 Session #{session_num}: {session_symbol} {session_timeframe} "
                 f"(source={source}, data={data_source}, conf={confidence:.2f})"
+            )
+            # ── DIAG: Sélection finale ──
+            logger.info(
+                "🔍 [DIAG] Session #%d → Marché sélectionné: %s %s | "
+                "Source: %s | Confidence: %.2f | Data: %s | "
+                "Candidats: %d symbols × %d timeframes",
+                session_num,
+                session_symbol,
+                session_timeframe,
+                source,
+                confidence,
+                data_source,
+                len(market_pick.get("candidate_symbols", [])),
+                len(market_pick.get("candidate_timeframes", [])),
+            )
+        else:
+            # ── DIAG: Mode auto-pick désactivé ──
+            logger.info(
+                "🔍 [DIAG] Session #%d → Marché PAR DÉFAUT (auto_market_pick=OFF): %s %s",
+                session_num,
+                session_symbol,
+                session_timeframe,
+            )
+
+        # ── Remplacer les placeholders {symbol}/{timeframe} après sélection marché ──
+        if "{symbol}" in objective or "{timeframe}" in objective:
+            objective = objective.replace("{symbol}", session_symbol)
+            objective = objective.replace("{timeframe}", session_timeframe)
+            objective = sanitize_objective_text(objective)
+            logger.info(
+                "🔍 [DIAG] Placeholders remplacés dans objectif → %s %s",
+                session_symbol,
+                session_timeframe,
             )
 
         # ── Exécuter la session (remplace l'affichage précédent) ──
@@ -1260,6 +1442,15 @@ def render_builder_view(
             history.append({
                 "session_num": session_num,
                 "objective": objective,
+                "catalog_id": current_catalog_id or "",
+                "parametric_run_id": current_parametric_meta.get("run_id", ""),
+                "parametric_variant_id": current_parametric_meta.get("variant_id", ""),
+                "parametric_archetype_id": current_parametric_meta.get("archetype_id", ""),
+                "parametric_param_pack_id": current_parametric_meta.get("param_pack_id", ""),
+                "parametric_params": current_parametric_meta.get("params", {}),
+                "parametric_proposal": current_parametric_meta.get("proposal", {}),
+                "parametric_builder_text": current_parametric_meta.get("builder_text", ""),
+                "parametric_fingerprint": current_parametric_meta.get("fingerprint", ""),
                 "status": session.status,
                 "best_sharpe": session.best_sharpe,
                 "best_return": best_metrics.get("total_return_pct", 0),
@@ -1287,6 +1478,15 @@ def render_builder_view(
             history.append({
                 "session_num": session_num,
                 "objective": objective,
+                "catalog_id": current_catalog_id or "",
+                "parametric_run_id": current_parametric_meta.get("run_id", ""),
+                "parametric_variant_id": current_parametric_meta.get("variant_id", ""),
+                "parametric_archetype_id": current_parametric_meta.get("archetype_id", ""),
+                "parametric_param_pack_id": current_parametric_meta.get("param_pack_id", ""),
+                "parametric_params": current_parametric_meta.get("params", {}),
+                "parametric_proposal": current_parametric_meta.get("proposal", {}),
+                "parametric_builder_text": current_parametric_meta.get("builder_text", ""),
+                "parametric_fingerprint": current_parametric_meta.get("fingerprint", ""),
                 "status": "error",
                 "best_sharpe": 0,
                 "best_return": 0,

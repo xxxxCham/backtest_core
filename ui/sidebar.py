@@ -84,7 +84,9 @@ try:
         generate_random_objective,
         get_catalog_coverage,
         get_next_catalog_objective,
+        get_parametric_catalog_stats,
         reset_catalog_exploration,
+        reset_parametric_catalog,
     )
     _CATALOG_AVAILABLE = True
 except ImportError:
@@ -93,15 +95,26 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 POTENTIAL_TOKENS = [
-    "BTCUSDC",  # Bitcoin - Référence marché
-    "ETHUSDC",  # Ethereum - Leader DeFi
-    "BNBUSDC",  # Binance Coin - Plateforme CEX
-    "SOLUSDC",  # Solana - Haute vitesse
+    "BTCUSDC",   # Bitcoin - Référence marché
+    "ETHUSDC",   # Ethereum - Leader DeFi
+    "BNBUSDC",   # Binance Coin - Plateforme CEX
+    "SOLUSDC",   # Solana - Haute vitesse
+    "XRPUSDC",   # Ripple - Paiements cross-border
     "AVAXUSDC",  # Avalanche - DeFi concurrente
     "LINKUSDC",  # Chainlink - Oracle leader
-    "ADAUSDC",  # Cardano - Approche académique
-    "DOTUSDC",  # Polkadot - Interopérabilité
+    "ADAUSDC",   # Cardano - Approche académique
+    "DOTUSDC",   # Polkadot - Interopérabilité
     "ATOMUSDC",  # Cosmos - Hub inter-chaînes
+    "MATICUSDC", # Polygon - Layer 2 Ethereum
+    "NEARUSDC",  # NEAR Protocol - Sharding
+    "FILUSDC",   # Filecoin - Stockage décentralisé
+    "APTUSDC",   # Aptos - Move VM
+    "ARBUSDC",   # Arbitrum - L2 Optimistic
+    "OPUSDC",    # Optimism - L2 Optimistic
+    "INJUSDC",   # Injective - DeFi derivatives
+    "SUIUSDC",   # Sui - Move VM haute perf
+    "LTCUSDC",   # Litecoin - Digital silver
+    "TRXUSDC",   # TRON - Stablecoins hub
 ]
 
 SIDEBAR_STYLE_CSS = """
@@ -389,6 +402,7 @@ def _build_config_signature(state: SidebarState) -> str:
         "builder_autonomous": state.builder_autonomous,
         "builder_auto_pause": state.builder_auto_pause,
         "builder_auto_use_llm": state.builder_auto_use_llm,
+        "builder_use_parametric_catalog": state.builder_use_parametric_catalog,
     }
 
     normalized = _normalize_signature_value(payload)
@@ -459,6 +473,9 @@ def render_sidebar() -> SidebarState:
         if not available_timeframes:
             available_timeframes = ["1h", "4h", "1d"]
 
+        # Exclure 3m — trop peu de tokens ont des données sur ce timeframe
+        available_timeframes = [tf for tf in available_timeframes if tf != "3m"]
+
         # Nettoyer les valeurs de session invalides (bug fix 23/01/2026)
         if "symbol_select" in st.session_state:
             if st.session_state["symbol_select"] not in available_tokens:
@@ -522,33 +539,29 @@ def render_sidebar() -> SidebarState:
         if key in st.session_state:
             if "symbol" in key:
                 if isinstance(st.session_state[key], list):
-                    # Multi-select : garder uniquement les valeurs valides
-                    valid_symbols = [s for s in st.session_state[key] if s in available_tokens]
-                    # Ne mettre à jour QUE si des symboles invalides ont été retirés
-                    if valid_symbols and valid_symbols != st.session_state[key]:
-                        st.session_state[key] = valid_symbols
-                    elif not valid_symbols:
-                        # Aucun symbole valide - réinitialiser
-                        st.session_state[key] = available_tokens[:1] if available_tokens else []
+                    current = st.session_state[key]
+                    # Ne rien faire si la liste est déjà vide (choix utilisateur)
+                    if current:
+                        valid_symbols = [s for s in current if s in available_tokens]
+                        if valid_symbols != current:
+                            st.session_state[key] = valid_symbols
                 elif st.session_state[key] not in available_tokens:
                     del st.session_state[key]
             elif "timeframe" in key:
                 if isinstance(st.session_state[key], list):
-                    # Multi-select : garder uniquement les valeurs valides
-                    valid_timeframes = [tf for tf in st.session_state[key] if tf in available_timeframes]
-                    # Ne mettre à jour QUE si des timeframes invalides ont été retirés
-                    if valid_timeframes and valid_timeframes != st.session_state[key]:
-                        st.session_state[key] = valid_timeframes
-                    elif not valid_timeframes:
-                        # Aucun timeframe valide - réinitialiser
-                        st.session_state[key] = available_timeframes[:1] if available_timeframes else []
+                    current = st.session_state[key]
+                    # Ne rien faire si la liste est déjà vide (choix utilisateur)
+                    if current:
+                        valid_timeframes = [tf for tf in current if tf in available_timeframes]
+                        if valid_timeframes != current:
+                            st.session_state[key] = valid_timeframes
                 elif st.session_state[key] not in available_timeframes:
                     del st.session_state[key]
 
     # === MULTI-SÉLECTION TOKENS (multiselect) ===
 
-    # Tous les tokens disponibles par défaut pour que le LLM ait le choix
-    default_symbols = available_tokens if available_tokens else ["BTCUSDC"]
+    # Aucun token sélectionné par défaut — l'utilisateur choisit
+    default_symbols: List[str] = []
 
     # Appliquer la sélection des tokens potentiels avant la création du widget
     if st.session_state.get("_apply_potential_tokens", False):
@@ -561,18 +574,13 @@ def render_sidebar() -> SidebarState:
         st.session_state["symbols_select"] = merged_symbols or default_symbols
         del st.session_state["_apply_potential_tokens"]
 
-    # IMPORTANT: S'assurer que symbols_select n'est jamais vide dans session_state
-    # Si vide ou absent, initialiser avec default_symbols
-    if "symbols_select" not in st.session_state or not st.session_state.get("symbols_select"):
-        st.session_state["symbols_select"] = default_symbols
-
     # Layout: multiselect + bouton côte à côte
     col1, col2 = st.sidebar.columns([3, 1])
     with col1:
-        # Ne PAS utiliser default= car on utilise key= avec session_state pré-initialisé
         symbols = st.multiselect(
             label="Symbole(s)",
             options=available_tokens,
+            default=st.session_state.get("symbols_select", default_symbols),
             key="symbols_select",
             help="Sélectionnez un ou plusieurs tokens à analyser",
         )
@@ -582,31 +590,26 @@ def render_sidebar() -> SidebarState:
             st.session_state["_apply_potential_tokens"] = True
             st.rerun()
 
-    # Fallback si aucune sélection (double sécurité)
-    if not symbols:
-        symbols = default_symbols
-        st.sidebar.warning("⚠️ Au moins un symbole requis. Défauts restaurés.")
-    symbol = symbols[0]  # Compatibilité rétro
+    _is_builder = st.session_state.get("optimization_mode") == "🏗️ Strategy Builder"
+    if not symbols and not _is_builder:
+        st.sidebar.info("Sélectionnez au moins un symbole pour commencer.")
+    symbol = symbols[0] if symbols else ""  # Compatibilité rétro
 
     # === MULTI-SÉLECTION TIMEFRAMES (multiselect) ===
-    # Tous les timeframes disponibles par défaut pour que le LLM ait le choix
-    default_timeframes = available_timeframes if available_timeframes else ["30m"]
-    # IMPORTANT: S'assurer que timeframes_select n'est jamais vide
-    if "timeframes_select" not in st.session_state or not st.session_state.get("timeframes_select"):
-        st.session_state["timeframes_select"] = default_timeframes
+    # Aucun timeframe sélectionné par défaut — l'utilisateur choisit
+    default_timeframes: List[str] = []
 
-    # Ne PAS utiliser default= car on utilise key= avec session_state pré-initialisé
     timeframes = st.sidebar.multiselect(
         "Timeframe(s)",
         available_timeframes,
+        default=st.session_state.get("timeframes_select", default_timeframes),
         key="timeframes_select",
         help="Sélectionnez un ou plusieurs timeframes",
     )
-    # Fallback si aucune sélection (double sécurité)
-    if not timeframes:
-        timeframes = default_timeframes
-        st.sidebar.warning("⚠️ Au moins un timeframe requis. 30m sélectionné par défaut.")
-    timeframe = timeframes[0]  # Compatibilité rétro
+
+    if not timeframes and not _is_builder:
+        st.sidebar.info("Sélectionnez au moins un timeframe pour commencer.")
+    timeframe = timeframes[0] if timeframes else ""  # Compatibilité rétro
 
     # Info multi-sweep si plusieurs sélections (tokens/timeframes uniquement à ce stade)
     if len(symbols) > 1 or len(timeframes) > 1:
@@ -636,6 +639,11 @@ def render_sidebar() -> SidebarState:
         help="Désactivé = utilise toutes les données disponibles (recommandé)",
         key="use_date_filter",
     )
+    if use_date_filter:
+        if not symbols or not timeframes:
+            st.sidebar.warning("Sélectionnez au moins un symbole et un timeframe pour activer le filtre dates.")
+            use_date_filter = False
+
     if use_date_filter:
         # === ANALYSE PAR CATÉGORIE DE TIMEFRAME ===
         from data.config import analyze_by_timeframe
@@ -909,7 +917,8 @@ def render_sidebar() -> SidebarState:
         st.session_state.pop("pending_run_load_data", None)
 
     if st.session_state.get("ohlcv_df") is None:
-        st.sidebar.info("Donnees non chargees.")
+        if not _is_builder:
+            st.sidebar.info("Donnees non chargees.")
     else:
         cached_msg = st.session_state.get("ohlcv_status_msg", "")
         if cached_msg:
@@ -926,19 +935,16 @@ def render_sidebar() -> SidebarState:
         _sidebar_section("🎯 Stratégie")
 
         # === MULTI-SÉLECTION STRATÉGIES (multiselect) ===
-        default_strategies = list(strategy_options.keys())[:1] if strategy_options else []
         strategy_names = st.sidebar.multiselect(
             "Stratégie(s)",
             list(strategy_options.keys()),
-            default=default_strategies,
+            default=st.session_state.get("strategies_select", []),
             key="strategies_select",
             help="Sélectionnez une ou plusieurs stratégies",
         )
 
-        # Fallback si aucune sélection
         if not strategy_names:
-            strategy_names = default_strategies
-            st.sidebar.warning("⚠️ Au moins une stratégie requise. Première stratégie sélectionnée par défaut.")
+            st.sidebar.info("Sélectionnez au moins une stratégie pour commencer.")
 
         # Info multi-stratégies si plusieurs sélections
         if len(strategy_names) > 1:
@@ -949,8 +955,8 @@ def render_sidebar() -> SidebarState:
             )
 
         # Compatibilité rétro: première stratégie pour l'affichage des paramètres
-        strategy_name = strategy_names[0]
-        strategy_key = strategy_options[strategy_name]
+        strategy_name = strategy_names[0] if strategy_names else ""
+        strategy_key = strategy_options.get(strategy_name, "") if strategy_name else ""
 
         # Message multi-sweep global (stratégies + tokens + timeframes)
         if len(strategy_names) > 1 or len(symbols) > 1 or len(timeframes) > 1:
@@ -966,44 +972,44 @@ def render_sidebar() -> SidebarState:
             if len(parts) > 1:  # Seulement si au moins 2 dimensions multiples
                 st.sidebar.success(f"🔄 **Multi-sweep total**: {' × '.join(parts)} = **{total_combos} backtests**")
 
-        st.sidebar.caption(get_strategy_description(strategy_key))
-
         strategy_info = None
-        try:
-            strategy_info = get_strategy_info(strategy_key)
+        if strategy_key:
+            st.sidebar.caption(get_strategy_description(strategy_key))
 
-            if strategy_info.required_indicators:
-                indicators_list = ", ".join(
-                    [f"**{ind.upper()}**" for ind in strategy_info.required_indicators]
-                )
-                st.sidebar.info(f"📊 Indicateurs requis: {indicators_list}")
-            else:
-                st.sidebar.info("📊 Indicateurs: Calculés internement")
+            try:
+                strategy_info = get_strategy_info(strategy_key)
 
-            if strategy_info.internal_indicators:
-                internal_list = ", ".join(
-                    [f"{ind.upper()}" for ind in strategy_info.internal_indicators]
-                )
-                st.sidebar.caption(f"_Calculés: {internal_list}_")
+                if strategy_info.required_indicators:
+                    indicators_list = ", ".join(
+                        [f"**{ind.upper()}**" for ind in strategy_info.required_indicators]
+                    )
+                    st.sidebar.info(f"📊 Indicateurs requis: {indicators_list}")
+                else:
+                    st.sidebar.info("📊 Indicateurs: Calculés internement")
 
-        except KeyError:
-            st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
+                if strategy_info.internal_indicators:
+                    internal_list = ", ".join(
+                        [f"{ind.upper()}" for ind in strategy_info.internal_indicators]
+                    )
+                    st.sidebar.caption(f"_Calculés: {internal_list}_")
+
+            except KeyError:
+                st.sidebar.warning(f"⚠️ Indicateurs non définis pour '{strategy_key}'")
 
         _sidebar_section("📈 Indicateurs")
-        available_indicators = get_strategy_ui_indicators(strategy_key)
+        available_indicators = get_strategy_ui_indicators(strategy_key) if strategy_key else []
         # Tous les indicateurs sont toujours affichés
         active_indicators: List[str] = available_indicators if available_indicators else []
 
         if available_indicators:
             st.sidebar.caption(f"📊 {len(available_indicators)} indicateur(s) : {', '.join(available_indicators)}")
-        else:
+        elif strategy_key:
             st.sidebar.caption("Aucun indicateur disponible.")
     else:
         # Mode Builder : pas de sélection de stratégie (le builder les crée)
-        default_strategies = list(strategy_options.keys())[:1] if strategy_options else []
-        strategy_names = default_strategies
-        strategy_name = strategy_names[0] if strategy_names else ""
-        strategy_key = strategy_options.get(strategy_name, "") if strategy_name else ""
+        strategy_names = []
+        strategy_name = ""
+        strategy_key = ""
         strategy_info = None
         available_indicators: List[str] = []
         active_indicators: List[str] = []
@@ -1246,6 +1252,7 @@ def render_sidebar() -> SidebarState:
     builder_autonomous = False
     builder_auto_pause = 10
     builder_auto_use_llm = False
+    builder_use_parametric_catalog = False
 
     if optimization_mode == "🏗️ Strategy Builder":
         st.sidebar.markdown("---")
@@ -1283,8 +1290,44 @@ def render_sidebar() -> SidebarState:
             )
             st.session_state["builder_auto_use_llm"] = builder_auto_use_llm
 
-            # ── Couverture catalogue ──
-            if _CATALOG_AVAILABLE:
+            builder_use_parametric_catalog = st.sidebar.toggle(
+                "📐 Catalogue paramétrique",
+                value=st.session_state.get("builder_use_parametric_catalog", False),
+                key="builder_use_parametric_catalog_toggle",
+                help=(
+                    "Génère automatiquement des fiches de stratégies paramétriques "
+                    "(archetypes × param_packs) et les injecte comme objectifs. "
+                    "Prioritaire sur les templates et le LLM."
+                ),
+            )
+            st.session_state["builder_use_parametric_catalog"] = builder_use_parametric_catalog
+
+            # ── Stats catalogue paramétrique ──
+            if builder_use_parametric_catalog and _CATALOG_AVAILABLE:
+                try:
+                    pstats = get_parametric_catalog_stats()
+                    if pstats.get("generated"):
+                        p_total = pstats.get("total", 0)
+                        p_idx = pstats.get("index", 0)
+                        p_pct = pstats.get("coverage_pct", 0.0)
+                        st.sidebar.caption(
+                            f"Fiches param.: {p_idx}/{p_total} ({p_pct:.0f}%)"
+                        )
+                        st.sidebar.progress(min(p_pct / 100.0, 1.0))
+                    else:
+                        st.sidebar.caption("Fiches param.: non encore générées")
+                    if st.sidebar.button(
+                        "Reset fiches param.",
+                        key="builder_reset_parametric",
+                        help="Régénère le catalogue paramétrique.",
+                    ):
+                        reset_parametric_catalog()
+                        st.rerun()
+                except Exception:
+                    pass
+
+            # ── Couverture catalogue (ancien système — masqué si paramétrique actif) ──
+            if _CATALOG_AVAILABLE and not builder_use_parametric_catalog:
                 try:
                     cov = get_catalog_coverage()
                     total = cov.get("total_objectives", 0)
@@ -1292,11 +1335,17 @@ def render_sidebar() -> SidebarState:
                     pct = cov.get("coverage_pct", 0.0)
                     success_count = cov.get("success_count", 0)
                     if total > 0:
+                        cycles = explored // total if total else 0
+                        pos_in_cycle = explored % total
+                        if cycles > 0:
+                            cycle_label = f"cycle {cycles + 1}, {pos_in_cycle}/{total}"
+                        else:
+                            cycle_label = f"{explored}/{total} ({pct:.0f}%)"
                         st.sidebar.caption(
-                            f"Catalogue: {explored}/{total} ({pct:.0f}%) "
+                            f"Catalogue templates: {cycle_label} "
                             f"— {success_count} positifs"
                         )
-                        st.sidebar.progress(min(pct / 100.0, 1.0))
+                        st.sidebar.progress(min((explored % total) / total, 1.0) if total else 0.0)
                         if st.sidebar.button(
                             "Reset exploration",
                             key="builder_reset_catalog",
@@ -2298,15 +2347,17 @@ def render_sidebar() -> SidebarState:
     os.environ["BACKTEST_USE_GPU"] = "0"
     os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 
-    _sidebar_section("🔧 Paramètres")
-
     param_mode = "range" if optimization_mode == "Grille de Paramètres" else "single"
 
     params: Dict[str, Any] = {}
     param_ranges: Dict[str, Any] = {}
     param_specs: Dict[str, Any] = {}
-    strategy_class = get_strategy(strategy_key)
+    strategy_class = get_strategy(strategy_key) if strategy_key else None
     strategy_instance = None
+
+    # En mode Builder, pas de section paramètres (le builder gère ses propres params)
+    if optimization_mode != "🏗️ Strategy Builder":
+        _sidebar_section("🔧 Paramètres")
 
     if strategy_class:
         temp_strategy = strategy_class()
@@ -2411,7 +2462,7 @@ def render_sidebar() -> SidebarState:
                         st.caption(f"• {pname}: {pcount} valeurs")
             else:
                 st.sidebar.caption("📊 Mode simple: 1 combinaison")
-    else:
+    elif strategy_key:
         st.sidebar.error(f"Stratégie '{strategy_key}' non trouvée")
 
     _sidebar_section("💰 Trading")
@@ -2624,9 +2675,10 @@ def render_sidebar() -> SidebarState:
     all_param_specs = {}
 
     # Pour la première stratégie, utiliser les paramètres configurés via l'UI
-    all_params[strategy_key] = params
-    all_param_ranges[strategy_key] = param_ranges
-    all_param_specs[strategy_key] = param_specs
+    if strategy_key:
+        all_params[strategy_key] = params
+        all_param_ranges[strategy_key] = param_ranges
+        all_param_specs[strategy_key] = param_specs
 
     # Pour les autres stratégies, utiliser les paramètres par défaut
     for name in strategy_names[1:]:
@@ -2777,6 +2829,8 @@ def render_sidebar() -> SidebarState:
         builder_autonomous=builder_autonomous,
         builder_auto_pause=builder_auto_pause,
         builder_auto_use_llm=builder_auto_use_llm,
+        # Catalogue paramétrique
+        builder_use_parametric_catalog=builder_use_parametric_catalog,
     )
 
     applied_state = _apply_config_guard(draft_state)

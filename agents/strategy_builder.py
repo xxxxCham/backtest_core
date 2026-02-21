@@ -78,9 +78,10 @@ MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 3
 POSITIVE_PROGRESS_GATE_CHECKPOINTS: Dict[int, int] = {3: 1, 6: 2}
 MIN_TRADES_FOR_POSITIVE_PROGRESS = 1
 # Nombre mini de trades pour accepter une stratégie en cours d'optimisation
-MIN_TRADES_FOR_ACCEPT = 10
-MAX_DRAWDOWN_PCT_FOR_ACCEPT = 60.0
+MIN_TRADES_FOR_ACCEPT = 20
+MAX_DRAWDOWN_PCT_FOR_ACCEPT = 35.0
 MIN_RETURN_PCT_FOR_ACCEPT = 0.0
+MIN_PROFIT_FACTOR_FOR_ACCEPT = 1.05
 # Nombre max de fallbacks déterministes avant arrêt de la session
 MAX_DETERMINISTIC_FALLBACKS = 4
 PROPOSAL_REALIGN_ATTEMPTS = 1
@@ -1054,6 +1055,7 @@ def _is_accept_candidate(
     trades = int(metrics.get("total_trades", 0) or 0)
     ret = _metric_float(metrics, "total_return_pct", 0.0)
     max_dd = abs(_metric_float(metrics, "max_drawdown_pct", 0.0))
+    profit_factor = _metric_float(metrics, "profit_factor", MIN_PROFIT_FACTOR_FOR_ACCEPT)
 
     if _is_ruined_metrics(metrics):
         return False, "ruined_metrics"
@@ -1065,6 +1067,8 @@ def _is_accept_candidate(
         return False, "non_positive_return"
     if max_dd > MAX_DRAWDOWN_PCT_FOR_ACCEPT:
         return False, "drawdown_too_high"
+    if profit_factor < MIN_PROFIT_FACTOR_FOR_ACCEPT:
+        return False, "profit_factor_too_low"
     return True, "ok"
 
 
@@ -2452,14 +2456,18 @@ def _build_deterministic_fallback_code(
             "        df.loc[:, 'bb_tp_long'] = np.nan\n"
             "        df.loc[:, 'bb_stop_short'] = np.nan\n"
             "        df.loc[:, 'bb_tp_short'] = np.nan\n"
-            "        prev_close = np.roll(close, 1)\n"
-            "        prev_upper = np.roll(dc_upper, 1)\n"
-            "        prev_lower = np.roll(dc_lower, 1)\n"
-            "        prev_close[:1] = close[:1]\n"
-            "        prev_upper[:1] = dc_upper[:1]\n"
-            "        prev_lower[:1] = dc_lower[:1]\n"
-            "        long_entry = (close > dc_upper) & (prev_close <= prev_upper) & (adx >= adx_threshold)\n"
-            "        short_entry = (close < dc_lower) & (prev_close >= prev_lower) & (adx >= adx_threshold)\n"
+            "        dc_upper_prev = np.roll(dc_upper, 1)\n"
+            "        dc_lower_prev = np.roll(dc_lower, 1)\n"
+            "        dc_upper_prev[:1] = dc_upper[:1]\n"
+            "        dc_lower_prev[:1] = dc_lower[:1]\n"
+            "        long_cond = (close > dc_upper_prev) & (adx >= adx_threshold)\n"
+            "        short_cond = (close < dc_lower_prev) & (adx >= adx_threshold)\n"
+            "        long_prev = np.roll(long_cond, 1)\n"
+            "        short_prev = np.roll(short_cond, 1)\n"
+            "        long_prev[:1] = False\n"
+            "        short_prev[:1] = False\n"
+            "        long_entry = long_cond & (~long_prev)\n"
+            "        short_entry = short_cond & (~short_prev)\n"
             "        long_entry[:warmup] = False\n"
             "        short_entry[:warmup] = False\n"
             "        signals[long_entry] = 1.0\n"
@@ -4110,7 +4118,8 @@ class StrategyBuilder:
             "- indicator values are numpy arrays (or dict of numpy arrays)\n"
             "- never use .iloc/.loc on indicators; use arr[i] or vectorized masks\n"
             "- never use for i in range(...) or while\n"
-            "- bollinger must be indicators['bollinger']['upper|middle|lower']\n\n"
+            "- bollinger must be indicators['bollinger']['upper|middle|lower']\n"
+            "- donchian breakout should compare close vs previous band: prev_upper = np.roll(donchian_upper, 1)\n\n"
             "- adx must be indicators['adx']['adx|plus_di|minus_di'] (not indicators['adx'] directly)\n"
             "- supertrend must be indicators['supertrend']['supertrend|direction'] (no upper/lower)\n"
             "- stochastic must be indicators['stochastic']['stoch_k|stoch_d'] (no 'signal' key)\n"
@@ -4165,6 +4174,7 @@ class StrategyBuilder:
             "- Dict indicators (access sub-keys first):\n"
             "  bollinger['upper|middle|lower'], keltner['upper|middle|lower'],\n"
             "  donchian['upper|middle|lower'], macd['macd|signal|histogram'],\n"
+            "  For Donchian/Bollinger/Keltner breakout rules, compare against previous band values via np.roll(..., 1)\n"
             "  adx['adx|plus_di|minus_di'], supertrend['supertrend|direction'],\n"
             "  stochastic['stoch_k|stoch_d'], stoch_rsi['k|d|signal'],\n"
             "  ichimoku['tenkan|kijun|senkou_a|senkou_b|chikou|cloud_position'],\n"
@@ -4477,6 +4487,7 @@ CRITICAL RULES:
 20. Stochastic must be used as indicators['stochastic']['stoch_k|stoch_d'] (no 'signal' key).
 21. Keltner must be used as indicators['keltner']['upper|middle|lower'] (same pattern as Bollinger).
 22. Donchian must be used as indicators['donchian']['upper|middle|lower'] (same pattern as Bollinger).
+22b. For breakout on Donchian/Bollinger/Keltner bands, compare close to previous band values via np.roll(band, 1).
 23. Ichimoku must be used as indicators['ichimoku']['tenkan|kijun|senkou_a|senkou_b|chikou|cloud_position'].
 24. PSAR must be used as indicators['psar']['sar|trend|signal'].
 25. Vortex must be used as indicators['vortex']['vi_plus|vi_minus|signal|oscillator'].
@@ -4595,11 +4606,60 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
         # Verrouillé: required_indicators doit rester déterministe via code généré.
         return strategy_cls
 
+
+    def _precheck_signal_counts(
+        self,
+        strategy_cls: type,
+        data: pd.DataFrame,
+        params: Dict[str, Any],
+        initial_capital: float = 10000.0,
+        fees_bps: float = 10.0,
+        slippage_bps: float = 5.0,
+    ) -> Dict[str, Any]:
+        """Estime le nombre de signaux avant simulation complète.
+
+        Objectif: détecter très tôt les itérations "no trades" et éviter
+        d'exécuter un backtest complet inutile.
+        """
+        try:
+            engine = BacktestEngine(initial_capital=initial_capital, run_id=generate_run_id())
+            strategy_instance = strategy_cls()
+
+            base_params = getattr(strategy_instance, "default_params", {}) or {}
+            merged_params = dict(base_params)
+            merged_params.update(params or {})
+            merged_params.setdefault("fees_bps", fees_bps)
+            merged_params.setdefault("slippage_bps", slippage_bps)
+
+            probe_df = data.copy(deep=True)
+            indicators = engine._calculate_indicators(probe_df, strategy_instance, merged_params)
+            raw_signals = strategy_instance.generate_signals(probe_df, indicators, merged_params)
+            signals = _coerce_and_validate_signals_runtime(raw_signals, probe_df)
+
+            long_count = int((signals.values > 0).sum())
+            short_count = int((signals.values < 0).sum())
+            total_count = long_count + short_count
+
+            return {
+                "ok": True,
+                "long_signals": long_count,
+                "short_signals": short_count,
+                "total_signals": total_count,
+            }
+        except Exception as exc:
+            return {
+                "ok": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "long_signals": 0,
+                "short_signals": 0,
+                "total_signals": 0,
+            }
     # ------------------------------------------------------------------
     # Core: run backtest on generated strategy
     # ------------------------------------------------------------------
 
     def _run_backtest(
+
         self,
         strategy_cls: type,
         data: pd.DataFrame,
@@ -5143,139 +5203,188 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                 ts.backtest_start()
                 default_params = proposal.get("default_params", {})
 
-                # Launch pre-reflection in parallel with backtest
                 pre_reflection_future = None
                 pre_reflection_text = ""
-                _pre_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-                try:
-                    pre_reflection_future = _pre_pool.submit(
-                        self._ask_pre_reflection,
-                        session, proposal, code, i,
-                    )
-                except Exception:
-                    pass
+                _pre_pool = None
 
-                try:
-                    bt_result = self._run_backtest(
-                        strategy_cls, data, default_params, initial_capital,
-                        symbol=session.symbol,
-                        timeframe=session.timeframe,
-                        fees_bps=session.fees_bps,
-                        slippage_bps=session.slippage_bps,
-                    )
-                except Exception as bt_exc:
-                    bt_error = f"{type(bt_exc).__name__}: {bt_exc}"
-                    tb = _safe_format_exception(bt_exc)
-                    tb_tail = ""
-                    if tb:
-                        tb_lines = [line.rstrip() for line in tb.splitlines() if line.rstrip()]
-                        tb_tail = "\n".join(tb_lines[-16:]).strip()
-                    iteration.phase_feedback.setdefault("backtest", {})[
-                        "runtime_error"
-                    ] = bt_error
-                    if tb_tail:
-                        iteration.phase_feedback.setdefault("backtest", {})[
-                            "runtime_traceback_tail"
-                        ] = tb_tail
+                signal_probe = self._precheck_signal_counts(
+                    strategy_cls,
+                    data,
+                    default_params,
+                    initial_capital=initial_capital,
+                    fees_bps=session.fees_bps,
+                    slippage_bps=session.slippage_bps,
+                )
+                iteration.phase_feedback.setdefault("precheck", {}).update(signal_probe)
+
+                if signal_probe.get("ok") and int(signal_probe.get("total_signals", 0)) <= 0:
+                    long_n = int(signal_probe.get("long_signals", 0) or 0)
+                    short_n = int(signal_probe.get("short_signals", 0) or 0)
                     ts.warning(
-                        f"Backtest runtime error: {bt_error} — tentative auto-fix"
+                        "Pré-check: aucun signal d'entrée (long=0, short=0). "
+                        "Itération marquée no_trades, changement logique forcé."
                     )
                     logger.warning(
-                        "builder_iter_%d_backtest_runtime_error: %s", i, bt_error
+                        "builder_iter_%d_precheck_no_signals long=%d short=%d",
+                        i,
+                        long_n,
+                        short_n,
                     )
-
-                    runtime_error_for_llm = bt_error
-                    if tb_tail:
-                        runtime_error_for_llm = (
-                            f"{bt_error}\n\nTraceback (tail):\n{tb_tail}"
+                    iteration.phase_feedback.setdefault("precheck", {})["backtest_skipped"] = True
+                    proposal["_stagnation_detected"] = True
+                    bt_result = SimpleNamespace(
+                        success=True,
+                        metrics={
+                            "total_return_pct": 0.0,
+                            "sharpe_ratio": 0.0,
+                            "sortino_ratio": 0.0,
+                            "calmar_ratio": 0.0,
+                            "max_drawdown_pct": 0.0,
+                            "total_trades": 0,
+                            "win_rate_pct": 0.0,
+                            "profit_factor": 1.0,
+                            "expectancy": 0.0,
+                        },
+                        sharpe_ratio=0.0,
+                        total_return_pct=0.0,
+                        max_drawdown_pct=0.0,
+                        total_trades=0,
+                        execution_time_ms=0,
+                    )
+                else:
+                    # Launch pre-reflection in parallel with backtest
+                    pre_reflection_future = None
+                    pre_reflection_text = ""
+                    _pre_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                    try:
+                        pre_reflection_future = _pre_pool.submit(
+                            self._ask_pre_reflection,
+                            session, proposal, code, i,
                         )
-
-                    retry_code = self._retry_code_runtime_fix(
-                        proposal=proposal,
-                        failing_code=code,
-                        runtime_error=runtime_error_for_llm,
-                    )
-                    retry_code = _repair_code(retry_code)
-                    valid_retry, retry_err = validate_generated_code(retry_code)
-                    used_runtime_fallback = False
-                    if not valid_retry:
-                        iteration.phase_feedback.setdefault("backtest", {})[
-                            "runtime_fix_validation_error"
-                        ] = retry_err
-                        fallback_code = _build_deterministic_fallback_code(
-                            proposal, variant=fallback_count,
-                        )
-                        fallback_count += 1
-                        fallback_code = _repair_code(fallback_code)
-                        valid_fb, fb_err = validate_generated_code(fallback_code)
-                        if not valid_fb:
-                            raise ValueError(
-                                "Runtime-fix invalide et fallback déterministe invalide: "
-                                f"{retry_err} | {fb_err}"
-                            )
-                        retry_code = fallback_code
-                        used_runtime_fallback = True
-                        iteration.phase_feedback.setdefault("backtest", {})[
-                            "runtime_fix_fallback_deterministic_used"
-                        ] = True
-                        iteration.phase_feedback.setdefault("code", {})[
-                            "source"
-                        ] = "deterministic_fallback"
-
-                    retry_cls = self._save_and_load(session, retry_code, i)
-                    retry_cls = self._auto_fix_required_indicators(
-                        retry_cls, retry_code
-                    )
+                    except Exception:
+                        pass
+    
                     try:
                         bt_result = self._run_backtest(
-                            retry_cls, data, default_params, initial_capital,
+                            strategy_cls, data, default_params, initial_capital,
                             symbol=session.symbol,
                             timeframe=session.timeframe,
                             fees_bps=session.fees_bps,
                             slippage_bps=session.slippage_bps,
                         )
-                    except Exception as retry_bt_exc:
-                        if used_runtime_fallback:
-                            raise
+                    except Exception as bt_exc:
+                        bt_error = f"{type(bt_exc).__name__}: {bt_exc}"
+                        tb = _safe_format_exception(bt_exc)
+                        tb_tail = ""
+                        if tb:
+                            tb_lines = [line.rstrip() for line in tb.splitlines() if line.rstrip()]
+                            tb_tail = "\n".join(tb_lines[-16:]).strip()
                         iteration.phase_feedback.setdefault("backtest", {})[
-                            "runtime_fix_retry_error"
-                        ] = f"{type(retry_bt_exc).__name__}: {retry_bt_exc}"
-                        fallback_code = _build_deterministic_fallback_code(
-                            proposal, variant=fallback_count,
+                            "runtime_error"
+                        ] = bt_error
+                        if tb_tail:
+                            iteration.phase_feedback.setdefault("backtest", {})[
+                                "runtime_traceback_tail"
+                            ] = tb_tail
+                        ts.warning(
+                            f"Backtest runtime error: {bt_error} — tentative auto-fix"
                         )
-                        fallback_count += 1
-                        fallback_code = _repair_code(fallback_code)
-                        valid_fb2, fb_err2 = validate_generated_code(fallback_code)
-                        if not valid_fb2:
-                            raise ValueError(
-                                "Runtime-fix backtest failed and deterministic fallback "
-                                f"is invalid: {fb_err2}"
+                        logger.warning(
+                            "builder_iter_%d_backtest_runtime_error: %s", i, bt_error
+                        )
+    
+                        runtime_error_for_llm = bt_error
+                        if tb_tail:
+                            runtime_error_for_llm = (
+                                f"{bt_error}\n\nTraceback (tail):\n{tb_tail}"
                             )
-                        fallback_cls = self._save_and_load(session, fallback_code, i)
-                        fallback_cls = self._auto_fix_required_indicators(
-                            fallback_cls, fallback_code
+    
+                        retry_code = self._retry_code_runtime_fix(
+                            proposal=proposal,
+                            failing_code=code,
+                            runtime_error=runtime_error_for_llm,
                         )
-                        bt_result = self._run_backtest(
-                            fallback_cls, data, default_params, initial_capital,
-                            symbol=session.symbol,
-                            timeframe=session.timeframe,
-                            fees_bps=session.fees_bps,
-                            slippage_bps=session.slippage_bps,
+                        retry_code = _repair_code(retry_code)
+                        valid_retry, retry_err = validate_generated_code(retry_code)
+                        used_runtime_fallback = False
+                        if not valid_retry:
+                            iteration.phase_feedback.setdefault("backtest", {})[
+                                "runtime_fix_validation_error"
+                            ] = retry_err
+                            fallback_code = _build_deterministic_fallback_code(
+                                proposal, variant=fallback_count,
+                            )
+                            fallback_count += 1
+                            fallback_code = _repair_code(fallback_code)
+                            valid_fb, fb_err = validate_generated_code(fallback_code)
+                            if not valid_fb:
+                                raise ValueError(
+                                    "Runtime-fix invalide et fallback déterministe invalide: "
+                                    f"{retry_err} | {fb_err}"
+                                )
+                            retry_code = fallback_code
+                            used_runtime_fallback = True
+                            iteration.phase_feedback.setdefault("backtest", {})[
+                                "runtime_fix_fallback_deterministic_used"
+                            ] = True
+                            iteration.phase_feedback.setdefault("code", {})[
+                                "source"
+                            ] = "deterministic_fallback"
+    
+                        retry_cls = self._save_and_load(session, retry_code, i)
+                        retry_cls = self._auto_fix_required_indicators(
+                            retry_cls, retry_code
                         )
-                        retry_code = fallback_code
-                        used_runtime_fallback = True
+                        try:
+                            bt_result = self._run_backtest(
+                                retry_cls, data, default_params, initial_capital,
+                                symbol=session.symbol,
+                                timeframe=session.timeframe,
+                                fees_bps=session.fees_bps,
+                                slippage_bps=session.slippage_bps,
+                            )
+                        except Exception as retry_bt_exc:
+                            if used_runtime_fallback:
+                                raise
+                            iteration.phase_feedback.setdefault("backtest", {})[
+                                "runtime_fix_retry_error"
+                            ] = f"{type(retry_bt_exc).__name__}: {retry_bt_exc}"
+                            fallback_code = _build_deterministic_fallback_code(
+                                proposal, variant=fallback_count,
+                            )
+                            fallback_count += 1
+                            fallback_code = _repair_code(fallback_code)
+                            valid_fb2, fb_err2 = validate_generated_code(fallback_code)
+                            if not valid_fb2:
+                                raise ValueError(
+                                    "Runtime-fix backtest failed and deterministic fallback "
+                                    f"is invalid: {fb_err2}"
+                                )
+                            fallback_cls = self._save_and_load(session, fallback_code, i)
+                            fallback_cls = self._auto_fix_required_indicators(
+                                fallback_cls, fallback_code
+                            )
+                            bt_result = self._run_backtest(
+                                fallback_cls, data, default_params, initial_capital,
+                                symbol=session.symbol,
+                                timeframe=session.timeframe,
+                                fees_bps=session.fees_bps,
+                                slippage_bps=session.slippage_bps,
+                            )
+                            retry_code = fallback_code
+                            used_runtime_fallback = True
+                            iteration.phase_feedback.setdefault("backtest", {})[
+                                "runtime_fix_fallback_deterministic_used"
+                            ] = True
+                            iteration.phase_feedback.setdefault("code", {})[
+                                "source"
+                            ] = "deterministic_fallback"
+                        code = retry_code
+                        iteration.code = retry_code
                         iteration.phase_feedback.setdefault("backtest", {})[
-                            "runtime_fix_fallback_deterministic_used"
+                            "runtime_fix_applied"
                         ] = True
-                        iteration.phase_feedback.setdefault("code", {})[
-                            "source"
-                        ] = "deterministic_fallback"
-                    code = retry_code
-                    iteration.code = retry_code
-                    iteration.phase_feedback.setdefault("backtest", {})[
-                        "runtime_fix_applied"
-                    ] = True
-                iteration.backtest_result = bt_result
+                    iteration.backtest_result = bt_result
                 ts.backtest_result(bt_result.metrics)
 
                 # Collect pre-reflection result (ran in parallel with backtest)
@@ -5633,7 +5742,7 @@ _INDICATOR_FAMILIES: Dict[str, Dict[str, Any]] = {
     },
     "mean-reversion": {
         "label": "Mean-reversion",
-        "primary": ["bollinger", "rsi", "stochastic", "cci", "williams_r", "stoch_rsi", "keltner", "donchian"],
+        "primary": ["bollinger", "rsi", "stochastic", "cci", "williams_r", "stoch_rsi", "keltner", "mfi", "obv"],
         "entry_templates": [
             "Entrée quand le prix touche la bande extrême de {ind1} avec {ind2} en zone de survente/surachat.",
             "Achat en survente ({ind1} < seuil) avec confirmation {ind2}, vente en surachat.",
@@ -5659,7 +5768,7 @@ _INDICATOR_FAMILIES: Dict[str, Dict[str, Any]] = {
     },
     "breakout": {
         "label": "Breakout",
-        "primary": ["bollinger", "donchian", "keltner", "atr", "supertrend", "adx"],
+        "primary": ["bollinger", "donchian", "keltner", "atr", "supertrend", "adx", "pivot_points", "psar", "ichimoku"],
         "entry_templates": [
             "Entrée sur cassure de la bande supérieure/inférieure de {ind1} avec volume confirmé.",
             "Position quand le prix sort du range {ind1} avec {ind2} montrant une expansion de volatilité.",
@@ -5718,6 +5827,12 @@ _RISK_TEMPLATES = [
     "Stop serré {sl_mult}x ATR pour limiter le drawdown, TP à {tp_mult}x ATR.",
 ]
 
+# Cache global pour éviter de répéter les mêmes indicateurs et familles
+_RECENT_INDICATORS: List[str] = []
+_MAX_RECENT_INDICATORS = 8  # Évite de réutiliser les 8 derniers indicateurs principaux
+_RECENT_FAMILIES: List[str] = []
+_MAX_RECENT_FAMILIES = 3  # Évite de réutiliser les 3 dernières familles
+
 
 def generate_random_objective(
     symbol: "str | List[str]" = "BTCUSDC",
@@ -5735,6 +5850,8 @@ def generate_random_objective(
     Returns:
         Objectif structuré en français prêt à être passé au StrategyBuilder.
     """
+    global _RECENT_INDICATORS, _RECENT_FAMILIES
+
     # Normaliser listes → valeur unique (choix aléatoire)
     if isinstance(symbol, list):
         symbol = random.choice(symbol) if symbol else "BTCUSDC"
@@ -5746,18 +5863,47 @@ def generate_random_objective(
 
     avail_lower = {ind.lower() for ind in available_indicators}
 
-    # Choisir une famille
-    family_key = random.choice(list(_INDICATOR_FAMILIES.keys()))
+    # 🎯 Choisir une famille en évitant les récentes
+    all_families = list(_INDICATOR_FAMILIES.keys())
+    fresh_families = [f for f in all_families if f not in _RECENT_FAMILIES]
+
+    # Si toutes les familles ont été utilisées récemment, réinitialiser
+    if not fresh_families:
+        fresh_families = all_families
+        _RECENT_FAMILIES.clear()
+
+    family_key = random.choice(fresh_families)
     family = _INDICATOR_FAMILIES[family_key]
+
+    # Mettre à jour le cache des familles récentes
+    _RECENT_FAMILIES.append(family_key)
+    if len(_RECENT_FAMILIES) > _MAX_RECENT_FAMILIES:
+        _RECENT_FAMILIES.pop(0)
 
     # Filtrer les indicateurs disponibles dans cette famille
     valid_primary = [ind for ind in family["primary"] if ind.lower() in avail_lower]
     if len(valid_primary) < 2:
         valid_primary = [ind for ind in available_indicators if ind.lower() != "atr"]
 
-    # Sélectionner 2-3 indicateurs + ATR pour le risk management
-    n_indicators = random.randint(2, min(3, len(valid_primary)))
-    selected = random.sample(valid_primary, n_indicators)
+    # 🎯 Anti-répétition : retirer les indicateurs récemment utilisés
+    recent_lower = {ind.lower() for ind in _RECENT_INDICATORS}
+    fresh_indicators = [ind for ind in valid_primary if ind.lower() not in recent_lower]
+
+    # Si tous les indicateurs ont été utilisés récemment, on réinitialise
+    if len(fresh_indicators) < 2:
+        fresh_indicators = valid_primary
+        _RECENT_INDICATORS.clear()
+
+    # Sélectionner 2-3 indicateurs parmi les frais
+    n_indicators = random.randint(2, min(3, len(fresh_indicators)))
+    selected = random.sample(fresh_indicators, n_indicators)
+
+    # 🎯 Mettre à jour le cache des indicateurs récents
+    for ind in selected:
+        if ind.lower() != "atr":  # ATR n'est pas compté car toujours présent
+            _RECENT_INDICATORS.append(ind)
+            if len(_RECENT_INDICATORS) > _MAX_RECENT_INDICATORS:
+                _RECENT_INDICATORS.pop(0)  # FIFO
     if "atr" not in [s.lower() for s in selected] and "atr" in avail_lower:
         selected.append("atr")
 
@@ -5952,7 +6098,8 @@ def generate_llm_objective(
     else:
         result = llm_client.chat([system_msg, user_msg], max_tokens=300)
 
-    objective = str(result).strip()
+    # Extraire .content si LLMResponse, sinon str()
+    objective = str(getattr(result, "content", result) or "").strip()
     # Nettoyer les tags <think> si présents
     objective = re.sub(r"<think>.*?</think>", "", objective, flags=re.DOTALL).strip()
     objective = re.sub(r"<think>.*", "", objective, flags=re.DOTALL).strip()
@@ -7475,21 +7622,6 @@ def recommend_market_context(
         allowed_symbols=symbols,
         allowed_timeframes=timeframes,
     )
-
-    # Si l'objectif contient déjà un couple explicite valide, on le respecte
-    # (les templates/catalogue injectent ce couple en amont).
-    if hinted_symbol and hinted_timeframe:
-        return {
-            "symbol": hinted_symbol,
-            "timeframe": hinted_timeframe,
-            "confidence": 1.0,
-            "reason": (
-                "Couple token/timeframe explicitement présent dans l'objectif; "
-                "priorité donnée à cette instruction."
-            ),
-            "source": "objective_hint",
-        }
-
     # Mélanger pour réduire le biais de position
     shuffled_symbols = symbols.copy()
     random.shuffle(shuffled_symbols)
@@ -7508,13 +7640,13 @@ def recommend_market_context(
     hint_lines: List[str] = []
     if hinted_symbol:
         hint_lines.append(
-            f"- L'objectif mentionne explicitement le symbole `{hinted_symbol}` : "
-            "conserve ce symbole."
+            f"- L'objectif mentionne le symbole `{hinted_symbol}` : "
+            "considère-le comme une préférence, pas comme une contrainte absolue."
         )
     if hinted_timeframe:
         hint_lines.append(
-            f"- L'objectif mentionne explicitement le timeframe `{hinted_timeframe}` : "
-            "conserve ce timeframe."
+            f"- L'objectif mentionne le timeframe `{hinted_timeframe}` : "
+            "considère-le comme une préférence, pas comme une contrainte absolue."
         )
     if hint_lines:
         objective_hint_instruction = "\n" + "\n".join(hint_lines)
@@ -7550,7 +7682,8 @@ def recommend_market_context(
             )
         else:
             raw = llm_client.chat([system_msg, user_msg], max_tokens=180)
-        raw_text = str(raw or "").strip()
+        # Extraire .content si LLMResponse, sinon str()
+        raw_text = str(getattr(raw, "content", raw) or "").strip()
     except Exception as exc:
         logger.warning("recommend_market_context: fallback exception=%s", exc)
         return {
@@ -7588,22 +7721,74 @@ def recommend_market_context(
         confidence = 0.0
         if not reason:
             reason = "Réponse LLM non parseable en JSON. Fallback appliqué."
+    # Évite de rester figé sur le même couple déjà utilisé récemment.
+    if recent_markets:
+        recent_order = [
+            (str(s or "").upper(), str(tf or "").strip())
+            for s, tf in recent_markets
+            if str(s or "").strip() and str(tf or "").strip()
+        ]
+        recent_pairs = set(recent_order)
+        all_pairs = [(s, tf) for s in symbols for tf in timeframes]
+        selected_pair = (symbol, timeframe)
 
-    hint_overrides: List[str] = []
-    if hinted_symbol and symbol != hinted_symbol:
-        symbol = hinted_symbol
-        hint_overrides.append(f"symbol={hinted_symbol}")
-    if hinted_timeframe and timeframe != hinted_timeframe:
-        timeframe = hinted_timeframe
-        hint_overrides.append(f"timeframe={hinted_timeframe}")
-    if hint_overrides:
-        source = "llm_with_objective_hint" if source == "llm" else "objective_hint_fallback"
-        confidence = max(confidence, 0.85)
-        applied = ", ".join(hint_overrides)
+        if selected_pair in recent_pairs and len(all_pairs) > 1:
+            alternatives = [p for p in all_pairs if p not in recent_pairs]
+            candidate_pool = alternatives
+
+            # Si tout l'univers a déjà été vu, forcer une rotation sur le moins récent.
+            if not candidate_pool:
+                last_seen: Dict[Tuple[str, str], int] = {p: -1 for p in all_pairs}
+                for idx, pair in enumerate(recent_order):
+                    if pair in last_seen:
+                        last_seen[pair] = idx
+                candidate_pool = sorted(
+                    [p for p in all_pairs if p != selected_pair],
+                    key=lambda p: (last_seen.get(p, -1), p[0], p[1]),
+                )
+
+            preferred = candidate_pool
+            if hinted_symbol and hinted_timeframe:
+                same_symbol = [p for p in candidate_pool if p[0] == hinted_symbol]
+                same_timeframe = [p for p in candidate_pool if p[1] == hinted_timeframe]
+                preferred = same_symbol or same_timeframe or candidate_pool
+            elif hinted_symbol:
+                by_symbol = [p for p in candidate_pool if p[0] == hinted_symbol]
+                preferred = by_symbol or candidate_pool
+            elif hinted_timeframe:
+                by_timeframe = [p for p in candidate_pool if p[1] == hinted_timeframe]
+                preferred = by_timeframe or candidate_pool
+
+            if preferred:
+                symbol, timeframe = preferred[0]
+                source = f"{source}_diversity_override" if source != "llm" else "llm_diversity_override"
+                confidence = min(confidence, 0.75)
+                if reason:
+                    reason = (
+                        f"{reason} Couple récent évité automatiquement "
+                        f"({selected_pair[0]} {selected_pair[1]})."
+                    )
+                else:
+                    reason = (
+                        f"Couple récent évité automatiquement "
+                        f"({selected_pair[0]} {selected_pair[1]})."
+                    )
+
+    # Bonus léger si le LLM choisit spontanément les hints de l'objectif,
+    # sans les forcer pour préserver la diversité multi-market.
+    hint_matches: List[str] = []
+    if hinted_symbol and symbol == hinted_symbol:
+        hint_matches.append(f"symbol={hinted_symbol}")
+    if hinted_timeframe and timeframe == hinted_timeframe:
+        hint_matches.append(f"timeframe={hinted_timeframe}")
+    if hint_matches:
+        source = "llm_with_objective_hint" if source == "llm" else source
+        confidence = max(confidence, 0.8)
+        matched = ", ".join(hint_matches)
         if reason:
-            reason = f"{reason} Contraintes objectif appliquées ({applied})."
+            reason = f"{reason} Hints objectif alignés ({matched})."
         else:
-            reason = f"Contraintes objectif appliquées ({applied})."
+            reason = f"Hints objectif alignés ({matched})."
 
     if not reason:
         if source == "llm":
@@ -7937,3 +8122,20 @@ def reset_parametric_catalog() -> None:
     _PARAMETRIC_VARIANTS = None
     _PARAMETRIC_INDEX = 0
     logger.info("parametric_catalog_reset")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

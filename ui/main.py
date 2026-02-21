@@ -854,29 +854,32 @@ def render_main(
             st.session_state.is_running = False
             return
 
-        with st.spinner("📥 Chargement des données..."):
-            df = st.session_state.get("ohlcv_df")
-            data_msg = st.session_state.get("ohlcv_status_msg", "")
+        df = st.session_state.get("ohlcv_df")
+        data_msg = st.session_state.get("ohlcv_status_msg", "")
 
-            if df is None:
-                df, data_msg = load_selected_data(
-                    symbol,
-                    timeframe,
-                    state.start_date,
-                    state.end_date,
-                )
-
-            if df is None:
-                with status_container:
-                    show_status("error", f"Échec chargement: {data_msg}")
-                    st.info(
-                        "💡 Vérifiez les fichiers dans "
-                        "`D:\\ThreadX_big\\data\\crypto\\processed\\parquet\\`"
+        # Le mode Strategy Builder gère son propre chargement marché/token
+        # (notamment en autonome avec sélection LLM), donc on n'impose pas
+        # de préchargement ici.
+        if optimization_mode != "🏗️ Strategy Builder":
+            with st.spinner("📥 Chargement des données..."):
+                if df is None:
+                    df, data_msg = load_selected_data(
+                        symbol,
+                        timeframe,
+                        state.start_date,
+                        state.end_date,
                     )
-                st.session_state.is_running = False
-                st.stop()
 
-            if df is not None:
+                if df is None:
+                    with status_container:
+                        show_status("error", f"Échec chargement: {data_msg}")
+                        st.info(
+                            "💡 Vérifiez les fichiers dans "
+                            "`D:\\.my_soft\\gestionnaire_telechargement_multi-timeframe\\processed\\parquet\\`"
+                        )
+                    st.session_state.is_running = False
+                    st.stop()
+
                 with status_container:
                     show_status("success", f"Données chargées: {data_msg}")
 

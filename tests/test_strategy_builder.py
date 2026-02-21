@@ -22,11 +22,14 @@ from agents.strategy_builder import (
     BuilderSession,
     StrategyBuilder,
     _build_deterministic_fallback_code,
+    _validate_llm_logic_block,
+    _repair_code,
     _is_accept_candidate,
     _policy_change_type_override,
     _ranking_sharpe,
     _extract_json_from_response,
     _extract_python_from_response,
+    normalize_variant_for_builder,
     recommend_market_context,
     sanitize_objective_text,
     validate_generated_code,
@@ -160,6 +163,32 @@ class TestValidateCode:
         assert not is_valid
         assert "nameerror" in msg.lower()
         assert "df" in msg.lower()
+
+    def test_reject_nameerror_warmup_not_defined(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["rsi"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    signals.iloc[:warmup] = 0.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "nameerror" in msg.lower()
+        assert "warmup" in msg.lower()
 
     def test_dangerous_os_system(self):
         code = textwrap.dedent(f"""\
@@ -328,6 +357,58 @@ class TestValidateCode:
         assert not is_valid
         assert "supertrend" in msg.lower() and "sous-cl" in msg.lower()
 
+    def test_reject_dict_indicator_any_method(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["adx"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    signals = pd.Series(0.0, index=df.index)
+                    adx = indicators["adx"]
+                    if adx.any():
+                        signals.iloc[:10] = 1.0
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "indicator dict" in msg.lower() or "dict" in msg.lower()
+
+    def test_reject_overwrite_np_alias(self):
+        code = textwrap.dedent(f"""\
+            from typing import Any, Dict, List
+            import numpy as np
+            import pandas as pd
+            from strategies.base import StrategyBase
+
+            class {GENERATED_CLASS_NAME}(StrategyBase):
+                @property
+                def required_indicators(self) -> List[str]:
+                    return ["rsi"]
+
+                @property
+                def default_params(self) -> Dict[str, Any]:
+                    return {{}}
+
+                def generate_signals(self, df, indicators, params):
+                    np = 1
+                    signals = pd.Series(0.0, index=df.index)
+                    return signals
+        """)
+        is_valid, msg = validate_generated_code(code)
+        assert not is_valid
+        assert "alias réservé `np`".lower() in msg.lower()
+
 
 # ─── Tests extraction LLM ─────────────────────────────────────────────────
 
@@ -364,6 +445,44 @@ class TestExtractResponse:
         text = "import pandas as pd\ndf = pd.DataFrame()"
         result = _extract_python_from_response(text)
         assert "import pandas" in result
+
+
+class TestLogicBlockValidation:
+    def test_llm_logic_allows_boolean_constants_outside_signals(self):
+        logic = textwrap.dedent("""\
+            long_prev = np.roll(long_mask, 1)
+            long_prev[:1] = False
+            long_entry = long_mask & (~long_prev)
+            signals[long_entry] = 1.0
+        """)
+        ok, err = _validate_llm_logic_block(logic)
+        assert ok, err
+
+    def test_llm_logic_rejects_true_false_in_signal_assignments(self):
+        logic = "signals[long_mask] = True"
+        ok, err = _validate_llm_logic_block(logic)
+        assert not ok
+        assert "true/false" in err.lower()
+
+
+class TestCodeRepair:
+    def test_repair_normalizes_indicator_key_case(self):
+        raw = "x = indicators['SMA']\ny = indicators.get('ADX', None)\n"
+        repaired = _repair_code(raw)
+        assert "indicators['sma']" in repaired
+        assert "indicators.get('adx'" in repaired
+
+    def test_repair_rewrites_dict_dot_notation(self):
+        raw = "x = donchian.upper\ny = adx.adx\n"
+        repaired = _repair_code(raw)
+        assert "indicators['donchian']['upper']" in repaired
+        assert "indicators['adx']['adx']" in repaired
+
+    def test_repair_rewrites_indicators_close_to_df_close(self):
+        raw = "price = indicators['close']\nsl = indicators.get('bb_stop_long', np.nan)\n"
+        repaired = _repair_code(raw)
+        assert "df['close']" in repaired
+        assert "df['bb_stop_long']" in repaired
 
 
 class _DummyLLMClient:
@@ -595,6 +714,76 @@ class TestDeterministicFallbackCode:
         assert "rsi_overbought" in code
         assert "bollinger" in code
 
+    def test_deterministic_fallback_breakout_variant_for_donchian_adx(self):
+        proposal = {
+            "strategy_name": "Fallback Breakout",
+            "used_indicators": ["donchian", "adx", "atr"],
+        }
+        code = _build_deterministic_fallback_code(proposal)
+        assert "dc_upper" in code
+        assert "dc_lower" in code
+        assert "adx_threshold" in code
+
+
+# ─── Tests bridge paramétrique ───────────────────────────────────────────
+
+class TestParametricVariantNormalization:
+    """Vérifie la normalisation/gating des variants paramétriques."""
+
+    def test_normalize_variant_rewrites_crosses_and_exposes_metadata(self):
+        variant = {
+            "run_id": "cat_test_001",
+            "variant_id": "variant_a",
+            "archetype_id": "arch_a",
+            "param_pack_id": "pack_a",
+            "params": {"bb_period": 20},
+            "proposal": {
+                "entry_long_logic": "close > bollinger.upper",
+                "entry_short_logic": "close < bollinger.lower",
+                "exit_logic": "close crosses bollinger.middle",
+            },
+            "builder_text": (
+                "FICHE_STRATEGIE v1\n"
+                "exit:\n"
+                "  - condition: close crosses bollinger.middle\n"
+                "market: {symbol} {timeframe}\n"
+            ),
+            "fingerprint": "fp_1",
+        }
+
+        normalized = normalize_variant_for_builder(
+            variant,
+            symbol="BTCUSDC",
+            timeframe="1h",
+        )
+        assert normalized is not None
+        assert normalized["run_id"] == "cat_test_001"
+        assert normalized["variant_id"] == "variant_a"
+        assert normalized["archetype_id"] == "arch_a"
+        assert normalized["param_pack_id"] == "pack_a"
+        assert normalized["params"] == {"bb_period": 20}
+        assert "cross_any(close, bollinger.middle)" in normalized["proposal"]["exit_logic"]
+        assert "cross_any(close, bollinger.middle)" in normalized["builder_text"]
+        assert "crosses" not in normalized["objective_text"].lower()
+        assert "BTCUSDC" in normalized["objective_text"]
+        assert "1h" in normalized["objective_text"]
+
+    def test_normalize_variant_rejects_forbidden_tokens(self):
+        variant = {
+            "variant_id": "variant_bad",
+            "archetype_id": "arch_bad",
+            "param_pack_id": "pack_bad",
+            "params": {},
+            "proposal": {
+                "entry_long_logic": "df['close'] > bollinger.upper",
+                "entry_short_logic": "close < bollinger.lower",
+                "exit_logic": "close > bollinger.middle",
+            },
+            "builder_text": "FICHE_STRATEGIE v1\nentry:\n  - long: df['close'] > bollinger.upper\n",
+            "fingerprint": "fp_bad",
+        }
+        assert normalize_variant_for_builder(variant) is None
+
 
 # ─── Tests chargement dynamique ──────────────────────────────────────────
 
@@ -698,3 +887,54 @@ class TestTemplates:
         assert GENERATED_CLASS_NAME in result
         assert "Mean reversion ETH" in result
         assert "rsi, bollinger" in result
+
+
+class TestMarketRecommendationDiversity:
+    def test_recommend_market_context_diversity_overrides_repeated_pair(self):
+        llm = _DummyLLMClient(
+            '{"symbol":"0GUSDC","timeframe":"1h","confidence":0.92,"reason":"objectif explicite"}',
+        )
+        result = recommend_market_context(
+            llm,
+            objective="Breakout Donchian sur 0GUSDC 1h",
+            candidate_symbols=["0GUSDC", "BTCUSDC"],
+            candidate_timeframes=["1h", "15m"],
+            default_symbol="BTCUSDC",
+            default_timeframe="15m",
+            recent_markets=[("0GUSDC", "1h"), ("BTCUSDC", "1h"), ("0GUSDC", "15m")],
+        )
+        assert result["symbol"] == "BTCUSDC"
+        assert result["timeframe"] == "15m"
+        assert str(result["source"]).endswith("diversity_override")
+
+
+
+    def test_recommend_market_context_rotates_when_all_pairs_recent(self):
+        llm = _DummyLLMClient(
+            '{"symbol":"0GUSDC","timeframe":"1h","confidence":0.90,"reason":"focus"}',
+        )
+        result = recommend_market_context(
+            llm,
+            objective="Breakout 0GUSDC 1h",
+            candidate_symbols=["0GUSDC", "BTCUSDC"],
+            candidate_timeframes=["1h"],
+            default_symbol="0GUSDC",
+            default_timeframe="1h",
+            recent_markets=[("0GUSDC", "1h"), ("BTCUSDC", "1h")],
+        )
+        assert result["symbol"] == "BTCUSDC"
+        assert result["timeframe"] == "1h"
+        assert str(result["source"]).endswith("diversity_override")
+class TestBuilderRobustnessProfitFactor:
+    def test_accept_candidate_rejects_low_profit_factor(self):
+        metrics = {
+            "sharpe_ratio": 1.3,
+            "total_return_pct": 12.0,
+            "max_drawdown_pct": -18.0,
+            "total_trades": 45,
+            "profit_factor": 1.01,
+        }
+        ok, reason = _is_accept_candidate(metrics, target_sharpe=1.0)
+        assert ok is False
+        assert reason == "profit_factor_too_low"
+

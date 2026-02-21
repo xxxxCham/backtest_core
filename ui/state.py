@@ -112,6 +112,8 @@ class SidebarState:
     builder_autonomous: bool
     builder_auto_pause: int       # Pause en secondes entre runs (0-120)
     builder_auto_use_llm: bool    # True = LLM génère l'objectif, False = templates
+    # Catalogue paramétrique (19/02/2026)
+    builder_use_parametric_catalog: bool  # True = utiliser les fiches paramétriques générées
 
     def __post_init__(self) -> None:
         if self.use_date_filter:

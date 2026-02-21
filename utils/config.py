@@ -41,7 +41,7 @@ class Config:
     """
 
     # Chemins
-    data_dir: Path = field(default_factory=lambda: Path(r"D:\ThreadX_big\data\crypto\processed\parquet"))
+    data_dir: Path = field(default_factory=lambda: Path(r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet"))
     # Modèles LLM: configurés via D:\models\models.json (voir utils.model_loader)
 
     # Capital & Trading

@@ -170,17 +170,26 @@ DEFAULT_DATA_DIR = Path(__file__).parent / "sample_data"
 
 # Chemin données principales - priorité variable d'environnement
 THREADX_DATA_DIR = Path(
-    os.environ.get("BACKTEST_CORE_DATA_DIR", "D:/backtest_core/data/crypto/processed/parquet")
+    os.environ.get(
+        "BACKTEST_CORE_DATA_DIR",
+        r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet",
+    )
 )
 
 # Chemin gestionnaire multi-timeframe (données mises à jour) - priorité variable d'environnement
 GESTIONNAIRE_DATA_DIR = Path(
-    os.environ.get("BACKTEST_CORE_GESTIONNAIRE_DIR", "D:/backtest_core/data/gestionnaire/processed")
+    os.environ.get(
+        "BACKTEST_CORE_GESTIONNAIRE_DIR",
+        r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet",
+    )
 )
 
 # Chemin données brutes gestionnaire (fallback) - priorité variable d'environnement
 GESTIONNAIRE_RAW_DIR = Path(
-    os.environ.get("BACKTEST_CORE_RAW_DIR", "D:/backtest_core/data/gestionnaire/raw")
+    os.environ.get(
+        "BACKTEST_CORE_RAW_DIR",
+        r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed",
+    )
 )
 
 
@@ -218,7 +227,7 @@ def _get_data_dir() -> Path:
 
     # Chercher dans des emplacements courants
     candidates = [
-        Path("D:/ThreadX_big/data/crypto/processed/parquet"),
+        Path(r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet"),
         Path.cwd() / "data" / "sample_data",
         Path.cwd() / "data",
         Path(__file__).parent.parent.parent / "data",

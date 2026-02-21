@@ -568,6 +568,11 @@ def safe_load_data(
     start: Optional[str] = None,
     end: Optional[str] = None,
 ) -> Tuple[Optional[pd.DataFrame], str]:
+    symbol = str(symbol or "").strip().upper()
+    timeframe = str(timeframe or "").strip()
+    if symbol in {"", "_", "UNKNOWN"} or timeframe in {"", "_"}:
+        return None, "❌ Sélectionnez un symbole et un timeframe valides."
+
     try:
         df = load_ohlcv(symbol, timeframe, start=start, end=end)
 
