@@ -1,0 +1,244 @@
+{
+  "session_id": "20260223_144716_fiche_strategie_v1_id_mean_reversion_bol",
+  "objective": "FICHE_STRATEGIE v1\nid: mean_reversion_bollinger_rsi\narchetype: mean_reversion_bollinger_rsi\nfamily: mean_reversion\ntimeframe: 1h\nside: both\nindicators:\n- bollinger(period=44, std_dev=2.7)\n- rsi(period=18)\n- atr(period=14)\nentry:\n- long: close < bollinger.lower and rsi < 20\n- short: close > bollinger.upper and rsi > 70\nexit:\n- condition: cross_any(close, bollinger.middle) or cross_any(rsi, 50)\nrisk:\nstop_atr_mult: 1.25\ntp_atr_mult: 4.5\ndescription: ATR stop-loss (1.25x) and take-profit (4.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A price that falls below the lower Bollinger band while RSI is deeply oversold signals a temporary pullback in a relatively stable volatility regime; the ATR scaling ensures risk is proportional to current market breadth, and the band middle acts as a natural mean-reversion target.",
+      "change_type": "accept",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6923495591608484,
+      "return_pct": -64.53977778457602,
+      "trades": 51,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -64.5%, PF 0.58, Expectancy -126.55"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 65.4%, Vol 65.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.692, Sortino -0.432, Calmar -0.946"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.5%, Trades 51, AvgW/L 696.41/408.09"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 9431 rows. Every boolean mask MUST also have exactly 9431 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4689, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 9431 rows. Every boolean mask MUST also have exactly 9431 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 9431 rows. Every boolean mask MUST also have exactly 9431 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may suffer from over\u2011tight entry conditions (both Bollinger and RSI must be extreme), producing few trades and high slippage; a 44\u2011period band with 2.7\u03c3 is very wide, diluting mean\u2011reversion signals. It ignores trend bias, so it can be caught in sustained moves, while the ATR\u2011scaled exit may be too generous in volatile markets. The 18\u2011period RSI is short\u2011lived and may generate false cross\u2011overs. Overall, the risk\u2011reward ratio (1.25:4.5) may be too high if the trade count is low, hurting the Sharpe ratio.\n[Backup plan] If the backtest returns a net loss, first add a trend filter (e.g., only trade when a 50\u2011period EMA is above the price for longs, below for shorts) and tighten the Bollinger period to 20 with 2\u03c3. If the Sharpe is acceptable but low, reduce the TP multiplier to 3x, tighten the stop to 1x ATR, and raise RSI thresholds to 30/70 to capture more moderate pullbacks. If the strategy still fails, switch to a Keltner\u2011channel mean\u2011reversion with a 14\u2011period ATR multiplier for entry and exit, and include a volume spike filter to avoid low\u2011liquidity false signals."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Mean reversion signals are most reliable when the market is not in a strong trend; adding an ADX filter (ADX < 20) removes entries during sustained directional moves, while Bollinger bands capture extreme price levels and RSI confirms oversold/overbought conditions. This combination reduces false entries and limits drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'adx_threshold'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'adx_threshold'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_144716_fiche_strategie_v1_id_mean_reversion_bol\\strategy.py\", line 127, in generate_signals\n    & (adx < params[\"adx_threshold\"])\nKeyError: 'adx_threshold'",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 9431 rows. Every boolean mask MUST also have exactly 9431 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may over\u2011filter in low\u2011volatility regimes, causing missed opportunities; 2. Bollinger period 44 with 2.7\u03c3 is very wide, diluting signal strength; 3. Fixed ATR multipliers may be inappropriate for all market phases; 4. No time\u2011of\u2011day filter could let in trades during low liquidity hours.\n[Backup plan] If returns stay negative, switch to a tighter Bollinger (period 20, 2\u03c3) and drop the ADX filter to capture more entries. If Sharpe is low, tighten stop to 1.0\u00d7ATR and TP to 3.0\u00d7ATR, and add a 5\u2011period SMA filter to align with short\u2011term trend. As a fallback, replace the mean\u2011reversion logic with a volatility\u2011breakout rule (e.g., close > upper band + 0.5\u00d7ATR for longs) and test a dynamic trailing stop based on ATR."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Using tighter Bollinger bands (period 20, std 2) combined with moderate RSI thresholds (30/70) captures more frequent mean\u2011reversion opportunities while the ATR\u2011based risk management ensures positions are only taken in sufficiently volatile conditions, improving trade frequency without sacrificing risk control.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -114.61731690673128,
+      "trades": 246,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -114.6%, PF 0.82, Expectancy -46.59"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 305.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.4%, Trades 246, AvgW/L 801.35/351.10"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 197,
+          "short_signals": 161,
+          "total_signals": 358
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Weaknesses: 1) The Bollinger period (44) and std (2.7) are unusually long/loose, diluting mean\u2011reversion signals; 2) RSI thresholds (20/70) are too tight, limiting trade count; 3) ATR\u2011based SL/TP (1.25x/4.5x) may be mismatched to 1\u2011hour volatility, causing early exits or missed moves; 4) No trend filter may let the strategy trade against a strong trend, increasing losses.\n[Backup plan] If returns stay negative, tighten the Bollinger band (period 20, std 2) and raise RSI thresholds to 30/70 to capture more frequent, clearer reversals, and reduce TP multiplier to 3.0 to avoid over\u2011extension. If Sharpe remains low, adjust risk: lower SL to 1.0x ATR, increase TP to 5.0x, or add a simple moving\u2011average trend filter to only trade when price is below/above the MA. As an alternative, replace Bollinger/RSI combo with a Keltner\u2011channel + stochastic oscillator or a volatility\u2011adjusted mean\u2011reversion on a shorter 15\u2011minute frame to improve trade frequency and risk\u2011reward balance."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

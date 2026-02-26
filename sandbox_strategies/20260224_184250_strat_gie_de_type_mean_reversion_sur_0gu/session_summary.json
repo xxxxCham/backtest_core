@@ -1,0 +1,1086 @@
+{
+  "session_id": "20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu",
+  "objective": "Strat\u00e9gie de type mean-reversion sur 0GUSDC en 1h avec filtrage par regime trend vs range bas\u00e9 sur le supertrend et le donchian. Indicateurs : EMA + BOLLINGER + VOLUME_OSCILLATOR. Entr\u00e9es : crossover EMA vers le haut avec bande de bollinger \u00e9troite et volume sup\u00e9rieur \u00e0 la moyenne sur 1h, suivi d'une confirmation contrarienne partielle via le stochastic. Sorties : sortie sur la premi\u00e8re intersection du STOCHASTIC avec le seuil de surachat ou sur le supertrend. Risk management : SL dynamique bas\u00e9 sur l'ATR, TP fixe \u00e0 2x le SL, avec adaptation du seuil d'entr\u00e9e selon le contexte de volatilit\u00e9 du VIX.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Supertrend and Donchian channels as a regime filter improves mean-reversion entry quality by identifying trending vs ranging markets, reducing false signals during strong trends and increasing profitability in range-bound conditions.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 101, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_retry_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (Supertrend, Donchian, Bollinger) creates complexity and potential overfitting risks. The EMA crossover with Bollinger width threshold may generate whipsaw signals in volatile markets, while the stochastic confirmation could lag behind true reversals. The fixed 2x TP SL ratio assumes symmetric risk-reward, which may not hold in mean-reversion environments where losses can be larger than gains.\n[Backup plan] If results are poor, I'd simplify to just Supertrend + EMA crossover with dynamic volatility-based entry thresholds. If Sharpe is mediocre, I'd optimize the Bollinger width and volume threshold parameters using walk-forward analysis. As an alternative, I'd test a pure volatility breakout strategy with ATR-based stops, or a momentum-based filter instead of mean-reversion for range detection."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Supertrend and Donchian channels creates a robust trend vs range filter that prevents entering against the trend. EMA crossovers with narrow Bollinger bands identify mean-reversion opportunities within defined volatility regimes, while Volume Oscillator confirms conviction. This multi-filter approach reduces false signals and improves risk-adjusted returns in 0GUSDC's volatile environment.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 102, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_retry_error": "KeyError: 'stochastic'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters may cause overfitting and reduce signal frequency. The EMA crossover with narrow Bollinger bands is vulnerable to whipsaws in high-volatility 0GUSDC periods. The static VIX-based entry threshold might not adapt quickly enough to changing market conditions, and the exit rules may be too rigid, especially in ranging markets where Supertrend can give false signals.\n[Backup plan] If results are poor, I'd simplify to a pure EMA + Bollinger + Volume filter with dynamic entry thresholds based on recent volatility. If Sharpe is mediocre, I'd reduce the Bollinger band width requirement and increase the volume filter sensitivity. As an alternative, I'd test a volatility-adjusted mean-reversion strategy using RSI or MACD with a dynamic stop-loss based on ATR and volatility clustering."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA crossover with Bollinger band contraction and volume confirmation creates a robust mean-reversion signal. The supertrend filter ensures we only trade in trending markets, avoiding costly whipsaws in range-bound conditions. Stochastic confirmation adds an additional layer of validation by ensuring momentum aligns with the reversion trade.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -77.51997686214025,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8461071555190335,
+      "win_rate_pct": 23.52941176470588,
+      "trades": 357,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -7.035101461987042,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4411764705882355
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -77.5%, PF 0.85, Expectancy -21.71"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1444.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 357, AvgW/L 507.39/184.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: cl\u00e9 string `vo['fast']` sur indicateur ndarray. Utiliser directement l'array.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 101, in generate_signals\n    signals[ema['ema_21'] > ema['ema_50']] = 1.0\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: cl\u00e9 string `ema['ema_21']` sur indicateur ndarray. Utiliser directement l'array.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover and Bollinger contraction may generate false signals during strong trends, while the supertrend filter might miss early momentum shifts. Overfitting to historical volatility and VIX-based entry adjustments could hurt performance in unseen market regimes. The stochastic confirmation adds complexity but may delay entries or cause whipsaws in ranging markets.\n[Backup plan] If results are poor, I'd simplify to a pure mean-reversion trade on Bollinger squeeze with supertrend filter, removing EMA and stochastic. If Sharpe is low, I'd adjust Bollinger band width and volume threshold to reduce noise. As an alternative, I'd test a volatility-based breakout filter with fixed TP/SL, or switch to a momentum filter instead of trend filtering."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -7.035101461987042,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4411764705882355
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Supertrend and Donchian channels creates a robust trend vs range filter that prevents entering against the trend. EMA and Bollinger bands identify mean-reversion opportunities within the filtered regime, while Volume Oscillator confirms conviction. Stochastic provides a contrarian confirmation to avoid false breakouts.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 139, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (Supertrend, Donchian, Stochastic) may cause overfitting and reduce trade frequency. The EMA crossover with Bollinger squeeze is prone to false signals in ranging markets, and the volume filter may not effectively distinguish between meaningful and random volume spikes. The fixed TP/SL ratio and static entry thresholds are likely too rigid for varying market conditions.\n[Backup plan] If results are poor, simplify to a pure mean-reversion strategy using only EMA + Bollinger + Stochastic, removing the trend filter. If Sharpe is mediocre, optimize the EMA period, widen Bollinger bands, or adjust stochastic thresholds. As an alternative, switch to a momentum-based approach with RSI + ATR filtering, or implement a volatility-adjusted Z-score mean-reversion model."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA crossover with Bollinger Band contraction and volume confirmation creates a robust mean-reversion signal in trending markets. The Supertrend filter ensures we only trade in strong trends, avoiding whipsaws in ranging markets. Stochastic confirmation adds a momentum twist to avoid late entries. ATR-based stop-loss ensures dynamic risk management that adapts to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Supertrend and Donchian channels creates a robust trend vs range filter that avoids entering trades during strong trends, while the Bollinger Band narrowing confirms mean-reversion opportunities. The Volume Oscillator ensures high conviction entries by confirming momentum shifts, and stochastic confirmation reduces false signals. ATR-based risk management adapts to volatility and provides consistent risk-reward profiles.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Supertrend and Donchian channels creates a robust trend vs range filter that prevents entering against the trend. EMA crossovers with narrow Bollinger bands identify mean-reversion opportunities within defined volatility regimes, while Volume Oscillator confirms conviction. This multi-filter approach reduces false signals and improves risk-adjusted returns in 0GUSDC's volatile environment.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 102, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_retry_error": "KeyError: 'stochastic'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters may cause overfitting and reduce signal frequency. The EMA crossover with narrow Bollinger bands is vulnerable to whipsaws in high-volatility 0GUSDC periods. The static VIX-based entry threshold might not adapt quickly enough to changing market conditions, and the exit rules may be too rigid, especially in ranging markets where Supertrend can give false signals.\n[Backup plan] If results are poor, I'd simplify to a pure EMA + Bollinger + Volume filter with dynamic entry thresholds based on recent volatility. If Sharpe is mediocre, I'd reduce the Bollinger band width requirement and increase the volume filter sensitivity. As an alternative, I'd test a volatility-adjusted mean-reversion strategy using RSI or MACD with a dynamic stop-loss based on ATR and volatility clustering."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Supertrend and Donchian channels creates a robust trend vs range filter that prevents entering against the trend. EMA and Bollinger bands identify mean-reversion opportunities within the filtered regime, while Volume Oscillator confirms conviction. Stochastic provides a contrarian confirmation to avoid false breakouts.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 139, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (Supertrend, Donchian, Stochastic) may cause overfitting and reduce trade frequency. The EMA crossover with Bollinger squeeze is prone to false signals in ranging markets, and the volume filter may not effectively distinguish between meaningful and random volume spikes. The fixed TP/SL ratio and static entry thresholds are likely too rigid for varying market conditions.\n[Backup plan] If results are poor, simplify to a pure mean-reversion strategy using only EMA + Bollinger + Stochastic, removing the trend filter. If Sharpe is mediocre, optimize the EMA period, widen Bollinger bands, or adjust stochastic thresholds. As an alternative, switch to a momentum-based approach with RSI + ATR filtering, or implement a volatility-adjusted Z-score mean-reversion model."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Supertrend and Donchian channels as a regime filter improves mean-reversion entry quality by identifying trending vs ranging markets, reducing false signals during strong trends and increasing profitability in range-bound conditions.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 101, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_retry_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (Supertrend, Donchian, Bollinger) creates complexity and potential overfitting risks. The EMA crossover with Bollinger width threshold may generate whipsaw signals in volatile markets, while the stochastic confirmation could lag behind true reversals. The fixed 2x TP SL ratio assumes symmetric risk-reward, which may not hold in mean-reversion environments where losses can be larger than gains.\n[Backup plan] If results are poor, I'd simplify to just Supertrend + EMA crossover with dynamic volatility-based entry thresholds. If Sharpe is mediocre, I'd optimize the Bollinger width and volume threshold parameters using walk-forward analysis. As an alternative, I'd test a pure volatility breakout strategy with ATR-based stops, or a momentum-based filter instead of mean-reversion for range detection."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA crossover with Bollinger band contraction and volume confirmation creates a robust mean-reversion signal. The supertrend filter ensures we only trade in trending markets, avoiding costly whipsaws in range-bound conditions. Stochastic confirmation adds an additional layer of validation by ensuring momentum aligns with the reversion trade.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -77.51997686214025,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8461071555190335,
+      "win_rate_pct": 23.52941176470588,
+      "trades": 357,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -7.035101461987042,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4411764705882355
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -77.5%, PF 0.85, Expectancy -21.71"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1444.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 357, AvgW/L 507.39/184.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: cl\u00e9 string `vo['fast']` sur indicateur ndarray. Utiliser directement l'array.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184250_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 101, in generate_signals\n    signals[ema['ema_21'] > ema['ema_50']] = 1.0\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: cl\u00e9 string `ema['ema_21']` sur indicateur ndarray. Utiliser directement l'array.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover and Bollinger contraction may generate false signals during strong trends, while the supertrend filter might miss early momentum shifts. Overfitting to historical volatility and VIX-based entry adjustments could hurt performance in unseen market regimes. The stochastic confirmation adds complexity but may delay entries or cause whipsaws in ranging markets.\n[Backup plan] If results are poor, I'd simplify to a pure mean-reversion trade on Bollinger squeeze with supertrend filter, removing EMA and stochastic. If Sharpe is low, I'd adjust Bollinger band width and volume threshold to reduce noise. As an alternative, I'd test a volatility-based breakout filter with fixed TP/SL, or switch to a momentum filter instead of trend filtering."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -7.035101461987042,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4411764705882355
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

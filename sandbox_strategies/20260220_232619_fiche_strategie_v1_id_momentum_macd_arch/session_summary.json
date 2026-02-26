@@ -1,0 +1,473 @@
+{
+  "session_id": "20260220_232619_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=13, slow_period=35, signal_period=11)\n- rsi(period=9)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 35 and rsi < 75\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 4.5\ndescription: ATR stop-loss (2.0x) and take-profit (4.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A combination of RSI and ATR with Bollinger Bands creates a robust momentum strategy that performs well in different market conditions.",
+      "change_type": "both",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.5984180170105682,
+      "return_pct": 32.089272459111434,
+      "trades": 167,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.1%, PF 1.08, Expectancy 19.22"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 48.4%, Vol 71.8%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.598, Sortino 0.887, Calmar 0.636"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.5%, Trades 167, AvgW/L 718.59/383.25"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy currently uses multiple indicators and has different entry, exit conditions. The use of ATR stop loss, take profit and fallback contract are also added to limit risk and optimize profits. If results are poor (negative return), the parameters affecting profitability like atr mult, macd period etc will be checked first for optimization.\n\nBackup plan: In case the current strategy fails, an alternative approach can be explored such as using other technical indicators or incorporating machine learning techniques into the model to improve its performance. Another option could be backtesting with different timeframes or contracts.\n[Backup plan] Check and optimize parameters affecting profitability, explore alternative approaches like adding/removing indicators or incorporating ML for better results."
+        },
+        "decision": {
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy uses momentum indicators such as MACD, RSI and ATR to identify potential entries. It also includes risk management through stop loss and take profit levels set at 2x and 4.5x respectively. The use of no_lookahead constraint ensures that the model is not influenced by future data points while making decisions. However, it's important to note that this strategy only caters for a single contract (ANIMEUSDC) and may need to be adjusted if applied to different contracts or markets.\n[Backup plan] 1. If results are poor, we could consider:  - Adjusting the stop-loss and take profit levels based on historical performance data;  - Changing the indicators used to capture more market conditions; 2. We would try a different fallback contract that better aligns with our trading goals or risk tolerance. This might include re-testing the strategy on other contracts or markets; 3. If results are mediocre, we could experiment with changing parameters such as the period for MACD and RSI indicators to optimize performance. Additionally, exploring alternative entry methods like mean reversion strategies may also be considered; 4. We would consider using a different model architecture that takes into account market conditions or developing an ensemble of models that can complement each other."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses momentum and mean reversion indicators to enter long or short positions. It also sets stop loss and take profit levels based on ATR and trade multiple factors. If the results are poor, we could try a different set of parameters for the indicators, such as changing the fast/slow period for MACD. We can also experiment with other mean reversion strategies like RVI or Bollinger Band to see if they provide better results. Additionally, we can consider adding volatility-based filters to our strategy.\n[Backup plan] Experiment with different sets of parameters and indicators to optimize performance. If necessary, consider using a different contract for fallback in case the current one is not exploitable. Keep experimenting and refining the strategy until it reaches acceptable levels of performance."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses momentum indicators to identify buy and sell opportunities in ANIMEUSDC 1h. The parameters are set based on the default values provided by the archetype. Potential weaknesses of this strategy include potential overfitting due to custom parameter setting, limited diversification across different assets or timeframes, and reliance on multiple technical indicators. If results are poor (negative return), focusing on improving stop-loss management could be a priority. For mediocre performance (low Sharpe ratio), optimizing parameters such as fast_period, slow_period, signal_period for MACD, period for RSI, and period for ATR can help improve the strategy's efficiency. If current strategies fail, it might be worth exploring other quant strategies or incorporating fundamental analysis into the model."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 1
+          }
+        }
+      }
+    }
+  ]
+}

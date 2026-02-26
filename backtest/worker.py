@@ -52,12 +52,58 @@ def init_worker_with_dataframe(
     fast_metrics: bool = True,  # ⚡ Performance: mode rapide par défaut
     is_path: bool = False,
 ):
-    # ⚡ Performance: désactiver cache disque indicateur (contention I/O en parallèle)
-    # Cache mémoire reste actif pour indicateurs réutilisables
-    os.environ["INDICATOR_CACHE_DISK_ENABLED"] = "0"
     """
     Initializer pour ProcessPoolExecutor - charge le DataFrame une seule fois.
 
+    CRITICAL: Toute exception ici casse le pool entier (BrokenProcessPool).
+    On wrappe tout dans try/except pour logger les erreurs avant crash.
+    """
+    # ⚡ Performance: désactiver cache disque indicateur (contention I/O en parallèle)
+    # Cache mémoire reste actif pour indicateurs réutilisables
+    os.environ["INDICATOR_CACHE_DISK_ENABLED"] = "0"
+
+    try:
+        _init_worker_with_dataframe_impl(
+            df_or_path, strategy_key, symbol, timeframe,
+            initial_capital, debug_enabled, thread_limit,
+            fast_metrics, is_path
+        )
+    except Exception as e:
+        # CRITICAL: Logger l'erreur avant que le worker ne crash
+        import sys, traceback
+        print(f"❌ FATAL: Worker init failed: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        raise  # Re-raise pour signaler l'échec au pool
+
+
+def _init_worker_with_dataframe_impl(
+    df_or_path,
+    strategy_key: str,
+    symbol: str,
+    timeframe: str,
+    initial_capital: float,
+    debug_enabled: bool,
+    thread_limit: int,
+    fast_metrics: bool = True,
+    is_path: bool = False,
+):
+    """
+    Implémentation réelle de l'initializer (wrappée pour error handling).
+
+    ✅ FIX CRITICAL: Ajouter root du projet au PYTHONPATH (Windows spawn mode)
+    Les workers importent ui/main.py mais n'ont pas 'ui' dans leur sys.path.
+    """
+    # ═══════════════════════════════════════════════════════════════════════════
+    # FIX PYTHONPATH - CRITICAL POUR WINDOWS SPAWN MODE
+    # ═══════════════════════════════════════════════════════════════════════════
+    import sys
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent  # d:\backtest_core
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    """
     Cette fonction est appelée une fois par worker au démarrage du pool.
     Le DataFrame est stocké en variable globale pour éviter la sérialisation pickle
     répétée à chaque soumission de tâche.

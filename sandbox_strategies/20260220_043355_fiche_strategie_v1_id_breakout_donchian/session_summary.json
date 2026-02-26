@@ -1,0 +1,269 @@
+{
+  "session_id": "20260220_043355_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=25)\n- adx(period=25)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 25\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 6.0\ndescription: ATR stop-loss (2.0x) and take-profit (6.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "The strategy assumes that a breakout from the Donchian channels occurs when the ADX moves above a certain threshold, indicating a strong trend. It then waits for price to cross back through the middle of the channel as an exit signal.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -102.83207926016667,
+      "trades": 266,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -102.8%, PF 0.88, Expectancy -38.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 30958.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.6%, Trades 266, AvgW/L 1077.01/421.82"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_043355_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 69, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_043355_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 66, in generate_signals\n    long_mask = (df[\"close\"] > indicators['donchian']['upper']) & (indicators['adx']['adx'] > 30)\nKeyError: 'donchian'",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The potential weaknesses of this strategy are its sensitivity to entry and exit conditions. The strategy may be overly sensitive which can lead to frequent trades and higher transaction costs. It also does not take into account the market sentiment, only price momentum. If there is a significant change in public sentiment or market psychology, the strategy may lose effectiveness.\n[Backup plan] If results are poor (negative return), I would try to adjust the entry conditions by considering more indicators that can confirm momentum like RSI and EMA. For mediocre performance (low Sharpe ratio), it could be due to sensitivity issues, so I would lower the threshold for entering trades or increase the stop-loss/take-profit multipliers. If the current strategy fails, I would try a different approach that is based on technical analysis and risk management. For example, using a combination of breakout and trend following strategies."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The strategy is based on the breakout concept where price breaks out of a consolidation area and forms an upward trend or downward trend. The Donchian channel, which consists of upper and lower barriers, acts as a volatility filter for entry points. ATR-based stop loss and take profit are used to manage risk.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.7446769051697623,
+      "return_pct": -67.19102532918296,
+      "trades": 235,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -67.2%, PF 0.91, Expectancy -28.59"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 99.7%, Vol 2516.8%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.745, Sortino 10.819, Calmar -0.608"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.8%, Trades 235, AvgW/L 1039.35/419.76"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (24,) (10481,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (24,) (10481,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_043355_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 105, in generate_signals\n    long_mask[close > upper] & (adx_val > 30)\nValueError: operands could not be broadcast together with shapes (24,) (10481,)",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses could be in the Donchian channel's sensitivity to false signals and the usage of ATR as a risk management tool. It may also overlook potential reversals if price does not cross back through the middle line.\n[Backup plan] If results are poor, I would try increasing the period of the Donchian channel or changing the strategy to use Bollinger Bands instead. If the Sharpe ratio is low, I would try adjusting ATR multipliers or adding a risk management system based on drawdowns. An alternative approach could be using a momentum-based strategy with a crossover signal from a simple moving average."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

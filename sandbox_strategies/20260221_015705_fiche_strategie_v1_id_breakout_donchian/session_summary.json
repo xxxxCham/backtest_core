@@ -1,0 +1,261 @@
+{
+  "session_id": "20260221_015705_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=20)\n- adx(period=17)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 25\n- short: close < donchian.lower and adx.adx > 25\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 15\nrisk:\nstop_atr_mult: 1.25\ntp_atr_mult: 2.5\ndescription: ATR stop-loss (1.25x) and take-profit (2.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Using a Donchian channel breakout with an ADX trend filter and ATR risk management can improve trade quality by filtering out range-bound markets and providing a more robust stop loss.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8439300026068673,
+      "return_pct": 17.441619251207175,
+      "trades": 112,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +17.4%, PF 1.06, Expectancy 15.57"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 67.2%, Vol 144.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.844, Sortino 1.476, Calmar 0.764"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.4%, Trades 112, AvgW/L 708.89/416.49"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "no_stable_base_code"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260221_015705_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 59, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_retry_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Based on this strategy, I believe that it is attempting to capitalize on breakout trades in trending markets and using the Donchian channel as well as ADX for trend detection. The ATR based stop-loss and take profit levels are also included. However, some potential weaknesses could include a lack of robustness against choppy market conditions or outliers that may cause false signals. Additionally, the use of only one period for both indicators introduces an element of sensitivity to noise in the data. If results are poor (negative return), I would consider adjusting the Donchian channel period and/or adding additional filters such as volume-based indicators or mean reversion strategies. For mediocre returns (low Sharpe ratio), adjustments could include exploring different ATR values for risk management, experimenting with different trend filter settings (e.g., longer/shorter periods) and considering a combination of other technical analysis methods to improve trade quality."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "...",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.6360327246517282,
+      "return_pct": 2.7284544489437574,
+      "trades": 114,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +2.7%, PF 1.01, Expectancy 2.39"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 68.2%, Vol 131.7%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.636, Sortino 0.978, Calmar 0.105"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.6%, Trades 114, AvgW/L 659.47/410.63"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 49,
+          "short_signals": 140,
+          "total_signals": 189
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses Donchian channels, Average Directional Movement Index and ATR for entry conditions. The stop loss is set at 1.25x the average true range and take profit is twice the average true range. This strategy has been running with positive results so far but we need to be prepared for any negative outcomes.\n[Backup plan] If results are poor (negative return), I would first investigate if there's a problem in backtesting such as data quality or indicators calculation errors, and then consider changing the period of Donchian channels, ATR or ADX. If results are mediocre (low Sharpe) with no clear indication of error, I might tweak parameters like increasing stop loss to 1.5x average true range or decreasing take profit to twice average true range but double check for potential impact on other indicators and overall performance."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "missing_hypothesis",
+            "placeholder_hypothesis",
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "missing_hypothesis",
+            "placeholder_hypothesis",
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 66: expected an indented block after function definition on line 63"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

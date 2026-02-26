@@ -1,0 +1,1158 @@
+{
+  "session_id": "20260225_073043_strat_gie_de_mean_reversion_sur_adausdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur ADAUSDC 15m. Indicateurs : MFI + STOCH_RSI + OBV + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de MFI avec STOCH_RSI en zone de survente/surachat. Sortie quand le prix revient vers la moyenne (MFI neutre). Stop serr\u00e9 1.1x ATR pour limiter le drawdown, TP \u00e0 2.8x ATR.",
+  "status": "failed",
+  "best_sharpe": -0.8972305644498911,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "MFI and StochRSI both identify extreme buying or selling pressure; when they simultaneously signal oversold (or overbought) the price is likely to revert toward its recent average, providing a high\u2011probability mean\u2011reversion entry while ATR ensures the move occurs in a sufficiently volatile regime.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1470.626167603435,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6434092040124942,
+      "win_rate_pct": 31.72875680200921,
+      "trades": 4778,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.301293530857407,
+          "trades_confidence": 10.0,
+          "win_rate": -0.9813729593972366
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1470.6%, PF 0.64, Expectancy -30.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 154.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 4778, AvgW/L 175.03/126.43"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1461,
+          "short_signals": 10323,
+          "total_signals": 11784
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on multiple lagging oscillators that may give coincident false signals in choppy markets, especially on a low\u2011cap pair like ADA/USDC where volume spikes can distort MFI and OBV. A fixed 1.1\u00d7ATR stop may be too tight, causing premature exits during normal volatility, while the 2.8\u00d7ATR target may be unrealistic for mean\u2011reversion moves. The 15\u2011minute timeframe may not provide enough statistical separation between overbought/oversold extremes and true price reversals, leading to low edge.\n[Backup plan] If returns are negative, tighten the entry filter by requiring both MFI and StochRSI to be beyond the extreme 5\u202f% quantile and add a minimum volume threshold. For a mediocre Sharpe, widen the stop to 1.5\u00d7ATR and lower the TP to 1.8\u00d7ATR to capture more frequent, smaller reverts, and experiment with a 30\u2011minute bar resolution. Should the core idea fail, switch to a liquidity\u2011driven breakout strategy using OBV and price\u2011action support/resistance levels, pairing it with a dynamic position size based on recent volatility."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.301293530857407,
+            "trades_confidence": 10.0,
+            "win_rate": -0.9813729593972366
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "By requiring the MFI and Stoch_RSI to actually cross their oversold/overbought thresholds (instead of merely being below/above) we filter out lingering extreme readings that often precede continued moves, thus capturing true reversal points; combining this with an ATR volatility filter ensures trades are only taken in sufficiently active markets, reducing whipsaw and improving win rate while keeping the simple 2\u2011indicator core to avoid over\u2011fitting.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.8972305644498911,
+      "return_pct": -88.40946707918059,
+      "max_drawdown_pct": -89.87613123270542,
+      "profit_factor": 0.5192112567048066,
+      "win_rate_pct": 28.217821782178216,
+      "trades": 202,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -25.122455804596953,
+          "return": -33.0,
+          "profit_factor": -21.97891397920884,
+          "trades_confidence": 10.0,
+          "win_rate": -2.034653465346535
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 54.87613123270542
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -88.4%, PF 0.52, Expectancy -43.77"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 89.9%, Vol 25.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.897, Sortino -0.384, Calmar -0.303"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.2%, Trades 202, AvgW/L 167.50/126.82"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 193,
+          "short_signals": 11,
+          "total_signals": 204
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may suffer from excessive noise on a 15\u2011minute chart, as MFI and Stoch_RSI crossings can generate many false signals, especially without a trend filter. A tight 1.1\u00d7ATR stop combined with a 2.8\u00d7ATR target may lead to frequent stop\u2011outs in volatile periods and the ATR\u2011only volatility filter might not be sufficient to avoid whipsaws.\n[Backup plan] If returns are negative, add a short\u2011term trend condition (e.g., price above 20\u2011EMA for longs) and raise the stop loss to 1.5\u00d7ATR while lowering the TP to 2\u00d7ATR to improve risk\u2011reward. For mediocre Sharpe, tighten the oversold/overbought thresholds (e.g., MFI <15, Stoch_RSI <20) and increase the ATR minimum requirement, or switch to a Bollinger\u2011Band mean\u2011reversion framework with volume confirmation as an alternative."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 54.87613123270542,
+          "components": {
+            "sharpe": -25.122455804596953,
+            "return": -33.0,
+            "profit_factor": -21.97891397920884,
+            "trades_confidence": 10.0,
+            "win_rate": -2.034653465346535
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Adding a low ADX filter ensures trades are only taken in sideways markets where mean\u2011reversion is more reliable; combining MFI extreme values with StochRSI oversold/overbought signals provides a strong price\u2011volume reversal setup, which together should reduce large losing streaks and lower drawdown while preserving upside potential.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -797.5186551930598,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7514261851946934,
+      "win_rate_pct": 36.39464068209501,
+      "trades": 4105,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.36337439109973,
+          "trades_confidence": 10.0,
+          "win_rate": 0.4183922046285027
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -797.5%, PF 0.75, Expectancy -19.43"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 711.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.4%, Trades 4105, AvgW/L 161.37/122.88"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_073043_strat_gie_de_mean_reversion_sur_adausdc\\strategy.py\", line 121, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.36337439109973,
+            "trades_confidence": 10.0,
+            "win_rate": 0.4183922046285027
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "MFI and Stoch_RSI together identify extreme buying or selling pressure; combining them with an ATR volatility filter ensures entries only in sufficiently volatile conditions, reducing false signals in flat markets and improving mean\u2011reversion performance.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 119: unexpected indent",
+          "validation_error_retry": "[IND001] Usage invalide: comparaison `stoch_rsi ...` alors que `stoch_rsi` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: stoch_rsi['d']).",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "MFI identifies extreme money\u2011flow imbalances while Stoch_RSI pinpoints exhausted momentum; when both are in oversold (or overbought) zones the price is likely to revert to its recent average, especially on a 15\u2011minute chart where short\u2011term overreactions are common. Combining the two reduces false signals that each oscillator would generate alone, and using ATR\u2011scaled stops and targets preserves a consistent risk\u2011reward profile.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2129.2868653839255,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6694954725605247,
+      "win_rate_pct": 34.275829157718924,
+      "trades": 8382,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -15.10877839723316,
+          "trades_confidence": 10.0,
+          "win_rate": -0.21725125268432277
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2129.3%, PF 0.67, Expectancy -25.40"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 166.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.3%, Trades 8382, AvgW/L 150.13/116.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 10998,
+          "short_signals": 8067,
+          "total_signals": 19065
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -15.10877839723316,
+            "trades_confidence": 10.0,
+            "win_rate": -0.21725125268432277
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "MFI extreme values identify overbought or oversold pressure, but in trending markets those extremes can persist and cause large losses; filtering entries with a low ADX (<25) ensures we only trade when the market is range\u2011bound, improving the mean\u2011reversion edge and reducing drawdown. Tight ATR\u2011based stops and proportional take\u2011profits protect capital while allowing the price to revert to the MFI neutral zone.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -1937.8241864379913,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.5711079247202738,
+      "win_rate_pct": 35.98425196850394,
+      "trades": 6350,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -19.60649486993034,
+          "trades_confidence": 10.0,
+          "win_rate": 0.29527559055118213
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1937.8%, PF 0.57, Expectancy -30.52"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 193.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.0%, Trades 6350, AvgW/L 112.93/111.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 10545,
+          "short_signals": 8013,
+          "total_signals": 18558
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -19.60649486993034,
+            "trades_confidence": 10.0,
+            "win_rate": 0.29527559055118213
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "MFI and StochRSI both identify extreme buying or selling pressure; when they simultaneously signal oversold (or overbought) the price is likely to revert toward its recent average, providing a high\u2011probability mean\u2011reversion entry while ATR ensures the move occurs in a sufficiently volatile regime.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1470.626167603435,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6434092040124942,
+      "win_rate_pct": 31.72875680200921,
+      "trades": 4778,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.301293530857407,
+          "trades_confidence": 10.0,
+          "win_rate": -0.9813729593972366
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1470.6%, PF 0.64, Expectancy -30.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 154.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 4778, AvgW/L 175.03/126.43"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1461,
+          "short_signals": 10323,
+          "total_signals": 11784
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on multiple lagging oscillators that may give coincident false signals in choppy markets, especially on a low\u2011cap pair like ADA/USDC where volume spikes can distort MFI and OBV. A fixed 1.1\u00d7ATR stop may be too tight, causing premature exits during normal volatility, while the 2.8\u00d7ATR target may be unrealistic for mean\u2011reversion moves. The 15\u2011minute timeframe may not provide enough statistical separation between overbought/oversold extremes and true price reversals, leading to low edge.\n[Backup plan] If returns are negative, tighten the entry filter by requiring both MFI and StochRSI to be beyond the extreme 5\u202f% quantile and add a minimum volume threshold. For a mediocre Sharpe, widen the stop to 1.5\u00d7ATR and lower the TP to 1.8\u00d7ATR to capture more frequent, smaller reverts, and experiment with a 30\u2011minute bar resolution. Should the core idea fail, switch to a liquidity\u2011driven breakout strategy using OBV and price\u2011action support/resistance levels, pairing it with a dynamic position size based on recent volatility."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.301293530857407,
+            "trades_confidence": 10.0,
+            "win_rate": -0.9813729593972366
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "By requiring the MFI and Stoch_RSI to actually cross their oversold/overbought thresholds (instead of merely being below/above) we filter out lingering extreme readings that often precede continued moves, thus capturing true reversal points; combining this with an ATR volatility filter ensures trades are only taken in sufficiently active markets, reducing whipsaw and improving win rate while keeping the simple 2\u2011indicator core to avoid over\u2011fitting.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.8972305644498911,
+      "return_pct": -88.40946707918059,
+      "max_drawdown_pct": -89.87613123270542,
+      "profit_factor": 0.5192112567048066,
+      "win_rate_pct": 28.217821782178216,
+      "trades": 202,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -25.122455804596953,
+          "return": -33.0,
+          "profit_factor": -21.97891397920884,
+          "trades_confidence": 10.0,
+          "win_rate": -2.034653465346535
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 54.87613123270542
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -88.4%, PF 0.52, Expectancy -43.77"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 89.9%, Vol 25.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.897, Sortino -0.384, Calmar -0.303"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.2%, Trades 202, AvgW/L 167.50/126.82"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 193,
+          "short_signals": 11,
+          "total_signals": 204
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may suffer from excessive noise on a 15\u2011minute chart, as MFI and Stoch_RSI crossings can generate many false signals, especially without a trend filter. A tight 1.1\u00d7ATR stop combined with a 2.8\u00d7ATR target may lead to frequent stop\u2011outs in volatile periods and the ATR\u2011only volatility filter might not be sufficient to avoid whipsaws.\n[Backup plan] If returns are negative, add a short\u2011term trend condition (e.g., price above 20\u2011EMA for longs) and raise the stop loss to 1.5\u00d7ATR while lowering the TP to 2\u00d7ATR to improve risk\u2011reward. For mediocre Sharpe, tighten the oversold/overbought thresholds (e.g., MFI <15, Stoch_RSI <20) and increase the ATR minimum requirement, or switch to a Bollinger\u2011Band mean\u2011reversion framework with volume confirmation as an alternative."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 54.87613123270542,
+          "components": {
+            "sharpe": -25.122455804596953,
+            "return": -33.0,
+            "profit_factor": -21.97891397920884,
+            "trades_confidence": 10.0,
+            "win_rate": -2.034653465346535
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Adding a low ADX filter ensures trades are only taken in sideways markets where mean\u2011reversion is more reliable; combining MFI extreme values with StochRSI oversold/overbought signals provides a strong price\u2011volume reversal setup, which together should reduce large losing streaks and lower drawdown while preserving upside potential.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -797.5186551930598,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7514261851946934,
+      "win_rate_pct": 36.39464068209501,
+      "trades": 4105,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.36337439109973,
+          "trades_confidence": 10.0,
+          "win_rate": 0.4183922046285027
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -797.5%, PF 0.75, Expectancy -19.43"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 711.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.4%, Trades 4105, AvgW/L 161.37/122.88"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_073043_strat_gie_de_mean_reversion_sur_adausdc\\strategy.py\", line 121, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.36337439109973,
+            "trades_confidence": 10.0,
+            "win_rate": 0.4183922046285027
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "MFI identifies extreme money\u2011flow imbalances while Stoch_RSI pinpoints exhausted momentum; when both are in oversold (or overbought) zones the price is likely to revert to its recent average, especially on a 15\u2011minute chart where short\u2011term overreactions are common. Combining the two reduces false signals that each oscillator would generate alone, and using ATR\u2011scaled stops and targets preserves a consistent risk\u2011reward profile.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2129.2868653839255,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6694954725605247,
+      "win_rate_pct": 34.275829157718924,
+      "trades": 8382,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -15.10877839723316,
+          "trades_confidence": 10.0,
+          "win_rate": -0.21725125268432277
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2129.3%, PF 0.67, Expectancy -25.40"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 166.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.3%, Trades 8382, AvgW/L 150.13/116.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 10998,
+          "short_signals": 8067,
+          "total_signals": 19065
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -15.10877839723316,
+            "trades_confidence": 10.0,
+            "win_rate": -0.21725125268432277
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "MFI extreme values identify overbought or oversold pressure, but in trending markets those extremes can persist and cause large losses; filtering entries with a low ADX (<25) ensures we only trade when the market is range\u2011bound, improving the mean\u2011reversion edge and reducing drawdown. Tight ATR\u2011based stops and proportional take\u2011profits protect capital while allowing the price to revert to the MFI neutral zone.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -1937.8241864379913,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.5711079247202738,
+      "win_rate_pct": 35.98425196850394,
+      "trades": 6350,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -19.60649486993034,
+          "trades_confidence": 10.0,
+          "win_rate": 0.29527559055118213
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1937.8%, PF 0.57, Expectancy -30.52"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 193.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.0%, Trades 6350, AvgW/L 112.93/111.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 10545,
+          "short_signals": 8013,
+          "total_signals": 18558
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -19.60649486993034,
+            "trades_confidence": 10.0,
+            "win_rate": 0.29527559055118213
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ]
+}

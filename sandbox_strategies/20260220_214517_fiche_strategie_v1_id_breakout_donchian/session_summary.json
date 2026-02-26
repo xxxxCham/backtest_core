@@ -1,0 +1,124 @@
+{
+  "session_id": "20260220_214517_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=30)\n- adx(period=10)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 20\n- short: close < donchian.lower and adx.adx > 20\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 15\nrisk:\nstop_atr_mult: 1.0\ntp_atr_mult: 4.5\ndescription: ATR stop-loss (1.0x) and take-profit (4.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "success",
+  "best_sharpe": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.625771666544351,
+      "return_pct": 27.57241018362529,
+      "trades": 25,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +27.6%, PF 1.56, Expectancy 110.29"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 19.4%, Vol 60.5%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.626, Sortino 1.624, Calmar 11.248"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 52.0%, Trades 25, AvgW/L 590.07/409.47"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: \"None of [Index([               nan,                nan,                nan,\\n                      nan,                nan,                nan,\\n                      nan,                nan,                nan,\\n                      nan,\\n       ...\\n        51.87066245283974,  49.94975512467975,  50.92827716509423,\\n        45.21619609106037, 47.336548864371395,  45.44245118839338,\\n        34.91169724459155,  34.91169724459155,  40.61211770828501,\\n        34.71803450333765],\\n      dtype='float64', length=1844)] are in the [index]\"",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: \"None of [Index([               nan,                nan,                nan,\\n                      nan,                nan,                nan,\\n                      nan,                nan,                nan,\\n                      nan,\\n       ...\\n        51.87066245283974,  49.94975512467975,  50.92827716509423,\\n        45.21619609106037, 47.336548864371395,  45.44245118839338,\\n        34.91169724459155,  34.91169724459155,  40.61211770828501,\\n        34.71803450333765],\\n      dtype='float64', length=1844)] are in the [index]\"",
+          "runtime_traceback_tail": "return self._get_with(key)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\series.py\", line 1194, in _get_with\n    return self.loc[key]\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexing.py\", line 1191, in __getitem__\n    return self._getitem_axis(maybe_callable, axis=axis)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexing.py\", line 1420, in _getitem_axis\n    return self._getitem_iterable(key, axis=axis)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexing.py\", line 1360, in _getitem_iterable\n    keyarr, indexer = self._get_listlike_indexer(key, axis)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexing.py\", line 1558, in _get_listlike_indexer\n    keyarr, indexer = ax._get_indexer_strict(key, axis_name)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 6200, in _get_indexer_strict\n    self._raise_if_missing(keyarr, indexer, axis_name)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 6249, in _raise_if_missing\n    raise KeyError(f\"None of [{key}] are in the [{axis_name}]\")\nKeyError: \"None of [Index([               nan,                nan,                nan,\\n                      nan,                nan,                nan,\\n                      nan,                nan,                nan,\\n                      nan,\\n       ...\\n        51.87066245283974,  49.94975512467975,  50.92827716509423,\\n        45.21619609106037, 47.336548864371395,  45.44245118839338,\\n        34.91169724459155,  34.91169724459155,  40.61211770828501,\\n        34.71803450333765],\\n      dtype='float64', length=1844)] are in the [index]\"",
+          "runtime_fix_validation_error": "[AST001] Erreur de syntaxe ligne 50: unexpected indent",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is built to trade breakouts using Donchian Channels, ADX for trend confirmation and ATR for risk management. It uses both long and short positions based on the conditions of price crossing the channel's midpoint and ADX values above 20. The stop-loss is set at a multiple of ATR (1.0x), and take profit at multiple of ATR (4.5x). It also has fallback strategy for times when breakout signal does not work out.\n[Backup plan] {'Weaknesses to Address': 'The strategy might be vulnerable in periods of low volatility, where the signals may not be clear or frequent enough. To address this we could add filters based on market conditions like using a volatility filter. ', 'Improvement if Results are Poor': 'If results are poor (negative return), I would try changing the parameters of the strategy such as period for Donchian Channels and ADX, stop loss multiple, take profit multiple etc. to see what works best with this specific contract.', 'Improvement if Results are Mediocre': ' If results are mediocre (low Sharpe), I could look at different combinations or variations of existing indicators to improve performance. For example, trying other types of moving averages instead of EMA.', 'Alternative Approach': 'If the current one fails, I would consider using a machine learning model to predict breakouts based on past data and price action.'}"
+        }
+      }
+    }
+  ]
+}

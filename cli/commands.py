@@ -20,14 +20,18 @@ Read-if: Ajout commande CLI ou modification format output.
 Skip-if: Vous appelez cmd_backtest(args) depuis main.
 """
 
+import copy
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # UTILITAIRES
@@ -173,6 +177,65 @@ def _resolve_output_format(output_path: Path, requested_format: str | None, defa
     return default
 
 
+def _split_multi_args(values: Optional[List[str]]) -> List[str]:
+    if not values:
+        return []
+    out: List[str] = []
+    for raw in values:
+        if raw is None:
+            continue
+        parts = [p.strip() for p in str(raw).split(",") if p.strip()]
+        out.extend(parts)
+    return out
+
+
+def _resolve_strategies_from_catalog(args) -> List[str]:
+    categories = _split_multi_args(getattr(args, "from_category", None))
+    tags = _split_multi_args(getattr(args, "from_tag", None))
+    if not categories and not tags:
+        return []
+    try:
+        from catalog.strategy_catalog import list_entries
+        from strategies import list_strategies
+        entries = list_entries(categories=categories, tags=tags, status="active")
+        available = set(list_strategies())
+        names = []
+        for entry in entries:
+            name = str(entry.get("strategy_name") or "").strip()
+            if not name:
+                continue
+            if name in available:
+                names.append(name)
+        return sorted(set(names))
+    except Exception as exc:
+        print_warning(f"Catalog selection failed: {exc}")
+        return []
+
+
+def _resolve_strategy_selection(args) -> List[str]:
+    strategies = []
+    if getattr(args, "strategy", None):
+        strategies.append(str(args.strategy).lower())
+    strategies.extend(_resolve_strategies_from_catalog(args))
+    unique = []
+    for name in strategies:
+        if name and name not in unique:
+            unique.append(name)
+    return unique
+
+
+def _derive_output_path(base: Optional[str], strategy_name: str) -> Optional[str]:
+    if not base:
+        return None
+    output_path = Path(base)
+    if output_path.exists() and output_path.is_dir():
+        return str(output_path / f"{strategy_name}{output_path.suffix or '.json'}")
+    if output_path.suffix:
+        stem = output_path.stem
+        return str(output_path.with_name(f"{stem}_{strategy_name}{output_path.suffix}"))
+    return str(output_path / f"{strategy_name}.json")
+
+
 def _flatten_sweep_results(
     strategy: str,
     granularity: float,
@@ -207,14 +270,191 @@ def _extract_metrics_from_result_file(path: Path) -> dict:
     return payload.get("metrics", {})
 
 
+def _safe_float(value, default: float = 0.0) -> float:
+    """Convertit vers float avec fallback sûr (NaN/inf -> default)."""
+    try:
+        converted = float(value)
+    except (TypeError, ValueError):
+        return default
+    if np.isnan(converted) or np.isinf(converted):
+        return default
+    return converted
+
+
+def _percent_from_maybe_fraction(value, default: float = 0.0) -> float:
+    """Normalise une valeur potentiellement en fraction vers un pourcentage."""
+    converted = _safe_float(value, default=default)
+    if -1.0 <= converted <= 1.0:
+        return converted * 100.0
+    return converted
+
+
+def _pick_metric(metrics: dict, *keys: str):
+    """Retourne la première métrique disponible/non vide parmi plusieurs clés."""
+    for key in keys:
+        if key not in metrics:
+            continue
+        value = metrics.get(key)
+        if value is None:
+            continue
+        try:
+            if pd.isna(value):
+                continue
+        except Exception:
+            pass
+        return value
+    return None
+
+
+def _metrics_from_index_row(row: pd.Series) -> dict:
+    """Normalise une ligne d'index (CSV/Parquet) vers un dict de métriques cohérent."""
+    total_return_pct_raw = _pick_metric(row, "total_return_pct")
+    if total_return_pct_raw is not None:
+        total_return_pct = _safe_float(total_return_pct_raw, 0.0)
+    else:
+        total_return_pct = _safe_float(_pick_metric(row, "total_return"), 0.0) * 100.0
+
+    max_dd_raw = _pick_metric(row, "max_drawdown_pct", "max_drawdown")
+    max_drawdown_pct = _safe_float(max_dd_raw, 0.0)
+    if _pick_metric(row, "max_drawdown_pct") is None:
+        max_drawdown_pct = _percent_from_maybe_fraction(max_drawdown_pct, 0.0)
+
+    return {
+        "total_pnl": _safe_float(_pick_metric(row, "total_pnl", "pnl"), 0.0),
+        "total_return_pct": total_return_pct,
+        "max_drawdown_pct": max_drawdown_pct,
+        "max_drawdown": max_drawdown_pct,
+        "sharpe_ratio": _safe_float(_pick_metric(row, "sharpe_ratio", "sharpe"), 0.0),
+        "sortino_ratio": _safe_float(_pick_metric(row, "sortino_ratio", "sortino"), 0.0),
+        "profit_factor": _safe_float(_pick_metric(row, "profit_factor"), 0.0),
+        "win_rate_pct": _percent_from_maybe_fraction(
+            _pick_metric(row, "win_rate_pct", "win_rate"),
+            0.0,
+        ),
+        "total_trades": _safe_float(
+            _pick_metric(row, "total_trades", "n_trades", "trades_count"),
+            0.0,
+        ),
+    }
+
+
+def _extract_present_metrics_for_analyze(raw_metrics: dict) -> dict:
+    """
+    Extrait uniquement les métriques présentes avec normalisation légère.
+
+    Important: cette fonction n'injecte pas de valeurs par défaut artificielles.
+    """
+    metrics = raw_metrics or {}
+    extracted: dict[str, float] = {}
+
+    total_pnl = _pick_metric(metrics, "total_pnl", "pnl")
+    if total_pnl is not None:
+        extracted["total_pnl"] = _safe_float(total_pnl, 0.0)
+
+    total_return_pct = _pick_metric(metrics, "total_return_pct")
+    if total_return_pct is not None:
+        extracted["total_return_pct"] = _safe_float(total_return_pct, 0.0)
+    else:
+        total_return = _pick_metric(metrics, "total_return")
+        if total_return is not None:
+            extracted["total_return_pct"] = _safe_float(total_return, 0.0) * 100.0
+
+    max_dd_pct = _pick_metric(metrics, "max_drawdown_pct")
+    if max_dd_pct is not None:
+        dd_value = _safe_float(max_dd_pct, 0.0)
+        extracted["max_drawdown_pct"] = dd_value
+        extracted["max_drawdown"] = dd_value
+    else:
+        max_dd = _pick_metric(metrics, "max_drawdown")
+        if max_dd is not None:
+            dd_value = _safe_float(max_dd, 0.0)
+            extracted["max_drawdown_pct"] = dd_value
+            extracted["max_drawdown"] = dd_value
+
+    sharpe = _pick_metric(metrics, "sharpe_ratio", "sharpe")
+    if sharpe is not None:
+        extracted["sharpe_ratio"] = _safe_float(sharpe, 0.0)
+
+    sortino = _pick_metric(metrics, "sortino_ratio", "sortino")
+    if sortino is not None:
+        extracted["sortino_ratio"] = _safe_float(sortino, 0.0)
+
+    profit_factor = _pick_metric(metrics, "profit_factor")
+    if profit_factor is not None:
+        extracted["profit_factor"] = _safe_float(profit_factor, 0.0)
+
+    win_rate_pct = _pick_metric(metrics, "win_rate_pct")
+    if win_rate_pct is not None:
+        extracted["win_rate_pct"] = _percent_from_maybe_fraction(win_rate_pct, 0.0)
+    else:
+        win_rate = _pick_metric(metrics, "win_rate")
+        if win_rate is not None:
+            extracted["win_rate_pct"] = _percent_from_maybe_fraction(win_rate, 0.0)
+
+    total_trades = _pick_metric(metrics, "total_trades", "n_trades", "trades_count")
+    if total_trades is not None:
+        extracted["total_trades"] = _safe_float(total_trades, 0.0)
+
+    return extracted
+
+
+def _hydrate_records_from_run_store(records: list[dict], results_dir: Path) -> tuple[int, int, int]:
+    """Complète les métriques depuis runs/<run_id>/metrics.json."""
+    runs_dir = results_dir / "runs"
+    if not runs_dir.exists():
+        return 0, len(records), 0
+
+    hydrated = 0
+    missing = 0
+    errors = 0
+
+    for record in records:
+        run_id = str(record.get("run_id", "") or "").strip()
+        if not run_id:
+            missing += 1
+            continue
+
+        metrics_path = runs_dir / run_id / "metrics.json"
+        if not metrics_path.exists():
+            missing += 1
+            continue
+
+        try:
+            with open(metrics_path, encoding="utf-8") as f:
+                payload = json.load(f)
+            if not isinstance(payload, dict):
+                errors += 1
+                continue
+            extracted = _extract_present_metrics_for_analyze(payload)
+            if not extracted:
+                continue
+            base_metrics = dict(record.get("metrics") or {})
+            base_metrics.update(extracted)
+            record["metrics"] = base_metrics
+            hydrated += 1
+        except Exception:
+            errors += 1
+
+    return hydrated, missing, errors
+
+
 def _print_metrics_summary(prefix: str, metrics: dict):
     """Résumé court des métriques principales."""
-    total_return = metrics.get("total_return_pct", metrics.get("total_return", 0))
-    if total_return is not None and abs(total_return) < 5 and "total_return_pct" not in metrics:
-        total_return *= 100
-    max_dd = metrics.get("max_drawdown_pct", metrics.get("max_drawdown", 0))
-    sharpe = metrics.get("sharpe_ratio", metrics.get("sharpe", 0))
-    win_rate = metrics.get("win_rate_pct", metrics.get("win_rate", 0))
+    total_return_pct_raw = _pick_metric(metrics, "total_return_pct")
+    if total_return_pct_raw is not None:
+        total_return = _safe_float(total_return_pct_raw, 0.0)
+    else:
+        total_return = _safe_float(_pick_metric(metrics, "total_return"), 0.0) * 100.0
+
+    max_dd = _safe_float(_pick_metric(metrics, "max_drawdown_pct", "max_drawdown"), 0.0)
+    if _pick_metric(metrics, "max_drawdown_pct") is None:
+        max_dd = _percent_from_maybe_fraction(max_dd, 0.0)
+
+    sharpe = _safe_float(_pick_metric(metrics, "sharpe_ratio", "sharpe"), 0.0)
+    win_rate = _percent_from_maybe_fraction(
+        _pick_metric(metrics, "win_rate_pct", "win_rate"),
+        0.0,
+    )
     print(
         f"{prefix} sharpe={sharpe:.3f} | drawdown={max_dd:.2f}% | "
         f"total_return={total_return:+.2f}% | win_rate={win_rate:.2f}%"
@@ -313,6 +553,7 @@ def _persist_backtest_result_v2(
         )
         return record.run_id
     except Exception:
+        logger.warning("Persist backtest v2 failed", exc_info=True)
         return None
 
 
@@ -347,6 +588,7 @@ def _persist_summary_result_v2(
         )
         return record.run_id
     except Exception:
+        logger.warning("Persist summary v2 failed (mode=%s)", mode, exc_info=True)
         return None
 
 
@@ -737,15 +979,31 @@ def cmd_backtest(args) -> int:
     if args.no_color:
         Colors.disable()
 
+    strategies = _resolve_strategy_selection(args)
+    if not strategies:
+        print_error("Aucune stratégie sélectionnée (utilisez -s ou --from-category/--from-tag)")
+        return 1
+    if len(strategies) > 1:
+        results = []
+        for strategy_name in strategies:
+            sub_args = copy.copy(args)
+            sub_args.strategy = strategy_name
+            if args.output:
+                sub_args.output = _derive_output_path(args.output, strategy_name)
+            results.append(_cmd_backtest_single(sub_args, strategy_name))
+        return 0 if all(r == 0 for r in results) else 1
+    return _cmd_backtest_single(args, strategies[0])
+
+
+def _cmd_backtest_single(args, strategy_name: str) -> int:
     import json as json_module
-    import os
     from pathlib import Path
 
     from backtest.engine import BacktestEngine
     from strategies import get_strategy, list_strategies
 
     # Validation stratégie
-    strategy_name = args.strategy.lower()
+    strategy_name = strategy_name.lower()
     strat_class = get_strategy(strategy_name)
 
     if not strat_class:
@@ -901,23 +1159,121 @@ def cmd_backtest(args) -> int:
     return 0
 
 
+# =============================================================================
+# COMMANDE: CATALOG
+# =============================================================================
+
+def cmd_catalog(args) -> int:
+    """Gère le strategy catalog (list/move/tag/note/archive)."""
+    if args.no_color:
+        Colors.disable()
+
+    action = getattr(args, "catalog_action", None)
+    if not action:
+        print_error("Action catalog requise: list|move|tag|note|archive")
+        return 1
+
+    from catalog.strategy_catalog import (
+        CATEGORY_ORDER,
+        archive_entries,
+        list_entries,
+        move_entries,
+        note_entry,
+        tag_entries,
+    )
+
+    if action == "list":
+        categories = _split_multi_args(getattr(args, "category", None))
+        tags = _split_multi_args(getattr(args, "tag", None))
+        status = getattr(args, "status", "active")
+        entries = list_entries(
+            categories=categories,
+            tags=tags,
+            status=status,
+            symbol=getattr(args, "symbol", None),
+            timeframe=getattr(args, "timeframe", None),
+            strategy_name=getattr(args, "strategy", None),
+        )
+        if getattr(args, "json", False):
+            print(json.dumps(entries, indent=2, default=str))
+            return 0
+        headers = ["id", "strategy", "symbol", "tf", "category", "status", "tags", "sharpe", "return", "trades"]
+        rows: List[List[str]] = []
+        for entry in entries:
+            metrics = entry.get("last_metrics_snapshot") or {}
+            rows.append([
+                entry.get("id", ""),
+                entry.get("strategy_name", ""),
+                entry.get("symbol", ""),
+                entry.get("timeframe", ""),
+                entry.get("category", ""),
+                entry.get("status", ""),
+                ",".join(entry.get("tags") or []),
+                f"{_safe_float(metrics.get('sharpe_ratio', metrics.get('sharpe', 0.0)), 0.0):.2f}",
+                f"{_safe_float(metrics.get('total_return_pct', metrics.get('total_return', 0.0)), 0.0):.2f}",
+                f"{int(metrics.get('total_trades', metrics.get('trades', 0)) or 0)}",
+            ])
+        print(format_table(headers, rows))
+        if not entries:
+            print_info("Catalog vide ou aucun match.")
+        return 0
+
+    if action == "move":
+        if args.to not in CATEGORY_ORDER:
+            print_error(f"Catégorie invalide: {args.to}")
+            return 1
+        changed = move_entries(args.id, args.to)
+        print_success(f"{changed} entrée(s) déplacée(s) vers {args.to}")
+        return 0
+
+    if action == "tag":
+        changed = tag_entries(args.id, args.tag)
+        print_success(f"{changed} entrée(s) taggée(s) '{args.tag}'")
+        return 0
+
+    if action == "note":
+        ok = note_entry(args.id, args.note)
+        if ok:
+            print_success("Note enregistrée")
+            return 0
+        print_error("Entrée introuvable")
+        return 1
+
+    if action == "archive":
+        changed = archive_entries(args.id)
+        print_success(f"{changed} entrée(s) archivée(s)")
+        return 0
+
+    print_error(f"Action catalog inconnue: {action}")
+    return 1
+
+
 def _print_metrics(metrics):
     """Affiche les métriques de performance."""
     m = metrics.to_dict() if hasattr(metrics, "to_dict") else metrics
 
-    total_return_pct = m.get("total_return_pct")
-    if total_return_pct is None:
-        total_return_pct = m.get("total_return", 0) * 100
-    max_drawdown_pct = m.get("max_drawdown", 0)
-    win_rate_pct = m.get("win_rate", 0)
+    total_return_pct_raw = _pick_metric(m, "total_return_pct")
+    if total_return_pct_raw is not None:
+        total_return_pct = _safe_float(total_return_pct_raw, 0.0)
+    else:
+        total_return_pct = _safe_float(_pick_metric(m, "total_return"), 0.0) * 100.0
+
+    max_drawdown_pct = _safe_float(_pick_metric(m, "max_drawdown_pct", "max_drawdown"), 0.0)
+    if _pick_metric(m, "max_drawdown_pct") is None:
+        max_drawdown_pct = _percent_from_maybe_fraction(max_drawdown_pct, 0.0)
+
+    win_rate_pct = _percent_from_maybe_fraction(
+        _pick_metric(m, "win_rate_pct", "win_rate"),
+        0.0,
+    )
 
     print(f"  {Colors.BOLD}Performance:{Colors.RESET}")
     print(f"    Total Return: {total_return_pct:+.2f}%")
-    print(f"    Sharpe Ratio: {m.get('sharpe_ratio', 0):.3f}")
-    print(f"    Sortino Ratio: {m.get('sortino_ratio', 0):.3f}")
+    print(f"    Sharpe Ratio: {_safe_float(_pick_metric(m, 'sharpe_ratio', 'sharpe'), 0.0):.3f}")
+    print(f"    Sortino Ratio: {_safe_float(_pick_metric(m, 'sortino_ratio', 'sortino'), 0.0):.3f}")
     print(f"    Max Drawdown: {max_drawdown_pct:.2f}%")
     print(f"    Win Rate: {win_rate_pct:.1f}%")
-    print(f"    Profit Factor: {m.get('profit_factor', 0):.2f}")
+    print(f"    Profit Factor: {_safe_float(_pick_metric(m, 'profit_factor'), 0.0):.2f}")
 
 
 # =============================================================================
@@ -929,6 +1285,23 @@ def cmd_sweep(args) -> int:
     if args.no_color:
         Colors.disable()
 
+    strategies = _resolve_strategy_selection(args)
+    if not strategies:
+        print_error("Aucune stratégie sélectionnée (utilisez -s ou --from-category/--from-tag)")
+        return 1
+    if len(strategies) > 1:
+        results = []
+        for strategy_name in strategies:
+            sub_args = copy.copy(args)
+            sub_args.strategy = strategy_name
+            if args.output:
+                sub_args.output = _derive_output_path(args.output, strategy_name)
+            results.append(_cmd_sweep_single(sub_args, strategy_name))
+        return 0 if all(r == 0 for r in results) else 1
+    return _cmd_sweep_single(args, strategies[0])
+
+
+def _cmd_sweep_single(args, strategy_name: str) -> int:
     import json as json_module
     from pathlib import Path
 
@@ -937,7 +1310,7 @@ def cmd_sweep(args) -> int:
     from utils.parameters import ParameterSpec, compute_search_space_stats, generate_param_grid
 
     # Validation stratégie
-    strategy_name = args.strategy.lower()
+    strategy_name = strategy_name.lower()
     strat_class = get_strategy(strategy_name)
 
     if not strat_class:
@@ -1388,6 +1761,7 @@ __all__ = [
     "cmd_info",
     "cmd_backtest",
     "cmd_sweep",
+    "cmd_catalog",
     "cmd_validate",
     "cmd_export",
     "cmd_optuna",
@@ -1411,6 +1785,23 @@ def cmd_optuna(args) -> int:
     if args.no_color:
         Colors.disable()
 
+    strategies = _resolve_strategy_selection(args)
+    if not strategies:
+        print_error("Aucune stratégie sélectionnée (utilisez -s ou --from-category/--from-tag)")
+        return 1
+    if len(strategies) > 1:
+        results = []
+        for strategy_name in strategies:
+            sub_args = copy.copy(args)
+            sub_args.strategy = strategy_name
+            if args.output:
+                sub_args.output = _derive_output_path(args.output, strategy_name)
+            results.append(_cmd_optuna_single(sub_args, strategy_name))
+        return 0 if all(r == 0 for r in results) else 1
+    return _cmd_optuna_single(args, strategies[0])
+
+
+def _cmd_optuna_single(args, strategy_name: str) -> int:
     import json as json_module
     from pathlib import Path
 
@@ -1432,7 +1823,7 @@ def cmd_optuna(args) -> int:
     from strategies import get_strategy, list_strategies
 
     # Validation stratégie
-    strategy_name = args.strategy.lower()
+    strategy_name = strategy_name.lower()
     strat_class = get_strategy(strategy_name)
 
     if not strat_class:
@@ -1604,9 +1995,13 @@ def cmd_optuna(args) -> int:
                 print(f"    Paramètres: {result.best_params}")
                 print(f"    {args.metric}: {result.best_value:.4f}")
                 if result.best_metrics:
+                    best_drawdown = _safe_float(
+                        result.best_metrics.get("max_drawdown_pct", result.best_metrics.get("max_drawdown", 0.0)),
+                        0.0,
+                    )
                     print(f"    Sharpe: {result.best_metrics.get('sharpe_ratio', 'N/A'):.3f}")
                     print(f"    Return: {result.best_metrics.get('total_return_pct', 0):+.2f}%")
-                    print(f"    Drawdown: {result.best_metrics.get('max_drawdown', 0)*100:.2f}%")
+                    print(f"    Drawdown: {best_drawdown:.2f}%")
                 print()
 
                 # Top N
@@ -1959,16 +2354,22 @@ def cmd_visualize(args) -> int:
         if not args.quiet:
             print()
             print_header("Métriques Clés", "-")
-            pnl = metrics.get('pnl', metrics.get('total_pnl', 0))
-            sharpe = metrics.get('sharpe_ratio', 0)
-            max_dd = metrics.get('max_drawdown', 0)
-            win_rate = metrics.get('win_rate', 0)
+            pnl = _safe_float(_pick_metric(metrics, "pnl", "total_pnl"), 0.0)
+            sharpe = _safe_float(_pick_metric(metrics, "sharpe_ratio", "sharpe"), 0.0)
+            max_dd = _safe_float(_pick_metric(metrics, "max_drawdown_pct", "max_drawdown"), 0.0)
+            if _pick_metric(metrics, "max_drawdown_pct") is None:
+                max_dd = _percent_from_maybe_fraction(max_dd, 0.0)
+
+            win_rate = _percent_from_maybe_fraction(
+                _pick_metric(metrics, "win_rate_pct", "win_rate"),
+                0.0,
+            )
 
             pnl_color = Colors.GREEN if pnl >= 0 else Colors.RED
             print(f"  PnL:          {pnl_color}{pnl:+,.2f}{Colors.RESET}")
             print(f"  Sharpe:       {sharpe:.2f}")
             print(f"  Max DD:       {Colors.RED}{max_dd:.1f}%{Colors.RESET}")
-            print(f"  Win Rate:     {win_rate*100:.1f}%")
+            print(f"  Win Rate:     {win_rate:.1f}%")
             print(f"  Trades:       {len(trades)}")
 
         if output_path:
@@ -2055,6 +2456,23 @@ def cmd_llm_optimize(args) -> int:
     if args.no_color:
         Colors.disable()
 
+    strategies = _resolve_strategy_selection(args)
+    if not strategies:
+        print_error("Aucune stratégie sélectionnée (utilisez -s ou --from-category/--from-tag)")
+        return 1
+    if len(strategies) > 1:
+        results = []
+        for strategy_name in strategies:
+            sub_args = copy.copy(args)
+            sub_args.strategy = strategy_name
+            if args.output:
+                sub_args.output = _derive_output_path(args.output, strategy_name)
+            results.append(_cmd_llm_optimize_single(sub_args, strategy_name))
+        return 0 if all(r == 0 for r in results) else 1
+    return _cmd_llm_optimize_single(args, strategies[0])
+
+
+def _cmd_llm_optimize_single(args, strategy_name: str) -> int:
     from pathlib import Path
 
     from agents.integration import create_orchestrator_with_backtest
@@ -2064,7 +2482,7 @@ def cmd_llm_optimize(args) -> int:
 
     if not args.quiet:
         print_header("Optimisation LLM Multi-Agents")
-        print(f"  Stratégie: {args.strategy}")
+        print(f"  Stratégie: {strategy_name}")
         print(f"  Symbole: {args.symbol}")
         print(f"  Timeframe: {args.timeframe}")
         print(f"  Période: {args.start} → {args.end}")
@@ -2106,9 +2524,9 @@ def cmd_llm_optimize(args) -> int:
     if not args.quiet:
         print_info("Récupération des paramètres par défaut...")
 
-    strategy_class = get_strategy(args.strategy)
+    strategy_class = get_strategy(strategy_name)
     if not strategy_class:
-        print_error(f"Stratégie '{args.strategy}' non trouvée")
+        print_error(f"Stratégie '{strategy_name}' non trouvée")
         return 1
 
     strategy_instance = strategy_class()
@@ -2124,7 +2542,7 @@ def cmd_llm_optimize(args) -> int:
 
     try:
         orchestrator = create_orchestrator_with_backtest(
-            strategy_name=args.strategy,
+            strategy_name=strategy_name,
             data=df,
             data_symbol=args.symbol,
             data_timeframe=args.timeframe,
@@ -2157,31 +2575,48 @@ def cmd_llm_optimize(args) -> int:
             traceback.print_exc()
         return 1
 
+    result_decision = getattr(result, "decision", "ABORT")
+    result_final_params = getattr(result, "final_params", None) or {}
+    raw_final_metrics = getattr(result, "final_metrics", None)
+    if hasattr(raw_final_metrics, "to_dict"):
+        result_final_metrics = raw_final_metrics.to_dict()
+    else:
+        result_final_metrics = raw_final_metrics or {}
+
+    result_iterations = getattr(result, "iterations", None)
+    if result_iterations is None:
+        result_iterations = getattr(result, "total_iterations", 0)
+
+    result_reason = getattr(result, "reason", None) or getattr(result, "final_report", None)
+    result_history = getattr(result, "history", None)
+    if result_history is None:
+        result_history = getattr(result, "iteration_history", None)
+
     # Afficher les résultats
     if not args.quiet:
         print()
         print_header("Résultats Finaux")
 
-        if result.decision == "APPROVED":
-            print_success(f"Décision: {result.decision}")
-        elif result.decision == "REJECTED":
-            print_warning(f"Décision: {result.decision}")
+        if result_decision == "APPROVED":
+            print_success(f"Décision: {result_decision}")
+        elif result_decision == "REJECTED":
+            print_warning(f"Décision: {result_decision}")
         else:
-            print_error(f"Décision: {result.decision}")
+            print_error(f"Décision: {result_decision}")
 
-        if result.final_params:
+        if result_final_params:
             print(f"\n{Colors.BOLD}Paramètres finaux:{Colors.RESET}")
-            for k, v in result.final_params.items():
+            for k, v in result_final_params.items():
                 print(f"    {k}: {v}")
 
-        if result.final_metrics:
+        if result_final_metrics:
             print(f"\n{Colors.BOLD}Métriques finales:{Colors.RESET}")
-            _print_metrics(result.final_metrics)
+            _print_metrics(result_final_metrics)
 
-        print(f"\n  Itérations: {result.iterations}")
+        print(f"\n  Itérations: {result_iterations}")
 
-        if result.reason:
-            print(f"\n  Raison: {result.reason}")
+        if result_reason:
+            print(f"\n  Raison: {result_reason}")
 
     # Export si demandé
     if args.output:
@@ -2190,18 +2625,18 @@ def cmd_llm_optimize(args) -> int:
         import json as json_module
 
         export_data = {
-            "strategy": args.strategy,
+            "strategy": strategy_name,
             "symbol": args.symbol,
             "timeframe": args.timeframe,
             "period": {"start": args.start, "end": args.end},
             "model": args.model,
             "max_iterations": args.max_iterations,
-            "decision": result.decision,
-            "iterations": result.iterations,
-            "final_params": result.final_params,
-            "final_metrics": result.final_metrics,
-            "reason": result.reason,
-            "history": result.history if hasattr(result, 'history') else None,
+            "decision": result_decision,
+            "iterations": result_iterations,
+            "final_params": result_final_params,
+            "final_metrics": result_final_metrics,
+            "reason": result_reason,
+            "history": result_history,
         }
 
         with open(output_path, "w") as f:
@@ -2211,19 +2646,18 @@ def cmd_llm_optimize(args) -> int:
             print()
             print_success(f"Résultats exportés: {output_path}")
 
-    best_entry = results[0] if results else {"params": {}, "metrics": {}}
     persisted_run_id = _persist_summary_result_v2(
-        mode="grid_backtest",
-        strategy=args.strategy,
+        mode="llm_optimize",
+        strategy=strategy_name,
         symbol=args.symbol,
         timeframe=args.timeframe,
-        params=best_entry.get("params", {}) or {},
-        metrics=best_entry.get("metrics", {}) or {},
+        params=result_final_params,
+        metrics=result_final_metrics,
         diagnostics={
-            "results": results,
-            "n_combinations": len(all_combinations),
-            "metric": args.metric,
-            "param_grid": param_grid,
+            "decision": result_decision,
+            "reason": result_reason,
+            "iterations": result_iterations,
+            "history": result_history,
         },
         metadata={
             "period_start": str(df.index[0]) if len(df) else args.start,
@@ -2231,20 +2665,25 @@ def cmd_llm_optimize(args) -> int:
             "seed": getattr(args, "seed", None),
             "engine_settings": {
                 "initial_capital": args.capital,
-                "fees_bps": args.fees_bps,
-                "slippage_bps": args.slippage_bps,
+                "min_sharpe": args.min_sharpe,
+                "max_drawdown": args.max_drawdown,
+                "temperature": args.temperature,
             },
             "data_source": {
                 "symbol": args.symbol,
                 "timeframe": args.timeframe,
                 "rows": len(df),
             },
-            "config_snapshot_extra": {"command": "grid-backtest", "top": args.top},
+            "config_snapshot_extra": {
+                "command": "llm-optimize",
+                "model": args.model,
+                "max_iterations": args.max_iterations,
+            },
         },
-        status="ok" if results else "invalid",
+        status="ok" if result_final_metrics else "invalid",
     )
     if persisted_run_id and not args.quiet:
-        print_success(f"Run grille indexé: {persisted_run_id}")
+        print_success(f"Run LLM indexé: {persisted_run_id}")
 
     return 0
 
@@ -2258,6 +2697,23 @@ def cmd_grid_backtest(args) -> int:
     if args.no_color:
         Colors.disable()
 
+    strategies = _resolve_strategy_selection(args)
+    if not strategies:
+        print_error("Aucune stratégie sélectionnée (utilisez -s ou --from-category/--from-tag)")
+        return 1
+    if len(strategies) > 1:
+        results = []
+        for strategy_name in strategies:
+            sub_args = copy.copy(args)
+            sub_args.strategy = strategy_name
+            if args.output:
+                sub_args.output = _derive_output_path(args.output, strategy_name)
+            results.append(_cmd_grid_backtest_single(sub_args, strategy_name))
+        return 0 if all(r == 0 for r in results) else 1
+    return _cmd_grid_backtest_single(args, strategies[0])
+
+
+def _cmd_grid_backtest_single(args, strategy_name: str) -> int:
     import json as json_module
     from itertools import product
     from pathlib import Path
@@ -2270,7 +2726,7 @@ def cmd_grid_backtest(args) -> int:
 
     if not args.quiet:
         print_header("Backtest Mode Grille")
-        print(f"  Stratégie: {args.strategy}")
+        print(f"  Stratégie: {strategy_name}")
         print(f"  Symbole: {args.symbol}")
         print(f"  Timeframe: {args.timeframe}")
         print(f"  Période: {args.start} → {args.end}")
@@ -2297,9 +2753,9 @@ def cmd_grid_backtest(args) -> int:
         print(f"   Période réelle: {df.index[0]} → {df.index[-1]}")
         print()
 
-    strategy_class = get_strategy(args.strategy)
+    strategy_class = get_strategy(strategy_name)
     if not strategy_class:
-        print_error(f"Stratégie '{args.strategy}' non trouvée")
+        print_error(f"Stratégie '{strategy_name}' non trouvée")
         return 1
 
     strategy_instance = strategy_class()
@@ -2404,7 +2860,7 @@ def cmd_grid_backtest(args) -> int:
         try:
             result = engine.run(
                 df=df,
-                strategy=args.strategy,
+                strategy=strategy_name,
                 params=params,
                 symbol=args.symbol,
                 timeframe=args.timeframe
@@ -2459,7 +2915,7 @@ def cmd_grid_backtest(args) -> int:
         output_path = Path(args.output)
 
         export_data = {
-            "strategy": args.strategy,
+            "strategy": strategy_name,
             "symbol": args.symbol,
             "timeframe": args.timeframe,
             "period": {"start": args.start, "end": args.end},
@@ -2476,35 +2932,46 @@ def cmd_grid_backtest(args) -> int:
             print()
             print_success(f"Résultats exportés: {output_path}")
 
+    best_result = results[0] if results else None
+    best_params = best_result.get("params", {}) if best_result else {}
+    best_metrics = best_result.get("metrics", {}) if best_result else {}
     persisted_run_id = _persist_summary_result_v2(
-        mode="agent",
-        strategy=args.strategy,
+        mode="grid_backtest",
+        strategy=strategy_name,
         symbol=args.symbol,
         timeframe=args.timeframe,
-        params=result.final_params or {},
-        metrics=result.final_metrics or {},
+        params=best_params,
+        metrics=best_metrics,
         diagnostics={
-            "decision": result.decision,
-            "iterations": result.iterations,
-            "reason": result.reason,
-            "history": result.history if hasattr(result, "history") else None,
+            "metric": args.metric,
+            "n_combinations_tested": len(results),
+            "n_combinations_requested": len(all_combinations),
+            "top_results": results[: min(args.top, 10)],
         },
         metadata={
             "period_start": args.start,
             "period_end": args.end,
             "seed": getattr(args, "seed", None),
-            "engine_settings": {"initial_capital": args.capital},
-            "data_source": {"symbol": args.symbol, "timeframe": args.timeframe, "rows": len(df)},
+            "engine_settings": {
+                "initial_capital": args.capital,
+                "fees_bps": args.fees_bps,
+                "slippage_bps": args.slippage_bps,
+            },
+            "data_source": {
+                "symbol": args.symbol,
+                "timeframe": args.timeframe,
+                "rows": len(df),
+            },
             "config_snapshot_extra": {
-                "command": "llm-optimize",
-                "model": args.model,
-                "max_iterations": args.max_iterations,
+                "command": "grid-backtest",
+                "max_combinations": args.max_combinations,
+                "metric": args.metric,
             },
         },
-        status="ok" if result.decision == "APPROVED" else "invalid",
+        status="ok" if best_result else "invalid",
     )
     if persisted_run_id and not args.quiet:
-        print_success(f"Run agent indexé: {persisted_run_id}")
+        print_success(f"Run grid indexé: {persisted_run_id}")
 
     return 0
 
@@ -3017,15 +3484,7 @@ def cmd_analyze(args) -> int:
                         "period_start": "N/A",
                         "period_end": "N/A",
                         "params": {},
-                        "metrics": {
-                            "total_return_pct": float(row.get("total_return_pct", 0) or 0),
-                            "max_drawdown_pct": float(row.get("max_drawdown_pct", 0) or 0),
-                            "sharpe_ratio": float(row.get("sharpe", 0) or 0),
-                            "sortino_ratio": float(row.get("sortino", 0) or 0),
-                            "profit_factor": float(row.get("profit_factor", 0) or 0),
-                            "win_rate_pct": float(row.get("win_rate", 0) or 0),
-                            "total_trades": float(row.get("trades_count", 0) or 0),
-                        },
+                        "metrics": _metrics_from_index_row(row),
                     }
                 )
         elif index_csv.exists():
@@ -3040,15 +3499,7 @@ def cmd_analyze(args) -> int:
                         "period_start": "N/A",
                         "period_end": "N/A",
                         "params": {},
-                        "metrics": {
-                            "total_return_pct": float(row.get("total_return_pct", 0) or 0),
-                            "max_drawdown_pct": float(row.get("max_drawdown_pct", 0) or 0),
-                            "sharpe_ratio": float(row.get("sharpe", 0) or 0),
-                            "sortino_ratio": float(row.get("sortino", 0) or 0),
-                            "profit_factor": float(row.get("profit_factor", 0) or 0),
-                            "win_rate_pct": float(row.get("win_rate", 0) or 0),
-                            "total_trades": float(row.get("trades_count", 0) or 0),
-                        },
+                        "metrics": _metrics_from_index_row(row),
                     }
                 )
         elif index_json.exists():
@@ -3070,6 +3521,13 @@ def cmd_analyze(args) -> int:
         else:
             print_error(f"Aucun index trouvé dans {results_dir} (index.parquet / index.csv / index.json)")
             return 1
+
+        if getattr(args, "hydrate", False):
+            hydrated, missing, errors = _hydrate_records_from_run_store(records, results_dir)
+            print_info(
+                f"Hydratation métriques: {hydrated} enrichis, {missing} absents, {errors} erreurs"
+            )
+            print()
 
     print_info(f"Nombre total de runs: {len(records)}")
     print()
@@ -3179,6 +3637,24 @@ def cmd_cycle(args) -> int:
     if args.no_color:
         Colors.disable()
 
+    strategies = _resolve_strategy_selection(args)
+    if not strategies:
+        print_error("Aucune stratégie sélectionnée (utilisez -s ou --from-category/--from-tag)")
+        return 1
+    if len(strategies) > 1:
+        results = []
+        for strategy_name in strategies:
+            sub_args = copy.copy(args)
+            sub_args.strategy = strategy_name
+            sub_args.run_name = None
+            if args.output_dir:
+                sub_args.output_dir = str(Path(args.output_dir) / strategy_name)
+            results.append(_cmd_cycle_single(sub_args, strategy_name))
+        return 0 if all(r == 0 for r in results) else 1
+    return _cmd_cycle_single(args, strategies[0])
+
+
+def _cmd_cycle_single(args, strategy_name: str) -> int:
     from argparse import Namespace
 
     data_path = _resolve_data_path(args.data)
@@ -3221,7 +3697,7 @@ def cmd_cycle(args) -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    run_name = args.run_name or f"cycle_{args.strategy}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+    run_name = args.run_name or f"cycle_{strategy_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
     # Charger données pour calcul de fenêtre/split
     from data.loader import _normalize_ohlcv, _read_file
@@ -3253,7 +3729,7 @@ def cmd_cycle(args) -> int:
 
     if not args.quiet:
         print_header("Cycle Complet")
-        print(f"  Stratégie: {args.strategy}")
+        print(f"  Stratégie: {strategy_name}")
         print(f"  Données: {data_path}")
         print(f"  Train: {train_start} -> {train_end}")
         print(f"  Test:  {test_start} -> {test_end}")
@@ -3305,7 +3781,7 @@ def cmd_cycle(args) -> int:
         print_info("Étape 1/4: backtest baseline (train)")
     rc = cmd_backtest(
         Namespace(
-            strategy=args.strategy,
+            strategy=strategy_name,
             data=str(data_path),
             start=train_start,
             end=train_end,
@@ -3330,7 +3806,7 @@ def cmd_cycle(args) -> int:
         print_info("Étape 2/4: sweep (train)")
     rc = cmd_sweep(
         Namespace(
-            strategy=args.strategy,
+            strategy=strategy_name,
             data=str(data_path),
             start=train_start,
             end=train_end,
@@ -3405,7 +3881,7 @@ def cmd_cycle(args) -> int:
             refine_summary = _run_cycle_refinement(
                 args=args,
                 data_path=data_path,
-                strategy_name=args.strategy,
+                strategy_name=strategy_name,
                 coarse_candidates=filtered,
                 df_train=df_train,
                 output_path=train_refine_path,
@@ -3447,7 +3923,7 @@ def cmd_cycle(args) -> int:
         print_info("Étape 3/4: backtest OOS (test)")
     rc = cmd_backtest(
         Namespace(
-            strategy=args.strategy,
+            strategy=strategy_name,
             data=str(data_path),
             start=test_start,
             end=test_end,
@@ -3472,7 +3948,7 @@ def cmd_cycle(args) -> int:
         print_info("Étape 4/4: backtest full (fenêtre complète)")
     rc = cmd_backtest(
         Namespace(
-            strategy=args.strategy,
+            strategy=strategy_name,
             data=str(data_path),
             start=global_start,
             end=global_end,
@@ -3507,7 +3983,7 @@ def cmd_cycle(args) -> int:
         try:
             walk_forward_summary = _run_cycle_walk_forward(
                 df=df_window,
-                strategy=args.strategy,
+                strategy=strategy_name,
                 params=best_params,
                 capital=args.capital,
                 args=args,
@@ -3529,7 +4005,7 @@ def cmd_cycle(args) -> int:
         _write_cycle_interesting_report(
             path=report_path,
             run_name=run_name,
-            strategy=args.strategy,
+            strategy=strategy_name,
             data_path=data_path,
             metric=args.metric,
             selected_source=best_source,
@@ -3546,7 +4022,7 @@ def cmd_cycle(args) -> int:
 
     summary = {
         "run_name": run_name,
-        "strategy": args.strategy,
+        "strategy": strategy_name,
         "data": str(data_path),
         "symbol": args.symbol,
         "timeframe": args.timeframe,
@@ -3620,7 +4096,7 @@ def cmd_cycle(args) -> int:
 
     persisted_cycle_id = _persist_summary_result_v2(
         mode="cycle",
-        strategy=args.strategy,
+        strategy=strategy_name,
         symbol=args.symbol or "UNKNOWN",
         timeframe=args.timeframe or "N/A",
         params=best_params,
@@ -3650,7 +4126,7 @@ def cmd_cycle(args) -> int:
             store = _get_result_store()
             store.save_walk_forward_folds(
                 parent_run_id=persisted_cycle_id,
-                strategy=args.strategy,
+                strategy=strategy_name,
                 symbol=args.symbol or "UNKNOWN",
                 timeframe=args.timeframe or "N/A",
                 params=best_params,
@@ -3661,8 +4137,13 @@ def cmd_cycle(args) -> int:
                     "seed": getattr(args, "seed", None),
                 },
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning(
+                "cycle_walk_forward_persist_failed parent_run_id=%s error=%s",
+                persisted_cycle_id,
+                exc,
+            )
+            print_warning(f"Échec sauvegarde folds walk-forward: {exc}")
 
     if args.export_html:
         cmd_export(

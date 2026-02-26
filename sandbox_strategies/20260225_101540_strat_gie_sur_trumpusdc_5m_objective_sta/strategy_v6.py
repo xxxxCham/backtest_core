@@ -1,0 +1,100 @@
+from typing import Any, Dict, List
+
+import numpy as np
+import pandas as pd
+
+from utils.parameters import ParameterSpec
+from strategies.base import StrategyBase
+
+
+class BuilderGeneratedStrategy(StrategyBase):
+    def __init__(self):
+        super().__init__(name='Snake Case Name')
+
+    @property
+    def required_indicators(self) -> List[str]:
+        return ['rsi', 'bollinger', 'atr']
+
+    @property
+    def default_params(self) -> Dict[str, Any]:
+        return {'leverage': 1,
+         'rsi_overbought': 70,
+         'rsi_oversold': 30,
+         'rsi_period': 14,
+         'stop_atr_mult': 1.5,
+         'tp_atr_mult': 3.0,
+         'warmup': 50}
+
+    @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        return {
+            'rsi_period': ParameterSpec(
+                name='rsi_period',
+                min_val=5,
+                max_val=50,
+                default=14,
+                param_type='int',
+                step=1,
+            ),
+            'stop_atr_mult': ParameterSpec(
+                name='stop_atr_mult',
+                min_val=0.5,
+                max_val=4.0,
+                default=1.5,
+                param_type='float',
+                step=0.1,
+            ),
+            'leverage': ParameterSpec(
+                name='leverage',
+                min_val=1,
+                max_val=2,
+                default=1,
+                param_type='int',
+                step=1,
+            ),
+            'tp_atr_mult': ParameterSpec(
+                name='tp_atr_mult',
+                min_val=2.0,
+                max_val=4.5,
+                default=3.0,
+                param_type='float',
+                step=0.1,
+            ),
+        }
+
+    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:
+        signals = pd.Series(0.0, index=df.index, dtype=np.float64)
+        n = len(df)
+        warmup = int(params.get('warmup', 50))
+        long_mask = np.zeros(n, dtype=bool)
+        short_mask = np.zeros(n, dtype=bool)
+        # === LOGIQUE LLM INSÉRÉE ICI UNIQUEMENT ===
+        def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:
+            signals = pd.Series(0.0, index=df.index, dtype=np.float64)
+
+            # Assuming "rsi" is the RSI indicator and "bb" is Bollinger Band
+            rsi_window = 14
+            bb_window = 2
+            k_sl = params["leverage"] / 100 if "leverage" in params else 1.5
+
+            for i, row in df.iterrows():
+                close = row['close']
+
+                # Compute RSI
+                rsi = self._compute_rsi(row, rsi_window)
+
+                # Get Bollinger Bands upper and lower bands
+                indicators['bollinger']['upper'], indicators['bollinger']['lower'] = self._get_bollinger_bands(row, bb_window)
+
+                if rsi > 70:   # When RSI is overbought
+                    signals[i] = 1.0    # Buy signal (long position)
+
+                elif close < indicators['bollinger']['lower']:   # When price falls below Bollinger Band lower band
+                    signals[i] = -1.0     # Sell signal (short position)
+
+                else:   # No trade if price is in between Bollinger Bands or RSI is not overbought
+                    signals[i] = 0.0    # No Trade signal
+
+            return signals
+        signals.iloc[:warmup] = 0.0
+        return signals

@@ -1,0 +1,388 @@
+{
+  "session_id": "20260220_213111_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=35)\n- adx(period=17)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 20\n- short: close < donchian.lower and adx.adx > 20\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 15\nrisk:\nstop_atr_mult: 1.5\ntp_atr_mult: 6.0\ndescription: ATR stop-loss (1.5x) and take-profit (6.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "TypeError: int() argument must be a string, a bytes-like object or a real number, not 'dict'",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Using a 30-period Donchian channel, Bollinger band with an upper and lower band of the same period as well as ATR for risk management, we can capture breakouts in trending markets using a combination of these three indicators.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Use Bollinger Bands and ATR to identify trending markets with reduced noise",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.576692241340259,
+      "return_pct": 8.490524306117205,
+      "trades": 63,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +8.5%, PF 1.06, Expectancy 13.48"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 55.8%, Vol 120.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.577, Sortino 1.382, Calmar 0.454"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 63, AvgW/L 750.29/329.23"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 41,
+          "short_signals": 29,
+          "total_signals": 70
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Iteration 3/10\nObjective: FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narrative: A trend-following strategy using Bollinger Bands and ATR. Stop loss is at a factor of 1.5 times the Average True Range, and take profit at 6 times.\n[Backup plan] If results are poor (negative return), we would need to investigate possible reasons for this outcome such as overfitting or incorrect implementation of indicators. We could also consider adding other filters like volatility levels or incorporating additional market analysis methods. If the current strategy fails, we can try using different combinations of Bollinger Bands and ATR in our trading system, or even explore other technical indicators."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Momentum strategy with two SMAs and a momentum multiplier.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

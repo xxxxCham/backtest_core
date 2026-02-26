@@ -1,0 +1,215 @@
+{
+  "session_id": "20260220_213902_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=15)\n- adx(period=21)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 20\nrisk:\nstop_atr_mult: 3.0\ntp_atr_mult: 3.0\ndescription: ATR stop-loss (3.0x) and take-profit (3.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Using a Donchian channel breakout combined with an ADX indicator helps to identify trending market conditions for entering long and short positions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.21518096119608993,
+      "return_pct": -25.577784560357685,
+      "trades": 89,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.6%, PF 0.91, Expectancy -28.74"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 55.6%, Vol 128.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.215, Sortino 0.322, Calmar -0.958"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.8%, Trades 89, AvgW/L 687.61/587.49"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "no_stable_base_code"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 47,
+          "short_signals": 116,
+          "total_signals": 163
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses Donchian channels and ADX indicators to identify trending market conditions. It has potential weaknesses, including the possibility of false signals due to high noise in short-term price fluctuations or overfitting from the use of a specific period for these indicators. If results are poor (negative return), we could try changing the period settings for Donchian channels and ADX to see if better performance can be achieved with more suitable parameters. For mediocre returns, adjusting the Take Profit multiplier may help increase profitability without significantly increasing risk. An alternative approach that uses machine learning models or other non-parametric methods might also be considered."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Using ATR with RSI and Bollinger Bands reduces trade frequency while maintaining profitability during trending market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "Bloc logique LLM invalide apr\u00e8s retry + fallback invalide: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Donchian channel breakout with ADX trend filter reduces false signals in ranging markets.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

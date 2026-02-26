@@ -1,0 +1,261 @@
+{
+  "session_id": "20260221_014220_fiche_strategie_v1_id_vol_amplitude_brea",
+  "objective": "FICHE_STRATEGIE v1\nid: vol_amplitude_breakout\narchetype: vol_amplitude_breakout\nfamily: volatility\ntimeframe: 1h\nside: both\nindicators:\n- amplitude_hunter(period=22)\n- donchian(period=50)\n- atr(period=14)\nentry:\n- long: amplitude_hunter.score > 0.7 and close > donchian.upper\n- short: amplitude_hunter.score > 0.7 and close < donchian.lower\nexit:\n- condition: amplitude_hunter.score < 0.45 or cross_any(close, donchian.middle)\nrisk:\nstop_atr_mult: 1.5\ntp_atr_mult: 4.0\ndescription: ATR stop-loss (1.5x) and take-profit (4.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SANDBOX001] Import interdit en sandbox: 'talib'.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.576692241340259,
+      "return_pct": 8.490524306117205,
+      "trades": 63,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +8.5%, PF 1.06, Expectancy 13.48"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 55.8%, Vol 120.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.577, Sortino 1.382, Calmar 0.454"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 63, AvgW/L 750.29/329.23"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 41,
+          "short_signals": 29,
+          "total_signals": 70
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Iteration 2 of FICHE_STRATEGIE v1 strategy. This strategy is based on volatility breakout with ATR stop-loss and take profit, along with Donchian channel breakouts in 1h timeframe. The fallback plan involves using momentum indicators (RSI, EMA) for entry confirmation and exit strategy at invalidation of the momentum.\n\nIf results are poor, changing to a different volatility breakout approach or adding additional filters may be considered. If results are mediocre, increasing the risk reward ratio might improve performance. For alternative approaches, considering other technical indicators or combining this strategy with others could be explored."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The combination of ATR based stop loss/take profit with RSI and Bollinger Band indicators reduces the risk of false signals in trading. This strategy enters a long position when price breaks above Bollinger Middle band and exit the trade either when price crosses below Bollinger Middle band or ADX falls below 20. The use of ATR as a filter helps to set stop loss at 1.5x ATR below entry, with take profit at 3x ATR above entry point. This results in a strategy that reduces drawdown and enhances the overall profitability.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

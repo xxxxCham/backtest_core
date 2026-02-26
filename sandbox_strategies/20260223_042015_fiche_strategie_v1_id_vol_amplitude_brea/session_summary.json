@@ -1,0 +1,231 @@
+{
+  "session_id": "20260223_042015_fiche_strategie_v1_id_vol_amplitude_brea",
+  "objective": "FICHE_STRATEGIE v1\nid: vol_amplitude_breakout\narchetype: vol_amplitude_breakout\nfamily: volatility\ntimeframe: 1h\nside: both\nindicators:\n- amplitude_hunter(period=5)\n- donchian(period=35)\n- atr(period=14)\nentry:\n- long: amplitude_hunter.score > 0.55 and close > donchian.upper\n- short: amplitude_hunter.score > 0.55 and close < donchian.lower\nexit:\n- condition: amplitude_hunter.score < 0.4 or cross_any(close, donchian.middle)\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 3.5\ndescription: ATR stop-loss (2.0x) and take-profit (3.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Amplitude Hunter captures periods of large price swings; a Donchian breakout confirms a new trend direction, and an ATR filter ensures the move occurs in a sufficiently volatile regime, reducing false breakouts in low\u2011volatility periods.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.07856269762700388,
+      "return_pct": -36.172267136928916,
+      "trades": 214,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -36.2%, PF 0.92, Expectancy -16.90"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 61.6%, Vol 72.7%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.079, Sortino 0.086, Calmar -0.132"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.8%, Trades 214, AvgW/L 524.47/359.91"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 112,
+          "short_signals": 138,
+          "total_signals": 250
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may over\u2011filter in low\u2011volatility regimes, missing small but profitable moves; the 35\u2011period Donchian is a lagging indicator that can produce late entries. 2. If returns are negative, lower the amplitude_hunter threshold (e.g., to 0.45) and shorten the Donchian period to 20 to capture breakouts earlier, while keeping the ATR filter. 3. If Sharpe is low, tighten the risk controls: reduce stop_atr_mult to 1.5, increase tp_atr_mult to 4.0, and add a trailing stop based on a 1\u2011period ATR to lock in gains. 4. As an alternative, replace the Donchian filter with a volatility\u2011based breakout (e.g., Keltner channel) combined with a momentum filter such as RSI over 70/30 for confirming direction.\n[Backup plan] Implement a hybrid rule: use amplitude_hunter score >0.5 plus a 20\u2011period Keltner breakout, and apply a 1\u2011period ATR trailing stop. Test this variant on the same 1h AAVEUSDC dataset and compare win rate and Sharpe to the original. If still weak, add a trend filter (e.g., 50\u2011period EMA) to only trade in the prevailing trend direction."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Bollinger band breakouts capture momentum in trending markets, while an ADX filter (>25) ensures the market has sufficient trend strength, thereby reducing whipsaws and high drawdowns observed with pure amplitude-based breakouts.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -220.38838182151798,
+      "trades": 304,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -220.4%, PF 0.72, Expectancy -72.50"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 596.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.8%, Trades 304, AvgW/L 514.08/414.67"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 362,
+          "short_signals": 357,
+          "total_signals": 719
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on tight amplitude and Donchian breakouts combined with a fixed ATR stop/TP, but it ignores trend direction beyond the amplitude score. This can produce many whipsaw trades in range\u2011bound periods, especially on 1h AAVEUSDC where volatility spikes are frequent. The fixed 2\u00d7ATR stop and 3.5\u00d7TP may be too loose for a volatile asset, letting large losses erode gains. The ADX filter (>25) is a good idea, yet it\u2019s only applied to entry, not to exit, so the exit still suffers from premature exits when the trend weakens. Finally, the backtest uses 214 trades with a -36% return, indicating the filter isn\u2019t strong enough and the signal is noisy.\n[Backup plan] 1. Tighten the entry filter: require both amplitude_hunter.score > 0.65 and ADX > 30 to confirm a strong trend. 2. Switch to a dynamic exit: trail the stop by 1.5\u00d7ATR after a 10\u2011bar win or exit when ADX falls below 20. 3. Reduce the number of trades by increasing the Donchian period to 50 and the Bollinger period to 20 to smooth out noise. 4. If performance remains poor, abandon the amplitude trigger and use a pure Donchian breakout with a 3\u00d7ATR trailing stop, or test a mean\u2011reversion strategy on the Bollinger bands (enter on lower band, exit on middle)."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Using Bollinger band breakouts as a volatility trigger, filtered by a strong trend indicator (ADX > 25), limits false breakouts in ranging markets and captures genuine trend shifts; ATR-based risk management scales stops and targets to current market volatility, improving risk-adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -171.02836013983034,
+      "trades": 336,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -171.0%, PF 0.74, Expectancy -50.90"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2897.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 336, AvgW/L 442.05/290.83"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 362,
+          "short_signals": 361,
+          "total_signals": 723
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on a high amplitude score (>0.55) and Donchian breakouts, but the amplitude_hunter and Donchian parameters may be too restrictive or mis\u2011aligned with the 1\u2011hour AAVEUSDC dynamics, leading to many false breakouts and a high trade count. The ATR stop/TP (2\u00d7/3.5\u00d7) might be too tight for this asset\u2019s volatility, cutting profits prematurely. The mismatch between the described Bollinger/ADX logic and the actual indicators suggests confusion in the design, potentially inflating transaction costs and slippage. Overall, the strategy may be over\u2011leveraged and not adaptive to changing volatility regimes.\n[Backup plan] If the run returns a negative P&L, drop the amplitude_hunter filter and replace it with an ADX>25 trend filter, or shorten Donchian to 20 periods to capture earlier breakouts. If Sharpe remains low, widen the ATR multipliers (stop 3\u00d7, TP 5\u00d7) or add a trailing ATR exit to lock in gains. As a last resort, switch to a volatility\u2011triggered breakout using Keltner channels plus a momentum confirmation (e.g., RSI >70 for long, <30 for short) and re\u2011benchmark on the same dataset."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

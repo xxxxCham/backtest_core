@@ -1,0 +1,463 @@
+{
+  "session_id": "20260224_173815_strat_gie_de_type_breakout_sur_0gusdc_en",
+  "objective": "Strat\u00e9gie de type breakout sur 0GUSDC en 1h avec filtrage par volatilit\u00e9. Indicateurs : ATR + KELTNER + VOLUME_OSCILLATOR. Entr\u00e9es : cassure haute de Keltner avec volume sup\u00e9rieur \u00e0 la moyenne mobile sur 1h, confirmation par ATR inf\u00e9rieur \u00e0 la m\u00e9diane de la volatilit\u00e9 sur 7 jours. Sorties : retour sous la bande de Keltner ou perte de 1.5 ATR. Risk management : SL dynamique bas\u00e9 sur l'ATR, TP fixe \u00e0 2x le SL, avec rotation du profil risque selon le niveau de volatilit\u00e9 implicite (mode risque serr\u00e9 si > 75%, mode large si < 25%).",
+  "status": "success",
+  "best_sharpe": 1.7134186181220792,
+  "best_score": 100.0,
+  "total_iterations": 2,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Keltner channel breakout with volume confirmation and ATR volatility filter captures strong momentum moves while avoiding false signals in low-volatility or choppy markets. The ATR-based risk management ensures position sizing adapts to market conditions, improving risk-adjusted returns.",
+      "change_type": "both",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.27948957015089987,
+      "return_pct": 1.875935458121494,
+      "max_drawdown_pct": -7.501514766855653,
+      "profit_factor": 1.0945551933627604,
+      "win_rate_pct": 38.46153846153847,
+      "trades": 13,
+      "continuous_score": 9.416888298441808,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 7.825707964225196,
+          "return": 2.0635290039336436,
+          "profit_factor": 4.3225231251547624,
+          "trades_confidence": 2.166666666666667,
+          "win_rate": 1.03846153846154
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +1.9%, PF 1.09, Expectancy 14.43"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 7.5%, Vol 16.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.279, Sortino 0.364, Calmar 0.654"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.5%, Trades 13, AvgW/L 434.31/247.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: could not broadcast input array from shape (3375,) into shape (3388,)",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: could not broadcast input array from shape (3375,) into shape (3388,)",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5339, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4780, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4757, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_173815_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 99, in generate_signals\n    vol_osc_sma[fast:] = np.convolve(vol_osc, np.ones(fast)/fast, mode='valid')[slow-fast:]\nValueError: could not broadcast input array from shape (3375,) into shape (3388,)",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses include overfitting to Keltner channels, potential whipsaws from volume filter alone, and static ATR threshold without adaptive volatility scaling. The 1.5x ATR stop loss may be too tight for breakout setups, and the risk management doesn't account for trend direction or market regime changes. The strategy could suffer from look-ahead bias in the volatility filter and may fail during range-bound or low-liquidity periods.\n[Backup plan] If results are poor, I'd switch to a dual-threshold ATR filter (e.g., ATR > median AND ATR > 1.5x average) and add trend confirmation using RSI or ADX. For mediocre Sharpe, I'd adjust the volume filter to use 48-period SMA and increase TP to 2.5x SL. As alternative, I'd test a volatility-normalized price channel breakout with dynamic position sizing based on volatility rank."
+        },
+        "scoring": {
+          "continuous_score": 9.416888298441808,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 7.825707964225196,
+            "return": 2.0635290039336436,
+            "profit_factor": 4.3225231251547624,
+            "trades_confidence": 2.166666666666667,
+            "win_rate": 1.03846153846154
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Keltner Channel breakout with volume confirmation and ATR volatility filtering creates a more robust entry signal by ensuring breakouts occur in high-volume, low-volatility environments where price movements are likely to persist. The ATR filter prevents false signals during low-volatility periods when breakouts are less reliable.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.7134186181220792,
+      "return_pct": 36.782025760226716,
+      "max_drawdown_pct": -11.424850595644278,
+      "profit_factor": 1.9615095100479767,
+      "win_rate_pct": 50.0,
+      "trades": 26,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 47.97572130741822,
+          "return": 40.460228336249386,
+          "profit_factor": 32.0,
+          "trades_confidence": 4.333333333333334,
+          "win_rate": 4.5
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +36.8%, PF 1.96, Expectancy 141.47"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 11.4%, Vol 36.2%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.713, Sortino 3.776, Calmar 10.868"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 50.0%, Trades 26, AvgW/L 577.20/294.27"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 14,
+          "short_signals": 18,
+          "total_signals": 32
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to Keltner bands, reliance on static ATR median filtering which may not adapt to changing market regimes, and ambiguous exit logic that could lead to premature exits. The volume filter may also generate false signals during low-volume consolidation periods. The volatility-based risk management could be too rigid for varying market conditions.\n[Backup plan] If results are poor, I'd switch to a dual-breakout system with both Keltner and Bollinger Bands, and replace ATR filtering with a more dynamic volatility threshold. If Sharpe is mediocre, I'd optimize the ATR lookback period and adjust the volume oscillator threshold. As an alternative, I'd test a momentum-based approach using RSI divergence with volatility scaling, or a mean-reversion strategy during high-volatility periods."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 47.97572130741822,
+            "return": 40.460228336249386,
+            "profit_factor": 32.0,
+            "trades_confidence": 4.333333333333334,
+            "win_rate": 4.5
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Keltner Channel breakout with volume confirmation and ATR volatility filtering creates a more robust entry signal by ensuring breakouts occur in high-volume, low-volatility environments where price movements are likely to persist. The ATR filter prevents false signals during low-volatility periods when breakouts are less reliable.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.7134186181220792,
+      "return_pct": 36.782025760226716,
+      "max_drawdown_pct": -11.424850595644278,
+      "profit_factor": 1.9615095100479767,
+      "win_rate_pct": 50.0,
+      "trades": 26,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 47.97572130741822,
+          "return": 40.460228336249386,
+          "profit_factor": 32.0,
+          "trades_confidence": 4.333333333333334,
+          "win_rate": 4.5
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +36.8%, PF 1.96, Expectancy 141.47"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 11.4%, Vol 36.2%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.713, Sortino 3.776, Calmar 10.868"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 50.0%, Trades 26, AvgW/L 577.20/294.27"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 14,
+          "short_signals": 18,
+          "total_signals": 32
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to Keltner bands, reliance on static ATR median filtering which may not adapt to changing market regimes, and ambiguous exit logic that could lead to premature exits. The volume filter may also generate false signals during low-volume consolidation periods. The volatility-based risk management could be too rigid for varying market conditions.\n[Backup plan] If results are poor, I'd switch to a dual-breakout system with both Keltner and Bollinger Bands, and replace ATR filtering with a more dynamic volatility threshold. If Sharpe is mediocre, I'd optimize the ATR lookback period and adjust the volume oscillator threshold. As an alternative, I'd test a momentum-based approach using RSI divergence with volatility scaling, or a mean-reversion strategy during high-volatility periods."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 47.97572130741822,
+            "return": 40.460228336249386,
+            "profit_factor": 32.0,
+            "trades_confidence": 4.333333333333334,
+            "win_rate": 4.5
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Keltner channel breakout with volume confirmation and ATR volatility filter captures strong momentum moves while avoiding false signals in low-volatility or choppy markets. The ATR-based risk management ensures position sizing adapts to market conditions, improving risk-adjusted returns.",
+      "change_type": "both",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.27948957015089987,
+      "return_pct": 1.875935458121494,
+      "max_drawdown_pct": -7.501514766855653,
+      "profit_factor": 1.0945551933627604,
+      "win_rate_pct": 38.46153846153847,
+      "trades": 13,
+      "continuous_score": 9.416888298441808,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 7.825707964225196,
+          "return": 2.0635290039336436,
+          "profit_factor": 4.3225231251547624,
+          "trades_confidence": 2.166666666666667,
+          "win_rate": 1.03846153846154
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +1.9%, PF 1.09, Expectancy 14.43"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 7.5%, Vol 16.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.279, Sortino 0.364, Calmar 0.654"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.5%, Trades 13, AvgW/L 434.31/247.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: could not broadcast input array from shape (3375,) into shape (3388,)",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: could not broadcast input array from shape (3375,) into shape (3388,)",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5339, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4780, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4757, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_173815_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 99, in generate_signals\n    vol_osc_sma[fast:] = np.convolve(vol_osc, np.ones(fast)/fast, mode='valid')[slow-fast:]\nValueError: could not broadcast input array from shape (3375,) into shape (3388,)",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses include overfitting to Keltner channels, potential whipsaws from volume filter alone, and static ATR threshold without adaptive volatility scaling. The 1.5x ATR stop loss may be too tight for breakout setups, and the risk management doesn't account for trend direction or market regime changes. The strategy could suffer from look-ahead bias in the volatility filter and may fail during range-bound or low-liquidity periods.\n[Backup plan] If results are poor, I'd switch to a dual-threshold ATR filter (e.g., ATR > median AND ATR > 1.5x average) and add trend confirmation using RSI or ADX. For mediocre Sharpe, I'd adjust the volume filter to use 48-period SMA and increase TP to 2.5x SL. As alternative, I'd test a volatility-normalized price channel breakout with dynamic position sizing based on volatility rank."
+        },
+        "scoring": {
+          "continuous_score": 9.416888298441808,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 7.825707964225196,
+            "return": 2.0635290039336436,
+            "profit_factor": 4.3225231251547624,
+            "trades_confidence": 2.166666666666667,
+            "win_rate": 1.03846153846154
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    }
+  ]
+}

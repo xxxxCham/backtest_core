@@ -1,0 +1,242 @@
+{
+  "session_id": "20260223_005249_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=13, slow_period=33, signal_period=7)\n- rsi(period=7)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 40 and rsi < 65\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 5.5\ndescription: ATR stop-loss (2.0x) and take-profit (5.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "MACD cross signals trend initiation while RSI confined to a mid\u2011range (40\u201165 long, 30\u201160 short) reduces whipsaw entries; ATR\u2011based stop\u2011loss and take\u2011profit scale risk to current volatility, protecting capital during both calm and turbulent periods.",
+      "change_type": "accept",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.680826089325261,
+      "return_pct": -46.641360624785975,
+      "trades": 128,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -46.6%, PF 0.88, Expectancy -36.44"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 74.4%, Vol 96.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.681, Sortino -0.745, Calmar -1.078"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.7%, Trades 128, AvgW/L 755.20/495.78"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4689, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_validation_error": "[AST001] Erreur de syntaxe ligne 104: cannot assign to function call here. Maybe you meant '==' instead of '='?",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) MACD cross can lag and generate whipsaws; 2) RSI mid\u2011range limits may miss strong moves; 3) No trend filter may allow entries in sideways markets; 4) Fixed ATR stop/TP ratios may be too aggressive in low volatility periods; 5) Exit on histogram sign change is noisy and may cut gains early.\n[Backup plan] If net loss: tighten RSI to 45\u201160 long/35\u201155 short or add a 50\u2011period EMA filter; if Sharpe low: lower tp_atr_mult to 4.0 and raise stop_atr_mult to 2.5 to improve risk\u2011reward; if overall fails: switch to a 1\u2011hour EMA 20/50 crossover with a volatility breakout filter (e.g., price > 1\u2011day high) and use ATR for dynamic SL/TP."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding an ADX trend filter to the MACD\u2011RSI entry logic ensures trades are taken only when the market shows a strong directional bias, which should reduce whipsaw entries in ranging periods and thereby lower drawdown while preserving momentum opportunities.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4689, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. High trade count with low return suggests over\u2011trading and weak signals; the MACD\u2011RSI cross can trigger many false positives in sideways markets despite the ADX filter. 2. The ADX threshold of 25 may be too restrictive for 1\u2011hour crypto data, eliminating many profitable moves; the exit rules (histogram sign change or extreme RSI) can close positions prematurely. 3. The 2\u00d7ATR stop and 5.5\u00d7ATR take\u2011profit produce a high risk\u2011reward ratio that may not be achieved due to slippage or low volatility. 4. The strategy ignores time\u2011of\u2011day or liquidity windows, which can be critical for 0GUSDC.\n\nIf results are negative, I would first drop the ADX filter (or lower it to 20) and test a pure MACD\u2011RSI entry to see if the filter is too restrictive. If still poor, I\u2019d tighten the RSI bounds to 40\u201160 and add a 1\u2011hour EMA trend filter.\n\nIf Sharpe is mediocre, I would adjust MACD periods to 12/26/9, change RSI period to 14, and reduce TP to 4\u00d7ATR while keeping stop at 2\u00d7ATR. Adding a trailing stop (e.g., 1\u00d7ATR) could capture more profit.\n\nAlternative approach: switch to a breakout strategy using 1\u2011hour high/low bands with a 3\u2011hour ADX filter, or a dual\u2011EMA (20/50) trend following with a volatility\u2011adjusted position sizing.\n[Backup plan] 1. Implement a back\u2011testing variant that records trade-by-trade statistics to identify slippage or clustering issues. 2. Introduce a volatility filter: only trade when 1\u2011hour ATR > 1.5\u00d7 its 14\u2011day average. 3. Replace the fixed TP with a trailing ATR of 1\u00d7 to lock in gains. 4. If still underperforming, pivot to a mean\u2011reversion strategy using Bollinger Bands with a 20\u2011period SMA and a 2\u00d7ATR stop."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a MACD momentum trigger with an EMA trend filter and RSI confirmation reduces false entries in choppy markets while still capturing clear directional moves, and ATR-based sizing provides volatility\u2011adjusted risk control.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

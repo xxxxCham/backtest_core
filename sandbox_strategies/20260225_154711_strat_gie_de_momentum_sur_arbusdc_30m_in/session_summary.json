@@ -1,0 +1,1034 @@
+{
+  "session_id": "20260225_154711_strat_gie_de_momentum_sur_arbusdc_30m_in",
+  "objective": "Strat\u00e9gie de Momentum sur ARBUSDC 30m. Indicateurs : MOMENTUM + STOCHASTIC + ROC + ATR. Entr\u00e9e sur divergence haussi\u00e8re/baissi\u00e8re entre MOMENTUM et STOCHASTIC. Sortie quand le momentum (MOMENTUM) s'\u00e9puise ou diverge du prix. Stop-loss dynamique bas\u00e9 sur ATR (1.9x), ratio risk/reward 2.4:1.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Momentum rising while the stochastic is in a low (or high) region signals a potential reversal; ROC confirms short\u2011term price acceleration; combining these with ATR\u2011based risk ensures exits are based on volatility, improving win\u2011rate in a 30\u2011minute ARBUSDC chart.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 36995 rows. Every boolean mask MUST also have exactly 36995 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 36995 rows. Every boolean mask MUST also have exactly 36995 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) The divergence rule is ambiguous and may generate many false positives; 2) Fixed stochastic thresholds (30/70) ignore volatility changes; 3) Exit logic based only on indicator signs may cut profits prematurely; 4) The ATR\u2011based stop (1.9\u00d7) may be too tight in volatile ARBUSDC, leading to frequent whipsaws.\n[Backup plan] If performance is negative, add a trend filter (e.g., 50\u2011period EMA) and trade only when price is above it for longs; if Sharpe is low, tighten the stochastic thresholds to 20/80 and increase the ATR multiplier to 2.5 for better risk\u2011reward; alternatively, switch to a simple EMA\u2011cross with volume confirmation and a trailing ATR exit to capture longer\u2011term momentum while still controlling risk."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Momentum rising while stochastic is below its oversold level signals a hidden bullish momentum that is not yet reflected in price; using ATR as a volatility filter ensures the strategy only enters when market conditions allow sufficient price movement, improving entry quality and reducing false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -124.91707419176623,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7071523134307267,
+      "win_rate_pct": 43.604651162790695,
+      "trades": 344,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.38732281459535,
+          "trades_confidence": 10.0,
+          "win_rate": 2.5813953488372086
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -124.9%, PF 0.71, Expectancy -36.31"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 796.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.6%, Trades 344, AvgW/L 201.10/219.88"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_154711_strat_gie_de_momentum_sur_arbusdc_30m_in\\strategy.py\", line 123, in generate_signals\n    cross_down(indicators['stochastic']['stoch_k'], np.full(n, 30))\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_154711_strat_gie_de_momentum_sur_arbusdc_30m_in\\strategy.py\", line 112, in cross_down\n    prev_y[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy\u2019s entry logic (stoch_k<30 & momentum>0) may generate many false positives, especially in sideways markets; it ignores trend direction and market regime. 2. The exit rule is too simplistic\u2014momentum crossing 0 or stoch_k hitting 70/30 may cut gains early or let losses creep if the market reverses abruptly. 3. The ATR\u2011based SL at 1.9\u00d7 may be too wide for 30\u2011min crypto, producing large drawdowns; risk/reward of 2.4:1 might be unrealistic given the volatility profile. 4. The lack of position\u2011sizing rules beyond a static ATR stop limits risk control and scalability.\n[Backup plan] If performance is negative, add a trend filter (e.g., 50\u2011EMA > 200\u2011EMA for longs) and tighten the entry to stoch_k<20 with momentum>0.5. If Sharpe is low, reduce ATR multiplier to 1.5, lower risk/reward to 1.5, and implement a trailing stop at 0.5\u00d7 ATR. Alternatively, switch to a volatility\u2011breakout strategy using Bollinger Band breakouts combined with a 14\u2011period RSI confirmation, which may better capture sustained moves and improve risk\u2011adjusted returns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.38732281459535,
+            "trades_confidence": 10.0,
+            "win_rate": 2.5813953488372086
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum and Stochastic in the same direction, confirmed by a trend\u2011driven EMA filter, limits whipsaws in volatile crypto markets; ATR\u2011based stops keep risk proportional to current volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1137.816653032089,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.750331224629717,
+      "win_rate_pct": 39.48304481859142,
+      "trades": 4217,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.413429731212936,
+          "trades_confidence": 10.0,
+          "win_rate": 1.3449134455774248
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1137.8%, PF 0.75, Expectancy -26.98"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 314.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.5%, Trades 4217, AvgW/L 205.37/178.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 13813,
+          "short_signals": 14377,
+          "total_signals": 28190
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Reliance on multiple oscillators increases noise; divergence signals on 30\u2011min crypto may be unreliable due to high volatility and slippage. 2. EMA filter is too simple and may lag, causing late entries. 3. Fixed ATR multiplier and 2.4:1 RR may not adapt to changing market regimes, leading to premature exits or large losses. 4. Exiting on any of the three conditions can produce frequent whipsaws, especially when momentum and stochastic are misaligned.\n[Backup plan] If negative return: switch to a single, robust momentum filter (e.g., use ROC + EMA only) and remove stochastic divergence to reduce false entries. If low Sharpe: tighten ATR stop to 1.5x, increase RR target to 3:1, and add a volume filter to capture only high\u2011liquidity swings. Alternative approach: implement a trend\u2011following breakout strategy on ARBUSDC using a 20\u2011period SMA and a volatility\u2011adjusted breakout filter, with a simple 1\u2011period trailing stop to lock in gains and limit drawdowns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.413429731212936,
+            "trades_confidence": 10.0,
+            "win_rate": 1.3449134455774248
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Momentum and ROC together capture trend acceleration while stochastic provides timing; combining them reduces whipsaws, and ATR-based dynamic SL/TP adapts to volatility for better risk control.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -853.7322121594508,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7727804870367216,
+      "win_rate_pct": 41.757246376811594,
+      "trades": 3312,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.387177735464155,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0271739130434785
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -853.7%, PF 0.77, Expectancy -25.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 229.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.8%, Trades 3312, AvgW/L 209.95/194.78"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9682,
+          "short_signals": 9787,
+          "total_signals": 19469
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Over\u2011sensitive entry (stoch >70) triggers in sideways markets, causing many whipsaws.\n2. Exit rules are too generic; momentum or ROC crossing zero can happen mid\u2011trend.\n3. High trade count (thousands) dilutes performance and inflates transaction costs.\n4. 30\u2011min ARBUSDC may have low liquidity; ATR 1.9x SL can be hit by noise.\n5. No trend filter \u2013 the strategy may trade against the dominant direction.\n\nbackup_plan\":\"1. Tighten entry: require stoch_k >80 and stoch_d <80 to confirm overbought/oversold.\n2. Add a 50\u2011period EMA filter \u2013 trade only when price is above EMA for longs.\n3. Replace zero\u2011cross exits with a 1\u2011ATR trailing stop or a fixed 2.4:1 TP.\n4. Reduce position size to 0.1\u20110.2% of equity to limit drawdowns.\n5. If still underperforming, switch to a volatility\u2011weighted momentum model (e.g., VWAP\u2011based) or test a 15\u2011min time frame with the same logic."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.387177735464155,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0271739130434785
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Bullish (or bearish) divergences between the short\u2011term momentum and the stochastic oscillator capture moments when price momentum starts to outpace overbought/oversold conditions, producing cleaner entries in trending markets; ATR-based risk limits adapt to volatility, preventing overexposure during sharp swings.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "When momentum is rising while stochastic is in an extreme low region, the price is likely to reverse upward; conversely, falling momentum with high stochastic indicates a downward reversal. ATR-based stops and targets align risk with current volatility, ensuring consistent risk/reward in a 30\u2011minute ARBUSDC chart.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Momentum rising while the stochastic is in a low (or high) region signals a potential reversal; ROC confirms short\u2011term price acceleration; combining these with ATR\u2011based risk ensures exits are based on volatility, improving win\u2011rate in a 30\u2011minute ARBUSDC chart.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 36995 rows. Every boolean mask MUST also have exactly 36995 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 36995 rows. Every boolean mask MUST also have exactly 36995 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) The divergence rule is ambiguous and may generate many false positives; 2) Fixed stochastic thresholds (30/70) ignore volatility changes; 3) Exit logic based only on indicator signs may cut profits prematurely; 4) The ATR\u2011based stop (1.9\u00d7) may be too tight in volatile ARBUSDC, leading to frequent whipsaws.\n[Backup plan] If performance is negative, add a trend filter (e.g., 50\u2011period EMA) and trade only when price is above it for longs; if Sharpe is low, tighten the stochastic thresholds to 20/80 and increase the ATR multiplier to 2.5 for better risk\u2011reward; alternatively, switch to a simple EMA\u2011cross with volume confirmation and a trailing ATR exit to capture longer\u2011term momentum while still controlling risk."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Momentum rising while stochastic is below its oversold level signals a hidden bullish momentum that is not yet reflected in price; using ATR as a volatility filter ensures the strategy only enters when market conditions allow sufficient price movement, improving entry quality and reducing false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -124.91707419176623,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7071523134307267,
+      "win_rate_pct": 43.604651162790695,
+      "trades": 344,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.38732281459535,
+          "trades_confidence": 10.0,
+          "win_rate": 2.5813953488372086
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -124.9%, PF 0.71, Expectancy -36.31"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 796.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.6%, Trades 344, AvgW/L 201.10/219.88"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_154711_strat_gie_de_momentum_sur_arbusdc_30m_in\\strategy.py\", line 123, in generate_signals\n    cross_down(indicators['stochastic']['stoch_k'], np.full(n, 30))\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_154711_strat_gie_de_momentum_sur_arbusdc_30m_in\\strategy.py\", line 112, in cross_down\n    prev_y[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy\u2019s entry logic (stoch_k<30 & momentum>0) may generate many false positives, especially in sideways markets; it ignores trend direction and market regime. 2. The exit rule is too simplistic\u2014momentum crossing 0 or stoch_k hitting 70/30 may cut gains early or let losses creep if the market reverses abruptly. 3. The ATR\u2011based SL at 1.9\u00d7 may be too wide for 30\u2011min crypto, producing large drawdowns; risk/reward of 2.4:1 might be unrealistic given the volatility profile. 4. The lack of position\u2011sizing rules beyond a static ATR stop limits risk control and scalability.\n[Backup plan] If performance is negative, add a trend filter (e.g., 50\u2011EMA > 200\u2011EMA for longs) and tighten the entry to stoch_k<20 with momentum>0.5. If Sharpe is low, reduce ATR multiplier to 1.5, lower risk/reward to 1.5, and implement a trailing stop at 0.5\u00d7 ATR. Alternatively, switch to a volatility\u2011breakout strategy using Bollinger Band breakouts combined with a 14\u2011period RSI confirmation, which may better capture sustained moves and improve risk\u2011adjusted returns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.38732281459535,
+            "trades_confidence": 10.0,
+            "win_rate": 2.5813953488372086
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum and Stochastic in the same direction, confirmed by a trend\u2011driven EMA filter, limits whipsaws in volatile crypto markets; ATR\u2011based stops keep risk proportional to current volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1137.816653032089,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.750331224629717,
+      "win_rate_pct": 39.48304481859142,
+      "trades": 4217,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.413429731212936,
+          "trades_confidence": 10.0,
+          "win_rate": 1.3449134455774248
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1137.8%, PF 0.75, Expectancy -26.98"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 314.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.5%, Trades 4217, AvgW/L 205.37/178.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 13813,
+          "short_signals": 14377,
+          "total_signals": 28190
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Reliance on multiple oscillators increases noise; divergence signals on 30\u2011min crypto may be unreliable due to high volatility and slippage. 2. EMA filter is too simple and may lag, causing late entries. 3. Fixed ATR multiplier and 2.4:1 RR may not adapt to changing market regimes, leading to premature exits or large losses. 4. Exiting on any of the three conditions can produce frequent whipsaws, especially when momentum and stochastic are misaligned.\n[Backup plan] If negative return: switch to a single, robust momentum filter (e.g., use ROC + EMA only) and remove stochastic divergence to reduce false entries. If low Sharpe: tighten ATR stop to 1.5x, increase RR target to 3:1, and add a volume filter to capture only high\u2011liquidity swings. Alternative approach: implement a trend\u2011following breakout strategy on ARBUSDC using a 20\u2011period SMA and a volatility\u2011adjusted breakout filter, with a simple 1\u2011period trailing stop to lock in gains and limit drawdowns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.413429731212936,
+            "trades_confidence": 10.0,
+            "win_rate": 1.3449134455774248
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Momentum and ROC together capture trend acceleration while stochastic provides timing; combining them reduces whipsaws, and ATR-based dynamic SL/TP adapts to volatility for better risk control.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -853.7322121594508,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7727804870367216,
+      "win_rate_pct": 41.757246376811594,
+      "trades": 3312,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.387177735464155,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0271739130434785
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -853.7%, PF 0.77, Expectancy -25.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 229.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.8%, Trades 3312, AvgW/L 209.95/194.78"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9682,
+          "short_signals": 9787,
+          "total_signals": 19469
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Over\u2011sensitive entry (stoch >70) triggers in sideways markets, causing many whipsaws.\n2. Exit rules are too generic; momentum or ROC crossing zero can happen mid\u2011trend.\n3. High trade count (thousands) dilutes performance and inflates transaction costs.\n4. 30\u2011min ARBUSDC may have low liquidity; ATR 1.9x SL can be hit by noise.\n5. No trend filter \u2013 the strategy may trade against the dominant direction.\n\nbackup_plan\":\"1. Tighten entry: require stoch_k >80 and stoch_d <80 to confirm overbought/oversold.\n2. Add a 50\u2011period EMA filter \u2013 trade only when price is above EMA for longs.\n3. Replace zero\u2011cross exits with a 1\u2011ATR trailing stop or a fixed 2.4:1 TP.\n4. Reduce position size to 0.1\u20110.2% of equity to limit drawdowns.\n5. If still underperforming, switch to a volatility\u2011weighted momentum model (e.g., VWAP\u2011based) or test a 15\u2011min time frame with the same logic."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.387177735464155,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0271739130434785
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

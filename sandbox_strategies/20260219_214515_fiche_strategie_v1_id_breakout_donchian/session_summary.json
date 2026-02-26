@@ -1,0 +1,240 @@
+{
+  "session_id": "20260219_214515_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=30)\n- adx(period=19)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 25\n- short: close < donchian.lower and adx.adx > 25\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 20\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 4.0\ndescription: ATR stop-loss (1.75x) and take-profit (4.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "This strategy hypothesizes that a breakout from the Donchian channel with a strong ADX above 25 could lead to significant price movements. The ATR-based risk management helps mitigate potential losses.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.5349751985012421,
+      "return_pct": -42.69743088512962,
+      "trades": 94,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -42.7%, PF 0.83, Expectancy -45.42"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 71.8%, Vol 102.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.535, Sortino -0.697, Calmar -1.095"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.2%, Trades 94, AvgW/L 622.48/423.90"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: ufunc 'bitwise_and' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: ufunc 'bitwise_and' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260219_214515_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 58, in generate_signals\n    long_mask = df['close'] > indicators['donchian']['upper'] & indicators['adx']['adx'] > 25\nTypeError: ufunc 'bitwise_and' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on the Donchian channel breakout and ADX crossing above 25. However, it may not perform well in markets with strong trend or consolidation periods. Also, if the ATR risk management does not adequately protect against significant price moves, this could also lead to poor results. Moreover, the strategy assumes a trend reversal after an initial breakout from the Donchian channel. If that assumption is incorrect (which could be due to false signals), the strategy may not exit as expected.\n[Backup plan] If the backtest returns mediocre or negative results, consider adjusting the following parameters: ADX threshold to 30 instead of 25. Increase the ATR stop-loss (1.75x) and take-profit (4.0x). Alternatively, a different strategy could be tested, such as using RSI crossovers or moving averages instead of Donchian channels. Additionally, market conditions can also play a role in the performance of strategies. For instance, if the market is overbought or oversold, it might not have an effect on a breakout from the Donchian channel strategy."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Ajustement structurel bas\u00e9 sur le diagnostic pr\u00e9c\u00e9dent.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "This strategy is based on the assumption that a breakout occurs when price breaks out of the Donchian channel, which is an indicator used to measure volatility. The ADX (Average Directional Index), also known as the directional movement index, is used to filter false signals in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -0.5349751985012421,
+      "return_pct": -42.69743088512962,
+      "trades": 94,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -42.7%, PF 0.83, Expectancy -45.42"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 71.8%, Vol 102.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.535, Sortino -0.697, Calmar -1.095"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.2%, Trades 94, AvgW/L 622.48/423.90"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260219_214515_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 61, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,903 @@
+{
+  "session_id": "20260225_050201_momentum_sur_avntusdc_30m_indicateurs_ar",
+  "objective": "Momentum sur AVNTUSDC 30m. Indicateurs : Aroon + Volume Oscillator + Fibonacci Levels. Entr\u00e9es : Aroon Up croise Aroon Down, Volume Oscillator d\u00e9passe son EMA de 20 p\u00e9riodes, et le prix touche un niveau de Fibonacci de retracement. Sorties : Le prix inverse direction apr\u00e8s avoir atteint le niveau de Fibonacci. Risk management : SL bas\u00e9 sur l'ATR multipli\u00e9 par le nombre de Fibonacci levels touch\u00e9s, TP dynamique ajust\u00e9 en fonction de la volatilit\u00e9 implicite.",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 4,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Aroon Up/Down crossovers with Volume Oscillator EMA breaches and Fibonacci retracement touches aims to identify high-probability momentum swings, filtering out false signals with volume confirmation and targeting key price levels.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.5511568472686228,
+      "return_pct": -85.81448361691227,
+      "max_drawdown_pct": -98.91137144080317,
+      "profit_factor": 0.6662779626509708,
+      "win_rate_pct": 52.89855072463768,
+      "trades": 138,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 15.432391723521437,
+          "return": -33.0,
+          "profit_factor": -15.255864564527048,
+          "trades_confidence": 10.0,
+          "win_rate": 5.369565217391305
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 63.911371440803165
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -85.8%, PF 0.67, Expectancy -62.18"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 98.9%, Vol 380.4%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.551, Sortino 0.941, Calmar -1.004"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 52.9%, Trades 138, AvgW/L 234.70/395.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 81: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 92,
+          "short_signals": 58,
+          "total_signals": 150
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three simultaneous conditions for entry increases the chance of missed opportunities and whipsaws. Fibonacci levels are subjective and may not always provide reliable reversals. Volume Oscillator's EMA lag could generate late entries, and ATR-based SL could be too wide, leading to premature exits. The dynamic TP based on implied volatility may not be consistently profitable.\n[Backup plan] If negative return, simplify to just Aroon crossover + Fibonacci touch. For mediocre Sharpe, optimize Fibonacci level selection (e.g., using a dynamic, adaptive level). If the strategy consistently fails, replace Fibonacci with a simple moving average crossover for a more robust trend-following approach."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 63.911371440803165,
+          "components": {
+            "sharpe": 15.432391723521437,
+            "return": -33.0,
+            "profit_factor": -15.255864564527048,
+            "trades_confidence": 10.0,
+            "win_rate": 5.369565217391305
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Aroon Up crossing Aroon Down with Volume Oscillator exceeding its EMA and Fibonacci retracement levels aims to capture momentum shifts confirmed by volume and potential support/resistance levels, reducing false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'aroon' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'aroon' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_050201_momentum_sur_avntusdc_30m_indicateurs_ar\\strategy.py\", line 88, in generate_signals\n    signals[aroon.up_crosses_down & (volume_oscillator > volume_oscillator.ema) & close_touches_fibonacci_level] = 1.0\nNameError: name 'aroon' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: comparaison `fibonacci_levels ...` alors que `fibonacci_levels` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: fibonacci_levels['high']).",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three indicators for entry increases the chance of overfitting and whipsaws. Fibonacci levels are subjective and prone to interpretation bias. The exit condition (close crosses previous day's close OR adx < 25) seems overly simplistic and might prematurely exit profitable trades, especially given the volatility of AVNTUSDC. Volume Oscillator\u2019s sensitivity to noise could trigger false signals.\n[Backup plan] If negative, simplify entry to *only* Aroon cross + Fibonacci touch. If mediocre, tighten Fibonacci level sensitivity and adjust ATR multiplier for SL. As an alternative, explore a breakout strategy based on AVNTUSDC range expansion, using volume confirmation instead of oscillators."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Aroon Up/Down crossovers with Volume Oscillator EMA breakouts and Fibonacci retracement touches aims to identify high-probability reversals in trending markets, while the Fibonacci levels act as both entry and exit points.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -236.60591750899735,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6846410648885319,
+      "win_rate_pct": 25.568181818181817,
+      "trades": 528,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -14.416408462238541,
+          "trades_confidence": 10.0,
+          "win_rate": -2.829545454545455
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -236.6%, PF 0.68, Expectancy -44.81"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 347.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.6%, Trades 528, AvgW/L 380.50/190.91"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'aroon' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'aroon' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_050201_momentum_sur_avntusdc_30m_indicateurs_ar\\strategy.py\", line 80, in generate_signals\n    signals[aroon.up_crosses_down & (volume_oscillator > volume_oscillator.ema) & (close.iloc == fibonacci_levels.retracement_level.iloc)] = 1.0\nNameError: name 'aroon' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `fibonacci_levels['retracement_level']` pour indicateur dict 'fibonacci_levels'. Sous-cl\u00e9s valides: high, low, level_XXX.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three indicators for entry increases false positives, especially in choppy markets. The exit condition (ADX < 25) is too loose, potentially leading to premature exits and whipsaws. Combining momentum with Fibonacci levels might be overly sensitive to noise, and the ATR-based SL might not adequately protect capital in volatile conditions. The hypothesis assumes consistent trending behavior which may not be the case for AVNTUSDC.\n[Backup plan] Poor results: Simplify entry to *only* Aroon crossover and volume oscillator breakout. Mediocre results: Optimize Fibonacci level selection (experiment with different retracement levels) and tighten the ADX exit threshold. Alternative approach: Replace Fibonacci levels with a simple moving average crossover system for a more robust trend-following signal."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -14.416408462238541,
+            "trades_confidence": 10.0,
+            "win_rate": -2.829545454545455
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining momentum with Fibonacci retracement levels and volume confirmation aims to identify high-probability reversals, while ADX filters out weak trending conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.5239686247683015,
+      "return_pct": -12.253650592874802,
+      "max_drawdown_pct": -77.96343485324681,
+      "profit_factor": 0.9724173448496308,
+      "win_rate_pct": 39.516129032258064,
+      "trades": 248,
+      "continuous_score": -59.35626672943956,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 14.671121493512443,
+          "return": -13.479015652162284,
+          "profit_factor": -1.2609213783025908,
+          "trades_confidence": 10.0,
+          "win_rate": 1.354838709677419
+        },
+        "penalties": {
+          "drawdown_pressure": 38.64228990216454,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 42.96343485324681
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -12.3%, PF 0.97, Expectancy -4.94"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 78.0%, Vol 153.4%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.524, Sortino 1.146, Calmar -0.364"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.5%, Trades 248, AvgW/L 440.81/296.17"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 84: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 127,
+          "short_signals": 217,
+          "total_signals": 344
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple, potentially conflicting indicators (Aroon, Volume Oscillator, Fibonacci) increases the risk of false signals. The ADX filter might be too strict, missing valid trades, or conversely, too loose, allowing whipsaws. The ATR-based SL, while theoretically sound, could be overly aggressive given the 30-minute timeframe's inherent noise. The dynamic TP based on implied volatility might not align with the strategy's actual profit-taking profile.\n[Backup plan] If negative return, simplify entry to *only* Aroon crossover & Fibonacci touch, removing the Volume Oscillator. For low Sharpe, reduce Fibonacci level sensitivity (fewer levels considered) and optimize ATR multiplier for SL. If consistently failing, abandon the Fibonacci component entirely and explore a simple breakout strategy based on volume and price action."
+        },
+        "scoring": {
+          "continuous_score": -59.35626672943956,
+          "drawdown_excess_pct": 42.96343485324681,
+          "components": {
+            "sharpe": 14.671121493512443,
+            "return": -13.479015652162284,
+            "profit_factor": -1.2609213783025908,
+            "trades_confidence": 10.0,
+            "win_rate": 1.354838709677419
+          },
+          "penalties": {
+            "drawdown_pressure": 38.64228990216454,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Aroon Up crossing Aroon Down with Volume Oscillator exceeding its EMA and Fibonacci retracement levels aims to capture momentum shifts confirmed by volume and potential support/resistance levels, reducing false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'aroon' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'aroon' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_050201_momentum_sur_avntusdc_30m_indicateurs_ar\\strategy.py\", line 88, in generate_signals\n    signals[aroon.up_crosses_down & (volume_oscillator > volume_oscillator.ema) & close_touches_fibonacci_level] = 1.0\nNameError: name 'aroon' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: comparaison `fibonacci_levels ...` alors que `fibonacci_levels` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: fibonacci_levels['high']).",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three indicators for entry increases the chance of overfitting and whipsaws. Fibonacci levels are subjective and prone to interpretation bias. The exit condition (close crosses previous day's close OR adx < 25) seems overly simplistic and might prematurely exit profitable trades, especially given the volatility of AVNTUSDC. Volume Oscillator\u2019s sensitivity to noise could trigger false signals.\n[Backup plan] If negative, simplify entry to *only* Aroon cross + Fibonacci touch. If mediocre, tighten Fibonacci level sensitivity and adjust ATR multiplier for SL. As an alternative, explore a breakout strategy based on AVNTUSDC range expansion, using volume confirmation instead of oscillators."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining momentum with Fibonacci retracement levels and volume confirmation aims to identify high-probability reversals, while ADX filters out weak trending conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.5239686247683015,
+      "return_pct": -12.253650592874802,
+      "max_drawdown_pct": -77.96343485324681,
+      "profit_factor": 0.9724173448496308,
+      "win_rate_pct": 39.516129032258064,
+      "trades": 248,
+      "continuous_score": -59.35626672943956,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 14.671121493512443,
+          "return": -13.479015652162284,
+          "profit_factor": -1.2609213783025908,
+          "trades_confidence": 10.0,
+          "win_rate": 1.354838709677419
+        },
+        "penalties": {
+          "drawdown_pressure": 38.64228990216454,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 42.96343485324681
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -12.3%, PF 0.97, Expectancy -4.94"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 78.0%, Vol 153.4%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.524, Sortino 1.146, Calmar -0.364"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.5%, Trades 248, AvgW/L 440.81/296.17"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 84: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 127,
+          "short_signals": 217,
+          "total_signals": 344
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple, potentially conflicting indicators (Aroon, Volume Oscillator, Fibonacci) increases the risk of false signals. The ADX filter might be too strict, missing valid trades, or conversely, too loose, allowing whipsaws. The ATR-based SL, while theoretically sound, could be overly aggressive given the 30-minute timeframe's inherent noise. The dynamic TP based on implied volatility might not align with the strategy's actual profit-taking profile.\n[Backup plan] If negative return, simplify entry to *only* Aroon crossover & Fibonacci touch, removing the Volume Oscillator. For low Sharpe, reduce Fibonacci level sensitivity (fewer levels considered) and optimize ATR multiplier for SL. If consistently failing, abandon the Fibonacci component entirely and explore a simple breakout strategy based on volume and price action."
+        },
+        "scoring": {
+          "continuous_score": -59.35626672943956,
+          "drawdown_excess_pct": 42.96343485324681,
+          "components": {
+            "sharpe": 14.671121493512443,
+            "return": -13.479015652162284,
+            "profit_factor": -1.2609213783025908,
+            "trades_confidence": 10.0,
+            "win_rate": 1.354838709677419
+          },
+          "penalties": {
+            "drawdown_pressure": 38.64228990216454,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Aroon Up/Down crossovers with Volume Oscillator EMA breaches and Fibonacci retracement touches aims to identify high-probability momentum swings, filtering out false signals with volume confirmation and targeting key price levels.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.5511568472686228,
+      "return_pct": -85.81448361691227,
+      "max_drawdown_pct": -98.91137144080317,
+      "profit_factor": 0.6662779626509708,
+      "win_rate_pct": 52.89855072463768,
+      "trades": 138,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 15.432391723521437,
+          "return": -33.0,
+          "profit_factor": -15.255864564527048,
+          "trades_confidence": 10.0,
+          "win_rate": 5.369565217391305
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 63.911371440803165
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -85.8%, PF 0.67, Expectancy -62.18"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 98.9%, Vol 380.4%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.551, Sortino 0.941, Calmar -1.004"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 52.9%, Trades 138, AvgW/L 234.70/395.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 81: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 92,
+          "short_signals": 58,
+          "total_signals": 150
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three simultaneous conditions for entry increases the chance of missed opportunities and whipsaws. Fibonacci levels are subjective and may not always provide reliable reversals. Volume Oscillator's EMA lag could generate late entries, and ATR-based SL could be too wide, leading to premature exits. The dynamic TP based on implied volatility may not be consistently profitable.\n[Backup plan] If negative return, simplify to just Aroon crossover + Fibonacci touch. For mediocre Sharpe, optimize Fibonacci level selection (e.g., using a dynamic, adaptive level). If the strategy consistently fails, replace Fibonacci with a simple moving average crossover for a more robust trend-following approach."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 63.911371440803165,
+          "components": {
+            "sharpe": 15.432391723521437,
+            "return": -33.0,
+            "profit_factor": -15.255864564527048,
+            "trades_confidence": 10.0,
+            "win_rate": 5.369565217391305
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Aroon Up/Down crossovers with Volume Oscillator EMA breakouts and Fibonacci retracement touches aims to identify high-probability reversals in trending markets, while the Fibonacci levels act as both entry and exit points.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -236.60591750899735,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6846410648885319,
+      "win_rate_pct": 25.568181818181817,
+      "trades": 528,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -14.416408462238541,
+          "trades_confidence": 10.0,
+          "win_rate": -2.829545454545455
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -236.6%, PF 0.68, Expectancy -44.81"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 347.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.6%, Trades 528, AvgW/L 380.50/190.91"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'aroon' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'aroon' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_050201_momentum_sur_avntusdc_30m_indicateurs_ar\\strategy.py\", line 80, in generate_signals\n    signals[aroon.up_crosses_down & (volume_oscillator > volume_oscillator.ema) & (close.iloc == fibonacci_levels.retracement_level.iloc)] = 1.0\nNameError: name 'aroon' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `fibonacci_levels['retracement_level']` pour indicateur dict 'fibonacci_levels'. Sous-cl\u00e9s valides: high, low, level_XXX.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three indicators for entry increases false positives, especially in choppy markets. The exit condition (ADX < 25) is too loose, potentially leading to premature exits and whipsaws. Combining momentum with Fibonacci levels might be overly sensitive to noise, and the ATR-based SL might not adequately protect capital in volatile conditions. The hypothesis assumes consistent trending behavior which may not be the case for AVNTUSDC.\n[Backup plan] Poor results: Simplify entry to *only* Aroon crossover and volume oscillator breakout. Mediocre results: Optimize Fibonacci level selection (experiment with different retracement levels) and tighten the ADX exit threshold. Alternative approach: Replace Fibonacci levels with a simple moving average crossover system for a more robust trend-following signal."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -14.416408462238541,
+            "trades_confidence": 10.0,
+            "win_rate": -2.829545454545455
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

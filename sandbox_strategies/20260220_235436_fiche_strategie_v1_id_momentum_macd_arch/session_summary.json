@@ -1,0 +1,254 @@
+{
+  "session_id": "20260220_235436_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=8, slow_period=21, signal_period=6)\n- rsi(period=21)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 35 and rsi < 75\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 4.5\ndescription: ATR stop-loss (1.75x) and take-profit (4.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "using the momentum of MACD and the mean reversion properties of ATR along with overbought/oversold conditions from RSI, we can identify strong trends in both directions.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -186.5160075813077,
+      "trades": 446,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -186.5%, PF 0.79, Expectancy -41.82"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 4788.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.8%, Trades 446, AvgW/L 419.84/310.30"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 252,
+          "short_signals": 237,
+          "total_signals": 489
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] I have reviewed my momentum strategy with MACD, ATR and RSI indicators. The strategy has been built to take advantage of mean reversion properties of ATR, the strength of trends as indicated by MACD and overbought/oversold conditions from RSI for entry signals. However, it lacks any risk management mechanism like stop-loss or trailing stops. Also, since this is a momentum based strategy, it can lead to whipsaws in ranging markets.\n\nBackup plan: If the results are poor (negative return), I would first check if there were any issues with data quality or backtest parameters such as maximum bars for training etc. After that, I would look into different combinations of stop-loss and take profit levels, moving averages etc to optimize the strategy performance.\n\nIf the mediocre returns persist even after optimization, then it could be a sign that this is not the right market environment for this type of momentum based strategy or there might be some data quality issues. In such cases, I would try exploring other strategies like mean reversion based ones, using different indicators etc."
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_235436_fiche_strategie_v1_id_momentum_macd_arch\\strategy.py\", line 52, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[CLASS001] required_indicators est en lecture seule: assignation interdite.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Mesure de la volatilit\u00e9 (ATR) et signaux d'oscillation (Donchian) combin\u00e9s \u00e0 des seuils de tendance (MACD)",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -55,6 +55,14 @@ class SidebarState:
     optimization_mode: str
     max_combos: int
     n_workers: int
+    # Stabilisation auto du marché (pré-filtre data) — 23/02/2026
+    auto_stabilization_enabled: bool
+    stabilization_method: str
+    stabilization_window: int
+    stabilization_volume_ratio_max: float
+    stabilization_volatility_ratio_max: float
+    stabilization_min_consecutive_bars: int
+    stabilization_min_bars_keep: int
     # Multi-sweep config (20/01/2026 - support sélection multiple)
     symbols: List[str]  # Liste de symboles sélectionnés
     timeframes: List[str]  # Liste de timeframes sélectionnés
@@ -121,6 +129,9 @@ class SidebarState:
             assert self.end_date is not None
         assert self.max_combos >= 1
         assert self.n_workers >= 1
+        assert self.stabilization_window >= 1
+        assert self.stabilization_min_consecutive_bars >= 1
+        assert self.stabilization_min_bars_keep >= 1
         assert self.llm_max_iterations >= 0
         assert self.initial_capital >= 0
         assert self.builder_keep_alive_minutes >= 0

@@ -1,0 +1,174 @@
+{
+  "session_id": "20260220_235235_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=14, slow_period=23, signal_period=7)\n- rsi(period=8)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 45 and rsi < 65\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 3.5\ndescription: ATR stop-loss (2.0x) and take-profit (3.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "success",
+  "best_sharpe": -5.0,
+  "total_iterations": 2,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "FICHE_STRATEGIE v1 uses the MACD momentum indicator in combination with RSI and ATR to generate long and short trading signals.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.625771666544351,
+      "return_pct": 27.57241018362529,
+      "trades": 25,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +27.6%, PF 1.56, Expectancy 110.29"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 19.4%, Vol 60.5%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.626, Sortino 1.624, Calmar 11.248"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 52.0%, Trades 25, AvgW/L 590.07/409.47"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 89: invalid syntax",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 14,
+          "short_signals": 14,
+          "total_signals": 28
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] I will review the strategy for its robustness and potential weaknesses, considering the current market conditions. If results are poor (negative return), I would try to adjust entry criteria or risk management parameters. For mediocre returns (low Sharpe ratio), I would focus on improving exit criteria or optimizing risk-return trade-offs. In case of failure, I will investigate alternative approaches and consider using a machine learning approach if necessary.\n[Backup plan] If results are poor, I would try to adjust the entry conditions by adding more filters like volume or moving average crossovers. If returns remain low, I could also experiment with different risk management parameters such as changing stop-loss/take-profit multipliers. For mediocre performance, I will explore optimization of exit criteria and consider a mean reversion strategy."
+        }
+      }
+    }
+  ]
+}

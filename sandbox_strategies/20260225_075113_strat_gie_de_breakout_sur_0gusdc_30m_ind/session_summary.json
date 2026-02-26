@@ -1,0 +1,780 @@
+{
+  "session_id": "20260225_075113_strat_gie_de_breakout_sur_0gusdc_30m_ind",
+  "objective": "Strat\u00e9gie de Breakout sur 0GUSDC 30m. Indicateurs : ATR + PIVOT_POINTS. Entr\u00e9e sur breakout valid\u00e9 par ATR et force de tendance (PIVOT_POINTS). Take-profit en multiple d'ATR, stop si faux breakout (ATR se contracte). Trailing stop \u00e0 2.0x ATR, take-profit \u00e0 6.0x ATR.",
+  "status": "failed",
+  "best_sharpe": 1.0071361006227562,
+  "best_score": 42.712833545186825,
+  "total_iterations": 7,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Pivot point breakouts identify key supply/demand zones, while an ATR volatility filter ensures the breakout occurs in a sufficiently volatile regime, reducing false breakouts and improving risk\u2011reward by confirming true price momentum.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -362.34558403221035,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7543574386507925,
+      "win_rate_pct": 27.53433616742969,
+      "trades": 1529,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.229374233106629,
+          "trades_confidence": 10.0,
+          "win_rate": -2.239699149771093
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -362.3%, PF 0.75, Expectancy -23.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 8899.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.5%, Trades 1529, AvgW/L 264.31/133.13"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1349,
+          "short_signals": 1606,
+          "total_signals": 2955
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The breakout rule may trigger on low\u2011volume spikes, leading to false entries; ATR thresholds are static and may not adapt to regime shifts; pivot point levels on a 30\u2011min chart can be noisy, causing frequent whipsaws; the fixed 6\u00d7ATR TP and 2\u00d7ATR trailing stop may be too aggressive for a highly volatile pair like 0GUSDC, resulting in premature exits or large drawdowns.\n[Backup plan] If returns are negative, tighten the ATR filter (e.g., require ATR > 1.5\u00d7 its 20\u2011period moving average) and add a minimum volume filter. For a low Sharpe, lengthen the ATR look\u2011back to smooth volatility and move the TP to 4\u00d7ATR while extending the trailing stop to 3\u00d7ATR. Should the core concept fail, switch to a mean\u2011reversion framework using Bollinger Band squeezes with a dynamic stop\u2011loss based on recent range, or test a multi\u2011timeframe confirmation (e.g., breakout on 30\u202fmin confirmed by 1\u2011hour pivot levels)."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.229374233106629,
+            "trades_confidence": 10.0,
+            "win_rate": -2.239699149771093
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding an ADX trend strength filter to the ATR\u2011volatility and pivot\u2011point breakout conditions should suppress false breakouts that occur in sideways markets, improving win rate and reducing drawdown while preserving the original ATR\u2011based risk framework.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.0071361006227562,
+      "return_pct": 32.473977248623015,
+      "max_drawdown_pct": -49.71272926154118,
+      "profit_factor": 1.0629693485188523,
+      "win_rate_pct": 28.273809523809522,
+      "trades": 336,
+      "continuous_score": 42.712833545186825,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 28.19981081743717,
+          "return": 35.72137497348532,
+          "profit_factor": 2.878598789433247,
+          "trades_confidence": 10.0,
+          "win_rate": -2.0178571428571432
+        },
+        "penalties": {
+          "drawdown_pressure": 19.808486174360784,
+          "drawdown_excess": 12.260607717950982,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 14.712729261541178
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.5%, PF 1.06, Expectancy 9.66"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 49.7%, Vol 114.5%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.007, Sortino 2.539, Calmar 2.140"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.3%, Trades 336, AvgW/L 577.04/213.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 267,
+          "short_signals": 363,
+          "total_signals": 630
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The breakout rule relies heavily on a single ATR threshold and a static ADX >25, which may be too rigid for varying market regimes; pivot\u2011point levels can be noisy on a 30\u2011minute chart, leading to frequent false breakouts. The stop\u2011loss tied to ATR contraction may trigger prematurely during normal volatility spikes, inflating loss count. Risk per trade is not explicitly capped, so a few large losers could dominate the equity curve, as hinted by the extreme Sharpe of -20 in iteration\u202f1.\n[Backup plan] If returns are negative, tighten the entry filter by requiring ADX >30 and a price close > pivot_points.r1 by at least 0.5\u202f\u00d7\u202fATR, while adding a maximum daily loss cap (e.g., 2% equity). If Sharpe is low, experiment with wider ATR multiples for TP (e.g., 8\u00d7ATR) and tighter trailing stop (1.5\u00d7ATR) to let winners run and reduce churn. Should the whole concept fail, switch to a momentum\u2011based strategy: use a 20\u2011period EMA crossover on the 30\u2011min chart with ADX >25 as trend confirmation, and set TP/SL as fixed % of ATR, eliminating pivot points altogether."
+        },
+        "scoring": {
+          "continuous_score": 42.712833545186825,
+          "drawdown_excess_pct": 14.712729261541178,
+          "components": {
+            "sharpe": 28.19981081743717,
+            "return": 35.72137497348532,
+            "profit_factor": 2.878598789433247,
+            "trades_confidence": 10.0,
+            "win_rate": -2.0178571428571432
+          },
+          "penalties": {
+            "drawdown_pressure": 19.808486174360784,
+            "drawdown_excess": 12.260607717950982,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a volatility filter (ATR) with a trend strength filter (ADX) ensures that only breakouts occurring in a sufficiently volatile and trending environment generate signals, which should cut the excessive number of low\u2011probability trades and improve win rate while preserving the original breakout edge.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -75.49061847636641,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9061966650529681,
+      "win_rate_pct": 27.68729641693811,
+      "trades": 614,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.288152454721456,
+          "trades_confidence": 10.0,
+          "win_rate": -2.1938110749185666
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -75.5%, PF 0.91, Expectancy -12.29"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1504.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 614, AvgW/L 428.99/181.26"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 514,
+          "short_signals": 601,
+          "total_signals": 1115
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.288152454721456,
+            "trades_confidence": 10.0,
+            "win_rate": -2.1938110749185666
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Pivot point breakouts are only reliable when the market is both volatile and trending; using ATR to require a minimum volatility and ADX to require a strong trend filters out many false breakouts, while the ATR\u2011based stop\u2011loss and multi\u2011ATR profit target preserve a high reward\u2011to\u2011risk ratio, leading to a more robust Sharpe and lower drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "RuntimeError: cannot schedule new futures after interpreter shutdown",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "RuntimeError: cannot schedule new futures after interpreter shutdown",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "RuntimeError: cannot schedule new futures after interpreter shutdown",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 2,
+      "hypothesis": "Adding an ADX trend strength filter to the ATR\u2011volatility and pivot\u2011point breakout conditions should suppress false breakouts that occur in sideways markets, improving win rate and reducing drawdown while preserving the original ATR\u2011based risk framework.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.0071361006227562,
+      "return_pct": 32.473977248623015,
+      "max_drawdown_pct": -49.71272926154118,
+      "profit_factor": 1.0629693485188523,
+      "win_rate_pct": 28.273809523809522,
+      "trades": 336,
+      "continuous_score": 42.712833545186825,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 28.19981081743717,
+          "return": 35.72137497348532,
+          "profit_factor": 2.878598789433247,
+          "trades_confidence": 10.0,
+          "win_rate": -2.0178571428571432
+        },
+        "penalties": {
+          "drawdown_pressure": 19.808486174360784,
+          "drawdown_excess": 12.260607717950982,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 14.712729261541178
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.5%, PF 1.06, Expectancy 9.66"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 49.7%, Vol 114.5%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.007, Sortino 2.539, Calmar 2.140"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.3%, Trades 336, AvgW/L 577.04/213.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 267,
+          "short_signals": 363,
+          "total_signals": 630
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The breakout rule relies heavily on a single ATR threshold and a static ADX >25, which may be too rigid for varying market regimes; pivot\u2011point levels can be noisy on a 30\u2011minute chart, leading to frequent false breakouts. The stop\u2011loss tied to ATR contraction may trigger prematurely during normal volatility spikes, inflating loss count. Risk per trade is not explicitly capped, so a few large losers could dominate the equity curve, as hinted by the extreme Sharpe of -20 in iteration\u202f1.\n[Backup plan] If returns are negative, tighten the entry filter by requiring ADX >30 and a price close > pivot_points.r1 by at least 0.5\u202f\u00d7\u202fATR, while adding a maximum daily loss cap (e.g., 2% equity). If Sharpe is low, experiment with wider ATR multiples for TP (e.g., 8\u00d7ATR) and tighter trailing stop (1.5\u00d7ATR) to let winners run and reduce churn. Should the whole concept fail, switch to a momentum\u2011based strategy: use a 20\u2011period EMA crossover on the 30\u2011min chart with ADX >25 as trend confirmation, and set TP/SL as fixed % of ATR, eliminating pivot points altogether."
+        },
+        "scoring": {
+          "continuous_score": 42.712833545186825,
+          "drawdown_excess_pct": 14.712729261541178,
+          "components": {
+            "sharpe": 28.19981081743717,
+            "return": 35.72137497348532,
+            "profit_factor": 2.878598789433247,
+            "trades_confidence": 10.0,
+            "win_rate": -2.0178571428571432
+          },
+          "penalties": {
+            "drawdown_pressure": 19.808486174360784,
+            "drawdown_excess": 12.260607717950982,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Pivot point breakouts identify key supply/demand zones, while an ATR volatility filter ensures the breakout occurs in a sufficiently volatile regime, reducing false breakouts and improving risk\u2011reward by confirming true price momentum.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -362.34558403221035,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7543574386507925,
+      "win_rate_pct": 27.53433616742969,
+      "trades": 1529,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.229374233106629,
+          "trades_confidence": 10.0,
+          "win_rate": -2.239699149771093
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -362.3%, PF 0.75, Expectancy -23.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 8899.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.5%, Trades 1529, AvgW/L 264.31/133.13"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1349,
+          "short_signals": 1606,
+          "total_signals": 2955
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The breakout rule may trigger on low\u2011volume spikes, leading to false entries; ATR thresholds are static and may not adapt to regime shifts; pivot point levels on a 30\u2011min chart can be noisy, causing frequent whipsaws; the fixed 6\u00d7ATR TP and 2\u00d7ATR trailing stop may be too aggressive for a highly volatile pair like 0GUSDC, resulting in premature exits or large drawdowns.\n[Backup plan] If returns are negative, tighten the ATR filter (e.g., require ATR > 1.5\u00d7 its 20\u2011period moving average) and add a minimum volume filter. For a low Sharpe, lengthen the ATR look\u2011back to smooth volatility and move the TP to 4\u00d7ATR while extending the trailing stop to 3\u00d7ATR. Should the core concept fail, switch to a mean\u2011reversion framework using Bollinger Band squeezes with a dynamic stop\u2011loss based on recent range, or test a multi\u2011timeframe confirmation (e.g., breakout on 30\u202fmin confirmed by 1\u2011hour pivot levels)."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.229374233106629,
+            "trades_confidence": 10.0,
+            "win_rate": -2.239699149771093
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a volatility filter (ATR) with a trend strength filter (ADX) ensures that only breakouts occurring in a sufficiently volatile and trending environment generate signals, which should cut the excessive number of low\u2011probability trades and improve win rate while preserving the original breakout edge.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -75.49061847636641,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9061966650529681,
+      "win_rate_pct": 27.68729641693811,
+      "trades": 614,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.288152454721456,
+          "trades_confidence": 10.0,
+          "win_rate": -2.1938110749185666
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -75.5%, PF 0.91, Expectancy -12.29"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1504.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 614, AvgW/L 428.99/181.26"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 514,
+          "short_signals": 601,
+          "total_signals": 1115
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.288152454721456,
+            "trades_confidence": 10.0,
+            "win_rate": -2.1938110749185666
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    }
+  ]
+}

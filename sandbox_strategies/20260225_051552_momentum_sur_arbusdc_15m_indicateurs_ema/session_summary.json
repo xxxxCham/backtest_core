@@ -1,0 +1,1299 @@
+{
+  "session_id": "20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema",
+  "objective": "Momentum sur ARBUSDC 15m. Indicateurs : EMA + Aroon + Vortex. Entr\u00e9es : EMA croise au-dessus du prix, Aroon Up d\u00e9passe 50% pendant que Vortex indique une divergence haussi\u00e8re partielle. Sorties : Confirmation contrarienne partielle via un filtre horaire de liquidit\u00e9 (bas\u00e9 sur le volume des 15 derni\u00e8res minutes) et un mode_risk_rotation alternant entre profil risque serr\u00e9 et large selon la volatilit\u00e9 ATR. Risk management : SL bas\u00e9 sur la standard deviation du prix sur la derni\u00e8re heure, TP \u00e0 1.5x le risque initial.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA crossover with Vortex divergence identifies nascent uptrends while Aroon confirms momentum shift, filtering out false signals and capitalizing on early trend initiation.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1525.3261053850927,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.3031367601199178,
+      "win_rate_pct": 23.36829836829837,
+      "trades": 5148,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4895104895104896
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1525.3%, PF 0.30, Expectancy -29.63"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 413.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.4%, Trades 5148, AvgW/L 55.16/55.48"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema\\strategy.py\", line 105, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple, potentially conflicting indicators (EMA, Aroon, Vortex) increases the risk of whipsaws and false positives. The divergence filter is subjective and prone to interpretation errors; the volume/ADX exit feels arbitrary and may prematurely close profitable trades. ATR-based risk rotation adds complexity and could dilute returns if volatility isn't consistently favorable. The 1.5x risk/reward is aggressive and might lead to frequent drawdowns.\n[Backup plan] If negative returns, simplify to *only* EMA crossover with volume confirmation for entry/exit. If mediocre Sharpe, optimize Aroon period and Vortex parameters via walk-forward analysis. As an alternative, explore a mean reversion strategy based on Bollinger Bands and RSI on the same timeframe, capitalizing on overbought/oversold conditions."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4895104895104896
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Aroon Up exceeding 50% with Vortex divergence and EMA crossover aims to capture early momentum shifts while filtering out false signals from choppy markets, and using a momentum filter improves signal quality.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1299.6485883259518,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.3248349109580879,
+      "win_rate_pct": 25.32642953624493,
+      "trades": 4442,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.9020711391265213
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1299.6%, PF 0.32, Expectancy -29.26"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1221.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.3%, Trades 4442, AvgW/L 55.58/58.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema\\strategy.py\", line 99, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple indicators for entry increases complexity and risk of overfitting. Vortex divergence is notoriously unreliable, and the combined entry conditions are likely to generate few signals, leading to low trade frequency. The exit conditions are overly simplistic, potentially cutting profitable trades short and missing out on continued momentum. The liquidity filter and risk rotation are positive, but may not outweigh the core strategy's flaws.\n[Backup plan] If negative return, simplify entry to *only* EMA crossover and Aroon Up > 50. If mediocre Sharpe, optimize ATR-based risk rotation and TP multiplier. If both fail, shift to a simpler mean reversion strategy using Bollinger Bands on ARBUSDC 15m, focusing on capturing short-term price reversals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.9020711391265213
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Aroon Up breakout with Vortex divergence provides a robust entry signal, while momentum confirms the trend direction, and volume filters out false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1213.734602029635,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33092101116574163,
+      "win_rate_pct": 24.45939452186449,
+      "trades": 4162,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.1621816434406536
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1213.7%, PF 0.33, Expectancy -29.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 717.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.5%, Trades 4162, AvgW/L 58.97/57.70"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema\\strategy.py\", line 108, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple concurring indicators increases complexity and risk of signal dilution; Aroon's sensitivity to recent price action may generate whipsaws, exacerbated by the Vortex divergence which is prone to false signals. The strict entry conditions might be too restrictive, missing profitable opportunities. The exit strategy, especially the hourly liquidity filter, seems complex and potentially introduces unnecessary latency, hindering responsiveness.\n[Backup plan] If negative returns persist, simplify entry by removing the Aroon condition and focusing on EMA/Vortex divergence. For mediocre Sharpe, optimize ATR-based risk rotation intervals and TP multiplier. If the momentum/divergence approach consistently fails, switch to a simpler trend-following strategy using only the EMA and volume confirmation, exploring different EMA lengths."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.1621816434406536
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Aroon Up exceeding 50% with Vortex divergence and momentum confirms upward price momentum while filtering out false signals during trend reversals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1239.7969722351754,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33203251951352936,
+      "win_rate_pct": 25.56179775280899,
+      "trades": 4272,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.831460674157303
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1239.8%, PF 0.33, Expectancy -29.02"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1141.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.6%, Trades 4272, AvgW/L 56.44/58.37"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3357,
+          "short_signals": 3603,
+          "total_signals": 6960
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple concurring indicators increases complexity and risk of overfitting; the divergence filter is likely noisy and prone to whipsaws. Exit conditions are too simplistic, potentially missing out on extended trends. The current risk/reward ratio (1.5x) might be too aggressive given the high trade frequency and negative Sharpe in prior iterations.\n[Backup plan] If poor: Simplify entry to *only* EMA cross and Aroon Up; If mediocre: Optimize ATR-based risk rotation and Aroon period; Alternative: Shift focus to a mean reversion strategy using Bollinger Bands and RSI on the same ARBUSDC 15m data."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.831460674157303
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA crossover with Aroon Up and Vortex divergence aims to capture momentum shifts while filtering out false signals using Vortex's divergence property and Aroon's trend confirmation; momentum filter reduces whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1213.734602029635,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33092101116574163,
+      "win_rate_pct": 24.45939452186449,
+      "trades": 4162,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.1621816434406536
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1213.7%, PF 0.33, Expectancy -29.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 717.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.5%, Trades 4162, AvgW/L 58.97/57.70"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3357,
+          "short_signals": 3603,
+          "total_signals": 6960
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple, potentially correlated indicators (EMA, Aroon, Vortex) increases the risk of overfitting and false positives, especially given the recent history of negative Sharpe ratios. The divergence filter within the entry condition is complex and may be too strict, missing valid trades. The exit conditions, while incorporating Aroon for trend confirmation, might be too reactive to minor price reversals, prematurely exiting profitable positions. The liquidity filter's effectiveness is also uncertain.\n[Backup plan] If negative returns persist, simplify the entry to *only* EMA crossover with price, removing Aroon and Vortex; if mediocre Sharpe, optimize ATR-based risk rotation frequency and TP multiplier; if both fail, replace momentum-based signals with a simple breakout strategy (price exceeding recent high/low range)."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.1621816434406536
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Aroon Up breakout with Vortex divergence and momentum confirmation aims to capture strong, early uptrends while filtering out false signals generated by whipsaws, improving signal quality and profitability.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -1213.734602029635,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33092101116574163,
+      "win_rate_pct": 24.45939452186449,
+      "trades": 4162,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.1621816434406536
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1213.7%, PF 0.33, Expectancy -29.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 717.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.5%, Trades 4162, AvgW/L 58.97/57.70"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3357,
+          "short_signals": 3603,
+          "total_signals": 6960
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple concurring indicators increases complexity and potential for signal dilution; the divergence filter is likely noisy on ARBUSDC. The fixed 1.5x TP is overly aggressive given the volatility and risk management is too simplistic, potentially cutting winning trades short. The exit condition (ADX < 25) is too broad and may trigger premature exits.\n[Backup plan] If negative, simplify to *just* EMA crossover with Aroon Up breakout. If mediocre, tighten Aroon Up threshold and experiment with dynamic TP scaling based on ATR. If consistently failing, switch to a Mean Reversion strategy using Bollinger Bands and RSI on the same timeframe, exploiting ARBUSDC's potential for price reversals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.1621816434406536
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA crossover with Vortex divergence identifies nascent uptrends while Aroon confirms momentum shift, filtering out false signals and capitalizing on early trend initiation.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1525.3261053850927,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.3031367601199178,
+      "win_rate_pct": 23.36829836829837,
+      "trades": 5148,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4895104895104896
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1525.3%, PF 0.30, Expectancy -29.63"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 413.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.4%, Trades 5148, AvgW/L 55.16/55.48"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema\\strategy.py\", line 105, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple, potentially conflicting indicators (EMA, Aroon, Vortex) increases the risk of whipsaws and false positives. The divergence filter is subjective and prone to interpretation errors; the volume/ADX exit feels arbitrary and may prematurely close profitable trades. ATR-based risk rotation adds complexity and could dilute returns if volatility isn't consistently favorable. The 1.5x risk/reward is aggressive and might lead to frequent drawdowns.\n[Backup plan] If negative returns, simplify to *only* EMA crossover with volume confirmation for entry/exit. If mediocre Sharpe, optimize Aroon period and Vortex parameters via walk-forward analysis. As an alternative, explore a mean reversion strategy based on Bollinger Bands and RSI on the same timeframe, capitalizing on overbought/oversold conditions."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4895104895104896
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Aroon Up exceeding 50% with Vortex divergence and EMA crossover aims to capture early momentum shifts while filtering out false signals from choppy markets, and using a momentum filter improves signal quality.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1299.6485883259518,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.3248349109580879,
+      "win_rate_pct": 25.32642953624493,
+      "trades": 4442,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.9020711391265213
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1299.6%, PF 0.32, Expectancy -29.26"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1221.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.3%, Trades 4442, AvgW/L 55.58/58.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema\\strategy.py\", line 99, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple indicators for entry increases complexity and risk of overfitting. Vortex divergence is notoriously unreliable, and the combined entry conditions are likely to generate few signals, leading to low trade frequency. The exit conditions are overly simplistic, potentially cutting profitable trades short and missing out on continued momentum. The liquidity filter and risk rotation are positive, but may not outweigh the core strategy's flaws.\n[Backup plan] If negative return, simplify entry to *only* EMA crossover and Aroon Up > 50. If mediocre Sharpe, optimize ATR-based risk rotation and TP multiplier. If both fail, shift to a simpler mean reversion strategy using Bollinger Bands on ARBUSDC 15m, focusing on capturing short-term price reversals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.9020711391265213
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Aroon Up breakout with Vortex divergence provides a robust entry signal, while momentum confirms the trend direction, and volume filters out false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1213.734602029635,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33092101116574163,
+      "win_rate_pct": 24.45939452186449,
+      "trades": 4162,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.1621816434406536
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1213.7%, PF 0.33, Expectancy -29.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 717.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.5%, Trades 4162, AvgW/L 58.97/57.70"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_051552_momentum_sur_arbusdc_15m_indicateurs_ema\\strategy.py\", line 108, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple concurring indicators increases complexity and risk of signal dilution; Aroon's sensitivity to recent price action may generate whipsaws, exacerbated by the Vortex divergence which is prone to false signals. The strict entry conditions might be too restrictive, missing profitable opportunities. The exit strategy, especially the hourly liquidity filter, seems complex and potentially introduces unnecessary latency, hindering responsiveness.\n[Backup plan] If negative returns persist, simplify entry by removing the Aroon condition and focusing on EMA/Vortex divergence. For mediocre Sharpe, optimize ATR-based risk rotation intervals and TP multiplier. If the momentum/divergence approach consistently fails, switch to a simpler trend-following strategy using only the EMA and volume confirmation, exploring different EMA lengths."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.1621816434406536
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Aroon Up exceeding 50% with Vortex divergence and momentum confirms upward price momentum while filtering out false signals during trend reversals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1239.7969722351754,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33203251951352936,
+      "win_rate_pct": 25.56179775280899,
+      "trades": 4272,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.831460674157303
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1239.8%, PF 0.33, Expectancy -29.02"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1141.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.6%, Trades 4272, AvgW/L 56.44/58.37"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3357,
+          "short_signals": 3603,
+          "total_signals": 6960
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple concurring indicators increases complexity and risk of overfitting; the divergence filter is likely noisy and prone to whipsaws. Exit conditions are too simplistic, potentially missing out on extended trends. The current risk/reward ratio (1.5x) might be too aggressive given the high trade frequency and negative Sharpe in prior iterations.\n[Backup plan] If poor: Simplify entry to *only* EMA cross and Aroon Up; If mediocre: Optimize ATR-based risk rotation and Aroon period; Alternative: Shift focus to a mean reversion strategy using Bollinger Bands and RSI on the same ARBUSDC 15m data."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.831460674157303
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA crossover with Aroon Up and Vortex divergence aims to capture momentum shifts while filtering out false signals using Vortex's divergence property and Aroon's trend confirmation; momentum filter reduces whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1213.734602029635,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33092101116574163,
+      "win_rate_pct": 24.45939452186449,
+      "trades": 4162,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.1621816434406536
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1213.7%, PF 0.33, Expectancy -29.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 717.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.5%, Trades 4162, AvgW/L 58.97/57.70"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3357,
+          "short_signals": 3603,
+          "total_signals": 6960
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple, potentially correlated indicators (EMA, Aroon, Vortex) increases the risk of overfitting and false positives, especially given the recent history of negative Sharpe ratios. The divergence filter within the entry condition is complex and may be too strict, missing valid trades. The exit conditions, while incorporating Aroon for trend confirmation, might be too reactive to minor price reversals, prematurely exiting profitable positions. The liquidity filter's effectiveness is also uncertain.\n[Backup plan] If negative returns persist, simplify the entry to *only* EMA crossover with price, removing Aroon and Vortex; if mediocre Sharpe, optimize ATR-based risk rotation frequency and TP multiplier; if both fail, replace momentum-based signals with a simple breakout strategy (price exceeding recent high/low range)."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.1621816434406536
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Aroon Up breakout with Vortex divergence and momentum confirmation aims to capture strong, early uptrends while filtering out false signals generated by whipsaws, improving signal quality and profitability.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -1213.734602029635,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33092101116574163,
+      "win_rate_pct": 24.45939452186449,
+      "trades": 4162,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.1621816434406536
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1213.7%, PF 0.33, Expectancy -29.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 717.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.5%, Trades 4162, AvgW/L 58.97/57.70"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3357,
+          "short_signals": 3603,
+          "total_signals": 6960
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple concurring indicators increases complexity and potential for signal dilution; the divergence filter is likely noisy on ARBUSDC. The fixed 1.5x TP is overly aggressive given the volatility and risk management is too simplistic, potentially cutting winning trades short. The exit condition (ADX < 25) is too broad and may trigger premature exits.\n[Backup plan] If negative, simplify to *just* EMA crossover with Aroon Up breakout. If mediocre, tighten Aroon Up threshold and experiment with dynamic TP scaling based on ATR. If consistently failing, switch to a Mean Reversion strategy using Bollinger Bands and RSI on the same timeframe, exploiting ARBUSDC's potential for price reversals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.1621816434406536
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

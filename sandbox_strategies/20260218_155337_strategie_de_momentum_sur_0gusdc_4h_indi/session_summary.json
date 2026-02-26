@@ -1,0 +1,632 @@
+{
+  "session_id": "20260218_155337_strategie_de_momentum_sur_0gusdc_4h_indi",
+  "objective": "Strategie de Momentum sur 0GUSDC 4h. Indicateurs : EMA(10), EMA(30), ATR. Calculer ROC = (close - close[12]) / close[12]. Entree short quand ROC < 0 et EMA(10) < EMA(30). Stop-loss = 1.5x ATR, take-profit = 3.0x ATR.",
+  "status": "max_iterations",
+  "best_sharpe": 0.9259610412027298,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Bollinger Bands and ATR can be used to identify potential trend reversals while the price is in a range-bound market. By combining these indicators, we aim to improve our trade entries.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining the momentum of Bollinger Bands with the volatility measure from ATR should provide a robust trading signal.",
+      "change_type": "logic",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4796, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4299, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4276, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260218_155337_strategie_de_momentum_sur_0gusdc_4h_indi\\strategy.py\", line 60, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Bollinger Bands (momentum) and ATR (volatility) to capture trend changes while staying resilient in choppy markets.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Bollinger Bands and ATR with momentum strategy to generate trade signals.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.9259610412027298,
+      "return_pct": 31.97966652657962,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.0%, PF 1.16, Expectancy 168.31"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 40.0%, Vol 166.1%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.926, Sortino 1.114, Calmar 2.612"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 2527.06/1954.56"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Bollinger Bands with ATR can provide a good risk-reward ratio and help identify momentum.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.9259610412027298,
+      "return_pct": 31.97966652657962,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.0%, PF 1.16, Expectancy 168.31"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 40.0%, Vol 166.1%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.926, Sortino 1.114, Calmar 2.612"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 2527.06/1954.56"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 3
+          }
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Combining the momentum of Bollinger Bands and ATR can create a strategy that captures both mean reversion and trend following.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.9259610412027298,
+      "return_pct": 31.97966652657962,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.0%, PF 1.16, Expectancy 168.31"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 40.0%, Vol 166.1%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.926, Sortino 1.114, Calmar 2.612"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 2527.06/1954.56"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Combining Bollinger Bands and ATR with a momentum strategy to capture both mean reversion and trend following.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.9259610412027298,
+      "return_pct": 31.97966652657962,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +32.0%, PF 1.16, Expectancy 168.31"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 40.0%, Vol 166.1%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.926, Sortino 1.114, Calmar 2.612"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 2527.06/1954.56"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    }
+  ]
+}

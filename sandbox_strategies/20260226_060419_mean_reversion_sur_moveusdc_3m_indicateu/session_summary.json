@@ -1,0 +1,1093 @@
+{
+  "session_id": "20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu",
+  "objective": "Mean-reversion sur MOVEUSDC 3m. Indicateurs : BOLLINGER + AROON + ATR. Entr\u00e9es : Cassure de la bande inf\u00e9rieure de Bollinger combin\u00e9e \u00e0 un Aroon Down inf\u00e9rieur \u00e0 25 et une divergence haussi\u00e8re sur le Volume Oscillator, uniquement pendant la premi\u00e8re heure de la session asiatique. Sorties : Prendre des profits lorsque la bande sup\u00e9rieure de Bollinger est atteinte ou lorsque l'Aroon Up croise l'Aroon Down, avec un Stop Loss dynamique bas\u00e9 sur l'ATR et un Take Profit fixe de 1.5x le Stop Loss. Ce syst\u00e8me vise \u00e0 exploiter les faux breakouts pendant les heures de faible liquidit\u00e9, en se concentrant sur des retours \u00e0 la moyenne rapides et en utilisant une gestion du risque adaptative.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Bollinger Bands with Aroon indicators identifies potential mean reversion opportunities during low-liquidity Asian sessions. Aroon Down below 25 suggests a short-term downtrend exhaustion, while a Bollinger Band breakout signals a potential reversal, providing a high-probability setup for short-term gains.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2600.216817986393,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.16726515452008406,
+      "win_rate_pct": 14.55747593086649,
+      "trades": 8621,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2600.2%, PF 0.17, Expectancy -30.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 441.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 14.6%, Trades 8621, AvgW/L 41.62/42.39"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'time'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'time'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu\\strategy.py\", line 89, in generate_signals\n    hour = df[\"time\"].dt.hour.values\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\frame.py\", line 4102, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    raise KeyError(key) from err\nKeyError: 'time'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy relies heavily on confluence within a very specific timeframe (Asian session first hour), making it vulnerable to whipsaws and potentially missing moves outside that window. The fixed 1.5x TP/SL might be suboptimal given MOVEUSDC's volatility, and the reliance on a *single* volume oscillator divergence is fragile. The 3m timeframe is also prone to noise.\n[Backup plan] If negative return, I'll relax the entry conditions to require *either* Bollinger breakout *or* Aroon signal, increasing signal frequency. If low Sharpe, I'll optimize TP/SL as a multiple of ATR *and* test dynamic TP/SL based on volatility expansion. If both fail, I'll switch to a purely ATR-based breakout strategy with a trailing stop, abandoning the mean-reversion focus."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Bollinger Bands with RSI and ADX helps identify potential mean-reversion opportunities with increased confidence. RSI filters out overbought/oversold conditions, ADX confirms trend strength, and ATR provides dynamic risk management, improving the win rate and reducing drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1516.5435973395786,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.40048078419172095,
+      "win_rate_pct": 34.938430435581694,
+      "trades": 5441,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -0.01847086932549189
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1516.5%, PF 0.40, Expectancy -27.87"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 513.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.9%, Trades 5441, AvgW/L 53.29/71.46"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `adx ...` alors que `adx` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: adx['adx']).",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 73: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 2996,
+          "short_signals": 2688,
+          "total_signals": 5684
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -0.01847086932549189
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Bollinger Bands with Aroon indicators can identify potential mean reversion opportunities during periods of low volatility, particularly when the Aroon Down indicator signals a potential trend reversal. This strategy focuses on capturing quick returns during Asian session hours when liquidity is lower, and uses ATR-based risk management to adapt to changing market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -675.606803802013,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.2446486341509455,
+      "win_rate_pct": 19.92287917737789,
+      "trades": 2334,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -4.523136246786633
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -675.6%, PF 0.24, Expectancy -28.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 261.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 19.9%, Trades 2334, AvgW/L 47.06/47.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'volume_oscillator'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'volume_oscillator'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu\\strategy.py\", line 74, in generate_signals\n    vol_osc = np.nan_to_num(indicators['volume_oscillator'])\nKeyError: 'volume_oscillator'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on confluence of multiple indicators during a specific, narrow time window (Asian session's first hour). This makes it susceptible to whipsaws and may miss opportunities outside that window. The fixed 1.5x TP/SL ratio, while simple, may not be optimal across varying volatility levels. Volume Oscillator divergence is subjective and prone to false signals.\n[Backup plan] If negative return: Relax entry criteria \u2013 remove Volume Oscillator requirement or increase Aroon Down threshold to 20. If low Sharpe: Optimize TP/SL ratio dynamically based on ATR multiples (e.g., 2x-3x SL) and test different Bollinger Band periods. Alternative: Implement a trend-following filter (e.g., 200-period SMA) to trade only with the prevailing trend, reducing mean-reversion attempts in strong trends."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -4.523136246786633
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Bollinger Bands with RSI and ADX aims to identify strong mean-reversion opportunities by filtering out false breakouts and confirming trend strength. RSI helps validate overbought/oversold conditions, while ADX ensures the underlying trend supports the reversion.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `adx ...` alors que `adx` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: adx['adx']).",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 73: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Bollinger Bands with Aroon indicators captures mean reversion opportunities during periods of consolidation and potential breakouts, filtering for low-momentum conditions to avoid false signals. This strategy targets quick reversals, exploiting the gap between short-term price action and the broader trend.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.6332512729236526,
+      "return_pct": -7.56505846762575,
+      "max_drawdown_pct": -7.56505846762575,
+      "profit_factor": 0.27930331614504983,
+      "win_rate_pct": 23.52941176470588,
+      "trades": 17,
+      "continuous_score": -94.92940745164323,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -8.321564314388326,
+          "profit_factor": -24.0,
+          "trades_confidence": 2.833333333333333,
+          "win_rate": -3.4411764705882355
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -7.6%, PF 0.28, Expectancy -44.50"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 7.6%, Vol 3.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.633, Sortino -0.594, Calmar -0.955"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 17, AvgW/L 73.30/80.75"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'volume_oscillator'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'volume_oscillator'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu\\strategy.py\", line 83, in generate_signals\n    volume_oscillator = indicators['volume_oscillator']\nKeyError: 'volume_oscillator'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy is highly sensitive to parameter choices (Bollinger period, Aroon period, ATR multiplier) and relies on very specific timing (Asian session first hour). The combination of indicators might be over-optimized for this timeframe/asset, leading to false positives. Volume Oscillator divergence is subjective and implementation-dependent, potentially introducing noise.\n[Backup plan] If negative return: Simplify entry to *only* Bollinger lower band break + volume divergence, removing Aroon. If low Sharpe: Optimize ATR multiplier for tighter stops/larger TP ratio; test different Bollinger/Aroon periods. Alternative: Switch to a trend-following strategy using moving average crossovers with ATR-based stop loss on MOVEUSDC."
+        },
+        "scoring": {
+          "continuous_score": -94.92940745164323,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -8.321564314388326,
+            "profit_factor": -24.0,
+            "trades_confidence": 2.833333333333333,
+            "win_rate": -3.4411764705882355
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Bollinger Bands with Aroon provides a robust mean-reversion strategy by confirming breakouts and reversals, while ATR-based risk management adapts to changing volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Bollinger Bands with Aroon indicators captures mean reversion opportunities during periods of consolidation and potential breakouts, filtering for low-momentum conditions to avoid false signals. This strategy targets quick reversals, exploiting the gap between short-term price action and the broader trend.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.6332512729236526,
+      "return_pct": -7.56505846762575,
+      "max_drawdown_pct": -7.56505846762575,
+      "profit_factor": 0.27930331614504983,
+      "win_rate_pct": 23.52941176470588,
+      "trades": 17,
+      "continuous_score": -94.92940745164323,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -8.321564314388326,
+          "profit_factor": -24.0,
+          "trades_confidence": 2.833333333333333,
+          "win_rate": -3.4411764705882355
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -7.6%, PF 0.28, Expectancy -44.50"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 7.6%, Vol 3.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.633, Sortino -0.594, Calmar -0.955"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 17, AvgW/L 73.30/80.75"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'volume_oscillator'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'volume_oscillator'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu\\strategy.py\", line 83, in generate_signals\n    volume_oscillator = indicators['volume_oscillator']\nKeyError: 'volume_oscillator'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy is highly sensitive to parameter choices (Bollinger period, Aroon period, ATR multiplier) and relies on very specific timing (Asian session first hour). The combination of indicators might be over-optimized for this timeframe/asset, leading to false positives. Volume Oscillator divergence is subjective and implementation-dependent, potentially introducing noise.\n[Backup plan] If negative return: Simplify entry to *only* Bollinger lower band break + volume divergence, removing Aroon. If low Sharpe: Optimize ATR multiplier for tighter stops/larger TP ratio; test different Bollinger/Aroon periods. Alternative: Switch to a trend-following strategy using moving average crossovers with ATR-based stop loss on MOVEUSDC."
+        },
+        "scoring": {
+          "continuous_score": -94.92940745164323,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -8.321564314388326,
+            "profit_factor": -24.0,
+            "trades_confidence": 2.833333333333333,
+            "win_rate": -3.4411764705882355
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Bollinger Bands with Aroon indicators identifies potential mean reversion opportunities during low-liquidity Asian sessions. Aroon Down below 25 suggests a short-term downtrend exhaustion, while a Bollinger Band breakout signals a potential reversal, providing a high-probability setup for short-term gains.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2600.216817986393,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.16726515452008406,
+      "win_rate_pct": 14.55747593086649,
+      "trades": 8621,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2600.2%, PF 0.17, Expectancy -30.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 441.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 14.6%, Trades 8621, AvgW/L 41.62/42.39"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'time'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'time'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu\\strategy.py\", line 89, in generate_signals\n    hour = df[\"time\"].dt.hour.values\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\frame.py\", line 4102, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    raise KeyError(key) from err\nKeyError: 'time'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy relies heavily on confluence within a very specific timeframe (Asian session first hour), making it vulnerable to whipsaws and potentially missing moves outside that window. The fixed 1.5x TP/SL might be suboptimal given MOVEUSDC's volatility, and the reliance on a *single* volume oscillator divergence is fragile. The 3m timeframe is also prone to noise.\n[Backup plan] If negative return, I'll relax the entry conditions to require *either* Bollinger breakout *or* Aroon signal, increasing signal frequency. If low Sharpe, I'll optimize TP/SL as a multiple of ATR *and* test dynamic TP/SL based on volatility expansion. If both fail, I'll switch to a purely ATR-based breakout strategy with a trailing stop, abandoning the mean-reversion focus."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Bollinger Bands with RSI and ADX helps identify potential mean-reversion opportunities with increased confidence. RSI filters out overbought/oversold conditions, ADX confirms trend strength, and ATR provides dynamic risk management, improving the win rate and reducing drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1516.5435973395786,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.40048078419172095,
+      "win_rate_pct": 34.938430435581694,
+      "trades": 5441,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -0.01847086932549189
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1516.5%, PF 0.40, Expectancy -27.87"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 513.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.9%, Trades 5441, AvgW/L 53.29/71.46"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `adx ...` alors que `adx` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: adx['adx']).",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 73: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 2996,
+          "short_signals": 2688,
+          "total_signals": 5684
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -0.01847086932549189
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Bollinger Bands with Aroon indicators can identify potential mean reversion opportunities during periods of low volatility, particularly when the Aroon Down indicator signals a potential trend reversal. This strategy focuses on capturing quick returns during Asian session hours when liquidity is lower, and uses ATR-based risk management to adapt to changing market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -675.606803802013,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.2446486341509455,
+      "win_rate_pct": 19.92287917737789,
+      "trades": 2334,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -4.523136246786633
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -675.6%, PF 0.24, Expectancy -28.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 261.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 19.9%, Trades 2334, AvgW/L 47.06/47.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'volume_oscillator'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'volume_oscillator'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_060419_mean_reversion_sur_moveusdc_3m_indicateu\\strategy.py\", line 74, in generate_signals\n    vol_osc = np.nan_to_num(indicators['volume_oscillator'])\nKeyError: 'volume_oscillator'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on confluence of multiple indicators during a specific, narrow time window (Asian session's first hour). This makes it susceptible to whipsaws and may miss opportunities outside that window. The fixed 1.5x TP/SL ratio, while simple, may not be optimal across varying volatility levels. Volume Oscillator divergence is subjective and prone to false signals.\n[Backup plan] If negative return: Relax entry criteria \u2013 remove Volume Oscillator requirement or increase Aroon Down threshold to 20. If low Sharpe: Optimize TP/SL ratio dynamically based on ATR multiples (e.g., 2x-3x SL) and test different Bollinger Band periods. Alternative: Implement a trend-following filter (e.g., 200-period SMA) to trade only with the prevailing trend, reducing mean-reversion attempts in strong trends."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -4.523136246786633
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

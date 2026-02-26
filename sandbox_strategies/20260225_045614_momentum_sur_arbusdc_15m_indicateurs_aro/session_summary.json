@@ -1,0 +1,393 @@
+{
+  "session_id": "20260225_045614_momentum_sur_arbusdc_15m_indicateurs_aro",
+  "objective": "Momentum sur ARBUSDC 15m. Indicateurs : Aroon + EMA + Volume Oscillator. Entr\u00e9es : Aroon Up Cross > Aroon Down Cross, EMA direction ascendante, Volume Oscillator au-dessus de sa moyenne sur 5 p\u00e9riodes, confirmation inverse partielle du sentiment Fear and Greed index. Sorties : Sell quand le Aroon Down Cross le Aroon Up Cross avec un volume en baisse et un filtre de liquidit\u00e9 minimal de 0.8. Risk management : SL bas\u00e9 sur l'ATR multipli\u00e9 par 2, TP bas\u00e9 sur une asym\u00e9trie long/short (TP plus \u00e9lev\u00e9 pour les positions longues).",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Aroon Up/Down crossovers with EMA direction and Volume Oscillator confirmation aims to capture momentum shifts while filtering out false signals and confirming volume participation in the move.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.5013961024300877,
+      "return_pct": -55.3351164523914,
+      "max_drawdown_pct": -59.52986272794581,
+      "profit_factor": 0.7432657895862127,
+      "win_rate_pct": 39.71291866028708,
+      "trades": 209,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.73642104748742,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4138755980861242
+        },
+        "penalties": {
+          "drawdown_pressure": 26.353241818630543,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 24.52986272794581
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -55.3%, PF 0.74, Expectancy -26.48"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 59.5%, Vol 81.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.501, Sortino -2.370, Calmar -1.502"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.7%, Trades 209, AvgW/L 193.01/171.06"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['volume_oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 83: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 127,
+          "short_signals": 116,
+          "total_signals": 243
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on Aroon crossovers is prone to whipsaws, especially on a 15-minute timeframe. The Fear and Greed index filter is likely noisy and potentially adds lag. Volume oscillator confirmation might be redundant with the Aroon signals and could filter out valid trades. The liquidity filter is arbitrary and needs justification.\n[Backup plan] If negative, simplify to just EMA crossovers and volume confirmation. If mediocre, optimize ATR multiplier and Aroon periods. If failing entirely, replace Aroon with a simpler momentum indicator like RSI or MACD and explore adaptive lookback periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 24.52986272794581,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.73642104748742,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4138755980861242
+          },
+          "penalties": {
+            "drawdown_pressure": 26.353241818630543,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Aroon Up/Down crossovers with EMA direction and Volume Oscillator confirmation aims to capture momentum shifts while filtering out false signals during consolidation, and the exit logic adds a volatility filter to avoid premature exits.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['ma_5'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 91: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Aroon Up/Down crossovers with EMA direction and Volume Oscillator confirmation aims to capture momentum shifts while filtering out false signals and confirming volume participation, the Fear and Greed index acts as a confirmation filter.",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['fear_greed']['value'] \u2014 'fear_greed' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 83: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": false,
+          "error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 262, in run\n    indicators = self._calculate_indicators(df, strategy, final_params)\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 485, in _calculate_indicators\n    raise RuntimeError(\nRuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "runtime_fix_retry_error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed"
+        }
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Aroon Up/Down crossovers with EMA direction and Volume Oscillator confirmation aims to capture momentum shifts while filtering out false signals and confirming volume participation in the move.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.5013961024300877,
+      "return_pct": -55.3351164523914,
+      "max_drawdown_pct": -59.52986272794581,
+      "profit_factor": 0.7432657895862127,
+      "win_rate_pct": 39.71291866028708,
+      "trades": 209,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.73642104748742,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4138755980861242
+        },
+        "penalties": {
+          "drawdown_pressure": 26.353241818630543,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 24.52986272794581
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -55.3%, PF 0.74, Expectancy -26.48"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 59.5%, Vol 81.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.501, Sortino -2.370, Calmar -1.502"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.7%, Trades 209, AvgW/L 193.01/171.06"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['volume_oscillator']['volume_oscillator'] \u2014 'volume_oscillator' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 83: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 127,
+          "short_signals": 116,
+          "total_signals": 243
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on Aroon crossovers is prone to whipsaws, especially on a 15-minute timeframe. The Fear and Greed index filter is likely noisy and potentially adds lag. Volume oscillator confirmation might be redundant with the Aroon signals and could filter out valid trades. The liquidity filter is arbitrary and needs justification.\n[Backup plan] If negative, simplify to just EMA crossovers and volume confirmation. If mediocre, optimize ATR multiplier and Aroon periods. If failing entirely, replace Aroon with a simpler momentum indicator like RSI or MACD and explore adaptive lookback periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 24.52986272794581,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.73642104748742,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4138755980861242
+          },
+          "penalties": {
+            "drawdown_pressure": 26.353241818630543,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ]
+}

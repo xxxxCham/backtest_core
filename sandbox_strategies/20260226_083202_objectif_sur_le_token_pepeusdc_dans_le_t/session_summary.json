@@ -1,0 +1,274 @@
+{
+  "session_id": "20260226_083202_objectif_sur_le_token_pepeusdc_dans_le_t",
+  "objective": "Objectif: \"Sur le token PEPEUSDC dans le timeframe 30m, utiliser l'indicateur {ind1} avec un seuil de {threshold_value}. Int\u00e9grer des filtres d'asymetrie long/short (seuils differents) et ajouter une liquidite filtr\u00e9e pour les sessions/horaires. Utilisez la combinaison entre EMA et OBV, suivie du ROC avec le seuil de 30% pour {threshold_value}, et enfin appliquez un filtre anti-faux-signaux pour une confirmation inverse partielle. Testez cette strat\u00e9gie avec des stop losses ({SL}/TP) \u00e0 -{stoploss_value}/-{takeprofit_value}. Avec cette hypothese, nous esp\u00e9rons trouver une meilleure approche de trading dans le token PEPEUSDC, timeframe 30m",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -248.51094902073356,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7709032687452796,
+      "win_rate_pct": 33.55263157894737,
+      "trades": 608,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.47299342878722,
+          "trades_confidence": 10.0,
+          "win_rate": -0.434210526315789
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -248.5%, PF 0.77, Expectancy -40.87"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 274.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.6%, Trades 608, AvgW/L 409.92/268.50"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[IND001] Acc\u00e8s indicateur invalide via df[...] d\u00e9tect\u00e9: ['momentum', 'supertrend']. Utiliser indicators['name'].",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 356,
+          "short_signals": 313,
+          "total_signals": 669
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses multiple indicators like EMA, RSI and ATR to identify trading opportunities. The main idea is to exploit price momentum with the help of these technical tools. An entry long will be made if a higher high in momentum confirms, while risk control measures are also implemented. On the other hand, the exit strategy would depend on an inverse signal or invalidation of this momentum. However, there could be some weaknesses like overfitting due to heavy use of indicators and lack of robustness during market crashes.\n[Backup plan] If results are poor (negative return), we will try to modify the threshold values for our indicators like RSI, EMA and ATR in order to optimize their sensitivity. Additionally, we can consider adding more technical tools such as Bollinger Bands or Heiken Ashi to broaden our approach. If results are mediocre (low Sharpe ratio) with no significant improvement after parameter adjustments, we may need to reconsider the underlying market dynamics of PEPEUSDC 30m and explore other trading opportunities."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.47299342878722,
+            "trades_confidence": 10.0,
+            "win_rate": -0.434210526315789
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -248.51094902073356,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7709032687452796,
+      "win_rate_pct": 33.55263157894737,
+      "trades": 608,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.47299342878722,
+          "trades_confidence": 10.0,
+          "win_rate": -0.434210526315789
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -248.5%, PF 0.77, Expectancy -40.87"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 274.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.6%, Trades 608, AvgW/L 409.92/268.50"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[IND001] Acc\u00e8s indicateur invalide via df[...] d\u00e9tect\u00e9: ['momentum', 'supertrend']. Utiliser indicators['name'].",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 356,
+          "short_signals": 313,
+          "total_signals": 669
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses multiple indicators like EMA, RSI and ATR to identify trading opportunities. The main idea is to exploit price momentum with the help of these technical tools. An entry long will be made if a higher high in momentum confirms, while risk control measures are also implemented. On the other hand, the exit strategy would depend on an inverse signal or invalidation of this momentum. However, there could be some weaknesses like overfitting due to heavy use of indicators and lack of robustness during market crashes.\n[Backup plan] If results are poor (negative return), we will try to modify the threshold values for our indicators like RSI, EMA and ATR in order to optimize their sensitivity. Additionally, we can consider adding more technical tools such as Bollinger Bands or Heiken Ashi to broaden our approach. If results are mediocre (low Sharpe ratio) with no significant improvement after parameter adjustments, we may need to reconsider the underlying market dynamics of PEPEUSDC 30m and explore other trading opportunities."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.47299342878722,
+            "trades_confidence": 10.0,
+            "win_rate": -0.434210526315789
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ]
+}

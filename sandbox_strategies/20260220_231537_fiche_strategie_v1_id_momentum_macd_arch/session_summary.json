@@ -1,0 +1,480 @@
+{
+  "session_id": "20260220_231537_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=14, slow_period=20, signal_period=7)\n- rsi(period=21)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 40 and rsi < 80\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 2.5\ndescription: ATR stop-loss (2.0x) and take-profit (2.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 8,
+          "total_signals": 19
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 8,
+          "total_signals": 19
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The momentum strategy using MACD, RSI and ATR indicators is being tested in the 1 hour timeframe for GUSD currency pair. The current iteration has been successful with a Sharpe ratio of 0.685 and an overall return of +15.99%. However, it's important to consider potential weaknesses like overfitting or missing key market conditions that could lead to poor performance. In case the results are negative (negative return), some adjustments could be made such as changing the stop-loss multiplier or adjusting the take-profit multipliers. For mediocre returns (low Sharpe ratio), parameter changes can be explored, and a fallback strategy using RSI, ATR indicators should be implemented in case the original strategy fails.\n[Backup plan] ['1. Consider adding more technical indicators for better robustness against overfitting', '2. If results are negative, adjust stop-loss multiplier or take-profit multipliers', '3. Explore parameter changes such as changing fast and slow MACD periods to improve performance', '4. Implement a fallback strategy using RSI and ATR if the original strategy fails']"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 8,
+          "total_signals": 19
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy is based on momentum, RSI and ATR indicators in a 1h timeframe. The entry conditions involve cross-ups and downs of the MACD line with its signal, along with RSI values between 40 and 80 or 30 and 60 for long/short positions respectively. Stop loss is set at twice the average true range (ATR) while take profit is five times ATR. The strategy also has fallback options based on RSI, EMA and ATR indicators in case the LLM output isn't exploitable. Recent results have been positive but not exceptional with a Sharpe ratio of 0.685 for two iterations.\n[Backup plan] 1. Potential weaknesses could be overfitting due to use of many indicators or no lookahead. Adjustments would include simplifying the strategy by removing less significant indicators, and implementing a lookahead.  2. If results are poor (negative return), a change might be increasing stop-loss distance while decreasing take-profit multiple to improve risk/reward ratio. 3. For mediocre Sharpe ratio, experimenting with different RSI periods or ATR settings could increase returns. 4. Alternative approaches would include trying other momentum strategies based on moving averages or price action, or exploring volume indicators in addition to the existing ones."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 8,
+          "total_signals": 19
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Iteration 5 results are encouraging but there is potential for improvement. The strategy has shown good returns, low volatility and high Sharpe ratio in the past iterations. However, it may not be robust against extreme market conditions or sudden changes in momentum. To mitigate this risk, we could consider adding stop-loss orders at specific price levels to limit losses if the market moves against us. Additionally, diversifying into other assets or markets can help reduce concentration risk and increase overall portfolio resilience. The backup plan would include monitoring the strategy's performance over a longer period (e.g., 120 bars) before making any significant changes. This will allow for better identification of trends and potential outliers.\n[Backup plan] ./strategies//momentum_macd-6h.json"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.685431357551964,
+      "return_pct": 15.989833263289821,
+      "trades": 19,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +16.0%, PF 1.16, Expectancy 84.16"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.5%, Vol 79.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.685, Sortino 0.736, Calmar 1.694"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.4%, Trades 19, AvgW/L 1263.53/977.28"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 8,
+          "total_signals": 19
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy uses MACD, RSI and ATR indicators. It has good historical performance but it's not clear how it would perform in different market conditions or against more sophisticated strategies. The fallback contract is pre-defined based on the LLM output. If results are poor (negative return), the parameters might be adjusted to reduce risk. If results are mediocre, other indicators could be tested and compared with RSI. If this strategy fails, a different approach could be tested such as machine learning or deep learning methods.\n[Backup plan] 1) To improve performance, I would test other technical indicators or machine learning models. 2) If the current parameters yield negative returns, I would adjust them to reduce risk exposure (for example, adjusting stop loss and take profit levels). 3) Additionally, if results are mediocre, I could fine-tune the strategy by testing different combinations of RSI, ATR and EMA with various timeframes. 4) Alternatively, I may use more advanced models or techniques such as deep learning to predict market trends."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 1
+          }
+        }
+      }
+    }
+  ]
+}

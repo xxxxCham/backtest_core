@@ -1,0 +1,244 @@
+{
+  "session_id": "20260220_232240_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=12, slow_period=21, signal_period=7)\n- rsi(period=9)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 30 and rsi < 65\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.5\ntp_atr_mult: 5.0\ndescription: ATR stop-loss (2.5x) and take-profit (5.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A combination of RSI and ATR provides a robust trading strategy that can perform well in various market conditions, including ranging markets.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.2388478989870938,
+      "return_pct": -76.81614490306966,
+      "trades": 225,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -76.8%, PF 0.82, Expectancy -34.14"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 76.9%, Vol 95.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.239, Sortino -0.303, Calmar -0.315"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.7%, Trades 225, AvgW/L 445.73/288.77"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 71: closing parenthesis ')' does not match opening parenthesis '['",
+          "logic_retry_used": true,
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 64: invalid syntax",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 112,
+          "short_signals": 138,
+          "total_signals": 250
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is constructed using RSI, ATR and MACD indicators. The idea behind this is to use the robustness of ATR to manage risk while utilizing MACD for momentum and RSI as a secondary indicator. While this combination aims at providing an effective trading strategy that performs well in various market conditions including ranging markets, it has several potential weaknesses such as overfitting, high volatility during trending periods or lack of diversification from other indicators like Bollinger Bands.\n[Backup plan] In the event results are poor (negative return), I would consider changing some parameters. Specifically, adjusting stop-loss and take-profit levels may improve performance. The current ATR stop-loss is set at 2.5x which might be too high or low for specific assets. Additionally, TP/ATR multiplier of 5.0x could also be reduced to find a more optimal level. If results remain poor even after these changes, I would consider using alternative indicators like Bollinger Bands."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The combination of RSI, Bollinger bands and ATR helps to identify more accurate trend reversal points for long trades while filtering out whipsaws in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: op\u00e9rateur logique bitwise avec constante num\u00e9rique. Utiliser des comparaisons bool\u00e9ennes de part et d'autre.",
+          "logic_retry_used": true,
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 79: invalid syntax",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "A combination of MACD momentum and Bollinger Bands with ATR risk management provides a robust trading strategy that reduces drawdown while maintaining good win rate.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

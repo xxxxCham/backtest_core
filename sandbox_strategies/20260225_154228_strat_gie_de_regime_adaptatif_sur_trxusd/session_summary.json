@@ -1,0 +1,1260 @@
+{
+  "session_id": "20260225_154228_strat_gie_de_regime_adaptatif_sur_trxusd",
+  "objective": "Strat\u00e9gie de Regime-adaptatif sur TRXUSDC 30m. Indicateurs : ATR + SUPERTREND + VWAP. Signal adaptatif : si volatilite elevee (ATR), suivre la cassure ; sinon trader le retour a la moyenne via SUPERTREND. Sortie adaptative : TP agressif en tendance, TP prudent en range. Trailing stop \u00e0 2.4x ATR, take-profit \u00e0 6.1x ATR.",
+  "status": "failed",
+  "best_sharpe": -0.07079193897182541,
+  "best_score": -86.66691232902464,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When ATR indicates a high volatility regime, the price is more likely to sustain a breakout above the supertrend line, so a breakout entry is favored; in low volatility regimes the market tends to oscillate around the VWAP, so a mean\u2011reversion entry against the VWAP is more appropriate. ATR\u2011based stop\u2011loss and take\u2011profit automatically scale risk with market volatility, improving risk\u2011reward in both regimes.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1120.7701409074946,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7653825246015885,
+      "win_rate_pct": 33.440514469453376,
+      "trades": 3421,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.725370303927383,
+          "trades_confidence": 10.0,
+          "win_rate": -0.46784565916398724
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1120.8%, PF 0.77, Expectancy -32.76"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1754.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.4%, Trades 3421, AvgW/L 319.60/209.79"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 58301,
+          "short_signals": 30531,
+          "total_signals": 88832
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include a static ATR threshold that may misclassify regimes, a lagging supertrend that can produce false breakouts, and a VWAP mean\u2011reversion assumption that may not hold in trending markets; the 2.4x ATR trailing stop could be too tight or too loose depending on volatility spikes, leading to premature exits or excessive risk. If the strategy yields negative returns, I would first tighten the breakout filter by adding a short\u2011term EMA or a volume spike confirmation, and lower the ATR threshold to avoid chasing weak volatility. For a mediocre Sharpe, I would adjust the risk\u2011reward ratios\u2014raise the TP multiplier to 7x ATR, tighten the stop to 2x ATR, and test a shorter VWAP window (e.g., 20 periods) to better capture mean\u2011reversion. As an alternative, I would try a dual\u2011timeframe approach: a 1\u2011hour trend filter with a 30\u2011minute VWAP breakout, or a volatility\u2011weighted moving\u2011average crossover system that adapts its position sizing based on the ATR value rather than fixed thresholds."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.725370303927383,
+            "trades_confidence": 10.0,
+            "win_rate": -0.46784565916398724
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining a trend confirmation with the SuperTrend, a mean\u2011reversion trigger around VWAP in low volatility regimes, and an RSI filter to avoid entering overbought or oversold conditions reduces false signals and captures both strong trends and pullbacks, improving Sharpe while keeping drawdowns manageable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -624.4190077413775,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7609811461678312,
+      "win_rate_pct": 33.29964628600303,
+      "trades": 1979,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.926576175184861,
+          "trades_confidence": 10.0,
+          "win_rate": -0.5101061141990904
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -624.4%, PF 0.76, Expectancy -31.55"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1267.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.3%, Trades 1979, AvgW/L 301.67/197.91"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 12780,
+          "short_signals": 1978,
+          "total_signals": 14758
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) Over\u2011parameterization: ATR threshold, RSI limits, and VWAP mean\u2011reversion all add noise and may overfit to 30\u2011min TRXUSDC. 2) Tight exit rule (crossing SuperTrend) can lock in small gains while letting large swings go untrapped, inflating drawdowns. 3) Trailing stop of 2.4\u00d7ATR on a volatile crypto pair may be too loose, causing premature exits; TP of 6.1\u00d7ATR may be unrealistic in sideways markets. 4) No explicit direction filter or position sizing control, leading to many false entries.\n[Backup plan] If negative return: simplify entry to just ATR\u2011breakout with a single trend filter (e.g., 20\u2011period EMA) and drop the RSI/VWAP conditions; tighten the trailing stop to 1\u00d7ATR to limit losses.  If low Sharpe: reduce ATR volatility threshold to avoid trading in choppy periods, lower TP to 4\u00d7ATR, and add a volatility\u2011based position\u2011size cap (e.g., 1% of equity per trade).  Alternative: switch to a dual\u2011time\u2011frame trend\u2011following strategy using 4\u2011hour VWAP and 1\u2011hour SuperTrend, or replace SuperTrend with a 50\u2011period SMA for smoother signals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.926576175184861,
+            "trades_confidence": 10.0,
+            "win_rate": -0.5101061141990904
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Bollinger band breakouts with ATR volatility filtering and RSI-based mean reversion captures strong trend moves in high\u2011volatility periods while exploiting pullbacks in low\u2011volatility regimes, reducing false entries in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.07079193897182541,
+      "return_pct": -47.663307156799014,
+      "max_drawdown_pct": -60.01252854977598,
+      "profit_factor": 0.9223498967737287,
+      "win_rate_pct": 36.8,
+      "trades": 375,
+      "continuous_score": -86.66691232902464,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -1.9821742912111115,
+          "return": -33.0,
+          "profit_factor": -3.5497190046295457,
+          "trades_confidence": 10.0,
+          "win_rate": 0.5399999999999991
+        },
+        "penalties": {
+          "drawdown_pressure": 26.675019033183986,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 25.01252854977598
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -47.7%, PF 0.92, Expectancy -12.71"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 60.0%, Vol 38.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.071, Sortino -0.062, Calmar -0.148"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.8%, Trades 375, AvgW/L 410.26/259.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 352,
+          "short_signals": 429,
+          "total_signals": 781
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The entry logic mixes breakout and mean\u2011reversion in a single rule, causing contradictory signals and many false positives, especially when ATR is high but RSI is low. 2. The 2.4\u00d7ATR trailing stop is very tight for a 30\u2011min crypto chart, likely cutting profitable moves early. 3. Position sizing is missing; large trade counts (3421, 1979) suggest over\u2011trading and high transaction costs. 4. The strategy ignores market micro\u2011structure (order book depth, spread) which can be critical for TRXUSDC.\n[Backup plan] If returns stay negative, simplify to a pure ATR\u2011filtered breakout: long only when close > Bollinger.upper AND ATR > ATR_thr, short when close < Bollinger.lower AND ATR > ATR_thr, and drop the RSI condition. If Sharpe is low, increase the trailing stop to 3\u00d7ATR, raise take\u2011profit to 8\u00d7ATR, and lengthen the Bollinger period to 20 with 2.5\u03c3 to reduce noise. If the strategy still fails, switch to a trend\u2011following framework using SuperTrend + VWAP: enter on SuperTrend cross above VWAP in high\u2011ATR regime, exit on opposite cross, and apply a 5\u00d7ATR stop\u2011loss to capture larger moves."
+        },
+        "scoring": {
+          "continuous_score": -86.66691232902464,
+          "drawdown_excess_pct": 25.01252854977598,
+          "components": {
+            "sharpe": -1.9821742912111115,
+            "return": -33.0,
+            "profit_factor": -3.5497190046295457,
+            "trades_confidence": 10.0,
+            "win_rate": 0.5399999999999991
+          },
+          "penalties": {
+            "drawdown_pressure": 26.675019033183986,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using ATR as a volatility switch, the strategy takes trend\u2011following breakouts when volatility is high and reverts to a mean\u2011reversion entry against the VWAP when volatility is low, while the SuperTrend confirms the prevailing trend direction. This dual regime reduces false signals in ranging periods and captures strong trend moves in volatile moments, improving risk\u2011adjusted performance and limiting drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -57.413298374025516,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9688879925253646,
+      "win_rate_pct": 25.04798464491363,
+      "trades": 1042,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -1.4222631988404748,
+          "trades_confidence": 10.0,
+          "win_rate": -2.9856046065259108
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -57.4%, PF 0.97, Expectancy -5.51"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1434.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.0%, Trades 1042, AvgW/L 685.04/236.28"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 25592,
+          "short_signals": 0,
+          "total_signals": 25592
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy relies on a single ATR threshold for regime switching, which can be too rigid and may misclassify volatility, leading to poor entries. 2. Using VWAP only in low\u2011volatility periods ignores other mean\u2011reversion cues and can produce stale signals if the market drifts. 3. The trailing stop of 2.4\u00d7ATR is wide for 30\u2011min TRXUSDC, allowing large drawdowns before exit. 4. High trade count (thousands) indicates over\u2011trading and potential slippage, especially with tight 30\u2011min candles. 5. Position sizing is not addressed, so large losses from a single bad trade can wipe out gains.\n[Backup plan] If the backtest shows negative return, first tighten the ATR switch (e.g., raise the high\u2011volatility threshold or add a secondary filter like a moving\u2011average slope) and replace VWAP with a shorter\u2011term EMA for mean\u2011reversion entries. If Sharpe is low, reduce the TP multiplier to 4\u00d7ATR, tighten the stop to 1.5\u00d7ATR, and implement volatility\u2011scaled position sizing to dampen large moves. As an alternative, move to a dual\u2011trend system: use SuperTrend alone for trend entries and a volatility\u2011adjusted breakout filter, or add a momentum oscillator (RSI/CCI) to confirm regime switches, thereby reducing false signals and improving risk\u2011adjusted returns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -1.4222631988404748,
+            "trades_confidence": 10.0,
+            "win_rate": -2.9856046065259108
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using ATR to distinguish high\u2011volatility breakouts from low\u2011volatility mean reversion, Supertrend to confirm trend direction, and VWAP as a dynamic support/resistance in quiet periods reduces false entries and captures profitable moves in both regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1274.1224918953578,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7837825541882323,
+      "win_rate_pct": 35.421016005567154,
+      "trades": 5748,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.88422609425224,
+          "trades_confidence": 10.0,
+          "win_rate": 0.12630480167014613
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1274.1%, PF 0.78, Expectancy -22.17"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 385.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.4%, Trades 5748, AvgW/L 226.85/158.75"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 69427,
+          "short_signals": 0,
+          "total_signals": 69427
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy suffers from high trade frequency, a rigid ATR\u2011based regime split that may misclassify market noise, and a lack of dynamic position sizing. The supertrend and VWAP are lagging, often generating late or false signals, while the 2.4x ATR trailing stop and 6.1x ATR take\u2011profit are arbitrarily set and may be too aggressive or too loose depending on the regime. Additionally, the entry rule mixes a trend filter with a volatility filter, but does not penalize whipsaws in range\u2011bound markets, leading to many small losses.\n[Backup plan] If the run produces negative returns, first drop the VWAP condition and rely solely on ATR\u2011based breakout logic with a tighter 1.5x ATR stop. If returns are only marginal, increase the supertrend multiplier to smooth the trend filter and test a 20\u2011period ATR instead of the current one. As a fallback, replace the supertrend/VWAP combo with a simple volatility\u2011adaptive breakout strategy: trade only when the price exceeds a 1.5\u03c3 band around the 20\u2011period SMA and exit on a 2\u03c3 pullback, applying a fixed 1.2x ATR stop to control risk."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.88422609425224,
+            "trades_confidence": 10.0,
+            "win_rate": 0.12630480167014613
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "When volatility is high (ATR above a threshold) the market tends to break out of the supertrend trend line, so a breakout entry captures momentum; when volatility is low, price tends to revert to the VWAP mean, so a mean\u2011reversion entry relative to VWAP in the current supertrend direction reduces false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -316.57661866429885,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9172921049968694,
+      "win_rate_pct": 28.492899679340354,
+      "trades": 2183,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -3.7809323430002553,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9521300961978936
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -316.6%, PF 0.92, Expectancy -14.50"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1651.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.5%, Trades 2183, AvgW/L 564.48/245.20"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 69427,
+          "short_signals": 19405,
+          "total_signals": 88832
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy trades excessively (hundreds of trades per iteration) and may suffer from high transaction costs and slippage; the ATR threshold is static, so it can misclassify regimes; the supertrend parameters and VWAP mean\u2011reversion logic are not optimized for TRXUSDC\u2019s 30\u2011min dynamics, leading to many false signals. If the backtest yields negative return, the first fix is to eliminate the VWAP mean\u2011reversion entry and rely solely on supertrend breakouts with a tighter ATR filter. If the Sharpe remains low, tighten the trailing stop to 1.5\u00d7ATR, reduce the take\u2011profit to 4\u00d7ATR, and re\u2011optimize the supertrend multiplier (e.g., 3\u20114). As a fallback, switch to a Bollinger\u2011band breakout plus RSI\u2011based mean\u2011reversion strategy that explicitly filters for volatility and trend strength.\n[Backup plan] 1) Remove VWAP entry and use only breakout logic with a dynamic ATR threshold (e.g., 1.5\u00d7ATR of the last 20 periods). 2) Tighten risk\u2011management: stop\u2011loss at 1\u00d7ATR, take\u2011profit at 3\u00d7ATR, and trail at 1.5\u00d7ATR. 3) Re\u2011optimize supertrend multiplier and ATR period via grid search for 30\u2011min TRXUSDC. 4) If still underperforming, test a Bollinger\u2011band + RSI hybrid that trades only when price touches bands and RSI diverges, capturing volatility spikes and mean\u2011reversion with lower false positives."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -3.7809323430002553,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9521300961978936
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Bollinger band breakouts with ATR volatility filtering and RSI-based mean reversion captures strong trend moves in high\u2011volatility periods while exploiting pullbacks in low\u2011volatility regimes, reducing false entries in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.07079193897182541,
+      "return_pct": -47.663307156799014,
+      "max_drawdown_pct": -60.01252854977598,
+      "profit_factor": 0.9223498967737287,
+      "win_rate_pct": 36.8,
+      "trades": 375,
+      "continuous_score": -86.66691232902464,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -1.9821742912111115,
+          "return": -33.0,
+          "profit_factor": -3.5497190046295457,
+          "trades_confidence": 10.0,
+          "win_rate": 0.5399999999999991
+        },
+        "penalties": {
+          "drawdown_pressure": 26.675019033183986,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 25.01252854977598
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -47.7%, PF 0.92, Expectancy -12.71"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 60.0%, Vol 38.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.071, Sortino -0.062, Calmar -0.148"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.8%, Trades 375, AvgW/L 410.26/259.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 352,
+          "short_signals": 429,
+          "total_signals": 781
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The entry logic mixes breakout and mean\u2011reversion in a single rule, causing contradictory signals and many false positives, especially when ATR is high but RSI is low. 2. The 2.4\u00d7ATR trailing stop is very tight for a 30\u2011min crypto chart, likely cutting profitable moves early. 3. Position sizing is missing; large trade counts (3421, 1979) suggest over\u2011trading and high transaction costs. 4. The strategy ignores market micro\u2011structure (order book depth, spread) which can be critical for TRXUSDC.\n[Backup plan] If returns stay negative, simplify to a pure ATR\u2011filtered breakout: long only when close > Bollinger.upper AND ATR > ATR_thr, short when close < Bollinger.lower AND ATR > ATR_thr, and drop the RSI condition. If Sharpe is low, increase the trailing stop to 3\u00d7ATR, raise take\u2011profit to 8\u00d7ATR, and lengthen the Bollinger period to 20 with 2.5\u03c3 to reduce noise. If the strategy still fails, switch to a trend\u2011following framework using SuperTrend + VWAP: enter on SuperTrend cross above VWAP in high\u2011ATR regime, exit on opposite cross, and apply a 5\u00d7ATR stop\u2011loss to capture larger moves."
+        },
+        "scoring": {
+          "continuous_score": -86.66691232902464,
+          "drawdown_excess_pct": 25.01252854977598,
+          "components": {
+            "sharpe": -1.9821742912111115,
+            "return": -33.0,
+            "profit_factor": -3.5497190046295457,
+            "trades_confidence": 10.0,
+            "win_rate": 0.5399999999999991
+          },
+          "penalties": {
+            "drawdown_pressure": 26.675019033183986,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "When ATR indicates a high volatility regime, the price is more likely to sustain a breakout above the supertrend line, so a breakout entry is favored; in low volatility regimes the market tends to oscillate around the VWAP, so a mean\u2011reversion entry against the VWAP is more appropriate. ATR\u2011based stop\u2011loss and take\u2011profit automatically scale risk with market volatility, improving risk\u2011reward in both regimes.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1120.7701409074946,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7653825246015885,
+      "win_rate_pct": 33.440514469453376,
+      "trades": 3421,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.725370303927383,
+          "trades_confidence": 10.0,
+          "win_rate": -0.46784565916398724
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1120.8%, PF 0.77, Expectancy -32.76"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1754.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.4%, Trades 3421, AvgW/L 319.60/209.79"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 58301,
+          "short_signals": 30531,
+          "total_signals": 88832
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include a static ATR threshold that may misclassify regimes, a lagging supertrend that can produce false breakouts, and a VWAP mean\u2011reversion assumption that may not hold in trending markets; the 2.4x ATR trailing stop could be too tight or too loose depending on volatility spikes, leading to premature exits or excessive risk. If the strategy yields negative returns, I would first tighten the breakout filter by adding a short\u2011term EMA or a volume spike confirmation, and lower the ATR threshold to avoid chasing weak volatility. For a mediocre Sharpe, I would adjust the risk\u2011reward ratios\u2014raise the TP multiplier to 7x ATR, tighten the stop to 2x ATR, and test a shorter VWAP window (e.g., 20 periods) to better capture mean\u2011reversion. As an alternative, I would try a dual\u2011timeframe approach: a 1\u2011hour trend filter with a 30\u2011minute VWAP breakout, or a volatility\u2011weighted moving\u2011average crossover system that adapts its position sizing based on the ATR value rather than fixed thresholds."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.725370303927383,
+            "trades_confidence": 10.0,
+            "win_rate": -0.46784565916398724
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining a trend confirmation with the SuperTrend, a mean\u2011reversion trigger around VWAP in low volatility regimes, and an RSI filter to avoid entering overbought or oversold conditions reduces false signals and captures both strong trends and pullbacks, improving Sharpe while keeping drawdowns manageable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -624.4190077413775,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7609811461678312,
+      "win_rate_pct": 33.29964628600303,
+      "trades": 1979,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.926576175184861,
+          "trades_confidence": 10.0,
+          "win_rate": -0.5101061141990904
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -624.4%, PF 0.76, Expectancy -31.55"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1267.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.3%, Trades 1979, AvgW/L 301.67/197.91"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 12780,
+          "short_signals": 1978,
+          "total_signals": 14758
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) Over\u2011parameterization: ATR threshold, RSI limits, and VWAP mean\u2011reversion all add noise and may overfit to 30\u2011min TRXUSDC. 2) Tight exit rule (crossing SuperTrend) can lock in small gains while letting large swings go untrapped, inflating drawdowns. 3) Trailing stop of 2.4\u00d7ATR on a volatile crypto pair may be too loose, causing premature exits; TP of 6.1\u00d7ATR may be unrealistic in sideways markets. 4) No explicit direction filter or position sizing control, leading to many false entries.\n[Backup plan] If negative return: simplify entry to just ATR\u2011breakout with a single trend filter (e.g., 20\u2011period EMA) and drop the RSI/VWAP conditions; tighten the trailing stop to 1\u00d7ATR to limit losses.  If low Sharpe: reduce ATR volatility threshold to avoid trading in choppy periods, lower TP to 4\u00d7ATR, and add a volatility\u2011based position\u2011size cap (e.g., 1% of equity per trade).  Alternative: switch to a dual\u2011time\u2011frame trend\u2011following strategy using 4\u2011hour VWAP and 1\u2011hour SuperTrend, or replace SuperTrend with a 50\u2011period SMA for smoother signals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.926576175184861,
+            "trades_confidence": 10.0,
+            "win_rate": -0.5101061141990904
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using ATR as a volatility switch, the strategy takes trend\u2011following breakouts when volatility is high and reverts to a mean\u2011reversion entry against the VWAP when volatility is low, while the SuperTrend confirms the prevailing trend direction. This dual regime reduces false signals in ranging periods and captures strong trend moves in volatile moments, improving risk\u2011adjusted performance and limiting drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -57.413298374025516,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9688879925253646,
+      "win_rate_pct": 25.04798464491363,
+      "trades": 1042,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -1.4222631988404748,
+          "trades_confidence": 10.0,
+          "win_rate": -2.9856046065259108
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -57.4%, PF 0.97, Expectancy -5.51"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1434.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.0%, Trades 1042, AvgW/L 685.04/236.28"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 25592,
+          "short_signals": 0,
+          "total_signals": 25592
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy relies on a single ATR threshold for regime switching, which can be too rigid and may misclassify volatility, leading to poor entries. 2. Using VWAP only in low\u2011volatility periods ignores other mean\u2011reversion cues and can produce stale signals if the market drifts. 3. The trailing stop of 2.4\u00d7ATR is wide for 30\u2011min TRXUSDC, allowing large drawdowns before exit. 4. High trade count (thousands) indicates over\u2011trading and potential slippage, especially with tight 30\u2011min candles. 5. Position sizing is not addressed, so large losses from a single bad trade can wipe out gains.\n[Backup plan] If the backtest shows negative return, first tighten the ATR switch (e.g., raise the high\u2011volatility threshold or add a secondary filter like a moving\u2011average slope) and replace VWAP with a shorter\u2011term EMA for mean\u2011reversion entries. If Sharpe is low, reduce the TP multiplier to 4\u00d7ATR, tighten the stop to 1.5\u00d7ATR, and implement volatility\u2011scaled position sizing to dampen large moves. As an alternative, move to a dual\u2011trend system: use SuperTrend alone for trend entries and a volatility\u2011adjusted breakout filter, or add a momentum oscillator (RSI/CCI) to confirm regime switches, thereby reducing false signals and improving risk\u2011adjusted returns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -1.4222631988404748,
+            "trades_confidence": 10.0,
+            "win_rate": -2.9856046065259108
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using ATR to distinguish high\u2011volatility breakouts from low\u2011volatility mean reversion, Supertrend to confirm trend direction, and VWAP as a dynamic support/resistance in quiet periods reduces false entries and captures profitable moves in both regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1274.1224918953578,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7837825541882323,
+      "win_rate_pct": 35.421016005567154,
+      "trades": 5748,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.88422609425224,
+          "trades_confidence": 10.0,
+          "win_rate": 0.12630480167014613
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1274.1%, PF 0.78, Expectancy -22.17"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 385.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.4%, Trades 5748, AvgW/L 226.85/158.75"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 69427,
+          "short_signals": 0,
+          "total_signals": 69427
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy suffers from high trade frequency, a rigid ATR\u2011based regime split that may misclassify market noise, and a lack of dynamic position sizing. The supertrend and VWAP are lagging, often generating late or false signals, while the 2.4x ATR trailing stop and 6.1x ATR take\u2011profit are arbitrarily set and may be too aggressive or too loose depending on the regime. Additionally, the entry rule mixes a trend filter with a volatility filter, but does not penalize whipsaws in range\u2011bound markets, leading to many small losses.\n[Backup plan] If the run produces negative returns, first drop the VWAP condition and rely solely on ATR\u2011based breakout logic with a tighter 1.5x ATR stop. If returns are only marginal, increase the supertrend multiplier to smooth the trend filter and test a 20\u2011period ATR instead of the current one. As a fallback, replace the supertrend/VWAP combo with a simple volatility\u2011adaptive breakout strategy: trade only when the price exceeds a 1.5\u03c3 band around the 20\u2011period SMA and exit on a 2\u03c3 pullback, applying a fixed 1.2x ATR stop to control risk."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.88422609425224,
+            "trades_confidence": 10.0,
+            "win_rate": 0.12630480167014613
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "When volatility is high (ATR above a threshold) the market tends to break out of the supertrend trend line, so a breakout entry captures momentum; when volatility is low, price tends to revert to the VWAP mean, so a mean\u2011reversion entry relative to VWAP in the current supertrend direction reduces false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -316.57661866429885,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9172921049968694,
+      "win_rate_pct": 28.492899679340354,
+      "trades": 2183,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -3.7809323430002553,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9521300961978936
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -316.6%, PF 0.92, Expectancy -14.50"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1651.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.5%, Trades 2183, AvgW/L 564.48/245.20"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 69427,
+          "short_signals": 19405,
+          "total_signals": 88832
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy trades excessively (hundreds of trades per iteration) and may suffer from high transaction costs and slippage; the ATR threshold is static, so it can misclassify regimes; the supertrend parameters and VWAP mean\u2011reversion logic are not optimized for TRXUSDC\u2019s 30\u2011min dynamics, leading to many false signals. If the backtest yields negative return, the first fix is to eliminate the VWAP mean\u2011reversion entry and rely solely on supertrend breakouts with a tighter ATR filter. If the Sharpe remains low, tighten the trailing stop to 1.5\u00d7ATR, reduce the take\u2011profit to 4\u00d7ATR, and re\u2011optimize the supertrend multiplier (e.g., 3\u20114). As a fallback, switch to a Bollinger\u2011band breakout plus RSI\u2011based mean\u2011reversion strategy that explicitly filters for volatility and trend strength.\n[Backup plan] 1) Remove VWAP entry and use only breakout logic with a dynamic ATR threshold (e.g., 1.5\u00d7ATR of the last 20 periods). 2) Tighten risk\u2011management: stop\u2011loss at 1\u00d7ATR, take\u2011profit at 3\u00d7ATR, and trail at 1.5\u00d7ATR. 3) Re\u2011optimize supertrend multiplier and ATR period via grid search for 30\u2011min TRXUSDC. 4) If still underperforming, test a Bollinger\u2011band + RSI hybrid that trades only when price touches bands and RSI diverges, capturing volatility spikes and mean\u2011reversion with lower false positives."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -3.7809323430002553,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9521300961978936
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

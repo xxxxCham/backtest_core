@@ -1,0 +1,235 @@
+{
+  "session_id": "20260223_093732_fiche_strategie_v1_id_trend_supertrend_a",
+  "objective": "FICHE_STRATEGIE v1\nid: trend_supertrend\narchetype: trend_supertrend\nfamily: trend\ntimeframe: 1h\nside: both\nindicators:\n- supertrend(atr_period=5, multiplier=2.0)\n- adx(period=16)\n- atr(period=14)\nentry:\n- long: supertrend.direction == 1 and adx.adx > 25\n- short: supertrend.direction == -1 and adx.adx > 25\nexit:\n- condition: direction_change(supertrend.direction) or adx.adx < 20\nrisk:\nstop_atr_mult: 1.25\ntp_atr_mult: 5.5\ndescription: ATR trailing stop (1.25x) and take-profit (5.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining the supertrend trend indicator with a strong ADX filter ensures entries only occur in confirmed trending markets, while ATR-based risk controls adapt to volatility, improving risk\u2011reward consistency.",
+      "change_type": "accept",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -141.40211420189996,
+      "trades": 1774,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -141.4%, PF 0.96, Expectancy -7.97"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3372.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.4%, Trades 1774, AvgW/L 827.36/249.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_093732_fiche_strategie_v1_id_trend_supertrend_a\\strategy.py\", line 111, in generate_signals\n    prev_dir[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) The strategy is heavily lagging: supertrend(5) and ADX(16) may miss early trend shifts, especially on 1\u2011hour ADA where noise is high. 2) The ADX filter (>25) is too strict; many profitable swings may be excluded, reducing trade frequency. 3) The exit rule (direction change or ADX<20) can trigger too early in volatile markets, while the large TP multiplier (5.5\u00d7ATR) may be unrealistic for short\u2011term crypto swings, inflating drawdowns. 4) Using a single ATR for both stop and TP ignores changing volatility dynamics, potentially locking in losses or missing gains.\n[Backup plan] If the backtest shows a net loss, first lower the ADX entry threshold to 20 and reduce the ATR multiplier for the stop to 1.0 to capture tighter moves. If Sharpe is low, tighten the TP to 3\u00d7ATR and implement a trailing stop at 1.0\u00d7ATR to lock profits. As an alternative, replace the supertrend with a 20\u2011period EMA crossover combined with ADX>20 for trend confirmation, and keep ATR\u2011based risk controls but with a 1:2 risk\u2011reward ratio."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining a trend filter (SuperTrend) with a price level filter (Bollinger upper/lower bands) and a momentum filter (RSI) reduces whipsaw entries in volatile markets, while ADX confirms sufficient trend strength; this layered filtering should lower false signals and improve risk-adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -198.84386762342027,
+      "trades": 515,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -198.8%, PF 0.78, Expectancy -38.61"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1989.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.1%, Trades 515, AvgW/L 450.63/259.12"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1033,
+          "short_signals": 0,
+          "total_signals": 1033
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The supertrend identifies the direction of the trend, the ADX filter ensures the trend is strong, and the long\u2011term EMA filter limits entries to moments when price is above a sustained moving average, thereby reducing whipsaws in ranging markets and improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -426.2574214217355,
+      "trades": 957,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -426.3%, PF 0.76, Expectancy -44.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 258.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.8%, Trades 957, AvgW/L 622.58/241.34"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_093732_fiche_strategie_v1_id_trend_supertrend_a\\strategy.py\", line 102, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_retry_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,190 @@
+{
+  "session_id": "20260223_194611_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=30)\n- adx(period=19)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 25\n- short: close < donchian.lower and adx.adx > 25\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 20\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 4.0\ndescription: ATR stop-loss (1.75x) and take-profit (4.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "ValueError: invalid literal for int() with base 10: 'auto'",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Identifying trend reversal points using Donchian Bands and ADX along with ATR based risk management to maximize profits while limiting losses.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Donchian bands with Bollinger Bands and ADX helps identify strong breakouts in trending markets while minimizing whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -467.49413089934035,
+      "trades": 1311,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -467.5%, PF 0.75, Expectancy -35.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 171.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.8%, Trades 1311, AvgW/L 327.83/213.07"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 82: invalid syntax",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_194611_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 84, in generate_signals\n    upper, middle, lower = indicators['donchian']['upper'][row], indicators['donchian']['middle'][row], indicators['donchian']['lower'][row]\nKeyError: 'donchian'",
+          "runtime_fix_retry_error": "KeyError: 'donchian'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy uses a combination of Donchian bands, Bollinger Bands, and ADX to identify strong breakouts in trending markets. However, the use of ATR for stop-loss may not be optimal as it reacts slowly to recent price changes. The strategy also lacks diversification with only one pair and timeframe used.\n[Backup plan] 1. To address the weaknesses, adjust stop loss using a dynamic method such as Average True Range (ATR) or RSI instead of ATR. 2. If results are poor (negative return), try adjusting parameters like period for indicators to improve performance. 3. Implement risk management strategies, such as reducing position size or diversifying the portfolio. 4. Explore other trading pairs and timeframes that may have different market characteristics and trends."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

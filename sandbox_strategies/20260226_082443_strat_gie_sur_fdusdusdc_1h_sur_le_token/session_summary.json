@@ -1,0 +1,260 @@
+{
+  "session_id": "20260226_082443_strat_gie_sur_fdusdusdc_1h_sur_le_token",
+  "objective": "Strat\u00e9gie sur FDUSDUSDC 1h. Sur le token \"DOGEUSDT\" en timeframe \"1h\", l'objectif est de tester la performance d'une combinaison inhabituelle d'indicateurs, incluant ROC et EMA sur un axe 'hors sentiers battus', \u00e0 savoir une gestion du risque non lineaire bas\u00e9e sur le ratio SL/TP adapt\u00e9 aux variations volatiles. Le signal sera valid\u00e9 par une confirmation contrarienne partielle (mode_counter_consensus), tout en privil\u00e9giant des paires d'indicateurs raresment combin\u00e9es (mode_offbeat). Le risque management est un stop loss \u00e0 la volatilit\u00e9 maximale divisant le TP, qui sera ajust\u00e9 dynamiquement selon les variations de volatilit\u00e9.",
+  "status": "max_iterations",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining the Bollinger band and RSI with ATR based risk management improves performance in trending markets while reducing drawdown in ranging markets.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -4.617656676953573,
+      "return_pct": -26.711880491020185,
+      "max_drawdown_pct": -26.711880491020185,
+      "profit_factor": 0.11004186244899176,
+      "win_rate_pct": 1.8018018018018018,
+      "trades": 111,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -29.383068540122203,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 4.474586994013457,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -26.7%, PF 0.11, Expectancy -24.06"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 26.7%, Vol 3.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -4.618, Sortino -7.081, Calmar -0.438"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 1.8%, Trades 111, AvgW/L 165.14/27.54"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_082443_strat_gie_sur_fdusdusdc_1h_sur_le_token\\strategy.py\", line 66, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy combines Bollinger Bands, RSI with ATR based risk management to identify potential trade opportunities. The use of contrarian partial confirmation and mode offbeat pairs can result in rare but potentially profitable combinations. The SL/TP ratio is adjusted dynamically according to volatility changes. However, the effectiveness of this strategy may be limited during high volatility periods or when market conditions are not trending. A mediocre Sharpe ratio suggests room for improvement in risk-reward optimization. If results are poor, a potential change could involve increasing stop loss levels to better manage drawdown risks and refining RSI signals by considering multiple timeframes.\n[Backup plan] 1) Increase the number of indicators used or explore other non-linear risk management techniques such as dynamic hedging. 2) Test different volatility measures and adjust SL/TP based on those measures. 3) Incorporate additional market conditions (e.g., mean reversion) to broaden strategy applicability."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -29.383068540122203,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 4.474586994013457,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining the Bollinger band and RSI with ATR based risk management improves performance in trending markets while reducing drawdown in ranging markets.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -4.617656676953573,
+      "return_pct": -26.711880491020185,
+      "max_drawdown_pct": -26.711880491020185,
+      "profit_factor": 0.11004186244899176,
+      "win_rate_pct": 1.8018018018018018,
+      "trades": 111,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -29.383068540122203,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 4.474586994013457,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -26.7%, PF 0.11, Expectancy -24.06"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 26.7%, Vol 3.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -4.618, Sortino -7.081, Calmar -0.438"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 1.8%, Trades 111, AvgW/L 165.14/27.54"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_082443_strat_gie_sur_fdusdusdc_1h_sur_le_token\\strategy.py\", line 66, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy combines Bollinger Bands, RSI with ATR based risk management to identify potential trade opportunities. The use of contrarian partial confirmation and mode offbeat pairs can result in rare but potentially profitable combinations. The SL/TP ratio is adjusted dynamically according to volatility changes. However, the effectiveness of this strategy may be limited during high volatility periods or when market conditions are not trending. A mediocre Sharpe ratio suggests room for improvement in risk-reward optimization. If results are poor, a potential change could involve increasing stop loss levels to better manage drawdown risks and refining RSI signals by considering multiple timeframes.\n[Backup plan] 1) Increase the number of indicators used or explore other non-linear risk management techniques such as dynamic hedging. 2) Test different volatility measures and adjust SL/TP based on those measures. 3) Incorporate additional market conditions (e.g., mean reversion) to broaden strategy applicability."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -29.383068540122203,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 4.474586994013457,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ]
+}

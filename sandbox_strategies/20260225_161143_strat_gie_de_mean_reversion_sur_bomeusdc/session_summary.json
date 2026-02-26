@@ -1,0 +1,1342 @@
+{
+  "session_id": "20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur BOMEUSDC 30m. Indicateurs : STOCH_RSI + OBV + ATR. Achat en survente (STOCH_RSI < seuil) avec confirmation OBV, vente en surachat. Take-profit au retour \u00e0 la bande m\u00e9diane, stop si OBV continue dans la tendance. Stop serr\u00e9 2.3x ATR pour limiter le drawdown, TP \u00e0 4.5x ATR.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "StochRSI identifies extreme overbought or oversold conditions; a rising OBV confirms a potential reversal of the prevailing trend, while a falling OBV signals a likely continuation of a downward move. Combining these with ATR\u2011based risk limits ensures that positions are taken only when the market is in a mean\u2011reverting phase and that stop and take\u2011profit levels adapt to current volatility, reducing drawdown and capturing normal price corrections.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -840.4697739355605,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7761165620061784,
+      "win_rate_pct": 47.07241910631741,
+      "trades": 2596,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.23467145114613,
+          "trades_confidence": 10.0,
+          "win_rate": 3.621725731895223
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -840.5%, PF 0.78, Expectancy -32.38"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 289.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.1%, Trades 2596, AvgW/L 238.43/273.22"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3022,
+          "short_signals": 3213,
+          "total_signals": 6235
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include over\u2011reliance on a single time\u2011frame and three indicators that may produce noisy signals in trending markets; the OBV trend confirmation can lag, and the 30\u2011minute window may not capture short\u2011term mean\u2011reversions. The fixed ATR multipliers (2.3\u00d7 for stop, 4.5\u00d7 for TP) may be too tight in low\u2011volatility regimes or too loose during spikes, leading to premature exits or large drawdowns. Transaction costs, slippage, and the lack of a trend filter could erode profitability. If results are negative, I would tighten the entry filter by requiring a multi\u2011bar OBV rise or a volume spike, and consider adding a trend\u2011filter (e.g., short\u2011term MA). For low Sharpe, I would experiment with higher ATR multipliers for TP (e.g., 5\u00d7), lower for stop (1.5\u00d7), and adjust the StochRSI period or thresholds (e.g., 15/85 instead of 20/80). If the strategy still fails, I would shift to a volatility\u2011breakout mean\u2011reversion combo using Bollinger Bands or a dual\u2011indicator (RSI + Bollinger) with a trend filter like EMA cross to reduce false entries.\n[Backup plan] I would test a 15\u2011minute window with a dual\u2011layer filter: a short\u2011term EMA (e.g., 9) to identify trend direction and a StochRSI\u2011OBV combo only when the price is within \u00b11 ATR of the EMA. Additionally, I would implement a trailing stop based on a moving average of OBV to capture partial gains, and evaluate a risk\u2011parity allocation across multiple pairs to diversify the mean\u2011reversion signal."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.23467145114613,
+            "trades_confidence": 10.0,
+            "win_rate": 3.621725731895223
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining stochastic RSI extremes with OBV trend confirmation and Bollinger band price boundaries filters out noisy mean\u2011reversion entries; the price is likely to revert to the band centre when it hits the middle band or the RSI moves back toward 50, while ATR\u2011based SL/TP scales risk with current volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -206.50951249862715,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6948992305292668,
+      "win_rate_pct": 34.81481481481482,
+      "trades": 270,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.947463747233517,
+          "trades_confidence": 10.0,
+          "win_rate": -0.055555555555555
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -206.5%, PF 0.69, Expectancy -76.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1120.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 270, AvgW/L 500.37/384.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 107, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Key weaknesses include over\u2011saturation of trades, a very tight ATR stop that cuts early, and reliance on OBV without volume context; the 30\u2011minute BOMEUSDC may trend rather than mean\u2011revert, so the Bollinger\u2011band exit can trigger too often. The stochastic\u2011RSI thresholds (20/80) may be too rigid, missing mid\u2011range re\u2011entries, and the exit rule (crossing middle band or RSI=50) can lock in losses during strong trends.\n[Backup plan] If returns are negative, first tighten the entry filter to require a larger OBV slope (e.g., obv > obv_prev + 10%) and raise the over\u2011sell threshold to 15, while adding a short\u2011term SMA trend filter to avoid trending markets. If Sharpe is mediocre, expand the TP to 6x ATR, loosen the SL to 1.5x ATR, and test a 15\u2011minute timeframe to reduce noise. As an alternative, switch to a breakout\u2011plus\u2011trend strategy using a 50\u2011period ATR\u2011based breakout with a trailing stop, or employ a statistical pair\u2011trade between BOMEUSDC and a related stablecoin pair to capture mean\u2011reversion without relying on Bollinger bands."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.947463747233517,
+            "trades_confidence": 10.0,
+            "win_rate": -0.055555555555555
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a tight mean\u2011reversion entry with OBV trend confirmation and a volatility filter reduces over\u2011trading during weak markets, while ATR\u2011based risk limits ensure proportional stops and targets regardless of price level.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -147.97745734340782,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8622652063898097,
+      "win_rate_pct": 34.96835443037975,
+      "trades": 632,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.296447707894412,
+          "trades_confidence": 10.0,
+          "win_rate": -0.009493670886075733
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -148.0%, PF 0.86, Expectancy -23.41"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 133.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 35.0%, Trades 632, AvgW/L 419.18/261.40"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 114, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 32244 rows. Every boolean mask MUST also have exactly 32244 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is overly dependent on a single mean\u2011reversion trigger (STOCH_RSI<20) with a tight stop (2.3\u00d7ATR) that likely triggers in volatile but trending markets, causing many whipsaw losses; OBV confirmation may lag, and the ATR filter is too simplistic. The 30\u2011min BOMEUSDC may not exhibit strong mean\u2011reversion, leading to high trade frequency (2596 trades) and poor risk\u2011adjusted returns. The TP rule (cross to middle band or RSI 50) is too loose compared to the tight stop, creating a negative expectancy. The use of Bollinger bands as only price filter ignores trend strength and could be replaced with a directional filter.\n\nbackup_plan\":\"If results stay negative, replace the STOCH_RSI trigger with a double\u2011EMA cross for entry, use a 5\u2011period RSI oversold/overbought band (\u226430/\u226570) and tighten the stop to 1.5\u00d7ATR while setting TP to 3\u00d7ATR; add a trend filter such as a 50\u2011period SMA to trade only in the direction of the trend. If Sharpe is mediocre, increase the ATR lookback to 50 and adjust the Bollinger band width to 2\u03c3 to reduce over\u2011trading. If the strategy fails, switch to a volatility\u2011scaled breakout approach: enter on ATR\u2011based pullbacks from recent highs/lows and use OBV as a trend filter with a trailing stop at 1\u00d7ATR."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.296447707894412,
+            "trades_confidence": 10.0,
+            "win_rate": -0.009493670886075733
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "The stoch_rsi identifies extreme overbought or oversold conditions, while a rising OBV (for longs) or falling OBV (for shorts) confirms that volume is supporting a reversal. Combining these with ATR-based risk limits adapts the trade size and exits to current market volatility, reducing false entries in trending or choppy markets and improving risk\u2011adjusted performance.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 92, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 32244 rows. Every boolean mask MUST also have exactly 32244 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on a single oversold/overbought trigger (stoch_rsi\u202f<\u202f20/\u202f>\u202f80) combined with a simple OBV check makes it vulnerable to trend\u2011driven false reversals, especially on a volatile pair like BOMEUSDC; the 2.3\u00d7/4.5\u00d7 ATR risk\u2011reward may be too tight for 30\u2011min swings, leading to frequent stop\u2011outs. High trade count inflates slippage and commissions, eroding returns. The OBV test (obv > obv(1)) is too crude and can mis\u2011interpret volume spikes.\n\nIf the backtest stays negative, first add a trend filter (e.g., 50\u2011period SMA or ADX\u202f>\u202f20) to avoid taking reversals against a strong trend and tighten the entry condition to stoch_rsi\u202f<\u202f15 with OBV slope >\u202f0. If results are merely mediocre, relax the ATR stop to 1.5\u00d7 for tighter risk and raise the TP to 5\u00d7 ATR, or lengthen the stoch_rsi period to 14 to smooth noise.\n\nIf the mean\u2011reversion framework fails entirely, switch to a breakout\u2011based approach: trade the 30\u2011min Bollinger Band width with a volatility\u2011scaled stop/TP, or use a dual\u2011time\u2011frame momentum filter (e.g., 4\u2011hour RSI) to capture directional bias before entering a 30\u2011min mean\u2011reversion trade."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "StochRSI pinpoints extreme overbought or oversold levels that are likely to revert, while a rising or falling OBV confirms that volume is supporting the expected price move. Combining these two signals reduces false entries in a mean\u2011reverting market and ATR\u2011based risk limits the impact of volatility spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -829.4576115193125,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.778870648192476,
+      "win_rate_pct": 47.11316397228637,
+      "trades": 2598,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.108770368343956,
+          "trades_confidence": 10.0,
+          "win_rate": 3.6339491916859115
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -829.5%, PF 0.78, Expectancy -31.93"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 679.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.1%, Trades 2598, AvgW/L 238.69/273.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 84, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include (1) overly aggressive ATR\u2011based stop/TP that cuts gains in a mean\u2011reverting market, (2) the OBV comparison uses a simple one\u2011period roll which may trigger on noise, (3) no trend filter \u2013 the strategy can trade against a strong directional bias, (4) stochRSI thresholds (20/50) may be too tight for 30\u2011min BOMEUSDC, leading to many false entries, and (5) high trade count with almost zero return suggests the signals are largely uncorrelated with price action.\n[Backup plan] If results stay negative, first try adding a trend filter such as a 50\u2011period EMA: only trade when price is above the EMA for longs and below for shorts, and widen the ATR stop to 3x while keeping TP at 5x to allow more room for mean\u2011reversion. If Sharpe remains mediocre, adjust the stochRSI thresholds to 15/55 for longer oversold/overbought zones, and implement a minimum volume spike (OBV change > 0.5% of cumulative OBV) before entry. As an alternative approach, replace the mean\u2011reversion logic with a breakout strategy using Bollinger Bands or a volatility\u2011breakout on the same 30\u2011min timeframe, combined with a simple 20\u2011period SMA filter to capture trend\u2011driven moves."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.108770368343956,
+            "trades_confidence": 10.0,
+            "win_rate": 3.6339491916859115
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Using Bollinger bands as price boundaries captures mean-reversion opportunities while StochRSI identifies extreme overbought/oversold conditions; ATR-based sizing and stops adapt to market volatility and reduce overtrading in low volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -554.0499000173253,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7953498491185603,
+      "win_rate_pct": 35.714285714285715,
+      "trades": 1778,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.355435468865814,
+          "trades_confidence": 10.0,
+          "win_rate": 0.2142857142857146
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -554.0%, PF 0.80, Expectancy -31.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2742.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.7%, Trades 1778, AvgW/L 339.09/236.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 87, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy ignores the underlying trend, risking many whipsaw trades in a trending market; 2. The 30\u2011minute window can be noisy, making the StochRSI and Bollinger boundaries unreliable; 3. The 2.3\u00d7 ATR stop is too tight, causing frequent stop\u2011outs before the price recovers; 4. The high trade count (\u22486000) suggests over\u2011trading and potential slippage or commission erosion.\n[Backup plan] If returns stay negative, introduce a trend filter (e.g., 50\u2011period EMA) and only trade when price is above/below it to avoid counter\u2011trend positions; reduce the ATR stop to 1.5\u00d7 ATR and raise the TP to 6\u00d7 ATR to allow for stronger moves. If Sharpe is low, widen the StochRSI entry band to 25/75, extend the Bollinger period to 20, and use a 3\u00d7 ATR TP to capture more reward per risk. As an alternative, switch to a volatility\u2011breakout mean\u2011reversion combo: enter on a 1\u2011hour breakout of the 20\u2011period ATR band and exit when the price reverts to the 50\u2011period SMA, which often smooths noise and improves risk\u2011reward."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.355435468865814,
+            "trades_confidence": 10.0,
+            "win_rate": 0.2142857142857146
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 4,
+      "hypothesis": "The stoch_rsi identifies extreme overbought or oversold conditions, while a rising OBV (for longs) or falling OBV (for shorts) confirms that volume is supporting a reversal. Combining these with ATR-based risk limits adapts the trade size and exits to current market volatility, reducing false entries in trending or choppy markets and improving risk\u2011adjusted performance.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 92, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 32244 rows. Every boolean mask MUST also have exactly 32244 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on a single oversold/overbought trigger (stoch_rsi\u202f<\u202f20/\u202f>\u202f80) combined with a simple OBV check makes it vulnerable to trend\u2011driven false reversals, especially on a volatile pair like BOMEUSDC; the 2.3\u00d7/4.5\u00d7 ATR risk\u2011reward may be too tight for 30\u2011min swings, leading to frequent stop\u2011outs. High trade count inflates slippage and commissions, eroding returns. The OBV test (obv > obv(1)) is too crude and can mis\u2011interpret volume spikes.\n\nIf the backtest stays negative, first add a trend filter (e.g., 50\u2011period SMA or ADX\u202f>\u202f20) to avoid taking reversals against a strong trend and tighten the entry condition to stoch_rsi\u202f<\u202f15 with OBV slope >\u202f0. If results are merely mediocre, relax the ATR stop to 1.5\u00d7 for tighter risk and raise the TP to 5\u00d7 ATR, or lengthen the stoch_rsi period to 14 to smooth noise.\n\nIf the mean\u2011reversion framework fails entirely, switch to a breakout\u2011based approach: trade the 30\u2011min Bollinger Band width with a volatility\u2011scaled stop/TP, or use a dual\u2011time\u2011frame momentum filter (e.g., 4\u2011hour RSI) to capture directional bias before entering a 30\u2011min mean\u2011reversion trade."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "StochRSI identifies extreme overbought or oversold conditions; a rising OBV confirms a potential reversal of the prevailing trend, while a falling OBV signals a likely continuation of a downward move. Combining these with ATR\u2011based risk limits ensures that positions are taken only when the market is in a mean\u2011reverting phase and that stop and take\u2011profit levels adapt to current volatility, reducing drawdown and capturing normal price corrections.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -840.4697739355605,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7761165620061784,
+      "win_rate_pct": 47.07241910631741,
+      "trades": 2596,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.23467145114613,
+          "trades_confidence": 10.0,
+          "win_rate": 3.621725731895223
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -840.5%, PF 0.78, Expectancy -32.38"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 289.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.1%, Trades 2596, AvgW/L 238.43/273.22"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3022,
+          "short_signals": 3213,
+          "total_signals": 6235
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include over\u2011reliance on a single time\u2011frame and three indicators that may produce noisy signals in trending markets; the OBV trend confirmation can lag, and the 30\u2011minute window may not capture short\u2011term mean\u2011reversions. The fixed ATR multipliers (2.3\u00d7 for stop, 4.5\u00d7 for TP) may be too tight in low\u2011volatility regimes or too loose during spikes, leading to premature exits or large drawdowns. Transaction costs, slippage, and the lack of a trend filter could erode profitability. If results are negative, I would tighten the entry filter by requiring a multi\u2011bar OBV rise or a volume spike, and consider adding a trend\u2011filter (e.g., short\u2011term MA). For low Sharpe, I would experiment with higher ATR multipliers for TP (e.g., 5\u00d7), lower for stop (1.5\u00d7), and adjust the StochRSI period or thresholds (e.g., 15/85 instead of 20/80). If the strategy still fails, I would shift to a volatility\u2011breakout mean\u2011reversion combo using Bollinger Bands or a dual\u2011indicator (RSI + Bollinger) with a trend filter like EMA cross to reduce false entries.\n[Backup plan] I would test a 15\u2011minute window with a dual\u2011layer filter: a short\u2011term EMA (e.g., 9) to identify trend direction and a StochRSI\u2011OBV combo only when the price is within \u00b11 ATR of the EMA. Additionally, I would implement a trailing stop based on a moving average of OBV to capture partial gains, and evaluate a risk\u2011parity allocation across multiple pairs to diversify the mean\u2011reversion signal."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.23467145114613,
+            "trades_confidence": 10.0,
+            "win_rate": 3.621725731895223
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining stochastic RSI extremes with OBV trend confirmation and Bollinger band price boundaries filters out noisy mean\u2011reversion entries; the price is likely to revert to the band centre when it hits the middle band or the RSI moves back toward 50, while ATR\u2011based SL/TP scales risk with current volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -206.50951249862715,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6948992305292668,
+      "win_rate_pct": 34.81481481481482,
+      "trades": 270,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.947463747233517,
+          "trades_confidence": 10.0,
+          "win_rate": -0.055555555555555
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -206.5%, PF 0.69, Expectancy -76.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1120.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 270, AvgW/L 500.37/384.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 107, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Key weaknesses include over\u2011saturation of trades, a very tight ATR stop that cuts early, and reliance on OBV without volume context; the 30\u2011minute BOMEUSDC may trend rather than mean\u2011revert, so the Bollinger\u2011band exit can trigger too often. The stochastic\u2011RSI thresholds (20/80) may be too rigid, missing mid\u2011range re\u2011entries, and the exit rule (crossing middle band or RSI=50) can lock in losses during strong trends.\n[Backup plan] If returns are negative, first tighten the entry filter to require a larger OBV slope (e.g., obv > obv_prev + 10%) and raise the over\u2011sell threshold to 15, while adding a short\u2011term SMA trend filter to avoid trending markets. If Sharpe is mediocre, expand the TP to 6x ATR, loosen the SL to 1.5x ATR, and test a 15\u2011minute timeframe to reduce noise. As an alternative, switch to a breakout\u2011plus\u2011trend strategy using a 50\u2011period ATR\u2011based breakout with a trailing stop, or employ a statistical pair\u2011trade between BOMEUSDC and a related stablecoin pair to capture mean\u2011reversion without relying on Bollinger bands."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.947463747233517,
+            "trades_confidence": 10.0,
+            "win_rate": -0.055555555555555
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a tight mean\u2011reversion entry with OBV trend confirmation and a volatility filter reduces over\u2011trading during weak markets, while ATR\u2011based risk limits ensure proportional stops and targets regardless of price level.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -147.97745734340782,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8622652063898097,
+      "win_rate_pct": 34.96835443037975,
+      "trades": 632,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.296447707894412,
+          "trades_confidence": 10.0,
+          "win_rate": -0.009493670886075733
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -148.0%, PF 0.86, Expectancy -23.41"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 133.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 35.0%, Trades 632, AvgW/L 419.18/261.40"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 114, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 32244 rows. Every boolean mask MUST also have exactly 32244 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is overly dependent on a single mean\u2011reversion trigger (STOCH_RSI<20) with a tight stop (2.3\u00d7ATR) that likely triggers in volatile but trending markets, causing many whipsaw losses; OBV confirmation may lag, and the ATR filter is too simplistic. The 30\u2011min BOMEUSDC may not exhibit strong mean\u2011reversion, leading to high trade frequency (2596 trades) and poor risk\u2011adjusted returns. The TP rule (cross to middle band or RSI 50) is too loose compared to the tight stop, creating a negative expectancy. The use of Bollinger bands as only price filter ignores trend strength and could be replaced with a directional filter.\n\nbackup_plan\":\"If results stay negative, replace the STOCH_RSI trigger with a double\u2011EMA cross for entry, use a 5\u2011period RSI oversold/overbought band (\u226430/\u226570) and tighten the stop to 1.5\u00d7ATR while setting TP to 3\u00d7ATR; add a trend filter such as a 50\u2011period SMA to trade only in the direction of the trend. If Sharpe is mediocre, increase the ATR lookback to 50 and adjust the Bollinger band width to 2\u03c3 to reduce over\u2011trading. If the strategy fails, switch to a volatility\u2011scaled breakout approach: enter on ATR\u2011based pullbacks from recent highs/lows and use OBV as a trend filter with a trailing stop at 1\u00d7ATR."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.296447707894412,
+            "trades_confidence": 10.0,
+            "win_rate": -0.009493670886075733
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "StochRSI pinpoints extreme overbought or oversold levels that are likely to revert, while a rising or falling OBV confirms that volume is supporting the expected price move. Combining these two signals reduces false entries in a mean\u2011reverting market and ATR\u2011based risk limits the impact of volatility spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -829.4576115193125,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.778870648192476,
+      "win_rate_pct": 47.11316397228637,
+      "trades": 2598,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.108770368343956,
+          "trades_confidence": 10.0,
+          "win_rate": 3.6339491916859115
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -829.5%, PF 0.78, Expectancy -31.93"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 679.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.1%, Trades 2598, AvgW/L 238.69/273.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 84, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include (1) overly aggressive ATR\u2011based stop/TP that cuts gains in a mean\u2011reverting market, (2) the OBV comparison uses a simple one\u2011period roll which may trigger on noise, (3) no trend filter \u2013 the strategy can trade against a strong directional bias, (4) stochRSI thresholds (20/50) may be too tight for 30\u2011min BOMEUSDC, leading to many false entries, and (5) high trade count with almost zero return suggests the signals are largely uncorrelated with price action.\n[Backup plan] If results stay negative, first try adding a trend filter such as a 50\u2011period EMA: only trade when price is above the EMA for longs and below for shorts, and widen the ATR stop to 3x while keeping TP at 5x to allow more room for mean\u2011reversion. If Sharpe remains mediocre, adjust the stochRSI thresholds to 15/55 for longer oversold/overbought zones, and implement a minimum volume spike (OBV change > 0.5% of cumulative OBV) before entry. As an alternative approach, replace the mean\u2011reversion logic with a breakout strategy using Bollinger Bands or a volatility\u2011breakout on the same 30\u2011min timeframe, combined with a simple 20\u2011period SMA filter to capture trend\u2011driven moves."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.108770368343956,
+            "trades_confidence": 10.0,
+            "win_rate": 3.6339491916859115
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Using Bollinger bands as price boundaries captures mean-reversion opportunities while StochRSI identifies extreme overbought/oversold conditions; ATR-based sizing and stops adapt to market volatility and reduce overtrading in low volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -554.0499000173253,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7953498491185603,
+      "win_rate_pct": 35.714285714285715,
+      "trades": 1778,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.355435468865814,
+          "trades_confidence": 10.0,
+          "win_rate": 0.2142857142857146
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -554.0%, PF 0.80, Expectancy -31.16"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2742.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.7%, Trades 1778, AvgW/L 339.09/236.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_161143_strat_gie_de_mean_reversion_sur_bomeusdc\\strategy.py\", line 87, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy ignores the underlying trend, risking many whipsaw trades in a trending market; 2. The 30\u2011minute window can be noisy, making the StochRSI and Bollinger boundaries unreliable; 3. The 2.3\u00d7 ATR stop is too tight, causing frequent stop\u2011outs before the price recovers; 4. The high trade count (\u22486000) suggests over\u2011trading and potential slippage or commission erosion.\n[Backup plan] If returns stay negative, introduce a trend filter (e.g., 50\u2011period EMA) and only trade when price is above/below it to avoid counter\u2011trend positions; reduce the ATR stop to 1.5\u00d7 ATR and raise the TP to 6\u00d7 ATR to allow for stronger moves. If Sharpe is low, widen the StochRSI entry band to 25/75, extend the Bollinger period to 20, and use a 3\u00d7 ATR TP to capture more reward per risk. As an alternative, switch to a volatility\u2011breakout mean\u2011reversion combo: enter on a 1\u2011hour breakout of the 20\u2011period ATR band and exit when the price reverts to the 50\u2011period SMA, which often smooths noise and improves risk\u2011reward."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.355435468865814,
+            "trades_confidence": 10.0,
+            "win_rate": 0.2142857142857146
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

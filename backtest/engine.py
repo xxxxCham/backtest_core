@@ -324,7 +324,18 @@ class BacktestEngine:
                 )
 
             # BUGFIX CRITIQUE: Invalider métriques si compte ruiné
-            account_ruined = metrics.get("account_ruined", False)
+            account_ruined = bool(metrics.get("account_ruined", False))
+            if not account_ruined:
+                # Garde-fou: une perte <= -100% implique une ruine, même si le flag
+                # n'est pas explicitement remonté par un chemin de calcul rapide.
+                try:
+                    total_return_pct = float(metrics.get("total_return_pct", 0.0) or 0.0)
+                    if np.isfinite(total_return_pct) and total_return_pct <= -100.0:
+                        account_ruined = True
+                        metrics["account_ruined"] = True
+                except (TypeError, ValueError):
+                    pass
+
             if account_ruined:
                 self.logger.warning(
                     "account_ruined_detected invalidating_performance_metrics original_sharpe=%.2f",
@@ -335,6 +346,8 @@ class BacktestEngine:
                 metrics["sortino_ratio"] = -20.0
                 metrics["calmar_ratio"] = -20.0
                 # Note: garder total_pnl pour analyse, mais signaler danger
+            else:
+                metrics["account_ruined"] = False
 
             # Couverture des données: ratio barres réelles vs barres attendues
             try:
@@ -462,9 +475,16 @@ class BacktestEngine:
                     indicator_name, df, indicator_params, gpu_queues=gpu_queues
                 )
                 indicators[indicator_name] = result
-            except Exception as e:
-                self.logger.warning(f"  ⚠️ Erreur calcul {indicator_name}: {e}")
-                indicators[indicator_name] = None
+            except Exception as exc:
+                self.logger.error(
+                    "indicator_calc_failed name=%s params=%s error=%s",
+                    indicator_name,
+                    indicator_params,
+                    exc,
+                )
+                raise RuntimeError(
+                    f"Échec calcul indicateur requis '{indicator_name}': {exc}"
+                ) from exc
 
         return indicators
 
@@ -477,21 +497,23 @@ class BacktestEngine:
 
         # Mapping des préfixes de paramètres
         prefix_map = {
-            "bollinger": "bb_",
-            "atr": "atr_",
-            "rsi": "rsi_",
-            "ema": "ema_"
+            "bollinger": ["bb_", "bollinger_"],
+            "atr": ["atr_"],
+            "rsi": ["rsi_"],
+            "ema": ["ema_"],
         }
 
-        prefix = prefix_map.get(indicator_name, f"{indicator_name}_")
+        prefixes = prefix_map.get(indicator_name, [f"{indicator_name}_"])
         indicator_params = {}
 
         # Extraire les paramètres avec le préfixe
         for key, value in params.items():
-            if key.startswith(prefix):
-                # Enlever le préfixe
-                param_name = key[len(prefix):]
-                indicator_params[param_name] = value
+            for prefix in prefixes:
+                if key.startswith(prefix):
+                    # Enlever le préfixe
+                    param_name = key[len(prefix):]
+                    indicator_params[param_name] = value
+                    break
 
         # Paramètres directs (sans préfixe mais reconnus)
         direct_params = {
@@ -536,12 +558,17 @@ class BacktestEngine:
         - Profit factor
         """
         metrics = {}
+        account_ruined = False
 
         # PnL
         if not equity.empty:
-            final_equity = equity.iloc[-1]
+            final_equity = float(equity.iloc[-1]) if np.isfinite(equity.iloc[-1]) else float(initial_capital)
+            eq_values = np.asarray(equity.values, dtype=np.float64)
+            finite_values = eq_values[np.isfinite(eq_values)]
+            min_equity = float(finite_values.min()) if finite_values.size > 0 else float(initial_capital)
             total_pnl = final_equity - initial_capital
             total_return_pct = (total_pnl / initial_capital) * 100
+            account_ruined = bool(min_equity <= 0.0 or final_equity <= 0.0 or total_return_pct <= -100.0)
         else:
             total_pnl = 0.0
             total_return_pct = 0.0
@@ -594,22 +621,47 @@ class BacktestEngine:
             metrics["win_rate_pct"] = 0.0
             metrics["profit_factor"] = 1.0
 
+        metrics["account_ruined"] = account_ruined
         return metrics
 
     def _get_periods_per_year(self, timeframe: str) -> int:
         """Retourne le nombre de périodes par an pour un timeframe."""
-        timeframe_periods = {
-            "1m": 365 * 24 * 60,      # 525600
-            "5m": 365 * 24 * 12,      # 105120
-            "15m": 365 * 24 * 4,      # 35040
-            "30m": 365 * 24 * 2,      # 17520
-            "1h": 365 * 24,           # 8760
-            "4h": 365 * 6,            # 2190
-            "1d": 365,                # 365
-            "1w": 52                  # 52
-        }
+        if not isinstance(timeframe, str):
+            raise ValueError(f"Timeframe invalide: {timeframe!r}")
 
-        return timeframe_periods.get(timeframe, 365 * 24 * 60)
+        tf = timeframe.strip()
+        if len(tf) < 2:
+            raise ValueError(
+                f"Timeframe invalide: '{timeframe}'. Format attendu: <nombre><unité> (ex: 1m, 5m, 1h, 1d, 1w, 1M)."
+            )
+
+        unit = tf[-1]
+        try:
+            amount = int(tf[:-1])
+        except ValueError as exc:
+            raise ValueError(
+                f"Timeframe invalide: '{timeframe}'. Format attendu: <nombre><unité> (ex: 1m, 5m, 1h, 1d, 1w, 1M)."
+            ) from exc
+
+        if amount <= 0:
+            raise ValueError(f"Timeframe invalide: '{timeframe}'. La valeur numérique doit être > 0.")
+
+        if unit == "m":
+            periods = (365 * 24 * 60) / amount
+        elif unit == "h":
+            periods = (365 * 24) / amount
+        elif unit == "d":
+            periods = 365 / amount
+        elif unit == "w":
+            periods = 52 / amount
+        elif unit == "M":
+            periods = 12 / amount
+        else:
+            raise ValueError(
+                f"Timeframe invalide: '{timeframe}'. Unités supportées: m, h, d, w, M."
+            )
+
+        return max(1, int(round(periods)))
 
     # ═══════════════════════════════════════════════════════════════════════════
     # MODE SWEEP ULTRA-RAPIDE - Élimine 80% de l'overhead Python par run
@@ -733,12 +785,10 @@ class BacktestEngine:
             )
 
             # 6. Correction si compte ruiné
-            if not equity.empty and equity.iloc[-1] <= 0:
-                total_return = metrics.get("total_return_pct", 0)
-                metrics["sharpe_ratio"] = max(-20.0, total_return / 10.0)
-                metrics["account_ruined"] = True
-            else:
-                metrics["account_ruined"] = False
+            if bool(metrics.get("account_ruined", False)):
+                metrics["sharpe_ratio"] = -20.0
+                metrics["sortino_ratio"] = -20.0
+                metrics["calmar_ratio"] = -20.0
 
             return metrics
 

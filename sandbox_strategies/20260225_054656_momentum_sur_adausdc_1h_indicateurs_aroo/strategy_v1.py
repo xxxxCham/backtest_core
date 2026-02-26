@@ -1,0 +1,128 @@
+from typing import Any, Dict, List
+
+import numpy as np
+import pandas as pd
+
+from utils.parameters import ParameterSpec
+from strategies.base import StrategyBase
+
+
+class BuilderGeneratedStrategy(StrategyBase):
+    def __init__(self):
+        super().__init__(name='adausdc_momentum_supertrend')
+
+    @property
+    def required_indicators(self) -> List[str]:
+        return ['aroon', 'ema', 'supertrend', 'atr']
+
+    @property
+    def default_params(self) -> Dict[str, Any]:
+        return {'aroon_period': 25,
+         'ema_period': 20,
+         'leverage': 1,
+         'stop_atr_mult': 2.0,
+         'supertrend_multiplier': 3,
+         'supertrend_period': 10,
+         'tp_atr_mult': 4.0,
+         'warmup': 50}
+
+    @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        return {
+            'aroon_period': ParameterSpec(
+                name='aroon_period',
+                min_val=10,
+                max_val=50,
+                default=25,
+                param_type='int',
+                step=1,
+            ),
+            'ema_period': ParameterSpec(
+                name='ema_period',
+                min_val=5,
+                max_val=50,
+                default=20,
+                param_type='int',
+                step=1,
+            ),
+            'supertrend_period': ParameterSpec(
+                name='supertrend_period',
+                min_val=5,
+                max_val=30,
+                default=10,
+                param_type='int',
+                step=1,
+            ),
+            'supertrend_multiplier': ParameterSpec(
+                name='supertrend_multiplier',
+                min_val=1,
+                max_val=5,
+                default=3,
+                param_type='float',
+                step=0.1,
+            ),
+            'stop_atr_mult': ParameterSpec(
+                name='stop_atr_mult',
+                min_val=1,
+                max_val=5,
+                default=2.0,
+                param_type='float',
+                step=0.1,
+            ),
+            'leverage': ParameterSpec(
+                name='leverage',
+                min_val=1,
+                max_val=2,
+                default=1,
+                param_type='int',
+                step=1,
+            ),
+            'tp_atr_mult': ParameterSpec(
+                name='tp_atr_mult',
+                min_val=2.0,
+                max_val=4.5,
+                default=4.0,
+                param_type='float',
+                step=0.1,
+            ),
+        }
+
+    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:
+        signals = pd.Series(0.0, index=df.index, dtype=np.float64)
+        n = len(df)
+        warmup = int(params.get('warmup', 50))
+        long_mask = np.zeros(n, dtype=bool)
+        short_mask = np.zeros(n, dtype=bool)
+        # === LOGIQUE LLM INSÉRÉE ICI UNIQUEMENT ===
+        long_mask = np.zeros(n, dtype=bool)
+        short_mask = np.zeros(n, dtype=bool)
+
+        signals.iloc[:warmup] = 0.0
+
+        aroon_up = indicators['aroon']['aroon_up']
+        aroon_down = indicators['aroon']['aroon_down']
+        ema = indicators['ema']
+        supertrend = indicators['supertrend']['supertrend']
+        direction = indicators['supertrend']['direction']
+        close = df["close"].values
+        atr = indicators['atr']
+
+        long_mask = (aroon_up > aroon_down) & (close > ema) & (direction == 1)
+        short_mask = (aroon_down > aroon_up) & (close < ema) & (direction == -1)
+
+        signals[long_mask] = 1.0
+        signals[short_mask] = -1.0
+
+        stop_atr_mult = params.get("stop_atr_mult", 2.0)
+        tp_atr_mult = params.get("tp_atr_mult", 4.0)
+
+        # Initialize SL/TP columns with NaN (no level = no stop)
+        df.loc[:, "bb_stop_long"] = np.nan
+        df.loc[:, "bb_tp_long"] = np.nan
+
+        # On entry signal bars only, compute ATR-based levels:
+        entry_mask = (signals == 1.0)  # boolean mask of long entries
+        df.loc[entry_mask, "bb_stop_long"] = close[entry_mask] - stop_atr_mult * atr[entry_mask]
+        df.loc[entry_mask, "bb_tp_long"] = close[entry_mask] + tp_atr_mult * atr[entry_mask]
+        signals.iloc[:warmup] = 0.0
+        return signals

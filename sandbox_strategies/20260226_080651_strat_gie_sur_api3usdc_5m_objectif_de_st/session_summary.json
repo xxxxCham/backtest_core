@@ -1,0 +1,282 @@
+{
+  "session_id": "20260226_080651_strat_gie_sur_api3usdc_5m_objectif_de_st",
+  "objective": "Strat\u00e9gie sur API3USDC 5m. Objectif de strat\u00e9gie: Sur le march\u00e9 {token} en 5m, utiliser l'indicateur Bollinger + Momentum pour d\u00e9tecter des breakouts sur une base hebdomadaire, avec un SL \u00e0 3% sous la demande et TP a 4%. Comporter ce positionnement par filtre horaire de liquidite en temps r\u00e9el (d\u00e9lai = {delay}). Afficher le nombre total d'entrants ({num_entries}) pendant les heures suivant le break, avec un SL de 2% et TP \u00e0 l'issue du premier jour. Testez cette strat\u00e9gie sur la famille robuste de contr\u00f4le (mean-reversion) en 5m, puis comparer aux autres familles de contr\u00f4les pour v\u00e9rifier les avantages sp\u00e9cifiques de ce mode d'entr\u00e9es.",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "accept",
+      "sharpe": -20.0,
+      "return_pct": -786.7363465557949,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.47400998168202524,
+      "win_rate_pct": 38.37625178826896,
+      "trades": 2796,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": 1.0128755364806876
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -786.7%, PF 0.47, Expectancy -28.14"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 520.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.4%, Trades 2796, AvgW/L 66.08/86.81"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: 'numpy.ndarray' object is not callable",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: 'numpy.ndarray' object is not callable",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_080651_strat_gie_sur_api3usdc_5m_objectif_de_st\\strategy.py\", line 62, in generate_signals\n    if any(indicators[name](close) for name in ['rsi', 'ema']) and not (any(indicators[name](close) for name in ['atr'])):\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_080651_strat_gie_sur_api3usdc_5m_objectif_de_st\\strategy.py\", line 62, in <genexpr>\n    if any(indicators[name](close) for name in ['rsi', 'ema']) and not (any(indicators[name](close) for name in ['atr'])):\nTypeError: 'numpy.ndarray' object is not callable",
+          "runtime_fix_validation_error": "[IND001] Acc\u00e8s indicateur invalide via df[...] d\u00e9tect\u00e9: ['atr']. Utiliser indicators['name'].",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is well defined and covers various aspects of trading such as use of Bollinger Bands, Momentum indicator and ATF. It also includes risk management with SL and TP at specific levels. The fallback contract could be useful in case the LLM condition isn't met. However, it would be beneficial to consider additional factors such as Volume or Market Depth when deciding upon the entry long criteria. Also considering other indicators like MACD might add more robustness to the strategy.\n[Backup plan] 1. If results are poor (negative return), we could try to adjust our risk management parameters by changing SL and TP levels or even removing them altogether. 2. If results are mediocre (low Sharpe), we can consider adjusting our momentum criteria, for example, using a higher threshold for the Momentum indicator before entering long positions. Additionally, we might want to explore different timeframes for our indicators to see if that improves performance. 3. If the current strategy fails, one alternative approach could be looking at other indicators such as Volume or Market Depth when deciding upon the entry criteria and risk management parameters."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": 1.0128755364806876
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "accept",
+      "sharpe": -20.0,
+      "return_pct": -786.7363465557949,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.47400998168202524,
+      "win_rate_pct": 38.37625178826896,
+      "trades": 2796,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": 1.0128755364806876
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -786.7%, PF 0.47, Expectancy -28.14"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 520.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.4%, Trades 2796, AvgW/L 66.08/86.81"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: 'numpy.ndarray' object is not callable",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: 'numpy.ndarray' object is not callable",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_080651_strat_gie_sur_api3usdc_5m_objectif_de_st\\strategy.py\", line 62, in generate_signals\n    if any(indicators[name](close) for name in ['rsi', 'ema']) and not (any(indicators[name](close) for name in ['atr'])):\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_080651_strat_gie_sur_api3usdc_5m_objectif_de_st\\strategy.py\", line 62, in <genexpr>\n    if any(indicators[name](close) for name in ['rsi', 'ema']) and not (any(indicators[name](close) for name in ['atr'])):\nTypeError: 'numpy.ndarray' object is not callable",
+          "runtime_fix_validation_error": "[IND001] Acc\u00e8s indicateur invalide via df[...] d\u00e9tect\u00e9: ['atr']. Utiliser indicators['name'].",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is well defined and covers various aspects of trading such as use of Bollinger Bands, Momentum indicator and ATF. It also includes risk management with SL and TP at specific levels. The fallback contract could be useful in case the LLM condition isn't met. However, it would be beneficial to consider additional factors such as Volume or Market Depth when deciding upon the entry long criteria. Also considering other indicators like MACD might add more robustness to the strategy.\n[Backup plan] 1. If results are poor (negative return), we could try to adjust our risk management parameters by changing SL and TP levels or even removing them altogether. 2. If results are mediocre (low Sharpe), we can consider adjusting our momentum criteria, for example, using a higher threshold for the Momentum indicator before entering long positions. Additionally, we might want to explore different timeframes for our indicators to see if that improves performance. 3. If the current strategy fails, one alternative approach could be looking at other indicators such as Volume or Market Depth when deciding upon the entry criteria and risk management parameters."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": 1.0128755364806876
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ]
+}

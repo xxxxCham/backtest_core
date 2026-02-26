@@ -1,0 +1,1722 @@
+{
+  "session_id": "20260225_144558_strat_gie_de_momentum_sur_lineausdc_30m",
+  "objective": "Strat\u00e9gie de Momentum sur LINEAUSDC 30m. Indicateurs : MACD + MOMENTUM + ATR. Position quand le momentum (MACD) acc\u00e9l\u00e8re et MOMENTUM est align\u00e9. Sortie quand le momentum (MACD) s'\u00e9puise ou diverge du prix. Stop-loss dynamique bas\u00e9 sur ATR (2.2x), ratio risk/reward 2.8:1.",
+  "status": "failed",
+  "best_sharpe": 0.023448255184967275,
+  "best_score": -65.29491729094488,
+  "total_iterations": 9,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When the MACD histogram is positive and rising, it signals accelerating bullish momentum; pairing this with a positive momentum indicator confirms that price is actually moving in the same direction, creating a strong trend entry. Exiting when the MACD histogram crosses zero or turns negative indicates loss of acceleration, while a negative momentum confirms a reversal. ATR-based stops adapt to current volatility, and a 2.8:1 reward-to-risk ratio ensures that only high\u2011probability moves are captured.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.12608521214875,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8639242786565514,
+      "win_rate_pct": 40.7563025210084,
+      "trades": 714,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.220604404271936,
+          "trades_confidence": 10.0,
+          "win_rate": 1.7268907563025202
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.1%, PF 0.86, Expectancy -17.94"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2575.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.8%, Trades 714, AvgW/L 279.54/222.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1588,
+          "short_signals": 1644,
+          "total_signals": 3232
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate many false positives in choppy markets because it only checks histogram positivity and momentum sign, ignoring price trend and volume. 2. A 2.2\u00d7 ATR stop can be too wide for a 30\u2011min pair, letting large whipsaws erode capital. 3. The exit rule (cross below zero or negative momentum) is too coarse and may trigger too late, missing profit\u2011taking opportunities. 4. The 2.8:1 reward\u2011to\u2011risk target is fixed; if the average win is smaller, the strategy will be unprofitable despite correct signals.\n[Backup plan] If returns are negative, tighten the entry to require a MACD histogram crossing above zero AND a momentum value above a high percentile (e.g., > 70th), and add a short\u2011term EMA filter to confirm price direction. Lower the ATR multiplier to 1.5\u00d7 or use a trailing ATR stop to protect gains. If Sharpe is low, reduce the reward\u2011to\u2011risk to 2:1, shorten the momentum period (e.g., 5\u2011period instead of 10), and consider a dynamic take\u2011profit based on recent swing highs. If the strategy still fails, switch to a breakout model using a 30\u2011min high/low channel or a volatility\u2011adjusted mean\u2011reversion filter on the same pair."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.220604404271936,
+            "trades_confidence": 10.0,
+            "win_rate": 1.7268907563025202
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "MACD provides a robust momentum signal while RSI filters out overbought and oversold conditions, ensuring entries occur only when price is still trending in the same direction; ATR-based risk management dynamically scales stops and targets to market volatility, reducing the likelihood of large drawdowns and improving risk/reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.023448255184967275,
+      "return_pct": -54.33227055493018,
+      "max_drawdown_pct": -84.89096752261909,
+      "profit_factor": 0.9171845101771953,
+      "win_rate_pct": 39.21200750469043,
+      "trades": 533,
+      "continuous_score": -96.865697566742,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.6565511451790838,
+          "return": -33.0,
+          "profit_factor": -3.7858509633282167,
+          "trades_confidence": 10.0,
+          "win_rate": 1.26360225140713
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 49.89096752261909
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -54.3%, PF 0.92, Expectancy -10.19"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 84.9%, Vol 163.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.023, Sortino 0.032, Calmar -0.996"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.2%, Trades 533, AvgW/L 287.91/202.49"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1119,
+          "short_signals": 1240,
+          "total_signals": 2359
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on MACD histogram acceleration and a narrow RSI window, which can generate many false signals in a volatile market like LINEAUSDC; the ATR\u2011based stop may be too tight, producing frequent stop\u2011outs. The 30\u2011minute timeframe and high trade count (714) suggest over\u2011trading and high slippage/fees. The fixed 2.8:1 reward/stop may not adapt to changing volatility, and the absence of a trend filter (e.g., MA) allows entries against the dominant trend.\n[Backup plan] If returns remain negative, replace the MACD histogram rule with a MACD\u2011signal line crossover and add a 50\u2011period SMA filter to only trade in the direction of the long\u2011term trend; increase the ATR multiplier to 3.0x to reduce premature stops. For low Sharpe, tighten the RSI filter to 55\u201365 for longs, adjust the risk/reward to 3:1, and implement a volatility\u2011scaled position size. If the strategy still fails, pivot to a breakout/mean\u2011reversion hybrid: use a 20\u2011bar high/low range on 30\u2011m bars and enter when price breaks out, with a trailing ATR stop to lock in gains."
+        },
+        "scoring": {
+          "continuous_score": -96.865697566742,
+          "drawdown_excess_pct": 49.89096752261909,
+          "components": {
+            "sharpe": 0.6565511451790838,
+            "return": -33.0,
+            "profit_factor": -3.7858509633282167,
+            "trades_confidence": 10.0,
+            "win_rate": 1.26360225140713
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "MACD histogram acceleration identifies short\u2011term momentum while an ADX filter (>25) ensures the market is in a strong trend; ATR\u2011based sizing limits risk in volatile periods, together reducing false entries that caused the previous high drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -114.40611803242487,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8256364618379797,
+      "win_rate_pct": 40.04854368932039,
+      "trades": 412,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -7.970904601692358,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5145631067961167
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -114.4%, PF 0.83, Expectancy -27.77"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3447.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.0%, Trades 412, AvgW/L 328.32/265.64"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 961,
+          "short_signals": 708,
+          "total_signals": 1669
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on MACD histogram acceleration and a fixed ADX filter can be too laggy and may generate many false entries on a 30\u2011minute chart; the ATR\u2011based stop (2.2\u00d7) may be either too tight during calm periods or too loose when volatility spikes, and the 2.8:1 risk/reward target is aggressive for a momentum play. If the backtest remains negative, I would first tighten the trend filter\u2014raise ADX to 30 or add a short\u2011term EMA crossover\u2014to reduce whipsaws, and lower the ATR multiplier to 1.8 to tighten stops. If Sharpe stays low, consider relaxing the risk/reward to 2:1, shortening the MACD fast/slow settings to respond quicker, and introducing a volatility\u2011adjusted position size. As a fallback, I\u2019d switch to a breakout\u2011based scheme (e.g., 30\u2011min VWAP or Bollinger Band breakouts) or a simple EMA\u2011pair strategy that can capture trend direction without the lag of MACD histograms.\n[Backup plan] If the current approach fails, replace MACD with a directional indicator like ADX\u2011filtered EMA crossover and use a trailing ATR stop instead of a fixed exit; alternatively, test a mean\u2011reversion rule around the 30\u2011min VWAP with a tighter 1.5\u00d7 ATR stop and a 1.5:1 reward target to improve risk\u2011adjusted returns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -7.970904601692358,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5145631067961167
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining MACD histogram acceleration with a parallel momentum surge ensures the trade is taken only when both the trend and price acceleration agree, filtering out weak or divergent movements; ATR\u2011based sizing adapts risk to market volatility, preventing overexposure during calm periods and protecting capital during spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.12608521214875,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8639242786565514,
+      "win_rate_pct": 40.7563025210084,
+      "trades": 714,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.220604404271936,
+          "trades_confidence": 10.0,
+          "win_rate": 1.7268907563025202
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.1%, PF 0.86, Expectancy -17.94"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2575.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.8%, Trades 714, AvgW/L 279.54/222.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1588,
+          "short_signals": 1644,
+          "total_signals": 3232
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.220604404271936,
+            "trades_confidence": 10.0,
+            "win_rate": 1.7268907563025202
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "MACD histogram acceleration coupled with RSI above 50 confirms sustained bullish momentum; the ATR component provides volatility\u2011based risk limits, filtering out weak or choppy markets and reducing false entries.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.720436391631042,
+      "return_pct": -91.9569551375817,
+      "max_drawdown_pct": -95.69017842893992,
+      "profit_factor": 0.8951199364058314,
+      "win_rate_pct": 40.723270440251575,
+      "trades": 636,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -20.172218965669177,
+          "return": -33.0,
+          "profit_factor": -4.7945171928762775,
+          "trades_confidence": 10.0,
+          "win_rate": 1.7169811320754726
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 60.690178428939916
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -92.0%, PF 0.90, Expectancy -14.46"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 95.7%, Vol 221.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.720, Sortino -0.967, Calmar -1.042"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.7%, Trades 636, AvgW/L 303.02/232.57"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1287,
+          "short_signals": 1511,
+          "total_signals": 2798
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy generates many trades (hundreds per run) yet yields large losses, indicating over\u2011trading and weak signals. Relying solely on MACD histogram acceleration and a single RSI threshold ignores broader trend context and may trigger in choppy markets. The fixed ATR(2.2x) stop and high risk/reward (2.8:1) are not adjusted to trade size or volatility, leading to frequent stop\u2011outs. The entry/exit logic is symmetrical for bullish and bearish but only long is described, missing a balanced approach. Finally, the 30\u2011min line is highly liquid but may have high noise, causing the MACD to oscillate frequently.\n[Backup plan] If returns stay negative, add a trend filter such as a 200\u2011period EMA or a higher\u2011time\u2011frame MA to confirm direction and prune weak entries. Tighten the ATR multiplier to 1.5x or use a volatility\u2011scaled stop per trade. Reduce the RSI threshold to 60 for stronger confirmation and introduce a minimum MACD histogram value (e.g., >0.5). If Sharpe remains low, adjust MACD periods (fast 12, slow 26 \u2192 8/21) to make it more responsive and test a 1:1 risk/reward to reduce over\u2011exposure. As an alternative, switch to a breakout\u2011based approach: use a Donchian channel or Bollinger Band breakout with ATR\u2011based trailing stops, which may capture stronger moves and lower trade frequency."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 60.690178428939916,
+          "components": {
+            "sharpe": -20.172218965669177,
+            "return": -33.0,
+            "profit_factor": -4.7945171928762775,
+            "trades_confidence": 10.0,
+            "win_rate": 1.7169811320754726
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining MACD histogram acceleration with Momentum oscillator alignment captures genuine market momentum bursts, while ATR-based risk limits ensure positions are taken only in sufficiently volatile regimes, reducing whipsaw losses in low\u2011volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "Validation \u00e9chou\u00e9e: [AST001] Erreur de syntaxe ligne 22: ':' expected after dictionary key | retry: [AST001] Erreur de syntaxe ligne 22: ':' expected after dictionary key | fallback: [AST001] Erreur de syntaxe ligne 23: ':' expected after dictionary key",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 22: ':' expected after dictionary key",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 22: ':' expected after dictionary key"
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "When MACD moves above its signal line while the MACD histogram is rising, momentum is positive, the price is trending upward, and ATR indicates sufficient volatility, a strong upward trend is likely to continue. Exiting when the histogram turns negative or MACD crosses below the signal line captures the point where momentum wanes or reverses, limiting losses while allowing the trade to profit from the initial acceleration.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.71438221302355,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8693358607394985,
+      "win_rate_pct": 40.32697547683924,
+      "trades": 734,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.973217794765782,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5980926430517712
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.7%, PF 0.87, Expectancy -17.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 718.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.3%, Trades 734, AvgW/L 289.31/224.90"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 2700,
+          "short_signals": 2994,
+          "total_signals": 5694
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) Heavy reliance on MACD+Momentum may create noisy signals and high trade count; 2) ATR\u2011based SL may be too wide for a 30\u2011min crypto pair, leading to large drawdowns; 3) No trend filter means the strategy can go long in a flat market; 4) Exiting only on histogram sign change may miss partial reversals, causing premature exits or missed gains.\n[Backup plan] If returns stay negative, add a directional filter (e.g., price above its 50\u2011period SMA) and tighten the ATR multiplier to 1.5x. For low Sharpe, raise the required histogram slope threshold (e.g., >0.0005) and shift to a 2.8:1 risk/reward with a trailing stop of 1.2x ATR. If the strategy still fails, switch to a breakout\u2011based approach using 20\u2011period ATR bands and trade only when price closes beyond the upper band, exiting at the lower band or a 1:2 risk/reward."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.973217794765782,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5980926430517712
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 7
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Using MACD histogram positivity to capture accelerating momentum combined with a simple momentum indicator ensures entries only when price is moving strongly in the same direction; ATR-based dynamic stops adapt to volatility, limiting downside while allowing a generous risk/reward of 2.8:1, which should reduce whipsaws and improve Sharpe in the 30\u2011minute timeframe.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.71438221302355,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8693358607394985,
+      "win_rate_pct": 40.32697547683924,
+      "trades": 734,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.973217794765782,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5980926430517712
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.7%, PF 0.87, Expectancy -17.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 718.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.3%, Trades 734, AvgW/L 289.31/224.90"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 7352 rows. Every boolean mask MUST also have exactly 7352 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 7352 rows. Every boolean mask MUST also have exactly 7352 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy relies heavily on MACD histogram positivity and a simple momentum indicator, which can generate many false signals in choppy 30\u2011min markets, leading to high trade counts and slippage. 2. The ATR(2.2\u00d7) stop may be too tight during high\u2011volatility spikes, causing premature exits, while the 2.8:1 risk/reward target may be unrealistic for a 30\u2011min timeframe. 3. Over\u2011fitting to historical data is a risk given the large number of trades (\u2248700) without a robust filter for trend strength.\n[Backup plan] If returns remain negative, drop the momentum filter and use a stricter MACD histogram threshold (e.g., > 0.5\u00d7 signal difference) or add a trend filter like a 50\u2011period EMA. If Sharpe is low, tighten the ATR multiplier to 1.8\u00d7 and lower the risk/reward target to 2:1 to capture more consistent small gains. As an alternative, test a volatility\u2011breakout approach with a 1\u2011hour ATR\u2011based stop and a 20\u2011period EMA trend filter to reduce whipsaws and improve risk\u2011adjusted performance."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.973217794765782,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5980926430517712
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 8
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "Using a dual EMA trend filter with a momentum confirmation from RSI reduces false entries in choppy markets; ATR-based risk controls adapt to volatility, improving risk/reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "losing_per_trade",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -1.045674246657008,
+      "return_pct": -19.21928461094296,
+      "max_drawdown_pct": -26.100296456732018,
+      "profit_factor": 0.7811870817630475,
+      "win_rate_pct": 38.983050847457626,
+      "trades": 118,
+      "continuous_score": -65.29491729094488,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -29.278878906396223,
+          "return": -21.141213072037257,
+          "profit_factor": -10.002876262260685,
+          "trades_confidence": 10.0,
+          "win_rate": 1.194915254237288
+        },
+        "penalties": {
+          "drawdown_pressure": 4.066864304488012,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -19.2%, PF 0.78, Expectancy -16.29"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 26.1%, Vol 29.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.046, Sortino -1.068, Calmar -1.528"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.0%, Trades 118, AvgW/L 149.16/121.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['ema_fast', 'ema_slow']. Utiliser uniquement les noms du registre."
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_144558_strat_gie_de_momentum_sur_lineausdc_30m\\strategy.py\", line 96, in generate_signals\n    prev_close = np.roll(close, 1)\nNameError: name 'close' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may be over\u2011filtered, cutting many true moves; the 30\u2011min LINEAUSDC can be highly volatile yet choppy, so the dual EMA + RSI rules can miss trend shifts. The 2.2\u00d7ATR stop may be too wide for a 2.8:1 RR, leading to late exits and poor Sharpe. Entry/exit logic is symmetrical but uses contradictory cross conditions (crosses above on exit), risking false signals. The MACD/MOMENTUM combo isn\u2019t fully leveraged and could be redundant with RSI.\n[Backup plan] If results stay negative, drop the EMA filter and trade on MACD cross alone with a tighter ATR (1.5\u00d7) to capture more moves. For mediocre Sharpe, tighten the RR to 3:1, reduce the ATR stop to 1.8\u00d7, and adjust RSI thresholds to 60/40 to filter weaker momentum. If still underperforming, switch to a trend\u2011following scheme using a 50\u2011period SMA + ATR trailing stop, or try a volatility\u2011weighted breakout (e.g., VWAP + Bollinger bands) to capture larger swings."
+        },
+        "scoring": {
+          "continuous_score": -65.29491729094488,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -29.278878906396223,
+            "return": -21.141213072037257,
+            "profit_factor": -10.002876262260685,
+            "trades_confidence": 10.0,
+            "win_rate": 1.194915254237288
+          },
+          "penalties": {
+            "drawdown_pressure": 4.066864304488012,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 9,
+            "required_positive": 2,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 9,
+      "hypothesis": "Using a dual EMA trend filter with a momentum confirmation from RSI reduces false entries in choppy markets; ATR-based risk controls adapt to volatility, improving risk/reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "losing_per_trade",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -1.045674246657008,
+      "return_pct": -19.21928461094296,
+      "max_drawdown_pct": -26.100296456732018,
+      "profit_factor": 0.7811870817630475,
+      "win_rate_pct": 38.983050847457626,
+      "trades": 118,
+      "continuous_score": -65.29491729094488,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -29.278878906396223,
+          "return": -21.141213072037257,
+          "profit_factor": -10.002876262260685,
+          "trades_confidence": 10.0,
+          "win_rate": 1.194915254237288
+        },
+        "penalties": {
+          "drawdown_pressure": 4.066864304488012,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -19.2%, PF 0.78, Expectancy -16.29"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 26.1%, Vol 29.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.046, Sortino -1.068, Calmar -1.528"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.0%, Trades 118, AvgW/L 149.16/121.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['ema_fast', 'ema_slow']. Utiliser uniquement les noms du registre."
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_144558_strat_gie_de_momentum_sur_lineausdc_30m\\strategy.py\", line 96, in generate_signals\n    prev_close = np.roll(close, 1)\nNameError: name 'close' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may be over\u2011filtered, cutting many true moves; the 30\u2011min LINEAUSDC can be highly volatile yet choppy, so the dual EMA + RSI rules can miss trend shifts. The 2.2\u00d7ATR stop may be too wide for a 2.8:1 RR, leading to late exits and poor Sharpe. Entry/exit logic is symmetrical but uses contradictory cross conditions (crosses above on exit), risking false signals. The MACD/MOMENTUM combo isn\u2019t fully leveraged and could be redundant with RSI.\n[Backup plan] If results stay negative, drop the EMA filter and trade on MACD cross alone with a tighter ATR (1.5\u00d7) to capture more moves. For mediocre Sharpe, tighten the RR to 3:1, reduce the ATR stop to 1.8\u00d7, and adjust RSI thresholds to 60/40 to filter weaker momentum. If still underperforming, switch to a trend\u2011following scheme using a 50\u2011period SMA + ATR trailing stop, or try a volatility\u2011weighted breakout (e.g., VWAP + Bollinger bands) to capture larger swings."
+        },
+        "scoring": {
+          "continuous_score": -65.29491729094488,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -29.278878906396223,
+            "return": -21.141213072037257,
+            "profit_factor": -10.002876262260685,
+            "trades_confidence": 10.0,
+            "win_rate": 1.194915254237288
+          },
+          "penalties": {
+            "drawdown_pressure": 4.066864304488012,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 9,
+            "required_positive": 2,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "MACD provides a robust momentum signal while RSI filters out overbought and oversold conditions, ensuring entries occur only when price is still trending in the same direction; ATR-based risk management dynamically scales stops and targets to market volatility, reducing the likelihood of large drawdowns and improving risk/reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.023448255184967275,
+      "return_pct": -54.33227055493018,
+      "max_drawdown_pct": -84.89096752261909,
+      "profit_factor": 0.9171845101771953,
+      "win_rate_pct": 39.21200750469043,
+      "trades": 533,
+      "continuous_score": -96.865697566742,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.6565511451790838,
+          "return": -33.0,
+          "profit_factor": -3.7858509633282167,
+          "trades_confidence": 10.0,
+          "win_rate": 1.26360225140713
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 49.89096752261909
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -54.3%, PF 0.92, Expectancy -10.19"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 84.9%, Vol 163.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.023, Sortino 0.032, Calmar -0.996"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.2%, Trades 533, AvgW/L 287.91/202.49"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1119,
+          "short_signals": 1240,
+          "total_signals": 2359
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on MACD histogram acceleration and a narrow RSI window, which can generate many false signals in a volatile market like LINEAUSDC; the ATR\u2011based stop may be too tight, producing frequent stop\u2011outs. The 30\u2011minute timeframe and high trade count (714) suggest over\u2011trading and high slippage/fees. The fixed 2.8:1 reward/stop may not adapt to changing volatility, and the absence of a trend filter (e.g., MA) allows entries against the dominant trend.\n[Backup plan] If returns remain negative, replace the MACD histogram rule with a MACD\u2011signal line crossover and add a 50\u2011period SMA filter to only trade in the direction of the long\u2011term trend; increase the ATR multiplier to 3.0x to reduce premature stops. For low Sharpe, tighten the RSI filter to 55\u201365 for longs, adjust the risk/reward to 3:1, and implement a volatility\u2011scaled position size. If the strategy still fails, pivot to a breakout/mean\u2011reversion hybrid: use a 20\u2011bar high/low range on 30\u2011m bars and enter when price breaks out, with a trailing ATR stop to lock in gains."
+        },
+        "scoring": {
+          "continuous_score": -96.865697566742,
+          "drawdown_excess_pct": 49.89096752261909,
+          "components": {
+            "sharpe": 0.6565511451790838,
+            "return": -33.0,
+            "profit_factor": -3.7858509633282167,
+            "trades_confidence": 10.0,
+            "win_rate": 1.26360225140713
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "When the MACD histogram is positive and rising, it signals accelerating bullish momentum; pairing this with a positive momentum indicator confirms that price is actually moving in the same direction, creating a strong trend entry. Exiting when the MACD histogram crosses zero or turns negative indicates loss of acceleration, while a negative momentum confirms a reversal. ATR-based stops adapt to current volatility, and a 2.8:1 reward-to-risk ratio ensures that only high\u2011probability moves are captured.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.12608521214875,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8639242786565514,
+      "win_rate_pct": 40.7563025210084,
+      "trades": 714,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.220604404271936,
+          "trades_confidence": 10.0,
+          "win_rate": 1.7268907563025202
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.1%, PF 0.86, Expectancy -17.94"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2575.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.8%, Trades 714, AvgW/L 279.54/222.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1588,
+          "short_signals": 1644,
+          "total_signals": 3232
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate many false positives in choppy markets because it only checks histogram positivity and momentum sign, ignoring price trend and volume. 2. A 2.2\u00d7 ATR stop can be too wide for a 30\u2011min pair, letting large whipsaws erode capital. 3. The exit rule (cross below zero or negative momentum) is too coarse and may trigger too late, missing profit\u2011taking opportunities. 4. The 2.8:1 reward\u2011to\u2011risk target is fixed; if the average win is smaller, the strategy will be unprofitable despite correct signals.\n[Backup plan] If returns are negative, tighten the entry to require a MACD histogram crossing above zero AND a momentum value above a high percentile (e.g., > 70th), and add a short\u2011term EMA filter to confirm price direction. Lower the ATR multiplier to 1.5\u00d7 or use a trailing ATR stop to protect gains. If Sharpe is low, reduce the reward\u2011to\u2011risk to 2:1, shorten the momentum period (e.g., 5\u2011period instead of 10), and consider a dynamic take\u2011profit based on recent swing highs. If the strategy still fails, switch to a breakout model using a 30\u2011min high/low channel or a volatility\u2011adjusted mean\u2011reversion filter on the same pair."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.220604404271936,
+            "trades_confidence": 10.0,
+            "win_rate": 1.7268907563025202
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "MACD histogram acceleration identifies short\u2011term momentum while an ADX filter (>25) ensures the market is in a strong trend; ATR\u2011based sizing limits risk in volatile periods, together reducing false entries that caused the previous high drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -114.40611803242487,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8256364618379797,
+      "win_rate_pct": 40.04854368932039,
+      "trades": 412,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -7.970904601692358,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5145631067961167
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -114.4%, PF 0.83, Expectancy -27.77"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3447.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.0%, Trades 412, AvgW/L 328.32/265.64"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 961,
+          "short_signals": 708,
+          "total_signals": 1669
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on MACD histogram acceleration and a fixed ADX filter can be too laggy and may generate many false entries on a 30\u2011minute chart; the ATR\u2011based stop (2.2\u00d7) may be either too tight during calm periods or too loose when volatility spikes, and the 2.8:1 risk/reward target is aggressive for a momentum play. If the backtest remains negative, I would first tighten the trend filter\u2014raise ADX to 30 or add a short\u2011term EMA crossover\u2014to reduce whipsaws, and lower the ATR multiplier to 1.8 to tighten stops. If Sharpe stays low, consider relaxing the risk/reward to 2:1, shortening the MACD fast/slow settings to respond quicker, and introducing a volatility\u2011adjusted position size. As a fallback, I\u2019d switch to a breakout\u2011based scheme (e.g., 30\u2011min VWAP or Bollinger Band breakouts) or a simple EMA\u2011pair strategy that can capture trend direction without the lag of MACD histograms.\n[Backup plan] If the current approach fails, replace MACD with a directional indicator like ADX\u2011filtered EMA crossover and use a trailing ATR stop instead of a fixed exit; alternatively, test a mean\u2011reversion rule around the 30\u2011min VWAP with a tighter 1.5\u00d7 ATR stop and a 1.5:1 reward target to improve risk\u2011adjusted returns."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -7.970904601692358,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5145631067961167
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining MACD histogram acceleration with a parallel momentum surge ensures the trade is taken only when both the trend and price acceleration agree, filtering out weak or divergent movements; ATR\u2011based sizing adapts risk to market volatility, preventing overexposure during calm periods and protecting capital during spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.12608521214875,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8639242786565514,
+      "win_rate_pct": 40.7563025210084,
+      "trades": 714,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.220604404271936,
+          "trades_confidence": 10.0,
+          "win_rate": 1.7268907563025202
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.1%, PF 0.86, Expectancy -17.94"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2575.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.8%, Trades 714, AvgW/L 279.54/222.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1588,
+          "short_signals": 1644,
+          "total_signals": 3232
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.220604404271936,
+            "trades_confidence": 10.0,
+            "win_rate": 1.7268907563025202
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "MACD histogram acceleration coupled with RSI above 50 confirms sustained bullish momentum; the ATR component provides volatility\u2011based risk limits, filtering out weak or choppy markets and reducing false entries.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.720436391631042,
+      "return_pct": -91.9569551375817,
+      "max_drawdown_pct": -95.69017842893992,
+      "profit_factor": 0.8951199364058314,
+      "win_rate_pct": 40.723270440251575,
+      "trades": 636,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -20.172218965669177,
+          "return": -33.0,
+          "profit_factor": -4.7945171928762775,
+          "trades_confidence": 10.0,
+          "win_rate": 1.7169811320754726
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 60.690178428939916
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -92.0%, PF 0.90, Expectancy -14.46"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 95.7%, Vol 221.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.720, Sortino -0.967, Calmar -1.042"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.7%, Trades 636, AvgW/L 303.02/232.57"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1287,
+          "short_signals": 1511,
+          "total_signals": 2798
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy generates many trades (hundreds per run) yet yields large losses, indicating over\u2011trading and weak signals. Relying solely on MACD histogram acceleration and a single RSI threshold ignores broader trend context and may trigger in choppy markets. The fixed ATR(2.2x) stop and high risk/reward (2.8:1) are not adjusted to trade size or volatility, leading to frequent stop\u2011outs. The entry/exit logic is symmetrical for bullish and bearish but only long is described, missing a balanced approach. Finally, the 30\u2011min line is highly liquid but may have high noise, causing the MACD to oscillate frequently.\n[Backup plan] If returns stay negative, add a trend filter such as a 200\u2011period EMA or a higher\u2011time\u2011frame MA to confirm direction and prune weak entries. Tighten the ATR multiplier to 1.5x or use a volatility\u2011scaled stop per trade. Reduce the RSI threshold to 60 for stronger confirmation and introduce a minimum MACD histogram value (e.g., >0.5). If Sharpe remains low, adjust MACD periods (fast 12, slow 26 \u2192 8/21) to make it more responsive and test a 1:1 risk/reward to reduce over\u2011exposure. As an alternative, switch to a breakout\u2011based approach: use a Donchian channel or Bollinger Band breakout with ATR\u2011based trailing stops, which may capture stronger moves and lower trade frequency."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 60.690178428939916,
+          "components": {
+            "sharpe": -20.172218965669177,
+            "return": -33.0,
+            "profit_factor": -4.7945171928762775,
+            "trades_confidence": 10.0,
+            "win_rate": 1.7169811320754726
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "When MACD moves above its signal line while the MACD histogram is rising, momentum is positive, the price is trending upward, and ATR indicates sufficient volatility, a strong upward trend is likely to continue. Exiting when the histogram turns negative or MACD crosses below the signal line captures the point where momentum wanes or reverses, limiting losses while allowing the trade to profit from the initial acceleration.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.71438221302355,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8693358607394985,
+      "win_rate_pct": 40.32697547683924,
+      "trades": 734,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.973217794765782,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5980926430517712
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.7%, PF 0.87, Expectancy -17.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 718.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.3%, Trades 734, AvgW/L 289.31/224.90"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 2700,
+          "short_signals": 2994,
+          "total_signals": 5694
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) Heavy reliance on MACD+Momentum may create noisy signals and high trade count; 2) ATR\u2011based SL may be too wide for a 30\u2011min crypto pair, leading to large drawdowns; 3) No trend filter means the strategy can go long in a flat market; 4) Exiting only on histogram sign change may miss partial reversals, causing premature exits or missed gains.\n[Backup plan] If returns stay negative, add a directional filter (e.g., price above its 50\u2011period SMA) and tighten the ATR multiplier to 1.5x. For low Sharpe, raise the required histogram slope threshold (e.g., >0.0005) and shift to a 2.8:1 risk/reward with a trailing stop of 1.2x ATR. If the strategy still fails, switch to a breakout\u2011based approach using 20\u2011period ATR bands and trade only when price closes beyond the upper band, exiting at the lower band or a 1:2 risk/reward."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.973217794765782,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5980926430517712
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 7
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Using MACD histogram positivity to capture accelerating momentum combined with a simple momentum indicator ensures entries only when price is moving strongly in the same direction; ATR-based dynamic stops adapt to volatility, limiting downside while allowing a generous risk/reward of 2.8:1, which should reduce whipsaws and improve Sharpe in the 30\u2011minute timeframe.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -128.71438221302355,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8693358607394985,
+      "win_rate_pct": 40.32697547683924,
+      "trades": 734,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.973217794765782,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5980926430517712
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -128.7%, PF 0.87, Expectancy -17.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 718.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.3%, Trades 734, AvgW/L 289.31/224.90"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 7352 rows. Every boolean mask MUST also have exactly 7352 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 7352 rows. Every boolean mask MUST also have exactly 7352 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy relies heavily on MACD histogram positivity and a simple momentum indicator, which can generate many false signals in choppy 30\u2011min markets, leading to high trade counts and slippage. 2. The ATR(2.2\u00d7) stop may be too tight during high\u2011volatility spikes, causing premature exits, while the 2.8:1 risk/reward target may be unrealistic for a 30\u2011min timeframe. 3. Over\u2011fitting to historical data is a risk given the large number of trades (\u2248700) without a robust filter for trend strength.\n[Backup plan] If returns remain negative, drop the momentum filter and use a stricter MACD histogram threshold (e.g., > 0.5\u00d7 signal difference) or add a trend filter like a 50\u2011period EMA. If Sharpe is low, tighten the ATR multiplier to 1.8\u00d7 and lower the risk/reward target to 2:1 to capture more consistent small gains. As an alternative, test a volatility\u2011breakout approach with a 1\u2011hour ATR\u2011based stop and a 20\u2011period EMA trend filter to reduce whipsaws and improve risk\u2011adjusted performance."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.973217794765782,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5980926430517712
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 8
+    }
+  ]
+}

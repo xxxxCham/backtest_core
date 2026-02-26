@@ -1,0 +1,264 @@
+{
+  "session_id": "20260226_083412_objectif_utiliser_la_famille_robuste_de",
+  "objective": "Objectif: \"Utiliser la famille robuste de breakouts sur le token IOTAUSDC dans le timeframe 4h, en combinant l'Indicateur EMA avec un filtre horaire de liquidite, et une entr\u00e9e conditionnelle bas\u00e9e sur les courbes Aroon. Le risque est limit\u00e9 par un stop loss \u00e0 {SL} et un take profit \u00e0 {TP}. La strat\u00e9gie doit \u00eatre testable en faisant varier l'angle d'inclinaison de la trajectoire, ou bien en changeant le seuil du cours bas/haut pour la gating par volatilit\u00e9. L'hypoth\u00e8se est que cette combinaison permettra de maximiser les profits tout en minimisant les pertes.",
+  "status": "max_iterations",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA with Bollinger Bands and Aroon indicators along with ATR based risk management will create a robust breakout strategy in the 4h timeframe for IOTA/USDC. This combination should minimize losses while maximizing profits.",
+      "change_type": "both",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.035329870708534536,
+      "return_pct": -17.410464294194863,
+      "max_drawdown_pct": -39.86726505115294,
+      "profit_factor": 0.9058591475600586,
+      "win_rate_pct": 28.8135593220339,
+      "trades": 59,
+      "continuous_score": -45.76782537606512,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -0.989236379838967,
+          "return": -19.15151072361435,
+          "profit_factor": -4.303581825825893,
+          "trades_confidence": 9.833333333333332,
+          "win_rate": -1.8559322033898302
+        },
+        "penalties": {
+          "drawdown_pressure": 13.244843367435294,
+          "drawdown_excess": 4.056054209294118,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 4.867265051152941
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -17.4%, PF 0.91, Expectancy -29.51"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 39.9%, Vol 42.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.035, Sortino -0.030, Calmar -0.066"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.8%, Trades 59, AvgW/L 985.47/440.33"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: 'float' object is not subscriptable",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: 'float' object is not subscriptable",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_083412_objectif_utiliser_la_famille_robuste_de\\strategy.py\", line 73, in generate_signals\n    indicators = {name: arr[i] for name, arr in signals.items() if arr is not None}\nTypeError: 'float' object is not subscriptable",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy aims to create a robust breakout strategy using EMA, Bollinger Bands and Aroon indicators with risk management based on Average True Range (ATR). The hypothesis is that this combination will minimize losses while maximizing profits. Potential weaknesses include the possibility of whipsaws caused by Bollinger Bands, low Sharpe ratio if returns are not high enough for the added volatility risk, and dependence on specific market conditions such as liquidity. If results are poor or negative, increasing stop loss threshold may be tried to limit losses. For a mediocre strategy with low Sharpe ratio, adjusting parameters like changing the angle of inclination of the trajectory, or varying the course-high/low threshold for gating volatility could help improve performance. In case the current approach fails, another approach that uses different indicators and risk management methods should be considered."
+        },
+        "scoring": {
+          "continuous_score": -45.76782537606512,
+          "drawdown_excess_pct": 4.867265051152941,
+          "components": {
+            "sharpe": -0.989236379838967,
+            "return": -19.15151072361435,
+            "profit_factor": -4.303581825825893,
+            "trades_confidence": 9.833333333333332,
+            "win_rate": -1.8559322033898302
+          },
+          "penalties": {
+            "drawdown_pressure": 13.244843367435294,
+            "drawdown_excess": 4.056054209294118,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA with Bollinger Bands and Aroon indicators along with ATR based risk management will create a robust breakout strategy in the 4h timeframe for IOTA/USDC. This combination should minimize losses while maximizing profits.",
+      "change_type": "both",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.035329870708534536,
+      "return_pct": -17.410464294194863,
+      "max_drawdown_pct": -39.86726505115294,
+      "profit_factor": 0.9058591475600586,
+      "win_rate_pct": 28.8135593220339,
+      "trades": 59,
+      "continuous_score": -45.76782537606512,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -0.989236379838967,
+          "return": -19.15151072361435,
+          "profit_factor": -4.303581825825893,
+          "trades_confidence": 9.833333333333332,
+          "win_rate": -1.8559322033898302
+        },
+        "penalties": {
+          "drawdown_pressure": 13.244843367435294,
+          "drawdown_excess": 4.056054209294118,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 4.867265051152941
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -17.4%, PF 0.91, Expectancy -29.51"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 39.9%, Vol 42.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.035, Sortino -0.030, Calmar -0.066"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.8%, Trades 59, AvgW/L 985.47/440.33"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: 'float' object is not subscriptable",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: 'float' object is not subscriptable",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260226_083412_objectif_utiliser_la_famille_robuste_de\\strategy.py\", line 73, in generate_signals\n    indicators = {name: arr[i] for name, arr in signals.items() if arr is not None}\nTypeError: 'float' object is not subscriptable",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy aims to create a robust breakout strategy using EMA, Bollinger Bands and Aroon indicators with risk management based on Average True Range (ATR). The hypothesis is that this combination will minimize losses while maximizing profits. Potential weaknesses include the possibility of whipsaws caused by Bollinger Bands, low Sharpe ratio if returns are not high enough for the added volatility risk, and dependence on specific market conditions such as liquidity. If results are poor or negative, increasing stop loss threshold may be tried to limit losses. For a mediocre strategy with low Sharpe ratio, adjusting parameters like changing the angle of inclination of the trajectory, or varying the course-high/low threshold for gating volatility could help improve performance. In case the current approach fails, another approach that uses different indicators and risk management methods should be considered."
+        },
+        "scoring": {
+          "continuous_score": -45.76782537606512,
+          "drawdown_excess_pct": 4.867265051152941,
+          "components": {
+            "sharpe": -0.989236379838967,
+            "return": -19.15151072361435,
+            "profit_factor": -4.303581825825893,
+            "trades_confidence": 9.833333333333332,
+            "win_rate": -1.8559322033898302
+          },
+          "penalties": {
+            "drawdown_pressure": 13.244843367435294,
+            "drawdown_excess": 4.056054209294118,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ]
+}

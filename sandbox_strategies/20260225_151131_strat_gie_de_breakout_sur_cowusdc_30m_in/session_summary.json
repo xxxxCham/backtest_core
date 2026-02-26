@@ -1,0 +1,1256 @@
+{
+  "session_id": "20260225_151131_strat_gie_de_breakout_sur_cowusdc_30m_in",
+  "objective": "Strat\u00e9gie de Breakout sur COWUSDC 30m. Indicateurs : PSAR + BOLLINGER + ATR. Position quand le prix sort du range PSAR avec BOLLINGER montrant une expansion de volatilit\u00e9. Sortie si le prix r\u00e9int\u00e8gre le range ou trailing stop bas\u00e9 sur ATR. Stop-loss = 2.5x ATR, take-profit = 4.1x ATR.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A breakout occurs when price moves beyond the PSAR points and simultaneously exceeds the upper Bollinger band, indicating a shift from a consolidation phase to a strong trend; the expanding Bollinger width signals increased volatility that justifies a larger ATR-based risk buffer, while the PSAR provides a clear reversal trigger, reducing false breakouts in choppy markets.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include over\u2011reliance on PSAR as a reversal trigger (which can lag), using only the upper Bollinger band for entry while ignoring the lower band, and a fixed ATR\u2011based stop that may be too tight in volatile periods; the 30\u2011min window may produce many false breakouts in choppy markets. If the strategy underperforms, I would first test a tighter ATR multiplier for the stop\u2011loss (e.g., 1.5x) and a higher take\u2011profit (5x) to improve risk\u2011reward. For a low Sharpe, tightening the entry filter by requiring a minimum Bollinger width or a moving\u2011average trend confirmation could reduce noise. If the approach fails entirely, I would switch to a Donchian\u2011channel breakout with a trailing stop based on ATR, or a volatility\u2011scaled breakout using the Keltner channel, which tends to capture stronger trends with fewer whipsaws.\n[Backup plan] Implement a dual\u2011filter entry: price must break above the upper Bollinger AND the 50\u2011period SMA must be trending up; exit when price crosses below the lower Bollinger or the SMA. Use a 1.5x ATR stop\u2011loss and a 4x ATR take\u2011profit, and add a trailing stop that locks in 60% of the gain. If still weak, replace PSAR with an EMA crossover for trend confirmation and test on a 1\u2011hour timeframe to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining a PSAR trend filter with a Bollinger breakout that only occurs when volatility is expanding (high ATR and wide Bollinger bands) reduces false breakouts in choppy markets and ensures the move is supported by a strong trend, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -92.52494013681591,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9259507130566849,
+      "win_rate_pct": 41.62436548223351,
+      "trades": 591,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -3.385110260265835,
+          "trades_confidence": 10.0,
+          "win_rate": 1.9873096446700522
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -92.5%, PF 0.93, Expectancy -15.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 5218.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.6%, Trades 591, AvgW/L 470.32/362.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 709,
+          "short_signals": 753,
+          "total_signals": 1462
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy suffers from too many edge\u2011case triggers: a fixed 0.002 ATR entry filter is weak on a low\u2011volatility pair, the Bollinger width condition may be met in sideways markets, and the exit rule (mid\u2011band or PSAR) is too aggressive, generating frequent whipsaws. Additionally, the large 953 trades in a single backtest suggest over\u2011trading and possible slippage that isn\u2019t accounted for. Without position sizing or a dynamic stop\u2011loss, the 2.5\u00d7ATR SL may be too loose for the 4.1\u00d7ATR TP, leading to negative risk\u2011adjusted returns.\n\nIf results are negative, first tighten the volatility filter\u2014raise the ATR multiplier to 0.005\u20130.01 of close and require a minimum Bollinger width of 0.06\u00d7middle. Also replace the simple PSAR exit with a trailing ATR stop (1\u00d7ATR) to lock in gains.\n\nFor mediocre Sharpe, experiment with longer PSAR step sizes (0.02\u20130.05) and a 20\u2011period Bollinger to smooth the breakout trigger; consider adding a secondary trend filter like a 50\u2011period EMA to reduce whipsaws.\n\nIf the breakout\u2011plus\u2011trend combo still fails, pivot to a Donchian\u2011channel breakout with a volatility filter, or use an ATR\u2011based breakout (price > ATR breakout level) combined with a momentum oscillator (e.g., MACD) to confirm the move."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -3.385110260265835,
+            "trades_confidence": 10.0,
+            "win_rate": 1.9873096446700522
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a price breakout of Bollinger bands with the PSAR trend indicator ensures that entries occur only when price is moving decisively in the same direction as the PSAR. Adding a volatility filter based on ATR prevents entries during low\u2011volatility periods, reducing whipsaw trades. This structure should improve risk\u2011adjusted returns by capturing strong trend moves while avoiding false breakouts.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate too many false breakouts because PSAR lags on 30\u2011min bars and Bollinger bands can be too wide in low\u2011volatility periods, leading to whipsaws. 2. The fixed ATR filters (0.0005\u00d7close) may not adapt to regime changes, allowing entries during sideways markets. 3. Exit rules (middle band or PSAR flip) can trigger prematurely, capping profits. 4. The high trade count (\u22481000) suggests over\u2011trading, inflating transaction costs and skewing Sharpe.\n[Backup plan] If returns stay negative, tighten entry by requiring close > upper band by \u22651.5\u00d7ATR and use a longer PSAR step (e.g., 0.05).  Reduce trade frequency by adding a trend filter such as a 50\u2011period EMA.  If Sharpe is low but returns positive, adjust risk parameters: raise stop\u2011loss to 3\u00d7ATR, target to 5\u00d7ATR, and apply a 1\u2011bar ATR trailing stop to lock in gains.  Alternatively, replace Bollinger with Keltner channels and use a volume\u2011weighted breakout trigger to improve signal quality."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining PSAR trend confirmation with Bollinger breakout ensures entries only in strong directional moves, while ATR-based stops adapt to volatility and reduce whipsaw losses in the 30m COWUSDC market.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -148.89166312384071,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9038209069480467,
+      "win_rate_pct": 39.71631205673759,
+      "trades": 846,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.396758539517864,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4148936170212778
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -148.9%, PF 0.90, Expectancy -17.60"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 10919.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.7%, Trades 846, AvgW/L 416.42/303.54"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1117,
+          "short_signals": 1168,
+          "total_signals": 2285
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on PSAR + Bollinger breakouts on a 30\u2011min chart produces many noisy entries; COWUSDC\u2019s high intraday volatility often pushes price through the upper band only to retract, causing frequent whipsaws. The stop\u2011loss at 2.5\u202fATR may be too tight for a volatile pair, while the TP at 4.1\u202fATR is hard to hit if the market is range\u2011bound, leading to many losing trades. The exit rule (crossing the middle band) is too early and ignores trend strength, which explains the high trade count and negative Sharpe. Additionally, the entry filter \u201catr > 0.005\u202f\u00d7\u202fclose\u201d is arbitrary and may exclude profitable moves in low\u2011volatility periods.\n[Backup plan] If the backtest remains negative, switch to a trailing\u2011stop only strategy: enter on a PSAR\u2011confirmed breakout, then trail by 1.5\u00d7ATR and let the TP be implicit in the trailing stop. If Sharpe is mediocre, tighten the Bollinger period to 12 and increase the entry volatility threshold to 0.01\u00d7close, and use a 3\u2011period EMA crossover as an additional filter to reduce false breakouts. As an alternative, abandon PSAR and use a simple 50\u2011period EMA trend filter combined with a 2\u2011period ATR breakout and a fixed 5\u00d7ATR profit target, which has historically performed better on COWUSDC\u2019s 30\u2011min time\u2011frame."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.396758539517864,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4148936170212778
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using the PSAR to confirm the prevailing trend limits entries to only those breakouts that are supported by a clear directional signal, while the Bollinger breakout captures moments of volatility expansion. The ATR-based risk management scales stops and targets to current market conditions, reducing the chance of premature exits in low\u2011volatility periods and preventing over\u2011trailing in high\u2011volatility environments.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The PSAR\u2011Bollinger combo produces many false breakouts in low\u2011volatility periods and the exit rule (crossing below middle band or PSAR) is too aggressive, causing premature exits; the ATR\u2011based stop and TP may be too tight for a 30\u2011min crypto pair, inflating slippage and whipsaws. The strategy lacks a trend\u2011strength filter, so it trades in sideways markets where the PSAR can flicker, leading to the high trade count and negative Sharpe observed. A single\u2011period ATR multiplier of 2.5/4.1 may not scale well across different volatility regimes, especially on a highly liquid pair like COWUSDC.\n[Backup plan] If the backtest remains negative, add a trend filter such as a 50\u2011period EMA or ADX > 20 before accepting a breakout, and tighten the entry to require the close to be >1.5\u00d7 the Bollinger band width above the upper band. For a mediocre Sharpe, increase the ATR stop to 3\u00d7 and TP to 5\u00d7 to reduce over\u2011trailing and capture more of the trend, and test a 20\u2011period Bollinger band with 2.5\u03c3 to smooth noise. If performance stays weak, switch to a Donchian\u2011channel breakout with a trailing stop based on a higher\u2011timeframe ATR, or try a volatility\u2011weighted mean\u2011reversion strategy that enters after a price retracts to the band after a breakout."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining PSAR trend confirmation with a Bollinger breakout limits trades to clear directional moves, while ATR-based stops adapt to market volatility, reducing overtrading in weak periods and protecting capital during sharp swings.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The PSAR\u2011Bollinger\u2011ATR combo suffers from frequent false breakouts on a 30\u2011min chart, high trade count and a fixed ATR\u2011based TP/SL that may be too wide or too tight for the volatility of COWUSDC. The exit rule (crossing middle band or SAR reversal) can trigger prematurely in choppy periods, while the 4.1\u00d7 ATR take\u2011profit is aggressive and may leave profits unclaimed. The strategy also ignores overall trend direction, leading to many counter\u2011trend entries.\n[Backup plan] If results stay negative, add a directional filter such as a 50\u2011period EMA (only trade when price is above it for longs) and tighten the stop to 1.5\u00d7 ATR. If Sharpe is low, experiment with a 2\u00d7 ATR TP and a 3\u00d7 ATR SL, or use a trailing ATR of 1\u00d7 ATR. As an alternative, switch to a VWAP\u2011based breakout with a 20\u2011period RSI filter to capture stronger directional moves and reduce overtrading."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "A breakout occurs when price moves beyond the PSAR points and simultaneously exceeds the upper Bollinger band, indicating a shift from a consolidation phase to a strong trend; the expanding Bollinger width signals increased volatility that justifies a larger ATR-based risk buffer, while the PSAR provides a clear reversal trigger, reducing false breakouts in choppy markets.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include over\u2011reliance on PSAR as a reversal trigger (which can lag), using only the upper Bollinger band for entry while ignoring the lower band, and a fixed ATR\u2011based stop that may be too tight in volatile periods; the 30\u2011min window may produce many false breakouts in choppy markets. If the strategy underperforms, I would first test a tighter ATR multiplier for the stop\u2011loss (e.g., 1.5x) and a higher take\u2011profit (5x) to improve risk\u2011reward. For a low Sharpe, tightening the entry filter by requiring a minimum Bollinger width or a moving\u2011average trend confirmation could reduce noise. If the approach fails entirely, I would switch to a Donchian\u2011channel breakout with a trailing stop based on ATR, or a volatility\u2011scaled breakout using the Keltner channel, which tends to capture stronger trends with fewer whipsaws.\n[Backup plan] Implement a dual\u2011filter entry: price must break above the upper Bollinger AND the 50\u2011period SMA must be trending up; exit when price crosses below the lower Bollinger or the SMA. Use a 1.5x ATR stop\u2011loss and a 4x ATR take\u2011profit, and add a trailing stop that locks in 60% of the gain. If still weak, replace PSAR with an EMA crossover for trend confirmation and test on a 1\u2011hour timeframe to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining a PSAR trend filter with a Bollinger breakout that only occurs when volatility is expanding (high ATR and wide Bollinger bands) reduces false breakouts in choppy markets and ensures the move is supported by a strong trend, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -92.52494013681591,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9259507130566849,
+      "win_rate_pct": 41.62436548223351,
+      "trades": 591,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -3.385110260265835,
+          "trades_confidence": 10.0,
+          "win_rate": 1.9873096446700522
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -92.5%, PF 0.93, Expectancy -15.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 5218.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.6%, Trades 591, AvgW/L 470.32/362.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 709,
+          "short_signals": 753,
+          "total_signals": 1462
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy suffers from too many edge\u2011case triggers: a fixed 0.002 ATR entry filter is weak on a low\u2011volatility pair, the Bollinger width condition may be met in sideways markets, and the exit rule (mid\u2011band or PSAR) is too aggressive, generating frequent whipsaws. Additionally, the large 953 trades in a single backtest suggest over\u2011trading and possible slippage that isn\u2019t accounted for. Without position sizing or a dynamic stop\u2011loss, the 2.5\u00d7ATR SL may be too loose for the 4.1\u00d7ATR TP, leading to negative risk\u2011adjusted returns.\n\nIf results are negative, first tighten the volatility filter\u2014raise the ATR multiplier to 0.005\u20130.01 of close and require a minimum Bollinger width of 0.06\u00d7middle. Also replace the simple PSAR exit with a trailing ATR stop (1\u00d7ATR) to lock in gains.\n\nFor mediocre Sharpe, experiment with longer PSAR step sizes (0.02\u20130.05) and a 20\u2011period Bollinger to smooth the breakout trigger; consider adding a secondary trend filter like a 50\u2011period EMA to reduce whipsaws.\n\nIf the breakout\u2011plus\u2011trend combo still fails, pivot to a Donchian\u2011channel breakout with a volatility filter, or use an ATR\u2011based breakout (price > ATR breakout level) combined with a momentum oscillator (e.g., MACD) to confirm the move."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -3.385110260265835,
+            "trades_confidence": 10.0,
+            "win_rate": 1.9873096446700522
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a price breakout of Bollinger bands with the PSAR trend indicator ensures that entries occur only when price is moving decisively in the same direction as the PSAR. Adding a volatility filter based on ATR prevents entries during low\u2011volatility periods, reducing whipsaw trades. This structure should improve risk\u2011adjusted returns by capturing strong trend moves while avoiding false breakouts.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate too many false breakouts because PSAR lags on 30\u2011min bars and Bollinger bands can be too wide in low\u2011volatility periods, leading to whipsaws. 2. The fixed ATR filters (0.0005\u00d7close) may not adapt to regime changes, allowing entries during sideways markets. 3. Exit rules (middle band or PSAR flip) can trigger prematurely, capping profits. 4. The high trade count (\u22481000) suggests over\u2011trading, inflating transaction costs and skewing Sharpe.\n[Backup plan] If returns stay negative, tighten entry by requiring close > upper band by \u22651.5\u00d7ATR and use a longer PSAR step (e.g., 0.05).  Reduce trade frequency by adding a trend filter such as a 50\u2011period EMA.  If Sharpe is low but returns positive, adjust risk parameters: raise stop\u2011loss to 3\u00d7ATR, target to 5\u00d7ATR, and apply a 1\u2011bar ATR trailing stop to lock in gains.  Alternatively, replace Bollinger with Keltner channels and use a volume\u2011weighted breakout trigger to improve signal quality."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining PSAR trend confirmation with Bollinger breakout ensures entries only in strong directional moves, while ATR-based stops adapt to volatility and reduce whipsaw losses in the 30m COWUSDC market.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -148.89166312384071,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9038209069480467,
+      "win_rate_pct": 39.71631205673759,
+      "trades": 846,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.396758539517864,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4148936170212778
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -148.9%, PF 0.90, Expectancy -17.60"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 10919.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.7%, Trades 846, AvgW/L 416.42/303.54"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1117,
+          "short_signals": 1168,
+          "total_signals": 2285
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on PSAR + Bollinger breakouts on a 30\u2011min chart produces many noisy entries; COWUSDC\u2019s high intraday volatility often pushes price through the upper band only to retract, causing frequent whipsaws. The stop\u2011loss at 2.5\u202fATR may be too tight for a volatile pair, while the TP at 4.1\u202fATR is hard to hit if the market is range\u2011bound, leading to many losing trades. The exit rule (crossing the middle band) is too early and ignores trend strength, which explains the high trade count and negative Sharpe. Additionally, the entry filter \u201catr > 0.005\u202f\u00d7\u202fclose\u201d is arbitrary and may exclude profitable moves in low\u2011volatility periods.\n[Backup plan] If the backtest remains negative, switch to a trailing\u2011stop only strategy: enter on a PSAR\u2011confirmed breakout, then trail by 1.5\u00d7ATR and let the TP be implicit in the trailing stop. If Sharpe is mediocre, tighten the Bollinger period to 12 and increase the entry volatility threshold to 0.01\u00d7close, and use a 3\u2011period EMA crossover as an additional filter to reduce false breakouts. As an alternative, abandon PSAR and use a simple 50\u2011period EMA trend filter combined with a 2\u2011period ATR breakout and a fixed 5\u00d7ATR profit target, which has historically performed better on COWUSDC\u2019s 30\u2011min time\u2011frame."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.396758539517864,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4148936170212778
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using the PSAR to confirm the prevailing trend limits entries to only those breakouts that are supported by a clear directional signal, while the Bollinger breakout captures moments of volatility expansion. The ATR-based risk management scales stops and targets to current market conditions, reducing the chance of premature exits in low\u2011volatility periods and preventing over\u2011trailing in high\u2011volatility environments.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The PSAR\u2011Bollinger combo produces many false breakouts in low\u2011volatility periods and the exit rule (crossing below middle band or PSAR) is too aggressive, causing premature exits; the ATR\u2011based stop and TP may be too tight for a 30\u2011min crypto pair, inflating slippage and whipsaws. The strategy lacks a trend\u2011strength filter, so it trades in sideways markets where the PSAR can flicker, leading to the high trade count and negative Sharpe observed. A single\u2011period ATR multiplier of 2.5/4.1 may not scale well across different volatility regimes, especially on a highly liquid pair like COWUSDC.\n[Backup plan] If the backtest remains negative, add a trend filter such as a 50\u2011period EMA or ADX > 20 before accepting a breakout, and tighten the entry to require the close to be >1.5\u00d7 the Bollinger band width above the upper band. For a mediocre Sharpe, increase the ATR stop to 3\u00d7 and TP to 5\u00d7 to reduce over\u2011trailing and capture more of the trend, and test a 20\u2011period Bollinger band with 2.5\u03c3 to smooth noise. If performance stays weak, switch to a Donchian\u2011channel breakout with a trailing stop based on a higher\u2011timeframe ATR, or try a volatility\u2011weighted mean\u2011reversion strategy that enters after a price retracts to the band after a breakout."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining PSAR trend confirmation with a Bollinger breakout limits trades to clear directional moves, while ATR-based stops adapt to market volatility, reducing overtrading in weak periods and protecting capital during sharp swings.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -173.71032151940798,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8934358951160277,
+      "win_rate_pct": 39.769150052465896,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.871501937553019,
+          "trades_confidence": 10.0,
+          "win_rate": 1.430745015739769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -173.7%, PF 0.89, Expectancy -18.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2362.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.8%, Trades 953, AvgW/L 384.27/283.99"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1263,
+          "short_signals": 1313,
+          "total_signals": 2576
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The PSAR\u2011Bollinger\u2011ATR combo suffers from frequent false breakouts on a 30\u2011min chart, high trade count and a fixed ATR\u2011based TP/SL that may be too wide or too tight for the volatility of COWUSDC. The exit rule (crossing middle band or SAR reversal) can trigger prematurely in choppy periods, while the 4.1\u00d7 ATR take\u2011profit is aggressive and may leave profits unclaimed. The strategy also ignores overall trend direction, leading to many counter\u2011trend entries.\n[Backup plan] If results stay negative, add a directional filter such as a 50\u2011period EMA (only trade when price is above it for longs) and tighten the stop to 1.5\u00d7 ATR. If Sharpe is low, experiment with a 2\u00d7 ATR TP and a 3\u00d7 ATR SL, or use a trailing ATR of 1\u00d7 ATR. As an alternative, switch to a VWAP\u2011based breakout with a 20\u2011period RSI filter to capture stronger directional moves and reduce overtrading."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.871501937553019,
+            "trades_confidence": 10.0,
+            "win_rate": 1.430745015739769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

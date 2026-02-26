@@ -1,0 +1,213 @@
+{
+  "session_id": "20260219_140432_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=15)\n- adx(period=21)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 20\nrisk:\nstop_atr_mult: 3.0\ntp_atr_mult: 3.0\ndescription: ATR stop-loss (3.0x) and take-profit (3.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A price breakout beyond the Donchian envelope signals a new trend; filtering with a high ADX confirms trend strength, while requiring ATR to exceed half the envelope width ensures sufficient volatility, reducing whipsaw entries in low\u2011volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include an overly rigid ADX threshold (30) that may exclude profitable early\u2011trend moves, a very short Donchian period (15) prone to whipsaws, and the absence of the ATR\u2011volatility filter in the actual entry logic. The exit rule\u2014crossing the Donchian middle or ADX falling below 20\u2014could be too blunt, causing premature exits in choppy markets. Additionally, a 1\u2011hour timeframe may still suffer from noise and slippage, especially with a 3\u00d7 ATR stop\u2011loss that can trigger on normal volatility spikes.\n[Backup plan] If the backtest shows negative returns, first add the ATR filter (require atr > 0.5\u00d7(donchian.upper\u2011donchian.lower)) to the entry conditions and lower the ADX threshold to 20 to capture weaker trends. For a mediocre Sharpe ratio, experiment with a longer Donchian window (e.g., 30) and a shorter ADX period (e.g., 14) to smooth noise, and tighten the stop\u2011loss to 2\u00d7ATR while keeping TP at 3\u00d7ATR. If performance remains weak, switch to a volatility\u2011breakout scheme such as a Keltner\u2011channel or Bollinger\u2011band breakout with a trend filter (e.g., MA crossover), and consider a trailing\u2011stop exit to lock in gains."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "A Donchian breakout signals a new trend, and an ADX above 20 confirms the trend strength; lowering the ADX threshold from 30 to 20 increases trade frequency while still filtering weak trends, allowing the strategy to capture more opportunities without excessive noise.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may over\u2011trade in sideways markets because the Donchian breakout can be triggered by noise; ADX>20 still allows weak trends. 2. The fixed 3\u00d7ATR stop/TP may be inappropriate for 0GUSDC\u2019s low volatility, leading to frequent stop\u2011outs or missed moves. 3. No trailing mechanism means profits can be prematurely capped. 4. The exit condition uses the middle band which can be too sensitive, causing early exits.\n[Backup plan] If returns are negative, lower the ADX threshold to 15 or add a 50\u2011period EMA filter to ensure a clear trend before entry.  If Sharpe is low, increase the stop/TP ratio to 4\u00d7ATR to capture larger moves and reduce noise; alternatively, adjust the exit to a trailing ATR or a fixed time exit.  For a different approach, switch to a Keltner\u2011channel breakout with a 14\u2011period ATR multiplier and use RSI(14) >70/30 as a momentum filter, keeping the same ATR stop logic.  This should reduce false breakouts and improve risk\u2011adjusted performance."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "EMA crossovers capture trend direction while RSI filters out overbought/oversold noise; ADX ensures the trend is strong enough, reducing false breakouts in choppy markets. ATR\u2011based SL/TP adapts to volatility, keeping risk consistent across regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "trades": 68,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `adx ...` alors que `adx` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: adx['adx']).",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['ema'].shift(...) sur ndarray. Utiliser une logique numpy.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

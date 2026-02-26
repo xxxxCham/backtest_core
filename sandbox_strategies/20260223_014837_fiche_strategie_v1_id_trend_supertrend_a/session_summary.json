@@ -1,0 +1,235 @@
+{
+  "session_id": "20260223_014837_fiche_strategie_v1_id_trend_supertrend_a",
+  "objective": "FICHE_STRATEGIE v1\nid: trend_supertrend\narchetype: trend_supertrend\nfamily: trend\ntimeframe: 1h\nside: both\nindicators:\n- supertrend(atr_period=17, multiplier=3.0)\n- adx(period=10)\n- atr(period=14)\nentry:\n- long: supertrend.direction == 1 and adx.adx > 25\n- short: supertrend.direction == -1 and adx.adx > 25\nexit:\n- condition: direction_change(supertrend.direction) or adx.adx < 20\nrisk:\nstop_atr_mult: 2.25\ntp_atr_mult: 5.5\ndescription: ATR trailing stop (2.25x) and take-profit (5.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "The supertrend indicator captures the prevailing trend direction while the ADX filter ensures only strong trends trigger entries, reducing whipsaw trades; ATR-based exits adjust to current volatility, protecting profits and limiting losses in a 1h crypto market.",
+      "change_type": "accept",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -138.31378376818856,
+      "trades": 93,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -138.3%, PF 0.70, Expectancy -148.72"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2445.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.7%, Trades 93, AvgW/L 1406.62/659.76"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1418,
+          "short_signals": 0,
+          "total_signals": 1418
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on lagging indicators (supertrend, ADX) which may delay entries, especially in a volatile 1h crypto market; the high ADX threshold (25) could filter out many profitable moves, while the ATR\u2011based stop/TP (2.25x/5.5x) may be too wide, letting noise erode gains. It also ignores market regime or volume, potentially exposing it to whipsaw in sideways periods. The exit rule only checks for direction change or ADX dip, which may miss partial trend reversals and cause over\u2011exposure to trailing stops that fire too late.\n[Backup plan] If returns are negative, lower the ADX entry filter to 20 and shorten the supertrend ATR period (e.g., 10) to capture earlier trend shifts. For low Sharpe, tighten the stop to 1.5x ATR and TP to 4x ATR, and add a secondary filter such as a 20\u2011period EMA crossover to reduce false signals. If the strategy still fails, switch to a volatility\u2011breakout approach using ATR\u2011based price targets with a shorter look\u2011back, or test a momentum oscillator (RSI/CCI) for entry timing while keeping the ATR trailing stop."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding a momentum filter (RSI) to the supertrend and ADX trend confirmation reduces whipsaw entries in volatile markets, improving risk-adjusted returns by ensuring trades only occur when price is both trending and moving beyond a neutral momentum threshold.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.7822574973582407,
+      "return_pct": -72.94961466949171,
+      "trades": 65,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -72.9%, PF 0.70, Expectancy -112.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 77.8%, Vol 152.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.782, Sortino -0.776, Calmar -1.241"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 65, AvgW/L 962.48/523.82"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_014837_fiche_strategie_v1_id_trend_supertrend_a\\strategy.py\", line 94, in generate_signals\n    prev_dir[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_retry_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on hard\u2011coded thresholds (ADX>25, RSI>50) that may be too rigid for 1h crypto data, leading to missed trends or over\u2011trading during sideways periods; the stop/TP multiples (2.25/5.5 ATR) are large and could lock in losses if the market is highly volatile; the exit condition using a single RSI cross may trigger too early or too late, especially in choppy markets. Also, the supertrend period 17 may be lagging for 1h candles, causing whipsaw entries despite the filter. Finally, using only a single timeframe and a single pair limits diversification and may produce overfitting.\n[Backup plan] If returns stay negative, switch to a shorter ATR period for the supertrend (e.g., 10) and tighten ADX to >30 to capture stronger trends, and replace RSI>50 with a momentum filter such as a 14\u2011period EMA cross to reduce whipsaw. If Sharpe remains low, reduce the TP multiple to 3.0 ATR and tighten stop to 1.5 ATR, then add a volatility filter (e.g., only trade when ATR/price > 0.5%) to avoid high\u2011volatility noise. Alternatively, test a multi\u2011timeframe confirmation (e.g., 4h ADX > 20) or move to a trend\u2011following EMA crossover with risk\u2011managed position sizing."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Using EMA200 as a long\u2011term trend filter alongside the supertrend ensures entries only occur when the market is aligned with a sustained trend, while the ADX filter confirms trend strength; this combination reduces whipsaws and limits drawdown in volatile periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -81.90693165339617,
+      "trades": 62,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -81.9%, PF 0.74, Expectancy -132.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3381.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.8%, Trades 62, AvgW/L 1445.67/680.90"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 561,
+          "short_signals": 0,
+          "total_signals": 561
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011reliant on a single 1\u2011hour timeframe and a hard ADX>25 filter can miss moderate trends and produce many whipsaws; the trailing stop at 2.25\u00d7ATR may cut gains prematurely while the 5.5\u00d7ATR TP is too distant for the volatility of 0GUSDC, leading to low risk\u2011reward. Adding a longer\u2011term trend filter (EMA200) is good, but the current entry logic may still trigger on false super\u2011trend flips because the ATR period (17) is relatively long, smoothing out quick reversals. Moreover, the strategy lacks dynamic position sizing or a volatility\u2011adjusted risk model, so drawdowns can be severe when markets swing against the trend.\n[Backup plan] If the backtest remains negative, first replace the hard ADX>25 with a softer threshold (e.g., >20) and add a simple EMA200 filter to the entry to avoid false signals. If Sharpe stays low, tighten the stop to 3\u00d7ATR and lower the TP to 3\u00d7ATR or use a fixed risk\u2011reward of 1:2 to improve consistency. As a last resort, switch to a dual\u2011time\u2011frame trend approach (e.g., 4\u2011hour EMA200 + 1\u2011hour supertrend) or try a volatility\u2011breakout strategy with a 20\u2011period EMA and a 2\u00d7ATR stop for more robust performance."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

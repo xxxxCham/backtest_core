@@ -33,6 +33,7 @@ from ui.components.charts import (
     render_ohlcv_with_trades_and_indicators,
     render_returns_distribution,
     render_trade_pnl_distribution,
+    render_walk_forward_results,
 )
 from ui.context import resolve_latest_version, save_versioned_preset
 from ui.helpers import build_indicator_overlays, generate_strategies_table
@@ -277,6 +278,12 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
                 st.text(f"Win Rate: {win_rate:.1f}%")
                 st.text(f"Profit Factor: {result.metrics.get('profit_factor', 0):.2f}")
                 st.text(f"Expectancy: ${result.metrics.get('expectancy', 0):.2f}")
+
+        # ── Walk-Forward (si disponible) ────────────────────────────────
+        wfa_summary = result.meta.get("walk_forward") if result is not None else None
+        if wfa_summary:
+            st.subheader("🧭 Frise Walk-Forward")
+            render_walk_forward_results(wfa_summary, key="wfa_results_main")
 
         if result is not None and not result.trades.empty:
             with st.expander("📊 Analyse Statistique Avancée (Seaborn)", expanded=True):

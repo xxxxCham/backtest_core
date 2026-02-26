@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import ast
 import concurrent.futures
+import csv
 import hashlib
 import importlib.util
 import json
@@ -73,10 +74,12 @@ MIN_CODE_LINES = 10
 # Nombre max de tentatives de réalignement quand le LLM répond hors phase
 MAX_PHASE_REALIGN_ATTEMPTS = 2
 # Nombre mini d'itérations backtestées avant d'autoriser un arrêt LLM "stop"
-MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 3
+MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 5
 # Checkpoints de progression positive pour arrêter tôt les sessions peu prometteuses
-POSITIVE_PROGRESS_GATE_CHECKPOINTS: Dict[int, int] = {3: 1, 6: 2}
+POSITIVE_PROGRESS_GATE_CHECKPOINTS: Dict[int, int] = {6: 1, 9: 2}
 MIN_TRADES_FOR_POSITIVE_PROGRESS = 1
+# Quota max de fallbacks positifs comptabilisés dans la progression
+MAX_POSITIVE_FALLBACK_COUNT = 1
 # Nombre mini de trades pour accepter une stratégie en cours d'optimisation
 MIN_TRADES_FOR_ACCEPT = 20
 MAX_DRAWDOWN_PCT_FOR_ACCEPT = 35.0
@@ -315,6 +318,7 @@ class BuilderSession:
     iterations: List[BuilderIteration] = field(default_factory=list)
     best_iteration: Optional[BuilderIteration] = None
     best_sharpe: float = float("-inf")
+    best_score: float = float("-inf")
     status: str = "running"  # "running", "success", "failed", "max_iterations"
 
     # Configuration
@@ -1024,15 +1028,67 @@ def _is_ruined_metrics(metrics: Dict[str, Any]) -> bool:
     return account_ruined or ret <= -90.0 or max_dd >= 90.0
 
 
-def _ranking_sharpe(metrics: Dict[str, Any]) -> float:
-    """Sharpe de ranking, pénalisé pour éviter de promouvoir des runs invalides."""
-    sharpe = _metric_float(metrics, "sharpe_ratio", float("-inf"))
+def _clamp(value: float, min_value: float, max_value: float) -> float:
+    return max(min_value, min(max_value, value))
+
+
+def compute_continuous_builder_score(
+    metrics: Dict[str, Any],
+    *,
+    target_sharpe: float = 1.0,
+) -> Dict[str, Any]:
+    """Score continu de qualité stratégie (sans seuil binaire brutal)."""
+    sharpe = _metric_float(metrics, "sharpe_ratio", 0.0)
+    ret = _metric_float(metrics, "total_return_pct", 0.0)
+    max_dd = abs(_metric_float(metrics, "max_drawdown_pct", 0.0))
+    profit_factor = _metric_float(metrics, "profit_factor", 1.0)
     trades = int(metrics.get("total_trades", 0) or 0)
-    if _is_ruined_metrics(metrics):
-        return -20.0
-    if trades <= 0:
-        return min(sharpe, -5.0)
-    return sharpe
+    win_rate = _metric_float(metrics, "win_rate_pct", 35.0)
+    ruined = _is_ruined_metrics(metrics)
+
+    target = max(float(target_sharpe or 1.0), 0.5)
+
+    components = {
+        "sharpe": _clamp(sharpe / target, -1.5, 2.0) * 28.0,
+        "return": _clamp(ret / 20.0, -1.5, 2.0) * 22.0,
+        "profit_factor": _clamp((profit_factor - 1.0) / 0.35, -1.5, 2.0) * 16.0,
+        "trades_confidence": _clamp(trades / 60.0, 0.0, 1.0) * 10.0,
+        "win_rate": _clamp((win_rate - 35.0) / 20.0, -1.0, 1.5) * 6.0,
+    }
+
+    drawdown_excess_pct = max(0.0, max_dd - MAX_DRAWDOWN_PCT_FOR_ACCEPT)
+    penalties = {
+        "drawdown_pressure": _clamp((max_dd - 20.0) / 30.0, 0.0, 2.0) * 20.0,
+        "drawdown_excess": _clamp(drawdown_excess_pct / 12.0, 0.0, 2.0) * 10.0,
+        "insufficient_trades": 8.0 if trades < MIN_TRADES_FOR_ACCEPT else 0.0,
+        "non_positive_return": 12.0 if ret <= 0.0 else 0.0,
+        "ruined": 80.0 if ruined else 0.0,
+    }
+
+    raw_total = float(sum(components.values()) - sum(penalties.values()))
+    score = _clamp(raw_total, -100.0, 100.0)
+
+    return {
+        "score": score,
+        "components": components,
+        "penalties": penalties,
+        "drawdown_excess_pct": drawdown_excess_pct,
+        "ruined": ruined,
+    }
+
+
+def _ranking_sharpe(
+    metrics: Dict[str, Any],
+    *,
+    target_sharpe: float = 1.0,
+) -> float:
+    """Score de ranking continu (historique conservé pour compatibilité de nom)."""
+    return float(
+        compute_continuous_builder_score(
+            metrics,
+            target_sharpe=target_sharpe,
+        ).get("score", -100.0)
+    )
 
 
 def _metrics_fingerprint(metrics: Dict[str, Any]) -> str:
@@ -1056,6 +1112,11 @@ def _is_accept_candidate(
     ret = _metric_float(metrics, "total_return_pct", 0.0)
     max_dd = abs(_metric_float(metrics, "max_drawdown_pct", 0.0))
     profit_factor = _metric_float(metrics, "profit_factor", MIN_PROFIT_FACTOR_FOR_ACCEPT)
+    score_payload = compute_continuous_builder_score(
+        metrics,
+        target_sharpe=target_sharpe,
+    )
+    quality_score = float(score_payload.get("score", -100.0))
 
     if _is_ruined_metrics(metrics):
         return False, "ruined_metrics"
@@ -1065,10 +1126,12 @@ def _is_accept_candidate(
         return False, "target_sharpe_not_reached"
     if ret <= MIN_RETURN_PCT_FOR_ACCEPT:
         return False, "non_positive_return"
-    if max_dd > MAX_DRAWDOWN_PCT_FOR_ACCEPT:
-        return False, "drawdown_too_high"
     if profit_factor < MIN_PROFIT_FACTOR_FOR_ACCEPT:
         return False, "profit_factor_too_low"
+    if max_dd > (MAX_DRAWDOWN_PCT_FOR_ACCEPT + 25.0):
+        return False, "drawdown_extreme"
+    if quality_score < 35.0:
+        return False, "quality_score_too_low"
     return True, "ok"
 
 
@@ -1084,18 +1147,30 @@ def _is_positive_progress_iteration(metrics: Dict[str, Any]) -> bool:
 def _count_positive_iterations(iterations: List[BuilderIteration]) -> int:
     """Compte les itérations backtestées positives dans l'historique de session.
 
-    Fallback iterations (deterministic code) are excluded: they don't
-    represent genuine LLM progress.
+    Fallback iterations with positive metrics are counted towards the quota,
+    but limited to MAX_POSITIVE_FALLBACK_COUNT to prevent accepting
+    sessions with only deterministic logic.
     """
     count = 0
+    fallback_positive_count = 0
+
     for it in iterations:
         if it.backtest_result is None:
             continue
-        if it.is_fallback:
-            continue
+
         metrics = it.backtest_result.metrics or {}
-        if _is_positive_progress_iteration(metrics):
-            count += 1
+        is_positive = _is_positive_progress_iteration(metrics)
+
+        if it.is_fallback:
+            # Fallbacks positifs comptent avec quota limité
+            if is_positive and fallback_positive_count < MAX_POSITIVE_FALLBACK_COUNT:
+                count += 1
+                fallback_positive_count += 1
+        else:
+            # Itérations LLM positives comptent toujours
+            if is_positive:
+                count += 1
+
     return count
 
 
@@ -3389,6 +3464,10 @@ def compute_diagnostic(
             "detail": f"WR {wr:.1f}%, Trades {n}, AvgW/L {avg_w:.2f}/{avg_l:.2f}",
         },
     }
+    continuous_score = compute_continuous_builder_score(
+        metrics,
+        target_sharpe=target_sharpe,
+    )
 
     # --- Catégorie principale (par gravité décroissante) ---
     if n == 0:
@@ -3567,6 +3646,12 @@ def compute_diagnostic(
         "trend": trend,
         "trend_detail": trend_detail,
         "score_card": sc,
+        "continuous_score": round(float(continuous_score.get("score", 0.0)), 2),
+        "score_breakdown": {
+            "components": continuous_score.get("components", {}),
+            "penalties": continuous_score.get("penalties", {}),
+            "drawdown_excess_pct": continuous_score.get("drawdown_excess_pct", 0.0),
+        },
     }
 
 
@@ -4308,8 +4393,27 @@ class StrategyBuilder:
             lines.append("Utilise cette pré-réflexion pour enrichir ton analyse.")
 
         remaining = session.max_iterations - iteration.iteration
+
+        # Calcul du prochain checkpoint
+        positive_count = _count_positive_iterations(session.iterations)
+        next_checkpoint = None
+        next_required = None
+
+        for checkpoint_iter in sorted(POSITIVE_PROGRESS_GATE_CHECKPOINTS.keys()):
+            if iteration.iteration < checkpoint_iter:
+                next_checkpoint = checkpoint_iter
+                next_required = POSITIVE_PROGRESS_GATE_CHECKPOINTS[checkpoint_iter]
+                break
+
         lines.append("")
         lines.append(f"Itérations restantes: {remaining}")
+
+        if next_checkpoint:
+            lines.append(
+                f"⚠️ Prochain checkpoint qualité: itération {next_checkpoint} "
+                f"(requis: {next_required} runs positifs, actuels: {positive_count})"
+            )
+
         lines.append("")
         lines.append('Réponds en JSON: {{"analysis": "...", "decision": "accept|continue|stop", "suggestions": [...]}}')
 
@@ -5418,17 +5522,35 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
 
                 metrics_cur = bt_result.metrics or {}
                 sharpe = _metric_float(metrics_cur, "sharpe_ratio", float("-inf"))
-                rank_sharpe = _ranking_sharpe(metrics_cur)
+                rank_score = _ranking_sharpe(
+                    metrics_cur,
+                    target_sharpe=session.target_sharpe,
+                )
+                score_payload = compute_continuous_builder_score(
+                    metrics_cur,
+                    target_sharpe=session.target_sharpe,
+                )
+                iteration.phase_feedback.setdefault("scoring", {}).update(
+                    {
+                        "continuous_score": score_payload.get("score"),
+                        "drawdown_excess_pct": score_payload.get("drawdown_excess_pct"),
+                        "components": score_payload.get("components"),
+                        "penalties": score_payload.get("penalties"),
+                    }
+                )
                 # Fallback iterations are NOT eligible for best — they use
                 # generic deterministic logic, not the LLM's actual proposal.
-                if rank_sharpe > session.best_sharpe and not iteration.is_fallback:
-                    session.best_sharpe = rank_sharpe
-                    session.best_iteration = iteration
-                    ts.best_update(rank_sharpe, i)
+                if not iteration.is_fallback:
+                    if sharpe > session.best_sharpe:
+                        session.best_sharpe = sharpe
+                    if rank_score > session.best_score:
+                        session.best_score = rank_score
+                        session.best_iteration = iteration
+                        ts.best_update(sharpe, i)
                 elif iteration.is_fallback:
                     logger.info(
-                        "builder_iter_%d_fallback_not_scored rank_sharpe=%.3f",
-                        i, rank_sharpe,
+                        "builder_iter_%d_fallback_not_scored rank_score=%.3f",
+                        i, rank_score,
                     )
 
                 # ── Phase 6b : Détection de stagnation ──
@@ -5481,24 +5603,39 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     positive_count = _count_positive_iterations(session.iterations)
                     if _is_positive_progress_iteration(metrics_cur):
                         positive_count += 1
+
+                    # Logging détaillé du comptage pour diagnostic
+                    fallback_positive_count = sum(
+                        1 for it in session.iterations
+                        if it.backtest_result and it.is_fallback
+                        and _is_positive_progress_iteration(it.backtest_result.metrics or {})
+                    )
+                    llm_positive_count = positive_count - min(fallback_positive_count, MAX_POSITIVE_FALLBACK_COUNT)
+
                     iteration.phase_feedback.setdefault("decision", {})[
                         "positive_progress_gate"
                     ] = {
                         "iteration": i,
                         "required_positive": positive_required,
                         "observed_positive": positive_count,
+                        "llm_positive": llm_positive_count,
+                        "fallback_positive": min(fallback_positive_count, MAX_POSITIVE_FALLBACK_COUNT),
                     }
                     if positive_count < positive_required:
                         gate_msg = (
-                            "Arrêt anticipé: progression positive insuffisante "
-                            f"au checkpoint {i} ({positive_count}/{positive_required})."
+                            f"Arrêt anticipé: progression positive insuffisante "
+                            f"au checkpoint {i} ({positive_count}/{positive_required} positifs, "
+                            f"dont {llm_positive_count} LLM et {min(fallback_positive_count, MAX_POSITIVE_FALLBACK_COUNT)} fallback)."
                         )
                         ts.warning(gate_msg)
                         logger.info(
-                            "builder_iter_%d_positive_gate_stop observed=%d required=%d",
+                            "builder_iter_%d_positive_gate_stop observed=%d required=%d "
+                            "llm=%d fallback=%d",
                             i,
                             positive_count,
                             positive_required,
+                            llm_positive_count,
+                            min(fallback_positive_count, MAX_POSITIVE_FALLBACK_COUNT),
                         )
                         iteration.analysis = (
                             "[Policy] early stop triggered by positive progression gate "
@@ -5574,11 +5711,12 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                         )
                         logger.info(
                             "builder_iter_%d_accept_overridden reason=%s trades=%d "
-                            "rank_sharpe=%.3f target=%.3f max_dd=%.2f",
+                            "best_sharpe=%.3f best_score=%.2f target=%.3f max_dd=%.2f",
                             i,
                             accept_reason,
                             trades,
                             session.best_sharpe,
+                            session.best_score,
                             session.target_sharpe,
                             max_dd,
                         )
@@ -5634,10 +5772,11 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     if not best_ok:
                         logger.info(
                             "builder_iter_%d_stop_rejected_success reason=%s "
-                            "best_rank_sharpe=%.3f",
+                            "best_sharpe=%.3f best_score=%.2f",
                             i,
                             best_reason,
                             session.best_sharpe,
+                            session.best_score,
                         )
                     break
 
@@ -5676,42 +5815,69 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
 
     def _save_session_summary(self, session: BuilderSession) -> None:
         """Sauvegarde un résumé JSON de la session."""
+        iteration_rows: List[Dict[str, Any]] = []
+        for it in session.iterations:
+            metrics = (
+                it.backtest_result.metrics
+                if it.backtest_result and isinstance(it.backtest_result.metrics, dict)
+                else {}
+            )
+            score_payload = (
+                compute_continuous_builder_score(
+                    metrics,
+                    target_sharpe=session.target_sharpe,
+                )
+                if metrics
+                else {}
+            )
+            row = {
+                "iteration": it.iteration,
+                "hypothesis": it.hypothesis,
+                "change_type": it.change_type,
+                "diagnostic_category": it.diagnostic_category,
+                "error": it.error,
+                "decision": it.decision,
+                "sharpe": metrics.get("sharpe_ratio") if metrics else None,
+                "return_pct": metrics.get("total_return_pct") if metrics else None,
+                "max_drawdown_pct": metrics.get("max_drawdown_pct") if metrics else None,
+                "profit_factor": metrics.get("profit_factor") if metrics else None,
+                "win_rate_pct": metrics.get("win_rate_pct") if metrics else None,
+                "trades": metrics.get("total_trades") if metrics else None,
+                "continuous_score": score_payload.get("score") if score_payload else None,
+                "score_breakdown": {
+                    "components": score_payload.get("components", {}) if score_payload else {},
+                    "penalties": score_payload.get("penalties", {}) if score_payload else {},
+                    "drawdown_excess_pct": score_payload.get("drawdown_excess_pct", 0.0) if score_payload else 0.0,
+                }
+                if score_payload
+                else None,
+                "score_card": (
+                    it.diagnostic_detail.get("score_card")
+                    if it.diagnostic_detail else None
+                ),
+                "is_fallback": it.is_fallback,
+                "phase_feedback": it.phase_feedback or None,
+            }
+            iteration_rows.append(row)
+
+        leaderboard = sorted(
+            [row for row in iteration_rows if row.get("continuous_score") is not None],
+            key=lambda row: float(row.get("continuous_score") or -100.0),
+            reverse=True,
+        )
+        for rank, row in enumerate(leaderboard, start=1):
+            row["rank"] = rank
+
         summary = {
             "session_id": session.session_id,
             "objective": session.objective,
             "status": session.status,
             "best_sharpe": session.best_sharpe,
+            "best_score": session.best_score,
             "total_iterations": len(session.iterations),
             "available_indicators": session.available_indicators,
-            "iterations": [
-                {
-                    "iteration": it.iteration,
-                    "hypothesis": it.hypothesis,
-                    "change_type": it.change_type,
-                    "diagnostic_category": it.diagnostic_category,
-                    "error": it.error,
-                    "decision": it.decision,
-                    "sharpe": (
-                        it.backtest_result.metrics.get("sharpe_ratio", 0)
-                        if it.backtest_result else None
-                    ),
-                    "return_pct": (
-                        it.backtest_result.metrics.get("total_return_pct", 0)
-                        if it.backtest_result else None
-                    ),
-                    "trades": (
-                        it.backtest_result.metrics.get("total_trades", 0)
-                        if it.backtest_result else None
-                    ),
-                    "score_card": (
-                        it.diagnostic_detail.get("score_card")
-                        if it.diagnostic_detail else None
-                    ),
-                    "is_fallback": it.is_fallback,
-                    "phase_feedback": it.phase_feedback or None,
-                }
-                for it in session.iterations
-            ],
+            "iterations": iteration_rows,
+            "leaderboard": leaderboard,
         }
 
         summary_path = session.session_dir / "session_summary.json"
@@ -5719,6 +5885,67 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
             json.dumps(summary, indent=2, default=str),
             encoding="utf-8",
         )
+
+        if leaderboard:
+            csv_path = session.session_dir / "leaderboard_builder.csv"
+            md_path = session.session_dir / "leaderboard_builder.md"
+            csv_fields = [
+                "rank",
+                "iteration",
+                "decision",
+                "continuous_score",
+                "sharpe",
+                "return_pct",
+                "max_drawdown_pct",
+                "profit_factor",
+                "win_rate_pct",
+                "trades",
+                "change_type",
+                "diagnostic_category",
+                "is_fallback",
+                "error",
+                "hypothesis",
+            ]
+            with csv_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=csv_fields, extrasaction="ignore")
+                writer.writeheader()
+                for row in leaderboard:
+                    writer.writerow(row)
+
+            lines = [
+                f"# Leaderboard Builder - session {session.session_id}",
+                "",
+                f"Objective: {session.objective}",
+                f"Status: {session.status}",
+                f"Best Sharpe: {session.best_sharpe:.3f}",
+                f"Best Continuous Score: {session.best_score:.2f}",
+                "",
+                "| Rank | Iter | Score | Sharpe | Return % | Max DD % | PF | Trades | Decision | Category |",
+                "|---|---|---|---|---|---|---|---|---|---|",
+            ]
+            for row in leaderboard:
+                lines.append(
+                    "| {rank} | {it} | {score:.2f} | {sharpe:.3f} | {ret:+.2f}% | {dd:.2f}% | {pf:.2f} | {trades} | {decision} | {cat} |".format(
+                        rank=int(row.get("rank", 0) or 0),
+                        it=int(row.get("iteration", 0) or 0),
+                        score=float(row.get("continuous_score", 0.0) or 0.0),
+                        sharpe=float(row.get("sharpe", 0.0) or 0.0),
+                        ret=float(row.get("return_pct", 0.0) or 0.0),
+                        dd=float(row.get("max_drawdown_pct", 0.0) or 0.0),
+                        pf=float(row.get("profit_factor", 0.0) or 0.0),
+                        trades=int(row.get("trades", 0) or 0),
+                        decision=str(row.get("decision", "") or ""),
+                        cat=str(row.get("diagnostic_category", "") or ""),
+                    )
+                )
+            md_path.write_text("\n".join(lines), encoding="utf-8")
+
+        # Auto-route into strategy catalog (best-effort, non-blocking).
+        try:
+            from catalog.strategy_catalog import upsert_from_builder_session
+            upsert_from_builder_session(session)
+        except Exception as exc:
+            logger.warning("builder_catalog_upsert_failed session=%s error=%s", session.session_id, exc)
 
 
 # ---------------------------------------------------------------------------
@@ -5980,6 +6207,74 @@ def _build_positive_objective_bias_instruction(max_items: int = 3) -> str:
     return "\n".join(lines) + "\n\n"
 
 
+def _sanitize_objective_indicators_section(
+    objective: str,
+    available_indicators: List[str],
+) -> str:
+    """Nettoie le bloc `Indicateurs:` pour ne garder que des noms calculables."""
+    text = str(objective or "")
+    if not text:
+        return text
+
+    allowed = [
+        str(ind or "").strip().lower()
+        for ind in (available_indicators or [])
+        if str(ind or "").strip()
+    ]
+    if not allowed:
+        return text
+    allowed_set = set(allowed)
+
+    alias_map = {
+        "fibonacci_levels": "fibonacci",
+        "fibonacci_level": "fibonacci",
+        "williamsr": "williams_r",
+        "williams": "williams_r",
+        "stochrsi": "stoch_rsi",
+    }
+    preferred_fallback = [
+        name
+        for name in ("ema", "rsi", "bollinger", "macd", "stochastic", "adx", "atr")
+        if name in allowed_set
+    ]
+
+    match = re.search(
+        r"(Indicateurs?\s*:\s*)(.+?)(\.\s|\n|$)",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not match:
+        return text
+
+    prefix = str(match.group(1) or "")
+    raw_block = str(match.group(2) or "")
+    suffix = str(match.group(3) or "")
+
+    extracted = re.findall(r"[A-Za-z_][A-Za-z0-9_]*", raw_block)
+    selected: List[str] = []
+    for token in extracted:
+        normalized = alias_map.get(token.lower(), token.lower())
+        if normalized in allowed_set and normalized not in selected:
+            selected.append(normalized)
+
+    if "atr" in allowed_set and "atr" not in selected:
+        selected.append("atr")
+
+    if len(selected) < 2:
+        for candidate in preferred_fallback:
+            if candidate not in selected:
+                selected.append(candidate)
+            if len(selected) >= 3:
+                break
+
+    if not selected:
+        return text
+
+    rebuilt = f"{prefix}{' + '.join(ind.upper() for ind in selected[:4])}{suffix}"
+    start, end = match.span()
+    return f"{text[:start]}{rebuilt}{text[end:]}"
+
+
 def generate_llm_objective(
     llm_client: Any,
     symbol: "str | List[str]" = "BTCUSDC",
@@ -6001,38 +6296,53 @@ def generate_llm_objective(
 
     indicators_list = ", ".join(sorted(available_indicators))
 
-    # Normaliser en listes pour construire le prompt multi-marché
-    symbols_list = symbol if isinstance(symbol, list) else [symbol]
-    timeframes_list = timeframe if isinstance(timeframe, list) else [timeframe]
-    symbols_list = [s for s in symbols_list if s] or ["BTCUSDC"]
-    timeframes_list = [t for t in timeframes_list if t] or ["1h"]
+    # Normaliser en listes pour construire le prompt multi-marché.
+    # IMPORTANT : si None est passé, ne pas fallback sur BTCUSDC/1h.
+    market_auto_selection = (symbol is None or timeframe is None)
 
-    # Construire l'instruction marché selon l'univers disponible
-    if len(symbols_list) > 1 or len(timeframes_list) > 1:
-        # Mélanger pour réduire le biais de position (BTC toujours 1er)
-        shuffled_symbols = symbols_list.copy()
-        random.shuffle(shuffled_symbols)
-        shuffled_timeframes = timeframes_list.copy()
-        random.shuffle(shuffled_timeframes)
-
+    if market_auto_selection:
+        # Mode auto : le marché sera choisi plus tard via recommend_market_context.
+        # L'objectif doit rester neutre et utiliser les placeholders.
         market_instruction = (
-            f"Symboles disponibles (SEULS autorisés) : {', '.join(shuffled_symbols)}\n"
-            f"Timeframes disponibles (SEULS autorisés) : {', '.join(shuffled_timeframes)}\n"
-            "CHOISIS le symbole et le timeframe les plus adaptés à ta stratégie. "
-            "Tu ne DOIS utiliser QUE des symboles et timeframes de ces listes. "
-            "N'invente AUCUN timeframe (pas de 3m, 5m, 2h, etc. s'ils ne sont pas listés). "
-            "Ne te limite pas à BTC — explore les altcoins si ta stratégie s'y prête mieux.\n\n"
+            "Le marché (token + timeframe) est sélectionné automatiquement par une étape dédiée.\n"
+            "Tu DOIS utiliser exactement les placeholders `{symbol}` et `{timeframe}` dans l'objectif.\n"
+            "N'écris AUCUN token réel (BTCUSDC, ETHUSDC...) ni timeframe réel (1h, 15m...).\n\n"
         )
-        # Injecter l'historique récent pour forcer la diversité
-        if recent_markets:
-            recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_markets[-6:])
-            market_instruction += (
-                f"IMPORTANT — Les marchés suivants ont DÉJÀ été utilisés récemment : {recent_str}. "
-                "Tu DOIS choisir un couple symbol/timeframe DIFFÉRENT de ceux-ci. "
-                "Varie les tokens ET les timeframes.\n\n"
-            )
+        symbols_list = []
+        timeframes_list = []
     else:
-        market_instruction = f"Marché : {symbols_list[0]} en {timeframes_list[0]}.\n\n"
+        # Mode manuel ou multi-marché : comportement normal
+        symbols_list = symbol if isinstance(symbol, list) else [symbol]
+        timeframes_list = timeframe if isinstance(timeframe, list) else [timeframe]
+        symbols_list = [s for s in symbols_list if s] or ["BTCUSDC"]
+        timeframes_list = [t for t in timeframes_list if t] or ["1h"]
+
+        # Construire l'instruction marché selon l'univers disponible
+        if len(symbols_list) > 1 or len(timeframes_list) > 1:
+            # Mélanger pour réduire le biais de position (BTC toujours 1er)
+            shuffled_symbols = symbols_list.copy()
+            random.shuffle(shuffled_symbols)
+            shuffled_timeframes = timeframes_list.copy()
+            random.shuffle(shuffled_timeframes)
+
+            market_instruction = (
+                f"Symboles disponibles (SEULS autorisés) : {', '.join(shuffled_symbols)}\n"
+                f"Timeframes disponibles (SEULS autorisés) : {', '.join(shuffled_timeframes)}\n"
+                "CHOISIS le symbole et le timeframe les plus adaptés à ta stratégie. "
+                "Tu ne DOIS utiliser QUE des symboles et timeframes de ces listes. "
+                "N'invente AUCUN timeframe (pas de 3m, 5m, 2h, etc. s'ils ne sont pas listés). "
+                "Ne te limite pas à BTC — explore les altcoins si ta stratégie s'y prête mieux.\n\n"
+            )
+            # Injecter l'historique récent pour forcer la diversité
+            if recent_markets:
+                recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_markets[-6:])
+                market_instruction += (
+                    f"IMPORTANT — Les marchés suivants ont DÉJÀ été utilisés récemment : {recent_str}. "
+                    "Tu DOIS choisir un couple symbol/timeframe DIFFÉRENT de ceux-ci. "
+                    "Varie les tokens ET les timeframes.\n\n"
+                )
+        else:
+            market_instruction = f"Marché : {symbols_list[0]} en {timeframes_list[0]}.\n\n"
 
     system_msg = LLMMessage(
         role="system",
@@ -6065,6 +6375,23 @@ def generate_llm_objective(
     selected_behaviors = random_behaviors[:2]
     positive_bias_instruction = _build_positive_objective_bias_instruction(max_items=3)
 
+    format_hint = (
+        "Format attendu :\n"
+        "[Style] sur {symbol} {timeframe}. "
+        "Indicateurs : [ind1] + [ind2] + [ind3]. "
+        "Entrées : [conditions]. "
+        "Sorties : [conditions]. "
+        "Risk management : [SL/TP]."
+        if market_auto_selection
+        else
+        "Format attendu :\n"
+        "[Style] sur [marché] [timeframe]. "
+        "Indicateurs : [ind1] + [ind2] + [ind3]. "
+        "Entrées : [conditions]. "
+        "Sorties : [conditions]. "
+        "Risk management : [SL/TP]."
+    )
+
     user_msg = LLMMessage(
         role="user",
         content=(
@@ -6077,12 +6404,7 @@ def generate_llm_objective(
             f"- Comportements aleatoires imposes pour cette generation: {', '.join(selected_behaviors)}.\n"
             "- Evite les formulations generiques de type 'RSI<30/RSI>70' sans filtre additionnel.\n"
             "- Propose une hypothese testable et falsifiable.\n\n"
-            "Format attendu :\n"
-            "[Style] sur [marché] [timeframe]. "
-            "Indicateurs : [ind1] + [ind2] + [ind3]. "
-            "Entrées : [conditions]. "
-            "Sorties : [conditions]. "
-            "Risk management : [SL/TP].\n\n"
+            f"{format_hint}\n\n"
             "Sois créatif : explore des combinaisons inhabituelles, "
             "des filtres originaux, des approches multi-timeframe conceptuelles. "
             "L'objectif doit faire 2-4 phrases."
@@ -6108,36 +6430,70 @@ def generate_llm_objective(
     # Fallback si le LLM retourne du vide
     if not objective or len(objective) < 20:
         logger.warning("generate_llm_objective: résultat LLM vide, fallback template")
+        if market_auto_selection:
+            return generate_random_objective(
+                symbol="{symbol}",
+                timeframe="{timeframe}",
+                available_indicators=available_indicators,
+            )
         return generate_random_objective(symbol, timeframe, available_indicators)
+
+    if market_auto_selection:
+        # Nettoyage défensif : retire toute fuite de token/TF hardcodé.
+        objective = _remove_hardcoded_tokens(objective)
+        objective = _remove_hardcoded_timeframes(objective)
+
+        # Garantit la présence des placeholders attendus.
+        if "{symbol}" not in objective or "{timeframe}" not in objective:
+            objective = re.sub(
+                r"\bsur\s+crypto\b",
+                "sur {symbol} {timeframe}",
+                objective,
+                flags=re.IGNORECASE,
+            )
+        if "{symbol}" not in objective or "{timeframe}" not in objective:
+            objective = f"Stratégie sur {{symbol}} {{timeframe}}. {objective}"
+
+        objective = _sanitize_objective_indicators_section(
+            objective,
+            available_indicators,
+        )
+        return sanitize_objective_text(objective)
 
     # ── Post-validation : remplacer les TF/tokens hallucinés ──
     tf_pattern = re.compile(r"\b(\d{1,2}[mhdwM])\b")
     found_tfs = tf_pattern.findall(objective)
-    for found_tf in found_tfs:
-        if found_tf not in timeframes_list:
-            replacement = random.choice(timeframes_list)
-            objective = objective.replace(found_tf, replacement, 1)
-            logger.info(
-                "generate_llm_objective: TF halluciné '%s' → '%s'",
-                found_tf, replacement,
-            )
+    if timeframes_list:
+        for found_tf in found_tfs:
+            if found_tf not in timeframes_list:
+                replacement = random.choice(timeframes_list)
+                objective = objective.replace(found_tf, replacement, 1)
+                logger.info(
+                    "generate_llm_objective: TF halluciné '%s' → '%s'",
+                    found_tf, replacement,
+                )
 
     sym_upper_set = {s.upper() for s in symbols_list}
     # Vérifier que le symbole mentionné est valide
     sym_pattern = re.compile(r"\b([A-Z]{2,10}USDC)\b")
     found_syms = sym_pattern.findall(objective.upper())
-    for found_sym in found_syms:
-        if found_sym not in sym_upper_set:
-            replacement = random.choice(symbols_list)
-            objective = re.sub(
-                re.escape(found_sym), replacement, objective,
-                count=1, flags=re.IGNORECASE,
-            )
-            logger.info(
-                "generate_llm_objective: token halluciné '%s' → '%s'",
-                found_sym, replacement,
-            )
+    if symbols_list:
+        for found_sym in found_syms:
+            if found_sym not in sym_upper_set:
+                replacement = random.choice(symbols_list)
+                objective = re.sub(
+                    re.escape(found_sym), replacement, objective,
+                    count=1, flags=re.IGNORECASE,
+                )
+                logger.info(
+                    "generate_llm_objective: token halluciné '%s' → '%s'",
+                    found_sym, replacement,
+                )
 
+    objective = _sanitize_objective_indicators_section(
+        objective,
+        available_indicators,
+    )
     return objective
 
 
@@ -7442,20 +7798,38 @@ def get_next_catalog_objective(
     combiner diversité (exploration) et motifs historiquement positifs
     (exploitation), avec comportements aléatoires contrôlés.
 
+    Si symbol=None ou timeframe=None, retire les tokens/TF hardcodés pour
+    permettre sélection LLM intelligente (auto_market_pick).
+
     Returns:
         ``(objective_text, obj_id)`` ou ``None`` si le catalogue est épuisé.
     """
-    # Normaliser listes → valeur unique (choix aléatoire)
+    # Normaliser listes → valeur unique (choix aléatoire) si fourni
     if isinstance(symbol, list):
-        symbol = random.choice(symbol) if symbol else "BTCUSDC"
+        symbol = random.choice(symbol) if symbol else None
     if isinstance(timeframe, list):
-        timeframe = random.choice(timeframe) if timeframe else "1h"
+        timeframe = random.choice(timeframe) if timeframe else None
 
     tracker = _get_exploration_tracker()
     obj = tracker.get_next_objective()
     if obj is None:
         return None
-    text = obj.description.replace("{symbol}", symbol).replace("{timeframe}", timeframe)
+
+    text = obj.description
+
+    # Remplacer placeholders si valeurs fournies
+    if symbol is not None:
+        text = text.replace("{symbol}", str(symbol))
+    else:
+        # symbol=None → Retirer tokens hardcodés (ex: "0GUSDC") pour sélection LLM
+        text = _remove_hardcoded_tokens(text)
+
+    if timeframe is not None:
+        text = text.replace("{timeframe}", str(timeframe))
+    else:
+        # timeframe=None → Retirer TF hardcodés (ex: "1h") pour sélection LLM
+        text = _remove_hardcoded_timeframes(text)
+
     return text, obj.id
 
 
@@ -7511,7 +7885,7 @@ def recommend_market_context(
 
     Le choix est strictement borné à l'univers fourni (`candidate_symbols`,
     `candidate_timeframes`). En cas de réponse invalide du LLM, un fallback
-    déterministe est appliqué.
+    robuste est appliqué.
     """
 
     def _unique_non_empty(values: List[str], *, upper: bool = False) -> List[str]:
@@ -7581,33 +7955,33 @@ def recommend_market_context(
     symbol_re = re.compile(r"^[A-Za-z0-9_.-]{2,24}$")
     timeframe_re = re.compile(r"^\d+[mhdwM]$")
 
-    symbols = _unique_non_empty(
-        [*candidate_symbols, default_symbol or "BTCUSDC"],
-        upper=True,
-    )
+    # Universe-first: don't inject default symbol/timeframe when a valid universe exists.
+    symbols = _unique_non_empty(candidate_symbols, upper=True)
+    if not symbols:
+        symbols = _unique_non_empty([default_symbol or "BTCUSDC"], upper=True)
     symbols = [s for s in symbols if symbol_re.match(s)]
 
-    timeframes = _unique_non_empty(
-        [*candidate_timeframes, default_timeframe or "1h"],
-        upper=False,
-    )
+    timeframes = _unique_non_empty(candidate_timeframes, upper=False)
+    if not timeframes:
+        timeframes = _unique_non_empty([default_timeframe or "1h"], upper=False)
     timeframes = [tf for tf in timeframes if timeframe_re.match(tf)]
 
-    fallback_symbol = (
+    # Fallback initial (sera recalculé après détection du type de stratégie)
+    _initial_fallback_symbol = (
         str(default_symbol).strip().upper()
         if str(default_symbol).strip().upper() in symbols
-        else (symbols[0] if symbols else "BTCUSDC")
+        else (random.choice(symbols) if symbols else "BTCUSDC")
     )
-    fallback_timeframe = (
+    _initial_fallback_timeframe = (
         str(default_timeframe).strip()
         if str(default_timeframe).strip() in timeframes
-        else (timeframes[0] if timeframes else "1h")
+        else (random.choice(timeframes) if timeframes else "1h")
     )
 
     if not symbols or not timeframes:
         return {
-            "symbol": fallback_symbol,
-            "timeframe": fallback_timeframe,
+            "symbol": _initial_fallback_symbol,
+            "timeframe": _initial_fallback_timeframe,
             "confidence": 0.0,
             "reason": "Univers marché incomplet, fallback par défaut.",
             "source": "fallback_no_candidates",
@@ -7617,27 +7991,182 @@ def recommend_market_context(
     if not clean_objective:
         clean_objective = str(objective or "").strip()
 
-    hinted_symbol, hinted_timeframe = _find_objective_market_hints(
-        clean_objective,
-        allowed_symbols=symbols,
-        allowed_timeframes=timeframes,
-    )
-    # Mélanger pour réduire le biais de position
-    shuffled_symbols = symbols.copy()
-    random.shuffle(shuffled_symbols)
+    # Détecter le type de stratégie AVANT d'extraire les hints
+    # (car si type détecté, on ignore les hints pour privilégier le tri intelligent)
+    detected_strategy_type = None
+    objective_lower = clean_objective.lower()
+
+    if any(kw in objective_lower for kw in ["scalp", "court terme", "rapide"]):
+        detected_strategy_type = "scalping"
+    elif any(kw in objective_lower for kw in ["breakout", "cassure", "sortie.*range", "donchian"]):
+        detected_strategy_type = "breakout"
+    elif any(kw in objective_lower for kw in ["momentum", "directionnel"]):
+        detected_strategy_type = "momentum"
+    elif any(kw in objective_lower for kw in ["tendance", "trend", "suivre"]):
+        detected_strategy_type = "trend"
+    elif any(kw in objective_lower for kw in ["mean", "reversion", "retour", "moyenne", "bollinger", "survente"]):
+        detected_strategy_type = "mean_reversion"
+
+    # Trier les tokens selon le type de stratégie détecté
+    ranked_symbols: List[str] = []
+    if detected_strategy_type:
+        from config.market_selection import rank_tokens_for_strategy
+        # Mélange d'abord les candidats pour randomiser les égalités de score.
+        # rank_tokens_for_strategy est stable: à score égal, l'ordre d'entrée est conservé.
+        symbols_for_ranking = symbols.copy()
+        random.shuffle(symbols_for_ranking)
+        ranked_symbols = rank_tokens_for_strategy(symbols_for_ranking, detected_strategy_type)
+        # Anti-biais de position: l'ordre envoyé au LLM est volontairement mélangé.
+        # Le ranking reste conservé pour le fallback deterministic.
+        shuffled_symbols = ranked_symbols.copy()
+        random.shuffle(shuffled_symbols)
+        logger.info(
+            "Market selection: strategy_type=%s, ranked_tokens=%s, prompt_tokens_shuffled=YES",
+            detected_strategy_type,
+            ", ".join(ranked_symbols[:5]),  # Log top 5 ranking brut
+        )
+    else:
+        # Fallback : shuffle aléatoire si type non détecté
+        shuffled_symbols = symbols.copy()
+        random.shuffle(shuffled_symbols)
+        logger.info("Market selection: strategy_type=UNKNOWN, tokens=shuffled")
+
+    # Mélanger les timeframes (pas de tri spécifique)
     shuffled_timeframes = timeframes.copy()
     random.shuffle(shuffled_timeframes)
 
+    # Extraction des hints : SEULEMENT si aucun type de stratégie détecté
+    # Si type détecté, on ignore les hints du catalogue pour privilégier le tri intelligent
+    hinted_symbol = None
+    hinted_timeframe = None
+
+    if not detected_strategy_type:
+        # Pas de type détecté : extraire les hints pour guider le LLM
+        hinted_symbol, hinted_timeframe = _find_objective_market_hints(
+            clean_objective,
+            allowed_symbols=symbols,
+            allowed_timeframes=timeframes,
+        )
+        logger.info(
+            "Market selection: strategy_type=NONE → using hints, symbol=%s, timeframe=%s",
+            hinted_symbol or "NONE",
+            hinted_timeframe or "NONE"
+        )
+    else:
+        # Type détecté : IGNORER les hints hardcodés pour privilégier le tri intelligent
+        logger.info(
+            "Market selection: strategy_type=%s → IGNORING hints from objective (prioritize intelligent ranking)",
+            detected_strategy_type
+        )
+
+    recent_symbol_set = {
+        str(s or "").strip().upper()
+        for s, _ in (recent_markets or [])
+        if str(s or "").strip()
+    }
+
+    # Fallback intelligent : éviter le biais top-1 quand plusieurs candidats sont valides.
+    if hinted_symbol and hinted_symbol in symbols:
+        fallback_symbol = hinted_symbol
+    else:
+        # Si stratégie détectée, piocher dans un pool top-N pour réduire le biais "toujours le même token".
+        if detected_strategy_type and ranked_symbols:
+            fallback_pool = ranked_symbols[: min(5, len(ranked_symbols))]
+            non_recent_pool = [s for s in fallback_pool if s not in recent_symbol_set]
+            if non_recent_pool:
+                fallback_pool = non_recent_pool
+            fallback_symbol = random.choice(fallback_pool) if fallback_pool else ranked_symbols[0]
+        else:
+            fallback_symbol = (
+                shuffled_symbols[0] if shuffled_symbols else _initial_fallback_symbol
+            )
+
+    # Fallback timeframe : prioriser TF recommandés / hints / diversité.
+    if detected_strategy_type:
+        try:
+            from config.market_selection import get_strategy_requirements
+            reqs = get_strategy_requirements(detected_strategy_type)
+            recommended_tfs = reqs.get("timeframes", ["1h"])
+            # Choisir un TF recommandé disponible, sans biais de position dans la liste.
+            recommended_available = [tf for tf in recommended_tfs if tf in timeframes]
+            if recommended_available:
+                fallback_timeframe = random.choice(recommended_available)
+            else:
+                fallback_timeframe = (
+                    shuffled_timeframes[0] if shuffled_timeframes else _initial_fallback_timeframe
+                )
+        except Exception:
+            fallback_timeframe = (
+                shuffled_timeframes[0] if shuffled_timeframes else _initial_fallback_timeframe
+            )
+    elif hinted_timeframe and hinted_timeframe in timeframes:
+        fallback_timeframe = hinted_timeframe
+    else:
+        fallback_timeframe = (
+            shuffled_timeframes[0] if shuffled_timeframes else _initial_fallback_timeframe
+        )
+
+    logger.info(
+        "Market selection: fallback=%s %s (source=%s)",
+        fallback_symbol,
+        fallback_timeframe,
+        "strategy_optimized" if detected_strategy_type else "default"
+    )
+
+    # Validation diversité : désactiver si trop peu d'alternatives
     diversity_instruction = ""
     if recent_markets:
-        recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_markets[-6:])
-        diversity_instruction = (
-            f"\n- DÉJÀ UTILISÉS récemment : {recent_str}. "
-            "Tu DOIS choisir un couple DIFFÉRENT. Varie tokens ET timeframes."
-        )
+        from config.market_selection import get_diversity_min_alternatives
+
+        available_combos = [(s, tf) for s in symbols for tf in timeframes]
+        recent_window = recent_markets[-6:]  # Fenêtre de diversité (6 derniers)
+        unused_combos = [c for c in available_combos if c not in recent_window]
+        min_alts = get_diversity_min_alternatives()
+
+        if len(unused_combos) >= min_alts:
+            recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_window)
+            diversity_instruction = (
+                f"\n- DÉJÀ UTILISÉS récemment : {recent_str}. "
+                "Tu DOIS choisir un couple DIFFÉRENT. Varie tokens ET timeframes."
+            )
+            # Log structuré : diversité activée
+            logger.info(
+                "Market selection: diversity=ACTIVE, excluded_count=%d, alternatives=%d, recent=%s",
+                len(recent_window),
+                len(unused_combos),
+                recent_str,
+            )
+        else:
+            # Diversité désactivée : univers trop restreint
+            logger.warning(
+                "Market selection: diversity=DISABLED, reason=Univers restreint (%d alternatives < %d min), "
+                "recent_count=%d",
+                len(unused_combos),
+                min_alts,
+                len(recent_window),
+            )
+            diversity_instruction = ""  # Pas de contrainte
 
     objective_hint_instruction = ""
     hint_lines: List[str] = []
+
+    # Détection conflit hints vs diversité
+    hints_conflict = False
+    if hinted_symbol and hinted_timeframe and recent_markets:
+        hinted_combo = (hinted_symbol, hinted_timeframe)
+        recent_window = recent_markets[-6:]
+        if hinted_combo in recent_window:
+            hints_conflict = True
+            logger.warning(
+                "Market selection: CONFLICT hints vs diversity, hinted=%s %s (already in recent_markets), "
+                "priority=diversity → hints IGNORED",
+                hinted_symbol, hinted_timeframe
+            )
+            # Annuler les hints (priorité à la diversité)
+            hinted_symbol = None
+            hinted_timeframe = None
+
+    # Construction des instructions hints (si pas de conflit)
     if hinted_symbol:
         hint_lines.append(
             f"- L'objectif mentionne le symbole `{hinted_symbol}` : "
@@ -7648,8 +8177,19 @@ def recommend_market_context(
             f"- L'objectif mentionne le timeframe `{hinted_timeframe}` : "
             "considère-le comme une préférence, pas comme une contrainte absolue."
         )
+
     if hint_lines:
         objective_hint_instruction = "\n" + "\n".join(hint_lines)
+
+        # Log structuré : hints détectés (si pas de conflit)
+        from config.market_selection import get_hints_confidence_boost
+        boost = get_hints_confidence_boost()
+        logger.info(
+            "Market selection: hints_detected=YES, symbol=%s, timeframe=%s, boost=+%.2f confidence",
+            hinted_symbol or "NONE",
+            hinted_timeframe or "NONE",
+            boost if (hinted_symbol or hinted_timeframe) else 0.0,
+        )
 
     system_msg = LLMMessage(
         role="system",
@@ -7658,6 +8198,28 @@ def recommend_market_context(
             "le plus pertinent pour l'objectif. Réponds en JSON strict uniquement."
         ),
     )
+    # Enrichissement : recommandations TF/token basées sur type de stratégie détecté
+    strategy_hints = ""
+    try:
+        if detected_strategy_type:
+            from config.market_selection import get_strategy_requirements
+
+            reqs = get_strategy_requirements(detected_strategy_type)
+            recommended_tfs = reqs.get("timeframes", ["1h"])
+
+            # Extraire top 5 tokens recommandés (déjà triés par rank_tokens_for_strategy)
+            top_tokens = shuffled_symbols[:5]
+
+            strategy_hints = (
+                f"\n📊 RECOMMANDATION STRATÉGIE: **{detected_strategy_type.replace('_', ' ').title()}** détecté\n"
+                f"  → TFs optimaux: {', '.join(recommended_tfs[:3])}\n"
+                f"  → Tokens candidats pertinents (ordre mélangé): {', '.join(top_tokens)}\n"
+                "  → IMPORTANT: Ne choisis PAS automatiquement le premier token de la liste.\n"
+                "    Évalue l'adéquation avec l'objectif + la diversité récente.\n"
+            )
+    except Exception:
+        pass  # Si détection échoue, continuer sans hints
+
     user_msg = LLMMessage(
         role="user",
         content=(
@@ -7666,6 +8228,9 @@ def recommend_market_context(
             "Contraintes:\n"
             f"- symbol MUST be one of: {', '.join(shuffled_symbols)}\n"
             f"- timeframe MUST be one of: {', '.join(shuffled_timeframes)}\n"
+            "- Anti-biais de position: ne sélectionne PAS automatiquement le premier élément des listes.\n"
+            "- Si plusieurs choix sont valides, privilégie un couple moins récent (diversité).\n"
+            f"{strategy_hints}"
             f"{objective_hint_instruction}\n"
             "- Retourne un JSON strict, sans markdown:\n"
             '{"symbol":"...","timeframe":"...","confidence":0.0,"reason":"..."}\n'
@@ -7760,7 +8325,7 @@ def recommend_market_context(
                 preferred = by_timeframe or candidate_pool
 
             if preferred:
-                symbol, timeframe = preferred[0]
+                symbol, timeframe = random.choice(preferred)
                 source = f"{source}_diversity_override" if source != "llm" else "llm_diversity_override"
                 confidence = min(confidence, 0.75)
                 if reason:
@@ -7826,6 +8391,7 @@ def compile_proposal_to_code(proposal: Dict[str, Any], variant: int = 0) -> str:
 
 _PARAMETRIC_VARIANTS: Optional[List[Dict[str, Any]]] = None
 _PARAMETRIC_INDEX: int = 0
+_PARAMETRIC_SEED_USED: Optional[int] = None
 _PARAMETRIC_DSL_OPERAND = r"[A-Za-z0-9_.]+"
 _PARAMETRIC_FORBIDDEN_PATTERNS: Tuple[Tuple[str, re.Pattern[str]], ...] = (
     ("crosses", re.compile(r"\bcrosses\b", re.IGNORECASE)),
@@ -7835,6 +8401,21 @@ _PARAMETRIC_FORBIDDEN_PATTERNS: Tuple[Tuple[str, re.Pattern[str]], ...] = (
     ("future", re.compile(r"\bfuture\b", re.IGNORECASE)),
     ("repaint", re.compile(r"\brepaint\w*\b", re.IGNORECASE)),
 )
+
+
+def _resolve_parametric_seed(seed: Optional[int]) -> int:
+    """Résout un seed stable: explicite si fourni, sinon aléatoire par session."""
+    if seed is None:
+        return random.SystemRandom().randrange(1, 2**31 - 1)
+    return int(seed)
+
+
+def _shuffle_parametric_variants(variants: List[Dict[str, Any]], seed: int) -> None:
+    """Mélange les variants de façon reproductible pour un seed donné."""
+    if len(variants) < 2:
+        return
+    rng = random.Random(seed)
+    rng.shuffle(variants)
 
 
 def _normalize_cross_syntax(text: str) -> str:
@@ -7898,6 +8479,93 @@ def _scan_forbidden_parametric_tokens(text: str) -> List[str]:
     return found
 
 
+def _remove_hardcoded_tokens(text: str) -> str:
+    """
+    Retire les tokens crypto hardcodés d'un objectif (ex: "0GUSDC", "BTCUSDC").
+
+    Remplace les patterns comme:
+    - "sur 0GUSDC en" → "sur crypto en"
+    - "sur BTCUSDC dans" → "sur crypto dans"
+    - "[Momentum] sur 0GUSDC" → "[Momentum] sur crypto"
+
+    Utilisé quand symbol=None pour permettre sélection LLM intelligente.
+    """
+    if not text:
+        return text
+
+    # Pattern : tokens crypto (XXXXXUSDC où XXXXX = lettres/chiffres)
+    # Exemples : 0GUSDC, BTCUSDC, ETHUSDC, 1000SATSUSDC, etc.
+    token_pattern = r'\b[A-Z0-9]{2,12}USDC\b'
+
+    # Remplacer "sur TOKEN en/dans/..." par "sur crypto en/dans/..."
+    text = re.sub(
+        rf'sur\s+{token_pattern}\s+(en|dans|avec|pour)',
+        r'sur crypto \1',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Remplacer "TOKEN en/dans" restants par "crypto en/dans"
+    text = re.sub(
+        rf'{token_pattern}\s+(en|dans)',
+        r'crypto \1',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Filet final : remplace tout token crypto restant (ex: "sur BTCUSDC.")
+    text = re.sub(
+        token_pattern,
+        'crypto',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Nettoyer les doubles espaces
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
+
+
+def _remove_hardcoded_timeframes(text: str) -> str:
+    """
+    Retire les timeframes hardcodés d'un objectif (ex: "1h", "30m", "5m").
+
+    Remplace les patterns comme:
+    - "en 1h" → "en timeframe adapté"
+    - "dans les 5m" → "dans un timeframe court"
+    - "crypto 30m" → "crypto"
+
+    Utilisé quand timeframe=None pour permettre sélection LLM intelligente.
+    """
+    if not text:
+        return text
+
+    # Pattern : timeframes (1m, 5m, 15m, 30m, 1h, 4h, 1d, etc.)
+    tf_pattern = r'\b\d+[mhdwM]\b'
+
+    # Remplacer "en/dans [TF]" par une description générique
+    text = re.sub(
+        rf'(en|dans)\s+(les?\s+)?{tf_pattern}',
+        r'\1 timeframe adapté',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Remplacer TF isolés restants
+    text = re.sub(
+        rf'\s+{tf_pattern}\b',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Nettoyer les doubles espaces
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
+
+
 def normalize_variant_for_builder(
     variant: Any,
     *,
@@ -7943,8 +8611,15 @@ def normalize_variant_for_builder(
 
     if symbol is not None:
         builder_text = builder_text.replace("{symbol}", str(symbol))
+    else:
+        # symbol=None → Retirer les tokens hardcodés pour permettre sélection LLM intelligente
+        builder_text = _remove_hardcoded_tokens(builder_text)
+
     if timeframe is not None:
         builder_text = builder_text.replace("{timeframe}", str(timeframe))
+    else:
+        # timeframe=None → Retirer les TF hardcodés pour permettre sélection LLM intelligente
+        builder_text = _remove_hardcoded_timeframes(builder_text)
 
     objective_text = sanitize_objective_text(builder_text)
     if not objective_text:
@@ -7994,7 +8669,7 @@ def normalize_variant_for_builder(
 def generate_parametric_catalog(
     config_path: Optional[str] = None,
     n_variants: int = 200,
-    seed: int = 42,
+    seed: Optional[int] = None,
 ) -> int:
     """Génère le catalogue paramétrique et le stocke en mémoire.
 
@@ -8002,12 +8677,13 @@ def generate_parametric_catalog(
         config_path: Chemin vers un CatalogConfig JSON. Si None, utilise
             les archetypes/param_packs par défaut du module catalog.
         n_variants: Nombre de variants cible (ignoré si config_path fourni).
-        seed: Seed pour reproductibilité (ignoré si config_path fourni).
+        seed: Seed explicite pour reproductibilité. Si None, seed aléatoire
+            (pour diversifier les sessions autonomes au redémarrage).
 
     Returns:
         Nombre de variants générés et valides.
     """
-    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX
+    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX, _PARAMETRIC_SEED_USED
 
     from catalog.chainer import generate_catalog
     from catalog.models import CatalogConfig
@@ -8015,9 +8691,11 @@ def generate_parametric_catalog(
     if config_path:
         from pathlib import Path
         config = CatalogConfig.load(Path(config_path))
+        resolved_seed = int(getattr(config, "seed", 42) or 42)
     else:
+        resolved_seed = _resolve_parametric_seed(seed)
         config = CatalogConfig(
-            seed=seed,
+            seed=resolved_seed,
             n_variants_target=n_variants,
             batch_size=50,
             archetypes_dir="catalog/archetypes",
@@ -8040,15 +8718,18 @@ def generate_parametric_catalog(
             continue
         normalized_variants.append(normalized)
 
+    _shuffle_parametric_variants(normalized_variants, seed=resolved_seed)
     _PARAMETRIC_VARIANTS = normalized_variants
     _PARAMETRIC_INDEX = 0
+    _PARAMETRIC_SEED_USED = resolved_seed
 
     logger.info(
-        "parametric_catalog_generated total=%d after_sanity=%d after_bridge=%d bridge_rejected=%d",
+        "parametric_catalog_generated total=%d after_sanity=%d after_bridge=%d bridge_rejected=%d seed=%d",
         result.total_generated,
         len(result.variants),
         len(normalized_variants),
         bridge_rejected,
+        resolved_seed,
     )
     return len(normalized_variants)
 
@@ -8107,35 +8788,20 @@ def get_next_parametric_objective(
 def get_parametric_catalog_stats() -> Dict[str, Any]:
     """Retourne les statistiques du catalogue paramétrique."""
     if _PARAMETRIC_VARIANTS is None:
-        return {"generated": False, "total": 0, "index": 0}
+        return {"generated": False, "total": 0, "index": 0, "seed": _PARAMETRIC_SEED_USED}
     return {
         "generated": True,
         "total": len(_PARAMETRIC_VARIANTS),
         "index": _PARAMETRIC_INDEX,
         "coverage_pct": min(100.0, (_PARAMETRIC_INDEX / max(1, len(_PARAMETRIC_VARIANTS))) * 100),
+        "seed": _PARAMETRIC_SEED_USED,
     }
 
 
 def reset_parametric_catalog() -> None:
     """Reset le catalogue paramétrique (force re-génération au prochain appel)."""
-    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX
+    global _PARAMETRIC_VARIANTS, _PARAMETRIC_INDEX, _PARAMETRIC_SEED_USED
     _PARAMETRIC_VARIANTS = None
     _PARAMETRIC_INDEX = 0
+    _PARAMETRIC_SEED_USED = None
     logger.info("parametric_catalog_reset")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

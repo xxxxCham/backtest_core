@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import random
 import time
 from typing import Any, Dict, List, Optional
 
@@ -186,15 +187,28 @@ def run_multi_sweep_llm(
     status_container: Any,
 ) -> None:
     """Exécution du mode Multi-Sweep LLM."""
-    total_combinations = len(strategy_keys) * len(symbols) * len(timeframes)
+    # Anti-biais d'ordre: exécuter les combinaisons dans un ordre aléatoire
+    # pour éviter de toujours commencer par les mêmes listes (stratégie/token/TF).
+    strategy_order = list(strategy_keys)
+    symbol_order = list(symbols)
+    timeframe_order = list(timeframes)
+    if len(strategy_order) > 1:
+        random.shuffle(strategy_order)
+    if len(symbol_order) > 1:
+        random.shuffle(symbol_order)
+    if len(timeframe_order) > 1:
+        random.shuffle(timeframe_order)
+
+    total_combinations = len(strategy_order) * len(symbol_order) * len(timeframe_order)
 
     st.write(
         f"🤖 **Mode Multi-Sweep LLM activé**\n\n"
-        f"- {len(strategy_keys)} stratégie(s): {', '.join(strategy_keys)}\n"
-        f"- {len(symbols)} token(s): {', '.join(symbols)}\n"
-        f"- {len(timeframes)} timeframe(s): {', '.join(timeframes)}\n\n"
+        f"- {len(strategy_order)} stratégie(s): {', '.join(strategy_order)}\n"
+        f"- {len(symbol_order)} token(s): {', '.join(symbol_order)}\n"
+        f"- {len(timeframe_order)} timeframe(s): {', '.join(timeframe_order)}\n\n"
         f"➡️ **{total_combinations} optimisations LLM** seront exécutées en série"
     )
+    st.caption("ℹ️ Ordre d'exécution mélangé automatiquement (anti-biais de position).")
 
     # Barre de progression et accumulateur de résultats
     progress_bar = st.progress(0)
@@ -268,9 +282,9 @@ def run_multi_sweep_llm(
     idx = 0
     all_params = getattr(state, 'all_params', {state.strategy_key: state.params})
 
-    for sk in strategy_keys:
-        for sym in symbols:
-            for tf in timeframes:
+    for sk in strategy_order:
+        for sym in symbol_order:
+            for tf in timeframe_order:
                 idx += 1
 
                 # Vérifier arrêt utilisateur
@@ -283,9 +297,19 @@ def run_multi_sweep_llm(
 
                 try:
                     # Charger données pour cette combinaison
-                    combo_df = safe_load_data(sym, tf, state.start_date, state.end_date)
+                    start_str = (
+                        str(state.start_date)
+                        if getattr(state, "use_date_filter", False) and state.start_date
+                        else None
+                    )
+                    end_str = (
+                        str(state.end_date)
+                        if getattr(state, "use_date_filter", False) and state.end_date
+                        else None
+                    )
+                    combo_df, combo_msg = safe_load_data(sym, tf, start_str, end_str)
                     if combo_df is None:
-                        st.write(f"❌ Données indisponibles pour {sym}/{tf}")
+                        st.write(f"❌ Données indisponibles pour {sym}/{tf}: {combo_msg}")
                         continue
 
                     # Créer engine isolé pour cette combinaison

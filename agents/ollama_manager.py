@@ -23,18 +23,44 @@ Skip-if: Vous utilisez seulement OpenAI.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
+import os
 import platform
 import subprocess
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Generator, List, Optional, Tuple
+from urllib.parse import urlparse
 
 import httpx
 
 from utils.log import get_logger
 
 logger = get_logger(__name__)
+
+
+def _get_ollama_host(override: Optional[str] = None) -> str:
+    """Retourne l'hôte Ollama effectif (override > env > défaut)."""
+    host = str(
+        override
+        or os.environ.get("OLLAMA_HOST")
+        or "http://127.0.0.1:11434"
+    ).strip()
+    if not host.startswith(("http://", "https://")):
+        host = f"http://{host}"
+    return host.rstrip("/")
+
+
+def _ollama_url(path: str, ollama_host: Optional[str] = None) -> str:
+    normalized = path if path.startswith("/") else f"/{path}"
+    return f"{_get_ollama_host(ollama_host)}{normalized}"
+
+
+def _is_local_ollama_host(ollama_host: Optional[str] = None) -> bool:
+    host = _get_ollama_host(ollama_host)
+    parsed = urlparse(host)
+    hostname = (parsed.hostname or "").lower()
+    return hostname in {"127.0.0.1", "localhost", "::1"}
 
 
 # ==============================================================================
@@ -83,7 +109,7 @@ class GPUMemoryManager:
     def __init__(
         self,
         model_name: str,
-        ollama_host: str = "http://127.0.0.1:11434",
+        ollama_host: Optional[str] = None,
         warmup_prompt: str = "You are ready.",
         verbose: bool = True,
     ):
@@ -97,7 +123,7 @@ class GPUMemoryManager:
             verbose: Afficher les logs
         """
         self.model_name = model_name
-        self.ollama_host = ollama_host
+        self.ollama_host = _get_ollama_host(ollama_host)
         self.warmup_prompt = warmup_prompt
         self.verbose = verbose
         self._current_state: Optional[LLMMemoryState] = None
@@ -282,21 +308,31 @@ def gpu_compute_context(
         manager.reload(state)
 
 
-def ensure_ollama_running() -> Tuple[bool, str]:
+def ensure_ollama_running(ollama_host: Optional[str] = None) -> Tuple[bool, str]:
     """
     S'assure qu'Ollama est démarré et fonctionnel.
 
     Returns:
         tuple[bool, str]: (succès, message)
     """
+    ollama_host = _get_ollama_host(ollama_host)
+    tags_url = _ollama_url("/api/tags", ollama_host)
+
     # 1. Vérifier si Ollama répond
     try:
-        response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=2.0)
+        response = httpx.get(tags_url, timeout=2.0)
         if response.status_code == 200:
-            logger.info("✅ Ollama déjà actif")
-            return True, "✅ Ollama actif"
+            logger.info("✅ Ollama déjà actif (%s)", ollama_host)
+            return True, f"✅ Ollama actif ({ollama_host})"
     except Exception:
         pass  # Ollama pas actif, on va le démarrer
+
+    # Hôte distant: impossible de le démarrer localement, signaler explicitement
+    if not _is_local_ollama_host(ollama_host):
+        return False, (
+            f"❌ Ollama indisponible sur {ollama_host} "
+            "(auto-start désactivé pour hôte distant)"
+        )
 
     # 2. Démarrer Ollama
     logger.info("🚀 Démarrage d'Ollama...")
@@ -325,9 +361,13 @@ def ensure_ollama_running() -> Tuple[bool, str]:
         for i in range(10):
             time.sleep(1)
             try:
-                response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=1.0)
+                response = httpx.get(tags_url, timeout=1.0)
                 if response.status_code == 200:
-                    logger.info(f"✅ Ollama démarré avec succès (après {i+1}s)")
+                    logger.info(
+                        "✅ Ollama démarré avec succès (après %ss) sur %s",
+                        i + 1,
+                        ollama_host,
+                    )
                     return True, f"✅ Ollama démarré ({i+1}s)"
             except Exception:
                 continue
@@ -340,7 +380,7 @@ def ensure_ollama_running() -> Tuple[bool, str]:
         return False, f"❌ Erreur: {str(e)}"
 
 
-def unload_model(model_name: str) -> bool:
+def unload_model(model_name: str, ollama_host: Optional[str] = None) -> bool:
     """
     Décharge un modèle Ollama de la mémoire GPU/RAM.
 
@@ -350,9 +390,10 @@ def unload_model(model_name: str) -> bool:
     Returns:
         bool: True si succès
     """
+    generate_url = _ollama_url("/api/generate", ollama_host)
     try:
         response = httpx.post(
-            "http://127.0.0.1:11434/api/generate",
+            generate_url,
             json={
                 "model": model_name,
                 "keep_alive": 0,  # 0 = décharger immédiatement
@@ -369,16 +410,17 @@ def unload_model(model_name: str) -> bool:
         return False
 
 
-def cleanup_all_models() -> int:
+def cleanup_all_models(ollama_host: Optional[str] = None) -> int:
     """
     Décharge TOUS les modèles Ollama de la mémoire.
 
     Returns:
         int: Nombre de modèles déchargés
     """
+    tags_url = _ollama_url("/api/tags", ollama_host)
     try:
         # Lister les modèles chargés
-        response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=5.0)
+        response = httpx.get(tags_url, timeout=5.0)
         if response.status_code != 200:
             return 0
 
@@ -387,7 +429,7 @@ def cleanup_all_models() -> int:
 
         for model in models:
             model_name = model.get("name", "")
-            if model_name and unload_model(model_name):
+            if model_name and unload_model(model_name, ollama_host=ollama_host):
                 count += 1
 
         if count > 0:
@@ -400,15 +442,16 @@ def cleanup_all_models() -> int:
         return 0
 
 
-def list_ollama_models() -> List[str]:
+def list_ollama_models(ollama_host: Optional[str] = None) -> List[str]:
     """
     Retourne la liste des modèles Ollama installés localement.
 
     Returns:
         list[str]: Noms des modèles (ex: ["llama3.2", "mistral"])
     """
+    tags_url = _ollama_url("/api/tags", ollama_host)
     try:
-        response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=3.0)
+        response = httpx.get(tags_url, timeout=3.0)
         if response.status_code != 200:
             logger.warning(
                 f"⚠️ Impossible de lister les modèles Ollama (status={response.status_code})"
@@ -430,7 +473,7 @@ def list_ollama_models() -> List[str]:
         return []
 
 
-def is_ollama_available() -> bool:
+def is_ollama_available(ollama_host: Optional[str] = None) -> bool:
     """
     Vérifie si Ollama est disponible.
 
@@ -438,13 +481,13 @@ def is_ollama_available() -> bool:
         bool: True si Ollama répond
     """
     try:
-        response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=2.0)
+        response = httpx.get(_ollama_url("/api/tags", ollama_host), timeout=2.0)
         return response.status_code == 200
     except Exception:
         return False
 
 
-def prepare_for_llm_run() -> Tuple[bool, str]:
+def prepare_for_llm_run(ollama_host: Optional[str] = None) -> Tuple[bool, str]:
     """
     Prépare l'environnement pour un run LLM.
 
@@ -458,12 +501,12 @@ def prepare_for_llm_run() -> Tuple[bool, str]:
     messages = []
 
     # 1. Nettoyer les modèles précédents
-    cleaned = cleanup_all_models()
+    cleaned = cleanup_all_models(ollama_host=ollama_host)
     if cleaned > 0:
         messages.append(f"🧹 {cleaned} modèle(s) déchargé(s)")
 
     # 2. S'assurer qu'Ollama est actif
-    success, msg = ensure_ollama_running()
+    success, msg = ensure_ollama_running(ollama_host=ollama_host)
     messages.append(msg)
 
     if success:

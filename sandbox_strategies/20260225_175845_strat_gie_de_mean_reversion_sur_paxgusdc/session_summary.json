@@ -1,0 +1,1146 @@
+{
+  "session_id": "20260225_175845_strat_gie_de_mean_reversion_sur_paxgusdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur PAXGUSDC 30m. Indicateurs : WILLIAMS_R + OBV + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de WILLIAMS_R avec OBV en zone de survente/surachat. Take-profit au retour \u00e0 la bande m\u00e9diane, stop si OBV continue dans la tendance. Stop-loss dynamique bas\u00e9 sur ATR (1.7x), ratio risk/reward 2.4:1.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When price hits the extreme ends of the Williams %R, volume momentum measured by OBV tends to confirm an overextended move; mean\u2011reversion is expected as the price pulls back toward the middle band, while ATR\u2011based stops protect against rare continuation.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -270.176361995029,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.38429311092144125,
+      "win_rate_pct": 24.308865586272642,
+      "trades": 1049,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.2073403241182077
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -270.2%, PF 0.38, Expectancy -25.76"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 461.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.3%, Trades 1049, AvgW/L 66.13/55.27"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1608,
+          "short_signals": 2494,
+          "total_signals": 4102
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy is heavily dependent on Williams %R extremes and OBV crossovers, which can produce many false signals in sideways or highly volatile markets, leading to frequent whipsaws. 2. OBV alone may not capture true volume momentum, especially on a 30\u2011min chart where order book depth and tick volume can be misleading. 3. The fixed ATR multiplier (1.7x) and hard stop\u2011loss may cut profitable moves early or allow large losses if the market is in a strong trend. 4. No trend filter is applied, so the strategy may trade against the prevailing direction, reducing Sharpe and increasing drawdown.\n[Backup plan] If returns are negative, first try adding a simple trend filter: only trade when the 200\u2011bar EMA is above the 50\u2011bar EMA for longs (and vice versa for shorts) to avoid counter\u2011trend whipsaws. If Sharpe is low, tighten the Williams %R threshold to -90/+90 and increase the OBV SMA window to 30 to reduce noise, and raise the ATR multiplier to 2.0 for tighter stops. As an alternative, switch to a volatility\u2011scaled mean\u2011reversion approach using Bollinger Bands on the close with a Keltner Band ATR filter, and trigger trades when price touches the upper/lower band with OBV confirming the direction. This keeps the core idea but reduces reliance on a single oscillator and adds a trend safeguard."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.2073403241182077
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Bollinger band extremes capture price overextension in a range-bound market; a complementary RSI filter confirms weak momentum, while ATR-based risk limits ensure only sufficiently volatile periods are traded, reducing false entries and improving risk-adjusted performance.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -116.02609369895755,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.2486628715442084,
+      "win_rate_pct": 27.507163323782237,
+      "trades": 349,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.247851002865329
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -116.0%, PF 0.25, Expectancy -33.25"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1103.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.5%, Trades 349, AvgW/L 40.00/61.04"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 221,
+          "short_signals": 379,
+          "total_signals": 600
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.247851002865329
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "When price hits an extreme on Williams %R, OBV momentum indicates whether buying or selling pressure will pull the price back toward the middle, so a mean\u2011reversion entry on the extreme combined with an OBV trend filter reduces false reversals; ATR provides a volatility\u2011adjusted risk envelope.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -208.36757596755265,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.16901611260638727,
+      "win_rate_pct": 23.655913978494624,
+      "trades": 651,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4032258064516125
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -208.4%, PF 0.17, Expectancy -32.01"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1152.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.7%, Trades 651, AvgW/L 27.52/50.45"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 493,
+          "short_signals": 776,
+          "total_signals": 1269
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011relies on hard %R thresholds and OBV lag, leading to many false entries in a trending or low\u2011volume asset; the dynamic ATR stop may be too tight for 30\u2011min swings, causing premature exits. High trade counts with a fixed risk/reward of 2.4:1 inflate transaction costs and erode returns. The absence of a trend filter (e.g., moving\u2011average direction) lets the mean\u2011reversion logic fire in directional markets, generating systematic losses.\n[Backup plan] If the backtest confirms negative returns, replace the %R extreme condition with a Bollinger\u2011Band\u2011based mean\u2011reversion trigger and add a short\u2011term SMA filter to block trades in up/down\u2011trends. For low Sharpe, increase the ATR multiplier to 2.0\u20112.5 to allow larger moves before stop\u2011out, and tighten the %R threshold to \u00b190 to capture only the strongest reversals. Alternatively, switch to a volatility\u2011breakout strategy on the same pair, using a 14\u2011period ATR to set dynamic profit targets and a 50\u2011period EMA to define trend bias, thereby reducing over\u2011trading and improving risk\u2011adjusted performance."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4032258064516125
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Williams %R extremes signal potential price reversal; when the OBV is also trending upwards (for longs) or downwards (for shorts) it indicates a genuine shift in buying/selling pressure, so a mean\u2011reversion trade is likely. Using ATR to size stops and targets adjusts risk to current volatility, improving risk\u2011reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "When the price reaches the extreme lower band of Williams %R while OBV shows an upward trend, it signals a short-term overbought pressure that is likely to reverse, and vice versa for the upper band; using ATR to set dynamic stops and targets protects against volatility spikes while maintaining a 2.4:1 risk/reward ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -206.8354800399738,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.20449958235460253,
+      "win_rate_pct": 22.653721682847898,
+      "trades": 618,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.7038834951456305
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -206.8%, PF 0.20, Expectancy -33.47"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 250.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.7%, Trades 618, AvgW/L 37.98/54.39"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 493,
+          "short_signals": 776,
+          "total_signals": 1269
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on Williams %R extremes and a simple OBV slope test, which can generate many false reversals in a trending market; the 30\u2011minute timeframe amplifies noise. The ATR\u2011based stop (1.7\u00d7) may be too tight for a gold\u2011USD pair, causing premature exits. Lack of trend filtering or position\u2011size scaling can expose the portfolio to directional bias and high transaction costs. The 2.4:1 risk/reward target is ambitious given the frequent signal overlap, leading to low win rates. The current entry logic (OBV > previous OBV) is too weak to confirm momentum and may misclassify noise as a trend.\n\nBackup plan:\n1. Add a trend filter: require the 50\u2011period EMA to be above the 200\u2011period EMA for longs (and below for shorts) before accepting a %R signal.\n2. Tighten the %R trigger to \u201370/\u201330 instead of \u201380/\u201320 and add a confirmation of OBV slope > 0.5% over the last 3 bars.\n3. Increase ATR stop to 2.0\u00d7 for higher volatility periods, and set a fixed 1.5\u00d7 ATR take\u2011profit to improve risk/reward.\n4. Switch to a volume\u2011weighted mean reversion using Bollinger Bands with OBV confirmation if %R fails.\n5. If still poor, abandon %R and test a simple 20\u2011period SMA crossover with OBV momentum as the primary filter, keeping the ATR stop and dynamic TP."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.7038834951456305
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Bollinger bands provide price levels that the market tends to return to after extreme moves; OBV confirms that the volume flow is supporting a reversal rather than a continuation, reducing false breakouts; ATR\u2011based risk limits adapt to current volatility so that stop\u2011losses and take\u2011profits are appropriately sized for the asset\u2019s 30\u2011minute swings.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -203.5485485232225,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.41184078782186395,
+      "win_rate_pct": 26.268320180383313,
+      "trades": 887,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.619503945885006
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -203.5%, PF 0.41, Expectancy -22.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 263.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.3%, Trades 887, AvgW/L 61.17/52.92"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 680,
+          "short_signals": 861,
+          "total_signals": 1541
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is too noisy: Bollinger bands on 30\u2011min PAXGUSDC generate frequent extreme touches, OBV lagging and often contradicts price, and the ATR\u2011based stop is too tight, causing premature exits. The high trade count (\u2248600) amplifies slippage and commissions, eroding returns. The fixed 2.4:1 risk/reward may be unrealistic for this asset\u2019s volatility profile.\n[Backup plan] If returns stay negative, add a trend filter (e.g., 50\u2011period EMA) and only trade against the trend\u2019s direction. If Sharpe is low, tighten the BB width (use 20\u2011period 1.5\u03c3) and increase the ATR multiplier to 2.0 for stops, while raising the risk/reward target to 3:1. If the strategy still fails, switch to a momentum\u2011based mean\u2011reversion using RSI\u2011oversold/overbought with a MACD confirmation, or test a volatility\u2011scaled Pairs\u2011Trading model between PAXG and a gold\u2011price proxy."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.619503945885006
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "When price hits the extreme ends of the Williams %R, volume momentum measured by OBV tends to confirm an overextended move; mean\u2011reversion is expected as the price pulls back toward the middle band, while ATR\u2011based stops protect against rare continuation.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -270.176361995029,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.38429311092144125,
+      "win_rate_pct": 24.308865586272642,
+      "trades": 1049,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.2073403241182077
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -270.2%, PF 0.38, Expectancy -25.76"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 461.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.3%, Trades 1049, AvgW/L 66.13/55.27"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1608,
+          "short_signals": 2494,
+          "total_signals": 4102
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy is heavily dependent on Williams %R extremes and OBV crossovers, which can produce many false signals in sideways or highly volatile markets, leading to frequent whipsaws. 2. OBV alone may not capture true volume momentum, especially on a 30\u2011min chart where order book depth and tick volume can be misleading. 3. The fixed ATR multiplier (1.7x) and hard stop\u2011loss may cut profitable moves early or allow large losses if the market is in a strong trend. 4. No trend filter is applied, so the strategy may trade against the prevailing direction, reducing Sharpe and increasing drawdown.\n[Backup plan] If returns are negative, first try adding a simple trend filter: only trade when the 200\u2011bar EMA is above the 50\u2011bar EMA for longs (and vice versa for shorts) to avoid counter\u2011trend whipsaws. If Sharpe is low, tighten the Williams %R threshold to -90/+90 and increase the OBV SMA window to 30 to reduce noise, and raise the ATR multiplier to 2.0 for tighter stops. As an alternative, switch to a volatility\u2011scaled mean\u2011reversion approach using Bollinger Bands on the close with a Keltner Band ATR filter, and trigger trades when price touches the upper/lower band with OBV confirming the direction. This keeps the core idea but reduces reliance on a single oscillator and adds a trend safeguard."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.2073403241182077
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Bollinger band extremes capture price overextension in a range-bound market; a complementary RSI filter confirms weak momentum, while ATR-based risk limits ensure only sufficiently volatile periods are traded, reducing false entries and improving risk-adjusted performance.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -116.02609369895755,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.2486628715442084,
+      "win_rate_pct": 27.507163323782237,
+      "trades": 349,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.247851002865329
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -116.0%, PF 0.25, Expectancy -33.25"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1103.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.5%, Trades 349, AvgW/L 40.00/61.04"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 221,
+          "short_signals": 379,
+          "total_signals": 600
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.247851002865329
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "When price hits an extreme on Williams %R, OBV momentum indicates whether buying or selling pressure will pull the price back toward the middle, so a mean\u2011reversion entry on the extreme combined with an OBV trend filter reduces false reversals; ATR provides a volatility\u2011adjusted risk envelope.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -208.36757596755265,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.16901611260638727,
+      "win_rate_pct": 23.655913978494624,
+      "trades": 651,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4032258064516125
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -208.4%, PF 0.17, Expectancy -32.01"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1152.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.7%, Trades 651, AvgW/L 27.52/50.45"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 493,
+          "short_signals": 776,
+          "total_signals": 1269
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011relies on hard %R thresholds and OBV lag, leading to many false entries in a trending or low\u2011volume asset; the dynamic ATR stop may be too tight for 30\u2011min swings, causing premature exits. High trade counts with a fixed risk/reward of 2.4:1 inflate transaction costs and erode returns. The absence of a trend filter (e.g., moving\u2011average direction) lets the mean\u2011reversion logic fire in directional markets, generating systematic losses.\n[Backup plan] If the backtest confirms negative returns, replace the %R extreme condition with a Bollinger\u2011Band\u2011based mean\u2011reversion trigger and add a short\u2011term SMA filter to block trades in up/down\u2011trends. For low Sharpe, increase the ATR multiplier to 2.0\u20112.5 to allow larger moves before stop\u2011out, and tighten the %R threshold to \u00b190 to capture only the strongest reversals. Alternatively, switch to a volatility\u2011breakout strategy on the same pair, using a 14\u2011period ATR to set dynamic profit targets and a 50\u2011period EMA to define trend bias, thereby reducing over\u2011trading and improving risk\u2011adjusted performance."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4032258064516125
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "When the price reaches the extreme lower band of Williams %R while OBV shows an upward trend, it signals a short-term overbought pressure that is likely to reverse, and vice versa for the upper band; using ATR to set dynamic stops and targets protects against volatility spikes while maintaining a 2.4:1 risk/reward ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -206.8354800399738,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.20449958235460253,
+      "win_rate_pct": 22.653721682847898,
+      "trades": 618,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.7038834951456305
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -206.8%, PF 0.20, Expectancy -33.47"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 250.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.7%, Trades 618, AvgW/L 37.98/54.39"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 493,
+          "short_signals": 776,
+          "total_signals": 1269
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on Williams %R extremes and a simple OBV slope test, which can generate many false reversals in a trending market; the 30\u2011minute timeframe amplifies noise. The ATR\u2011based stop (1.7\u00d7) may be too tight for a gold\u2011USD pair, causing premature exits. Lack of trend filtering or position\u2011size scaling can expose the portfolio to directional bias and high transaction costs. The 2.4:1 risk/reward target is ambitious given the frequent signal overlap, leading to low win rates. The current entry logic (OBV > previous OBV) is too weak to confirm momentum and may misclassify noise as a trend.\n\nBackup plan:\n1. Add a trend filter: require the 50\u2011period EMA to be above the 200\u2011period EMA for longs (and below for shorts) before accepting a %R signal.\n2. Tighten the %R trigger to \u201370/\u201330 instead of \u201380/\u201320 and add a confirmation of OBV slope > 0.5% over the last 3 bars.\n3. Increase ATR stop to 2.0\u00d7 for higher volatility periods, and set a fixed 1.5\u00d7 ATR take\u2011profit to improve risk/reward.\n4. Switch to a volume\u2011weighted mean reversion using Bollinger Bands with OBV confirmation if %R fails.\n5. If still poor, abandon %R and test a simple 20\u2011period SMA crossover with OBV momentum as the primary filter, keeping the ATR stop and dynamic TP."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.7038834951456305
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Bollinger bands provide price levels that the market tends to return to after extreme moves; OBV confirms that the volume flow is supporting a reversal rather than a continuation, reducing false breakouts; ATR\u2011based risk limits adapt to current volatility so that stop\u2011losses and take\u2011profits are appropriately sized for the asset\u2019s 30\u2011minute swings.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -203.5485485232225,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.41184078782186395,
+      "win_rate_pct": 26.268320180383313,
+      "trades": 887,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -2.619503945885006
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -203.5%, PF 0.41, Expectancy -22.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 263.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.3%, Trades 887, AvgW/L 61.17/52.92"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 680,
+          "short_signals": 861,
+          "total_signals": 1541
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is too noisy: Bollinger bands on 30\u2011min PAXGUSDC generate frequent extreme touches, OBV lagging and often contradicts price, and the ATR\u2011based stop is too tight, causing premature exits. The high trade count (\u2248600) amplifies slippage and commissions, eroding returns. The fixed 2.4:1 risk/reward may be unrealistic for this asset\u2019s volatility profile.\n[Backup plan] If returns stay negative, add a trend filter (e.g., 50\u2011period EMA) and only trade against the trend\u2019s direction. If Sharpe is low, tighten the BB width (use 20\u2011period 1.5\u03c3) and increase the ATR multiplier to 2.0 for stops, while raising the risk/reward target to 3:1. If the strategy still fails, switch to a momentum\u2011based mean\u2011reversion using RSI\u2011oversold/overbought with a MACD confirmation, or test a volatility\u2011scaled Pairs\u2011Trading model between PAXG and a gold\u2011price proxy."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -2.619503945885006
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ]
+}

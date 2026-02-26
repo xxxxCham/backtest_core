@@ -1,0 +1,860 @@
+{
+  "session_id": "20260225_170959_strat_gie_de_mean_reversion_sur_ftmusdc",
+  "objective": "Strat\u00e9gie de Mean-reversion sur FTMUSDC 30m. Indicateurs : CCI + MFI + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de CCI avec MFI en zone de survente/surachat. Take-profit au retour \u00e0 la bande m\u00e9diane, stop si MFI continue dans la tendance. Stop-loss dynamique bas\u00e9 sur ATR (1.5x), ratio risk/reward 2.8:1.",
+  "status": "success",
+  "best_sharpe": 1.5702039777791792,
+  "best_score": 100.0,
+  "total_iterations": 4,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When price reaches the extreme of the CCI and the MFI is simultaneously in an overbought or oversold state, the market is likely to revert towards the mean; a short ATR\u2011based stop limits downside while a TP set at 2.8\u00d7ATR captures the expected mean\u2011reversion move.",
+      "change_type": "both",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7207375261323129,
+      "return_pct": 48.239624551127235,
+      "max_drawdown_pct": -47.237457491602314,
+      "profit_factor": 1.0446911021564007,
+      "win_rate_pct": 41.14713216957606,
+      "trades": 802,
+      "continuous_score": 49.711625958038155,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 20.180650731704763,
+          "return": 44.0,
+          "profit_factor": 2.0430218128640325,
+          "trades_confidence": 10.0,
+          "win_rate": 1.844139650872818
+        },
+        "penalties": {
+          "drawdown_pressure": 18.15830499440154,
+          "drawdown_excess": 10.197881243001927,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 12.237457491602314
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +48.2%, PF 1.04, Expectancy 6.01"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 47.2%, Vol 37.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.721, Sortino 1.110, Calmar 0.155"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.1%, Trades 802, AvgW/L 341.71/228.69"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1558,
+          "short_signals": 834,
+          "total_signals": 2392
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on extreme CCI and MFI can trigger too many false positives, especially in trending markets; it ignores directional bias and may suffer from slippage on 30\u2011min candles. The fixed 2.8\u00d7ATR TP may not match the true mean\u2011reversion distance, while the ATR\u2011based stop may be too tight or too loose depending on volatility spikes. Additionally, the strategy doesn\u2019t account for market regime changes or liquidity constraints on FTMUSDC.\n[Backup plan] If performance is negative, add a short\u2011term trend filter (e.g., 50\u2011bar SMA direction) and tighten MFI thresholds to 15/85. For low Sharpe, experiment with a lower ATR multiplier for the stop (1.0\u20131.2\u00d7) and a dynamic TP that targets the 1\u00d7ATR distance or the 30\u2011min VWAP deviation. As an alternative, switch to a Bollinger\u2011Band mean\u2011reversion rule (price touching lower/upper band with RSI <30/>70) or implement a simple pair\u2011trade between FTM and a correlated asset to capture mean re\u2011entry without relying solely on CCI/MFI extremes."
+        },
+        "scoring": {
+          "continuous_score": 49.711625958038155,
+          "drawdown_excess_pct": 12.237457491602314,
+          "components": {
+            "sharpe": 20.180650731704763,
+            "return": 44.0,
+            "profit_factor": 2.0430218128640325,
+            "trades_confidence": 10.0,
+            "win_rate": 1.844139650872818
+          },
+          "penalties": {
+            "drawdown_pressure": 18.15830499440154,
+            "drawdown_excess": 10.197881243001927,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "When CCI reaches extreme overbought or oversold levels, price tends to revert, and MFI confirms the strength of that extreme by being in the same overbought or oversold zone; using ATR for dynamic stops adapts to volatility, reducing slippage impact and protecting capital.",
+      "change_type": "params",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.2919652285865974,
+      "return_pct": 5.423858257358952,
+      "max_drawdown_pct": -57.02263065782527,
+      "profit_factor": 1.0051347165345612,
+      "win_rate_pct": 38.0,
+      "trades": 750,
+      "continuous_score": -17.757945604495532,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 8.175026400424727,
+          "return": 5.966244083094847,
+          "profit_factor": 0.23472989872279829,
+          "trades_confidence": 10.0,
+          "win_rate": 0.8999999999999999
+        },
+        "penalties": {
+          "drawdown_pressure": 24.681753771883514,
+          "drawdown_excess": 18.35219221485439,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 22.022630657825268
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +5.4%, PF 1.01, Expectancy 0.72"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 57.0%, Vol 47.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.292, Sortino 0.424, Calmar 0.017"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.0%, Trades 750, AvgW/L 372.54/227.16"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1120,
+          "short_signals": 559,
+          "total_signals": 1679
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. High trade count can inflate returns while masking transaction costs; CCI/MFI extremes often generate many false signals in trending markets. 2. The strategy lacks a trend filter, so it may trade against strong directional moves. 3. Dynamic stop based solely on ATR may be too tight in low\u2011volatility periods or too loose when volatility spikes, leading to slippage. 4. Position sizing is fixed, ignoring volatility\u2011based risk allocation.\n[Backup plan] If returns turn negative, add a short\u2011term EMA trend filter (e.g., only trade when price is above the 50\u2011period EMA for longs). If Sharpe is low, tighten the ATR multiplier to 1.0x, raise the MFI overbought/oversold thresholds to 80/20, and reduce the number of bars to 20 for a quicker mean\u2011reversion signal. As an alternative, switch to a Bollinger\u2011band based mean\u2011reversion with a 2\u03c3 entry and 1\u03c3 exit, combined with a volatility\u2011scaled stop."
+        },
+        "scoring": {
+          "continuous_score": -17.757945604495532,
+          "drawdown_excess_pct": 22.022630657825268,
+          "components": {
+            "sharpe": 8.175026400424727,
+            "return": 5.966244083094847,
+            "profit_factor": 0.23472989872279829,
+            "trades_confidence": 10.0,
+            "win_rate": 0.8999999999999999
+          },
+          "penalties": {
+            "drawdown_pressure": 24.681753771883514,
+            "drawdown_excess": 18.35219221485439,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining extreme CCI levels with matching MFI extremes captures overextended price and volume conditions; filtering entries to periods where ATR is above its median ensures sufficient volatility for the ATR\u2011based risk limits to be effective, thereby reducing prolonged losses and high drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6733759483685104,
+      "return_pct": -70.3027235629879,
+      "max_drawdown_pct": -80.24915333553136,
+      "profit_factor": 0.8859762885635903,
+      "win_rate_pct": 37.41648106904232,
+      "trades": 449,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -18.85452655431829,
+          "return": -33.0,
+          "profit_factor": -5.212512522807299,
+          "trades_confidence": 10.0,
+          "win_rate": 0.7249443207126958
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 45.24915333553136
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -70.3%, PF 0.89, Expectancy -15.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 80.2%, Vol 62.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.673, Sortino -0.586, Calmar -0.244"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.4%, Trades 449, AvgW/L 325.15/219.42"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011reliance on extreme CCI/MFI conditions may trigger too many false signals in a trending market, and the 30\u2011min FTMUSDC may not have enough distinct mean\u2011reversion swings; ATR filtering alone may not suffice. The fixed 1.5\u00d7ATR stop can be too tight in low volatility periods, causing whipsaws, while the 2.8:1 risk/reward target is aggressive for a mean\u2011reversion approach. Also, the exit rule based on a single indicator crossing 0 or MFI moving toward 50 can be too vague, leading to late exits or missed reversals.\n[Backup plan] If performance is negative, tighten entry filters by requiring both CCI and MFI to be in opposite extremes (e.g., CCI \u2264 \u2013120 AND MFI \u2264 15) and add a short\u2011term trend filter (e.g., 8\u2011period SMA crossover) to avoid entering during strong trends. For low Sharpe, adjust the ATR multiplier to 2.0\u00d7 to widen stops, lower the risk/reward target to 2.0:1, and test a tighter stop\u2011loss (e.g., 1\u00d7ATR). If the strategy still fails, switch to a dual\u2011time\u2011frame approach: use 1\u2011hour CCI/MFI for trend bias and execute 30\u2011minute entries only when the higher\u2011timeframe indicates a retracement; alternatively, try a VWAP\u2011based mean\u2011reversion with volume\u2011weighted exit thresholds."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 45.24915333553136,
+          "components": {
+            "sharpe": -18.85452655431829,
+            "return": -33.0,
+            "profit_factor": -5.212512522807299,
+            "trades_confidence": 10.0,
+            "win_rate": 0.7249443207126958
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Mean\u2011reversion profits are higher when the market is in a low\u2011volatility regime; filtering entries to periods where ATR is below its median reduces exposure to large trend\u2011driven moves that can cause large drawdowns. Combining extreme CCI with extreme MFI ensures the price is overbought or oversold, while ATR\u2011based SL/TP protects against slippage and volatile spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.5702039777791792,
+      "return_pct": 125.911982014944,
+      "max_drawdown_pct": -15.528295238906853,
+      "profit_factor": 1.3018089189174638,
+      "win_rate_pct": 46.8944099378882,
+      "trades": 322,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 43.965711377817016,
+          "return": 44.0,
+          "profit_factor": 13.79697915051263,
+          "trades_confidence": 10.0,
+          "win_rate": 3.56832298136646
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +125.9%, PF 1.30, Expectancy 39.10"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 15.5%, Vol 29.2%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.570, Sortino 2.064, Calmar 1.015"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.9%, Trades 322, AvgW/L 359.67/243.97"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Over\u2011reliance on extreme CCI/MFI can trigger too many whipsaws; 2. ATR\u2011median filter is static and may miss short\u2011term volatility spikes; 3. Exit rule (cci crosses 0 or mfi crosses 50) is too loose, often closing before full mean\u2011reversion; 4. High trade count (\u2248800) amplifies transaction costs and slippage; 5. Lack of a trend filter lets the strategy trade against strong moves.\n[Backup plan] If negative return: tighten entry conditions (e.g., cci <= -150 & mfi <= 15), add a short\u2011term EMA filter to avoid trending periods, and use a tighter ATR stop (1.0x). If low Sharpe: increase ATR stop multiplier to 1.8x, raise MFI exit threshold to 70/30 for better TP capture, and lengthen the mean\u2011reversion window to 60\u2011min. Alternative: switch to a Bollinger\u2011Band + RSI mean\u2011reversion with a trend\u2011filter (ADX) to reduce false signals."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 43.965711377817016,
+            "return": 44.0,
+            "profit_factor": 13.79697915051263,
+            "trades_confidence": 10.0,
+            "win_rate": 3.56832298136646
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 4,
+      "hypothesis": "Mean\u2011reversion profits are higher when the market is in a low\u2011volatility regime; filtering entries to periods where ATR is below its median reduces exposure to large trend\u2011driven moves that can cause large drawdowns. Combining extreme CCI with extreme MFI ensures the price is overbought or oversold, while ATR\u2011based SL/TP protects against slippage and volatile spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.5702039777791792,
+      "return_pct": 125.911982014944,
+      "max_drawdown_pct": -15.528295238906853,
+      "profit_factor": 1.3018089189174638,
+      "win_rate_pct": 46.8944099378882,
+      "trades": 322,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 43.965711377817016,
+          "return": 44.0,
+          "profit_factor": 13.79697915051263,
+          "trades_confidence": 10.0,
+          "win_rate": 3.56832298136646
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +125.9%, PF 1.30, Expectancy 39.10"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 15.5%, Vol 29.2%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.570, Sortino 2.064, Calmar 1.015"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.9%, Trades 322, AvgW/L 359.67/243.97"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Over\u2011reliance on extreme CCI/MFI can trigger too many whipsaws; 2. ATR\u2011median filter is static and may miss short\u2011term volatility spikes; 3. Exit rule (cci crosses 0 or mfi crosses 50) is too loose, often closing before full mean\u2011reversion; 4. High trade count (\u2248800) amplifies transaction costs and slippage; 5. Lack of a trend filter lets the strategy trade against strong moves.\n[Backup plan] If negative return: tighten entry conditions (e.g., cci <= -150 & mfi <= 15), add a short\u2011term EMA filter to avoid trending periods, and use a tighter ATR stop (1.0x). If low Sharpe: increase ATR stop multiplier to 1.8x, raise MFI exit threshold to 70/30 for better TP capture, and lengthen the mean\u2011reversion window to 60\u2011min. Alternative: switch to a Bollinger\u2011Band + RSI mean\u2011reversion with a trend\u2011filter (ADX) to reduce false signals."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 43.965711377817016,
+            "return": 44.0,
+            "profit_factor": 13.79697915051263,
+            "trades_confidence": 10.0,
+            "win_rate": 3.56832298136646
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "When price reaches the extreme of the CCI and the MFI is simultaneously in an overbought or oversold state, the market is likely to revert towards the mean; a short ATR\u2011based stop limits downside while a TP set at 2.8\u00d7ATR captures the expected mean\u2011reversion move.",
+      "change_type": "both",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7207375261323129,
+      "return_pct": 48.239624551127235,
+      "max_drawdown_pct": -47.237457491602314,
+      "profit_factor": 1.0446911021564007,
+      "win_rate_pct": 41.14713216957606,
+      "trades": 802,
+      "continuous_score": 49.711625958038155,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 20.180650731704763,
+          "return": 44.0,
+          "profit_factor": 2.0430218128640325,
+          "trades_confidence": 10.0,
+          "win_rate": 1.844139650872818
+        },
+        "penalties": {
+          "drawdown_pressure": 18.15830499440154,
+          "drawdown_excess": 10.197881243001927,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 12.237457491602314
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +48.2%, PF 1.04, Expectancy 6.01"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 47.2%, Vol 37.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.721, Sortino 1.110, Calmar 0.155"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.1%, Trades 802, AvgW/L 341.71/228.69"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1558,
+          "short_signals": 834,
+          "total_signals": 2392
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on extreme CCI and MFI can trigger too many false positives, especially in trending markets; it ignores directional bias and may suffer from slippage on 30\u2011min candles. The fixed 2.8\u00d7ATR TP may not match the true mean\u2011reversion distance, while the ATR\u2011based stop may be too tight or too loose depending on volatility spikes. Additionally, the strategy doesn\u2019t account for market regime changes or liquidity constraints on FTMUSDC.\n[Backup plan] If performance is negative, add a short\u2011term trend filter (e.g., 50\u2011bar SMA direction) and tighten MFI thresholds to 15/85. For low Sharpe, experiment with a lower ATR multiplier for the stop (1.0\u20131.2\u00d7) and a dynamic TP that targets the 1\u00d7ATR distance or the 30\u2011min VWAP deviation. As an alternative, switch to a Bollinger\u2011Band mean\u2011reversion rule (price touching lower/upper band with RSI <30/>70) or implement a simple pair\u2011trade between FTM and a correlated asset to capture mean re\u2011entry without relying solely on CCI/MFI extremes."
+        },
+        "scoring": {
+          "continuous_score": 49.711625958038155,
+          "drawdown_excess_pct": 12.237457491602314,
+          "components": {
+            "sharpe": 20.180650731704763,
+            "return": 44.0,
+            "profit_factor": 2.0430218128640325,
+            "trades_confidence": 10.0,
+            "win_rate": 1.844139650872818
+          },
+          "penalties": {
+            "drawdown_pressure": 18.15830499440154,
+            "drawdown_excess": 10.197881243001927,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "When CCI reaches extreme overbought or oversold levels, price tends to revert, and MFI confirms the strength of that extreme by being in the same overbought or oversold zone; using ATR for dynamic stops adapts to volatility, reducing slippage impact and protecting capital.",
+      "change_type": "params",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.2919652285865974,
+      "return_pct": 5.423858257358952,
+      "max_drawdown_pct": -57.02263065782527,
+      "profit_factor": 1.0051347165345612,
+      "win_rate_pct": 38.0,
+      "trades": 750,
+      "continuous_score": -17.757945604495532,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 8.175026400424727,
+          "return": 5.966244083094847,
+          "profit_factor": 0.23472989872279829,
+          "trades_confidence": 10.0,
+          "win_rate": 0.8999999999999999
+        },
+        "penalties": {
+          "drawdown_pressure": 24.681753771883514,
+          "drawdown_excess": 18.35219221485439,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 22.022630657825268
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +5.4%, PF 1.01, Expectancy 0.72"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 57.0%, Vol 47.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.292, Sortino 0.424, Calmar 0.017"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.0%, Trades 750, AvgW/L 372.54/227.16"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1120,
+          "short_signals": 559,
+          "total_signals": 1679
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. High trade count can inflate returns while masking transaction costs; CCI/MFI extremes often generate many false signals in trending markets. 2. The strategy lacks a trend filter, so it may trade against strong directional moves. 3. Dynamic stop based solely on ATR may be too tight in low\u2011volatility periods or too loose when volatility spikes, leading to slippage. 4. Position sizing is fixed, ignoring volatility\u2011based risk allocation.\n[Backup plan] If returns turn negative, add a short\u2011term EMA trend filter (e.g., only trade when price is above the 50\u2011period EMA for longs). If Sharpe is low, tighten the ATR multiplier to 1.0x, raise the MFI overbought/oversold thresholds to 80/20, and reduce the number of bars to 20 for a quicker mean\u2011reversion signal. As an alternative, switch to a Bollinger\u2011band based mean\u2011reversion with a 2\u03c3 entry and 1\u03c3 exit, combined with a volatility\u2011scaled stop."
+        },
+        "scoring": {
+          "continuous_score": -17.757945604495532,
+          "drawdown_excess_pct": 22.022630657825268,
+          "components": {
+            "sharpe": 8.175026400424727,
+            "return": 5.966244083094847,
+            "profit_factor": 0.23472989872279829,
+            "trades_confidence": 10.0,
+            "win_rate": 0.8999999999999999
+          },
+          "penalties": {
+            "drawdown_pressure": 24.681753771883514,
+            "drawdown_excess": 18.35219221485439,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining extreme CCI levels with matching MFI extremes captures overextended price and volume conditions; filtering entries to periods where ATR is above its median ensures sufficient volatility for the ATR\u2011based risk limits to be effective, thereby reducing prolonged losses and high drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6733759483685104,
+      "return_pct": -70.3027235629879,
+      "max_drawdown_pct": -80.24915333553136,
+      "profit_factor": 0.8859762885635903,
+      "win_rate_pct": 37.41648106904232,
+      "trades": 449,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -18.85452655431829,
+          "return": -33.0,
+          "profit_factor": -5.212512522807299,
+          "trades_confidence": 10.0,
+          "win_rate": 0.7249443207126958
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 45.24915333553136
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -70.3%, PF 0.89, Expectancy -15.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 80.2%, Vol 62.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.673, Sortino -0.586, Calmar -0.244"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.4%, Trades 449, AvgW/L 325.15/219.42"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 23579 rows. Every boolean mask MUST also have exactly 23579 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011reliance on extreme CCI/MFI conditions may trigger too many false signals in a trending market, and the 30\u2011min FTMUSDC may not have enough distinct mean\u2011reversion swings; ATR filtering alone may not suffice. The fixed 1.5\u00d7ATR stop can be too tight in low volatility periods, causing whipsaws, while the 2.8:1 risk/reward target is aggressive for a mean\u2011reversion approach. Also, the exit rule based on a single indicator crossing 0 or MFI moving toward 50 can be too vague, leading to late exits or missed reversals.\n[Backup plan] If performance is negative, tighten entry filters by requiring both CCI and MFI to be in opposite extremes (e.g., CCI \u2264 \u2013120 AND MFI \u2264 15) and add a short\u2011term trend filter (e.g., 8\u2011period SMA crossover) to avoid entering during strong trends. For low Sharpe, adjust the ATR multiplier to 2.0\u00d7 to widen stops, lower the risk/reward target to 2.0:1, and test a tighter stop\u2011loss (e.g., 1\u00d7ATR). If the strategy still fails, switch to a dual\u2011time\u2011frame approach: use 1\u2011hour CCI/MFI for trend bias and execute 30\u2011minute entries only when the higher\u2011timeframe indicates a retracement; alternatively, try a VWAP\u2011based mean\u2011reversion with volume\u2011weighted exit thresholds."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 45.24915333553136,
+          "components": {
+            "sharpe": -18.85452655431829,
+            "return": -33.0,
+            "profit_factor": -5.212512522807299,
+            "trades_confidence": 10.0,
+            "win_rate": 0.7249443207126958
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

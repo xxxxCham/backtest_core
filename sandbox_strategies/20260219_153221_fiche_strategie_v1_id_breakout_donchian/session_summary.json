@@ -1,0 +1,329 @@
+{
+  "session_id": "20260219_153221_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=15)\n- adx(period=16)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 35\n- short: close < donchian.lower and adx.adx > 35\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 25\nrisk:\nstop_atr_mult: 2.25\ntp_atr_mult: 3.5\ndescription: ATR stop-loss (2.25x) and take-profit (3.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 4,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Donchian channels identify support/resistance levels while ADX confirms trend strength, creating a reliable breakout system",
+      "change_type": "accept",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 90: invalid syntax",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260219_153221_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 91, in generate_signals\n    long_condition = (close > prev_upper) & (np.nan_to_num(indicators['adx']['adx']) > 35)\nNameError: name 'close' is not defined",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Key potential weaknesses include potential whipsaws from normal channel oscillations, divergence between ADX trend strength and actual price action, and potential issues with look-ahead bias despite current constraint. I would investigate whether requiring both ADX confirmation and price breakout creates excessive filtering.\n[Backup plan] If performance is poor, I would consider removing the ADX filter to allow pure breakout signals, reducing stop-loss multiple to 1.5x for tighter risk, or switching to a Bollinger Band-based strategy. For mediocre results, I would explore adjusting Donchian period to 12-20 range and testing 20-period ADX."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Donchian channels capture range expansion, while ADX filters for trend strength. ATR-based risk management ensures consistent position sizing regardless of volatility. By combining these indicators, we can identify genuine breakout opportunities with controlled risk.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.0112716778422572,
+      "return_pct": 22.03932248309682,
+      "trades": 107,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +22.0%, PF 1.07, Expectancy 20.60"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 68.9%, Vol 201.4%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.011, Sortino 2.051, Calmar 0.973"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.2%, Trades 107, AvgW/L 788.35/495.24"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'stop_atr_mult' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'stop_atr_mult' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260219_153221_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 142, in generate_signals\n    df.loc[entry_mask, \"sl_level\"] = close[entry_mask] - stop_atr_mult * atr_values[entry_mask]\nNameError: name 'stop_atr_mult' is not defined",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Possible weaknesses include false breakouts from noise, lagging ADX signals, and ATR-based stops being triggered too frequently. Market conditions like low volatility periods could reduce effectiveness.\n[Backup plan] If performance is poor, consider switching to Bollinger Bands for entry signals, reducing ADX threshold to 25, or implementing a trailing stop. Exploring alternative breakout strategies like price channel breakouts could also help."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "ADX filters out weak trends, reducing whipsaws in Donchian breakout strategy",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.0112716778422572,
+      "return_pct": 22.03932248309682,
+      "trades": 107,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +22.0%, PF 1.07, Expectancy 20.60"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 68.9%, Vol 201.4%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.011, Sortino 2.051, Calmar 0.973"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.2%, Trades 107, AvgW/L 788.35/495.24"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "AttributeError: 'BuilderGeneratedStrategy' object has no attribute '_cross_any'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "AttributeError: 'BuilderGeneratedStrategy' object has no attribute '_cross_any'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260219_153221_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 113, in generate_signals\n    self._cross_any(df[\"close\"], indicators['donchian']['middle'])\nAttributeError: 'BuilderGeneratedStrategy' object has no attribute '_cross_any'",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8439300026068673,
+      "return_pct": 17.441619251207175,
+      "trades": 112,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +17.4%, PF 1.06, Expectancy 15.57"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 67.2%, Vol 144.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.844, Sortino 1.476, Calmar 0.764"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.4%, Trades 112, AvgW/L 708.89/416.49"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "empty",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "error_code": "DSL001",
+          "final_kind": "empty",
+          "final_valid": false,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "empty",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "empty",
+          "final_valid": false,
+          "validation_error": "[CLASS001] Bloc logique LLM vide.",
+          "validation_error_retry": "[CLASS001] Bloc logique LLM vide.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 49,
+          "short_signals": 140,
+          "total_signals": 189
+        }
+      }
+    }
+  ]
+}

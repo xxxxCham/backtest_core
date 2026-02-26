@@ -1,0 +1,239 @@
+{
+  "session_id": "20260223_033923_fiche_strategie_v1_id_vol_amplitude_brea",
+  "objective": "FICHE_STRATEGIE v1\nid: vol_amplitude_breakout\narchetype: vol_amplitude_breakout\nfamily: volatility\ntimeframe: 1h\nside: both\nindicators:\n- amplitude_hunter(period=42)\n- donchian(period=40)\n- atr(period=14)\nentry:\n- long: amplitude_hunter.score > 0.55 and close > donchian.upper\n- short: amplitude_hunter.score > 0.55 and close < donchian.lower\nexit:\n- condition: amplitude_hunter.score < 0.3 or cross_any(close, donchian.middle)\nrisk:\nstop_atr_mult: 1.5\ntp_atr_mult: 2.5\ndescription: ATR stop-loss (1.5x) and take-profit (2.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Amplitude_hunter highlights periods of large price swings; a breakout beyond the Donchian channel confirms that the swing is moving into a new range, while a higher score threshold reduces false breakouts. Tightening the entry score and adding an exit score threshold keeps positions in only the strongest moves, and ATR-based stop\u2011loss and take\u2011profit scale risk with market volatility.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.5181879394723568,
+      "return_pct": -28.65460186224489,
+      "trades": 68,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -28.7%, PF 0.82, Expectancy -42.14"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 41.4%, Vol 70.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.518, Sortino -0.572, Calmar -1.404"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.3%, Trades 68, AvgW/L 549.47/364.83"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 46,
+          "short_signals": 29,
+          "total_signals": 75
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include over\u2011reliance on a single amplitude score that may be noisy, a Donchian channel period that may not match the 1h timeframe, and ATR\u2011based SL/TP that could be too tight in low\u2011volatility regimes or too loose in high\u2011volatility ones. The strategy also lacks a trend filter or volatility\u2011regime check, risking entry into whipsaw markets. Additionally, the exit rule (score <0.3 or middle cross) may trigger premature exits, and the fixed ATR multipliers ignore changing risk\u2011reward dynamics.\n[Backup plan] If the backtest shows negative returns, first lower the amplitude_hunter entry threshold (e.g., 0.5) or add a simple moving\u2011average trend filter to avoid whipsaws, and increase the Donchian period to smooth out noise. If returns are mediocre with a low Sharpe, tighten the exit score threshold (e.g., 0.25), adjust ATR stop/TP to 1.2x/2.0x, and consider a volatility\u2011scaled position size. If the strategy still fails, switch to a volatility\u2011breakout approach using a Bollinger\u2011Band\u2011based entry with a higher\u2011timeframe trend confirmation, or replace the Donchian channel with an ATR\u2011based breakout band to better capture range shifts."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Amplitude_hunter signals large price swings, but can fire in both directions. Adding an EMA trend filter ensures we only act when the swing aligns with the prevailing trend, reducing reverse\u2011direction trades. ATR\u2011based risk management adapts stops and targets to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Amplitude Hunter highlights periods of large price swings; a Donchian breakout confirms a sustained move beyond the recent range, and filtering with ATR ensures the move occurs in a volatile regime, reducing false breakouts and aligning risk with market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -90.48033168614705,
+      "trades": 266,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -90.5%, PF 0.81, Expectancy -34.02"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1276.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.6%, Trades 266, AvgW/L 561.30/238.47"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 150,
+          "short_signals": 169,
+          "total_signals": 319
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The amplitude_hunter score threshold is arbitrary and may miss subtle swings; 2. Donchian and amplitude periods are almost identical, causing redundancy; 3. ATR filter uses a fixed multiplier (1.5/2.5) that may not adapt to regime shifts; 4. No trend or directional bias filter could allow many whipsaws; 5. Position sizing is implicit, risking overexposure.\n[Backup plan] If returns are negative, tighten the amplitude_hunter score to >0.7 and add a 50\u2011period EMA trend filter (long only if price > EMA, short if price < EMA). If Sharpe is low, reduce the stop to 1.2\u00d7ATR, increase TP to 3\u00d7ATR, and lengthen Donchian to 50 periods to smooth breakout signals. As an alternative, replace Donchian with a Keltner Channel breakout and use a volatility\u2011scaled position size based on ATR percentiles."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1279 @@
+{
+  "session_id": "20260225_065439_strat_gie_de_regime_adaptatif_sur_0gusdc",
+  "objective": "Strat\u00e9gie de Regime-adaptatif sur 0GUSDC 15m. Indicateurs : KELTNER + VWAP + ATR. Signal adaptatif : si volatilite elevee (KELTNER), suivre la cassure ; sinon trader le retour a la moyenne via VWAP. Sortie lors d'un changement de regime detecte par KELTNER. Trailing stop \u00e0 1.1x ATR, take-profit \u00e0 3.2x ATR.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When the Keltner channel is wide relative to recent ATR, the market is in a high\u2011volatility regime where price tends to breakout; using the channel breakout as entry captures momentum. When the channel is narrow, volatility is low and price reverts toward the VWAP, so trading pull\u2011backs to VWAP captures mean\u2011reversion. Switching between these regimes with a volatility filter reduces false breakouts and improves risk\u2011adjusted returns.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -246.5085733046455,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.706722508343735,
+      "win_rate_pct": 25.43171114599686,
+      "trades": 637,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.406971047143546,
+          "trades_confidence": 10.0,
+          "win_rate": -2.870486656200942
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -246.5%, PF 0.71, Expectancy -38.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 612.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 637, AvgW/L 366.68/176.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1207,
+          "total_signals": 1856
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime filter relies on a single Keltner\u2011ATR ratio, which can be noisy on 15\u2011minute bars and may misclassify transient spikes as regime changes. Breakout entries ignore volume and may be vulnerable to false spikes, while VWAP reversion assumes a stable intraday anchor that can drift in thinly\u2011traded periods. Fixed ATR multiples for stop and TP may not scale with changing volatility, leading to premature exits or excessive drawdowns. Finally, the binary regime switch can cause whipsaw when the market oscillates around the width threshold.\n[Backup plan] If returns are negative, tighten the breakout condition by requiring price to close beyond the Keltner band and exceed a volume\u2011weighted filter (e.g., OBV surge) before entry. For a low Sharpe, experiment with a smoother volatility measure (e.g., EMA of ATR) and adjust the width threshold (vol_factor) and TP/SL multiples (e.g., TP 2.5\u00d7ATR, SL 1.0\u00d7ATR) to improve risk\u2011reward. Should the adaptive regime concept fail, switch to a pure trend\u2011following model using a longer\u2011term EMA crossover with dynamic ATR\u2011based stops, or a mean\u2011reversion model that trades only VWAP pull\u2011backs with a tighter band and optional Bollinger confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.406971047143546,
+            "trades_confidence": 10.0,
+            "win_rate": -2.870486656200942
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "By explicitly separating high\u2011volatility breakout trades from low\u2011volatility mean\u2011reversion trades, the strategy only takes directional bets when the market structure supports them; Keltner width relative to ATR acts as a reliable volatility regime filter, while VWAP provides a robust intraday equilibrium level for reversion, reducing false entries and limiting drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -246.5085733046455,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.706722508343735,
+      "win_rate_pct": 25.43171114599686,
+      "trades": 637,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.406971047143546,
+          "trades_confidence": 10.0,
+          "win_rate": -2.870486656200942
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -246.5%, PF 0.71, Expectancy -38.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 612.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 637, AvgW/L 366.68/176.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1207,
+          "total_signals": 1856
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime filter (Keltner width > ATR) may be too binary, causing frequent flips and choppy exits; VWAP is a static intraday anchor that can be misleading on low\u2011volume periods; the 1.1\u00d7 ATR trailing stop is tight and may get stopped out on normal noise; using the same ATR multiplier for both regime detection and stop/tp creates correlated errors; and the strategy ignores order\u2011flow or momentum beyond simple price\u2011crosses, limiting edge in breakout regimes.\n[Backup plan] If returns are negative, tighten the breakout condition by requiring a confirmed candle (e.g., close > upper Keltner and volume > 1.5\u00d7 median) and widen the trailing stop to 1.5\u00d7 ATR. If Sharpe is low, experiment with a higher regime threshold (e.g., Keltner width > 1.2\u00d7 ATR) and adjust TP to 4\u00d7 ATR while keeping stop at 1.2\u00d7 ATR. Should the whole regime concept fail, switch to a pure VWAP\u2011mean\u2011reversion with dynamic bands (VWAP \u00b1 0.5\u00d7 ATR) and add a momentum filter (RSI 30/70) to capture directional bias."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.406971047143546,
+            "trades_confidence": 10.0,
+            "win_rate": -2.870486656200942
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "EMA provides a smooth trend line while ADX confirms the presence of a strong trend; combining them filters out sideways moves, and ATR\u2011based stops/take\u2011profits size risk proportionally to volatility, reducing drawdowns and improving win\u2011rate.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6014929509396091,
+      "return_pct": -97.98642849002252,
+      "max_drawdown_pct": -98.50859359072123,
+      "profit_factor": 0.6898466843119945,
+      "win_rate_pct": 34.4,
+      "trades": 250,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -16.841802626309054,
+          "return": -33.0,
+          "profit_factor": -14.17843728859454,
+          "trades_confidence": 10.0,
+          "win_rate": -0.18000000000000044
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 63.50859359072123
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -98.0%, PF 0.69, Expectancy -39.19"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 98.5%, Vol 309.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.601, Sortino -0.807, Calmar -1.015"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.4%, Trades 250, AvgW/L 253.42/192.64"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'keltner'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'keltner'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_065439_strat_gie_de_regime_adaptatif_sur_0gusdc\\strategy.py\", line 90, in generate_signals\n    kelt = indicators['keltner']\nKeyError: 'keltner'",
+          "runtime_fix_validation_error": "[IND001] \u00c9criture df['atr_stop_long'] non autoris\u00e9e. Colonnes autoris\u00e9es: bb_stop_long, bb_stop_short, bb_tp_long, bb_tp_short, sl_level, tp_level.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime\u2011switch logic relies on Keltner volatility thresholds that may be too noisy on a 15\u2011minute crypto pair, causing frequent regime flips and whipsaw. The VWAP mean\u2011reversion signal can be weak in a strongly trending market, leading to premature exits. Fixed ADX thresholds (25/20) ignore dynamic market strength, and the 1.1\u00d7 ATR trailing stop may be too tight, clipping winners. Finally, the strategy lacks position sizing or risk\u2011adjusted exposure, so a few bad clusters can dominate performance.\n[Backup plan] If returns are negative, tighten the volatility regime filter (e.g., require Keltner width > 1.5\u00d7 ATR) and replace the 1.1\u00d7 ATR trailing stop with a 2\u00d7 ATR stop to reduce over\u2011trading. For mediocre Sharpe, lower the ADX entry threshold to 20 and increase the VWAP mean\u2011reversion window (e.g., 30\u2011minute VWAP) to capture smoother price reverts. Should the core concept fail, switch to a pure breakout model: enter long on a Keltner breakout when volume > 1.5\u00d7 median, use a 3\u00d7 ATR profit target and a 1.5\u00d7 ATR stop, and drop the ADX/VWAP components altogether."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 63.50859359072123,
+          "components": {
+            "sharpe": -16.841802626309054,
+            "return": -33.0,
+            "profit_factor": -14.17843728859454,
+            "trades_confidence": 10.0,
+            "win_rate": -0.18000000000000044
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "By using the Keltner channel width as a volatility regime detector, the strategy can switch between breakout trades in high\u2011volatility periods and VWAP mean\u2011reversion trades in low\u2011volatility periods, capturing strong trends while avoiding whipsaws; ATR\u2011scaled stops and targets keep risk proportional to market volatility, improving win\u2011rate and drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -246.5085733046455,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.706722508343735,
+      "win_rate_pct": 25.43171114599686,
+      "trades": 637,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.406971047143546,
+          "trades_confidence": 10.0,
+          "win_rate": -2.870486656200942
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -246.5%, PF 0.71, Expectancy -38.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 612.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 637, AvgW/L 366.68/176.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1207,
+          "total_signals": 1856
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.406971047143546,
+            "trades_confidence": 10.0,
+            "win_rate": -2.870486656200942
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Separating high\u2011volatility breakouts from low\u2011volatility mean\u2011reversion using the Keltner channel width relative to ATR reduces noisy entries; in low\u2011volatility regimes we only trade when price deviates from VWAP by a fraction of ATR, which filters out minor fluctuations. Combined with ATR\u2011based stop\u2011loss and take\u2011profit, this should lower drawdown and improve win\u2011rate.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -240.76566702771584,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7158434570121124,
+      "win_rate_pct": 26.226993865030675,
+      "trades": 652,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -12.990013393732006,
+          "trades_confidence": 10.0,
+          "win_rate": -2.631901840490798
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -240.8%, PF 0.72, Expectancy -36.93"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1200.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.2%, Trades 652, AvgW/L 354.70/176.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1228,
+          "total_signals": 1877
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -12.990013393732006,
+            "trades_confidence": 10.0,
+            "win_rate": -2.631901840490798
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "By explicitly separating high\u2011volatility breakout trades from low\u2011volatility mean\u2011reversion trades using Keltner channel width as a volatility regime filter, the strategy trades only when the market context supports the signal, reducing false breakouts and over\u2011trading; ATR\u2011based risk limits further protect capital, which together should improve win\u2011rate, Sharpe and limit drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -240.76566702771584,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7158434570121124,
+      "win_rate_pct": 26.226993865030675,
+      "trades": 652,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -12.990013393732006,
+          "trades_confidence": 10.0,
+          "win_rate": -2.631901840490798
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -240.8%, PF 0.72, Expectancy -36.93"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1200.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.2%, Trades 652, AvgW/L 354.70/176.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1228,
+          "total_signals": 1877
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime filter relies solely on Keltner width vs ATR, which can be noisy on a 15\u2011min crypto pair and may misclassify regimes, causing frequent flips and over\u2011trading. The VWAP mean\u2011reversion condition uses a fixed 0.5\u202fATR offset, which may be too tight for low\u2011vol periods, leading to premature entries. A single trailing stop/take\u2011profit ratio (1.1\u00d7/3.2\u00d7 ATR) ignores the differing risk\u2011reward profiles of breakout vs mean\u2011reversion trades. Exit logic based only on regime change may lock in losses if the price continues in the original direction after a brief width shift. Finally, the strategy lacks position sizing adaptation to volatility, risking excessive exposure during high\u2011ATR spikes.\n[Backup plan] If returns are negative, replace the Keltner\u2011ATR regime filter with a dual\u2011filter (e.g., combine Bollinger Band width and ADX) to better capture true volatility regimes, and tighten entry criteria (require price to close beyond the channel or VWAP by at least 0.75\u202fATR). If Sharpe is low, experiment with longer ATR multipliers for stop/tp (e.g., 1.5\u00d7/4\u00d7) and add a time\u2011based exit (max 4 bars) to reduce holding periods. Should the whole concept fail, pivot to a pure momentum approach: use EMA crossovers with ATR\u2011scaled stops, or a statistical arbitrage mean\u2011reversion on the spread between 0G and USDC using Z\u2011score thresholds."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -12.990013393732006,
+            "trades_confidence": 10.0,
+            "win_rate": -2.631901840490798
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "When the Keltner channel is wide relative to recent ATR, the market is in a high\u2011volatility regime where price tends to breakout; using the channel breakout as entry captures momentum. When the channel is narrow, volatility is low and price reverts toward the VWAP, so trading pull\u2011backs to VWAP captures mean\u2011reversion. Switching between these regimes with a volatility filter reduces false breakouts and improves risk\u2011adjusted returns.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -246.5085733046455,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.706722508343735,
+      "win_rate_pct": 25.43171114599686,
+      "trades": 637,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.406971047143546,
+          "trades_confidence": 10.0,
+          "win_rate": -2.870486656200942
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -246.5%, PF 0.71, Expectancy -38.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 612.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 637, AvgW/L 366.68/176.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1207,
+          "total_signals": 1856
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime filter relies on a single Keltner\u2011ATR ratio, which can be noisy on 15\u2011minute bars and may misclassify transient spikes as regime changes. Breakout entries ignore volume and may be vulnerable to false spikes, while VWAP reversion assumes a stable intraday anchor that can drift in thinly\u2011traded periods. Fixed ATR multiples for stop and TP may not scale with changing volatility, leading to premature exits or excessive drawdowns. Finally, the binary regime switch can cause whipsaw when the market oscillates around the width threshold.\n[Backup plan] If returns are negative, tighten the breakout condition by requiring price to close beyond the Keltner band and exceed a volume\u2011weighted filter (e.g., OBV surge) before entry. For a low Sharpe, experiment with a smoother volatility measure (e.g., EMA of ATR) and adjust the width threshold (vol_factor) and TP/SL multiples (e.g., TP 2.5\u00d7ATR, SL 1.0\u00d7ATR) to improve risk\u2011reward. Should the adaptive regime concept fail, switch to a pure trend\u2011following model using a longer\u2011term EMA crossover with dynamic ATR\u2011based stops, or a mean\u2011reversion model that trades only VWAP pull\u2011backs with a tighter band and optional Bollinger confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.406971047143546,
+            "trades_confidence": 10.0,
+            "win_rate": -2.870486656200942
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "By explicitly separating high\u2011volatility breakout trades from low\u2011volatility mean\u2011reversion trades, the strategy only takes directional bets when the market structure supports them; Keltner width relative to ATR acts as a reliable volatility regime filter, while VWAP provides a robust intraday equilibrium level for reversion, reducing false entries and limiting drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -246.5085733046455,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.706722508343735,
+      "win_rate_pct": 25.43171114599686,
+      "trades": 637,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.406971047143546,
+          "trades_confidence": 10.0,
+          "win_rate": -2.870486656200942
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -246.5%, PF 0.71, Expectancy -38.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 612.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 637, AvgW/L 366.68/176.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1207,
+          "total_signals": 1856
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime filter (Keltner width > ATR) may be too binary, causing frequent flips and choppy exits; VWAP is a static intraday anchor that can be misleading on low\u2011volume periods; the 1.1\u00d7 ATR trailing stop is tight and may get stopped out on normal noise; using the same ATR multiplier for both regime detection and stop/tp creates correlated errors; and the strategy ignores order\u2011flow or momentum beyond simple price\u2011crosses, limiting edge in breakout regimes.\n[Backup plan] If returns are negative, tighten the breakout condition by requiring a confirmed candle (e.g., close > upper Keltner and volume > 1.5\u00d7 median) and widen the trailing stop to 1.5\u00d7 ATR. If Sharpe is low, experiment with a higher regime threshold (e.g., Keltner width > 1.2\u00d7 ATR) and adjust TP to 4\u00d7 ATR while keeping stop at 1.2\u00d7 ATR. Should the whole regime concept fail, switch to a pure VWAP\u2011mean\u2011reversion with dynamic bands (VWAP \u00b1 0.5\u00d7 ATR) and add a momentum filter (RSI 30/70) to capture directional bias."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.406971047143546,
+            "trades_confidence": 10.0,
+            "win_rate": -2.870486656200942
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "EMA provides a smooth trend line while ADX confirms the presence of a strong trend; combining them filters out sideways moves, and ATR\u2011based stops/take\u2011profits size risk proportionally to volatility, reducing drawdowns and improving win\u2011rate.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6014929509396091,
+      "return_pct": -97.98642849002252,
+      "max_drawdown_pct": -98.50859359072123,
+      "profit_factor": 0.6898466843119945,
+      "win_rate_pct": 34.4,
+      "trades": 250,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -16.841802626309054,
+          "return": -33.0,
+          "profit_factor": -14.17843728859454,
+          "trades_confidence": 10.0,
+          "win_rate": -0.18000000000000044
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 63.50859359072123
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -98.0%, PF 0.69, Expectancy -39.19"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 98.5%, Vol 309.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.601, Sortino -0.807, Calmar -1.015"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.4%, Trades 250, AvgW/L 253.42/192.64"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'keltner'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'keltner'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_065439_strat_gie_de_regime_adaptatif_sur_0gusdc\\strategy.py\", line 90, in generate_signals\n    kelt = indicators['keltner']\nKeyError: 'keltner'",
+          "runtime_fix_validation_error": "[IND001] \u00c9criture df['atr_stop_long'] non autoris\u00e9e. Colonnes autoris\u00e9es: bb_stop_long, bb_stop_short, bb_tp_long, bb_tp_short, sl_level, tp_level.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime\u2011switch logic relies on Keltner volatility thresholds that may be too noisy on a 15\u2011minute crypto pair, causing frequent regime flips and whipsaw. The VWAP mean\u2011reversion signal can be weak in a strongly trending market, leading to premature exits. Fixed ADX thresholds (25/20) ignore dynamic market strength, and the 1.1\u00d7 ATR trailing stop may be too tight, clipping winners. Finally, the strategy lacks position sizing or risk\u2011adjusted exposure, so a few bad clusters can dominate performance.\n[Backup plan] If returns are negative, tighten the volatility regime filter (e.g., require Keltner width > 1.5\u00d7 ATR) and replace the 1.1\u00d7 ATR trailing stop with a 2\u00d7 ATR stop to reduce over\u2011trading. For mediocre Sharpe, lower the ADX entry threshold to 20 and increase the VWAP mean\u2011reversion window (e.g., 30\u2011minute VWAP) to capture smoother price reverts. Should the core concept fail, switch to a pure breakout model: enter long on a Keltner breakout when volume > 1.5\u00d7 median, use a 3\u00d7 ATR profit target and a 1.5\u00d7 ATR stop, and drop the ADX/VWAP components altogether."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 63.50859359072123,
+          "components": {
+            "sharpe": -16.841802626309054,
+            "return": -33.0,
+            "profit_factor": -14.17843728859454,
+            "trades_confidence": 10.0,
+            "win_rate": -0.18000000000000044
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "By using the Keltner channel width as a volatility regime detector, the strategy can switch between breakout trades in high\u2011volatility periods and VWAP mean\u2011reversion trades in low\u2011volatility periods, capturing strong trends while avoiding whipsaws; ATR\u2011scaled stops and targets keep risk proportional to market volatility, improving win\u2011rate and drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -246.5085733046455,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.706722508343735,
+      "win_rate_pct": 25.43171114599686,
+      "trades": 637,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.406971047143546,
+          "trades_confidence": 10.0,
+          "win_rate": -2.870486656200942
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -246.5%, PF 0.71, Expectancy -38.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 612.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 637, AvgW/L 366.68/176.95"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1207,
+          "total_signals": 1856
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.406971047143546,
+            "trades_confidence": 10.0,
+            "win_rate": -2.870486656200942
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Separating high\u2011volatility breakouts from low\u2011volatility mean\u2011reversion using the Keltner channel width relative to ATR reduces noisy entries; in low\u2011volatility regimes we only trade when price deviates from VWAP by a fraction of ATR, which filters out minor fluctuations. Combined with ATR\u2011based stop\u2011loss and take\u2011profit, this should lower drawdown and improve win\u2011rate.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -240.76566702771584,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7158434570121124,
+      "win_rate_pct": 26.226993865030675,
+      "trades": 652,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -12.990013393732006,
+          "trades_confidence": 10.0,
+          "win_rate": -2.631901840490798
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -240.8%, PF 0.72, Expectancy -36.93"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1200.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.2%, Trades 652, AvgW/L 354.70/176.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1228,
+          "total_signals": 1877
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -12.990013393732006,
+            "trades_confidence": 10.0,
+            "win_rate": -2.631901840490798
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "By explicitly separating high\u2011volatility breakout trades from low\u2011volatility mean\u2011reversion trades using Keltner channel width as a volatility regime filter, the strategy trades only when the market context supports the signal, reducing false breakouts and over\u2011trading; ATR\u2011based risk limits further protect capital, which together should improve win\u2011rate, Sharpe and limit drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -240.76566702771584,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7158434570121124,
+      "win_rate_pct": 26.226993865030675,
+      "trades": 652,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -12.990013393732006,
+          "trades_confidence": 10.0,
+          "win_rate": -2.631901840490798
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -240.8%, PF 0.72, Expectancy -36.93"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1200.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 26.2%, Trades 652, AvgW/L 354.70/176.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 649,
+          "short_signals": 1228,
+          "total_signals": 1877
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The regime filter relies solely on Keltner width vs ATR, which can be noisy on a 15\u2011min crypto pair and may misclassify regimes, causing frequent flips and over\u2011trading. The VWAP mean\u2011reversion condition uses a fixed 0.5\u202fATR offset, which may be too tight for low\u2011vol periods, leading to premature entries. A single trailing stop/take\u2011profit ratio (1.1\u00d7/3.2\u00d7 ATR) ignores the differing risk\u2011reward profiles of breakout vs mean\u2011reversion trades. Exit logic based only on regime change may lock in losses if the price continues in the original direction after a brief width shift. Finally, the strategy lacks position sizing adaptation to volatility, risking excessive exposure during high\u2011ATR spikes.\n[Backup plan] If returns are negative, replace the Keltner\u2011ATR regime filter with a dual\u2011filter (e.g., combine Bollinger Band width and ADX) to better capture true volatility regimes, and tighten entry criteria (require price to close beyond the channel or VWAP by at least 0.75\u202fATR). If Sharpe is low, experiment with longer ATR multipliers for stop/tp (e.g., 1.5\u00d7/4\u00d7) and add a time\u2011based exit (max 4 bars) to reduce holding periods. Should the whole concept fail, pivot to a pure momentum approach: use EMA crossovers with ATR\u2011scaled stops, or a statistical arbitrage mean\u2011reversion on the spread between 0G and USDC using Z\u2011score thresholds."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -12.990013393732006,
+            "trades_confidence": 10.0,
+            "win_rate": -2.631901840490798
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

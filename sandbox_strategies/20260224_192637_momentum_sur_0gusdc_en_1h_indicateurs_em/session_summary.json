@@ -1,0 +1,1203 @@
+{
+  "session_id": "20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em",
+  "objective": "Momentum sur 0GUSDC en 1h. Indicateurs : EMA + BOLLINGER + VOLUME_OSCILLATOR. Entr\u00e9es : croisement HAUSSE de EMA sur BOLLINGER avec confirmation HAUT du VOLUME_OSCILLATOR, filtr\u00e9 par regime trend via SUPERTREND. Sorties : croisement BAISSSE de EMA ou perte de 20% du spread BOLLINGER. Risk management : SL dynamique bas\u00e9 sur ATR, TP fixe \u00e0 2x le SL, avec adaptation de la taille du trade selon le VOLUME_OSCILLATOR. Hypoth\u00e8se : les mouvements de tendance suivent les impulsions de volume sur les supports/tests de BOLLINGER, mais uniquement dans un contexte de tendance confirm\u00e9 par SUPERTREND.",
+  "status": "failed",
+  "best_sharpe": 0.32681978347466667,
+  "best_score": -21.068862463940974,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "In an uptrend confirmed by Supertrend, price momentum is amplified at Bollinger support levels, with volume oscillator confirming buying pressure. This combination filters out false breakouts and reduces whipsaw in ranging markets.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 112, in generate_signals\n    prev_st_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_retry_error": "NameError: name 'long_cross_down' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses include overfitting to specific indicator combinations, potential look-ahead bias in Supertrend usage, and reliance on Bollinger width for exit timing which may lag. The volume confirmation may be too strict, filtering valid entries. Dynamic SL based on ATR without volatility normalization could be inconsistent across markets.\n[Backup plan] If results are poor, try relaxing volume confirmation to 0.5x threshold and using RSI instead of volume oscillator. If mediocre Sharpe, reduce EMA period and widen exit threshold to 0.25. Alternative: switch to mean-reversion on Bollinger bands with volatility scaling, or use MACD crossover with fixed SL/TP for simpler execution."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Momentum signals are more reliable when confirmed by volume oscillator and filtered through supertrend to avoid whipsaws in ranging markets. EMA crossing Bollinger bands provides clear entry points, while ATR-based stop-loss ensures dynamic risk management.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 104, in generate_signals\n    prev_st_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to EMA-BOLLINGER crossover signals, potential whipsaws during range-bound periods despite SUPERTREND filter, and rigid exit rules that may lock out profits. The volume confirmation may not be robust enough to filter false signals, and the 20% BOLLINGER spread exit could be too early or too late depending on volatility regimes.\n[Backup plan] If results are poor, I'd simplify to just EMA crossover + SUPERTREND filter without volume confirmation, and test a 50% BOLLINGER spread loss trigger. If Sharpe is mediocre, I'd adjust EMA period (e.g., 20\u219250) and increase ATR multiplier for SL. As alternative, I'd test a mean-reversion approach using BOLLINGER reversion with volume filter, or a breakout strategy with ATR-based entry and exit thresholds."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum is amplified when EMA crosses above Bollinger middle band during high-volume confirmation, but only in an uptrend confirmed by Supertrend. This reduces false breakouts and improves risk-reward by filtering regime changes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -93.91753955343711,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7881026191748817,
+      "win_rate_pct": 34.57943925233645,
+      "trades": 214,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.686737409148266,
+          "trades_confidence": 10.0,
+          "win_rate": -0.1261682242990652
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -93.9%, PF 0.79, Expectancy -43.89"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 4665.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.6%, Trades 214, AvgW/L 472.03/316.59"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 107,
+          "short_signals": 107,
+          "total_signals": 214
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (EMA crossover, volume confirmation, Supertrend regime) may overfit to historical patterns, especially with only 3400 bars. The 20% Bollinger spread exit is arbitrary and may cause premature exits or allow large drawdowns. The dynamic SL based on ATR combined with fixed TP of 2x may not account for volatility spikes or market regime changes.\n[Backup plan] If results are poor, simplify to just EMA + Supertrend filter with fixed SL/TP. If Sharpe is low, widen the Bollinger exit threshold to 30% or 40% and adjust volume threshold to 0.5. As alternative, try a mean-reversion approach using Bollinger bands with EMA trend filter, or switch to a breakout strategy with higher time frame confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.686737409148266,
+            "trades_confidence": 10.0,
+            "win_rate": -0.1261682242990652
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Trend confirmation via Supertrend filter prevents whipsaws in ranging markets, while breakout signals from EMA crossing Bollinger bands with volume confirmation capture strong momentum moves. ATR-based risk management ensures dynamic stops that scale with volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Momentum sur 0GUSDC en 1h avec EMA + BOLLINGER + VOLUME_OSCILLATOR : Les mouvements de tendance suivent les impulsions de volume sur les supports/tests de BOLLINGER, mais uniquement dans un contexte de tendance confirm\u00e9 par SUPERTREND. Ce filtrage r\u00e9duit les faux signaux et am\u00e9liore la qualit\u00e9 des entr\u00e9es.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.32681978347466667,
+      "return_pct": -3.0854320461596947,
+      "max_drawdown_pct": -44.58677888598416,
+      "profit_factor": 0.9832580791612783,
+      "win_rate_pct": 36.0655737704918,
+      "trades": 61,
+      "continuous_score": -21.068862463940974,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 9.150953937290666,
+          "return": -3.393975250775664,
+          "profit_factor": -0.7653449526272789,
+          "trades_confidence": 10.0,
+          "win_rate": 0.3196721311475408
+        },
+        "penalties": {
+          "drawdown_pressure": 16.39118592398944,
+          "drawdown_excess": 7.9889824049868,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 9.58677888598416
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -3.1%, PF 0.98, Expectancy -5.06"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 44.6%, Vol 92.2%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.327, Sortino 0.642, Calmar -0.174"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.1%, Trades 61, AvgW/L 823.67/472.55"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 106, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (EMA crossover, BOLLINGER, VOLUME_OSCILLATOR, SUPERTREND) may lead to overfitting and reduced trade frequency. The exit rule based on BOLLINGER spread loss is arbitrary and may cause premature exits. The dynamic SL based on ATR with fixed TP of 2x may not account for volatility clustering or market regime changes.\n[Backup plan] If results are poor, switch to a simpler EMA+SUPERTREND filter with fixed SL/TP. If Sharpe is low, reduce EMA period and tighten BOLLINGER bands. As alternative, test a mean-reversion approach using RSI and BOLLINGER with opposite signals."
+        },
+        "scoring": {
+          "continuous_score": -21.068862463940974,
+          "drawdown_excess_pct": 9.58677888598416,
+          "components": {
+            "sharpe": 9.150953937290666,
+            "return": -3.393975250775664,
+            "profit_factor": -0.7653449526272789,
+            "trades_confidence": 10.0,
+            "win_rate": 0.3196721311475408
+          },
+          "penalties": {
+            "drawdown_pressure": 16.39118592398944,
+            "drawdown_excess": 7.9889824049868,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The combination of EMA crossover with Bollinger bands and volume confirmation filters false breakouts while the Supertrend ensures trend alignment, leading to higher-quality entries with reduced whipsaw in 0GUSDC's volatile 1h timeframe.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 118, in generate_signals\n    prev_st_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover with Bollinger bands may generate lagging signals, while the volume filter could be too sensitive to noise in 0GUSDC's 1h chart. Supertrend trend filtering might be too restrictive, eliminating valid trades during consolidation. The dynamic SL based on ATR with fixed TP of 2x may not account for volatility spikes or market regime changes.\n[Backup plan] If results are poor, I'd test a simpler EMA crossover with fixed SL/TP and remove the volume confirmation. If mediocre, I'd optimize EMA periods (e.g., 10/20) and adjust Bollinger bandwidth. As alternative, I'd try a mean-reversion approach using RSI + Bollinger bands with volatility scaling, or a breakout filter with ADX for trend strength."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 3
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 5,
+      "hypothesis": "Momentum sur 0GUSDC en 1h avec EMA + BOLLINGER + VOLUME_OSCILLATOR : Les mouvements de tendance suivent les impulsions de volume sur les supports/tests de BOLLINGER, mais uniquement dans un contexte de tendance confirm\u00e9 par SUPERTREND. Ce filtrage r\u00e9duit les faux signaux et am\u00e9liore la qualit\u00e9 des entr\u00e9es.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.32681978347466667,
+      "return_pct": -3.0854320461596947,
+      "max_drawdown_pct": -44.58677888598416,
+      "profit_factor": 0.9832580791612783,
+      "win_rate_pct": 36.0655737704918,
+      "trades": 61,
+      "continuous_score": -21.068862463940974,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 9.150953937290666,
+          "return": -3.393975250775664,
+          "profit_factor": -0.7653449526272789,
+          "trades_confidence": 10.0,
+          "win_rate": 0.3196721311475408
+        },
+        "penalties": {
+          "drawdown_pressure": 16.39118592398944,
+          "drawdown_excess": 7.9889824049868,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 9.58677888598416
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -3.1%, PF 0.98, Expectancy -5.06"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 44.6%, Vol 92.2%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.327, Sortino 0.642, Calmar -0.174"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.1%, Trades 61, AvgW/L 823.67/472.55"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 106, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (EMA crossover, BOLLINGER, VOLUME_OSCILLATOR, SUPERTREND) may lead to overfitting and reduced trade frequency. The exit rule based on BOLLINGER spread loss is arbitrary and may cause premature exits. The dynamic SL based on ATR with fixed TP of 2x may not account for volatility clustering or market regime changes.\n[Backup plan] If results are poor, switch to a simpler EMA+SUPERTREND filter with fixed SL/TP. If Sharpe is low, reduce EMA period and tighten BOLLINGER bands. As alternative, test a mean-reversion approach using RSI and BOLLINGER with opposite signals."
+        },
+        "scoring": {
+          "continuous_score": -21.068862463940974,
+          "drawdown_excess_pct": 9.58677888598416,
+          "components": {
+            "sharpe": 9.150953937290666,
+            "return": -3.393975250775664,
+            "profit_factor": -0.7653449526272789,
+            "trades_confidence": 10.0,
+            "win_rate": 0.3196721311475408
+          },
+          "penalties": {
+            "drawdown_pressure": 16.39118592398944,
+            "drawdown_excess": 7.9889824049868,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Momentum signals are more reliable when confirmed by volume oscillator and filtered through supertrend to avoid whipsaws in ranging markets. EMA crossing Bollinger bands provides clear entry points, while ATR-based stop-loss ensures dynamic risk management.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 104, in generate_signals\n    prev_st_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to EMA-BOLLINGER crossover signals, potential whipsaws during range-bound periods despite SUPERTREND filter, and rigid exit rules that may lock out profits. The volume confirmation may not be robust enough to filter false signals, and the 20% BOLLINGER spread exit could be too early or too late depending on volatility regimes.\n[Backup plan] If results are poor, I'd simplify to just EMA crossover + SUPERTREND filter without volume confirmation, and test a 50% BOLLINGER spread loss trigger. If Sharpe is mediocre, I'd adjust EMA period (e.g., 20\u219250) and increase ATR multiplier for SL. As alternative, I'd test a mean-reversion approach using BOLLINGER reversion with volume filter, or a breakout strategy with ATR-based entry and exit thresholds."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The combination of EMA crossover with Bollinger bands and volume confirmation filters false breakouts while the Supertrend ensures trend alignment, leading to higher-quality entries with reduced whipsaw in 0GUSDC's volatile 1h timeframe.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 118, in generate_signals\n    prev_st_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover with Bollinger bands may generate lagging signals, while the volume filter could be too sensitive to noise in 0GUSDC's 1h chart. Supertrend trend filtering might be too restrictive, eliminating valid trades during consolidation. The dynamic SL based on ATR with fixed TP of 2x may not account for volatility spikes or market regime changes.\n[Backup plan] If results are poor, I'd test a simpler EMA crossover with fixed SL/TP and remove the volume confirmation. If mediocre, I'd optimize EMA periods (e.g., 10/20) and adjust Bollinger bandwidth. As alternative, I'd try a mean-reversion approach using RSI + Bollinger bands with volatility scaling, or a breakout filter with ADX for trend strength."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "In an uptrend confirmed by Supertrend, price momentum is amplified at Bollinger support levels, with volume oscillator confirming buying pressure. This combination filters out false breakouts and reduces whipsaw in ranging markets.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192637_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 112, in generate_signals\n    prev_st_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_retry_error": "NameError: name 'long_cross_down' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses include overfitting to specific indicator combinations, potential look-ahead bias in Supertrend usage, and reliance on Bollinger width for exit timing which may lag. The volume confirmation may be too strict, filtering valid entries. Dynamic SL based on ATR without volatility normalization could be inconsistent across markets.\n[Backup plan] If results are poor, try relaxing volume confirmation to 0.5x threshold and using RSI instead of volume oscillator. If mediocre Sharpe, reduce EMA period and widen exit threshold to 0.25. Alternative: switch to mean-reversion on Bollinger bands with volatility scaling, or use MACD crossover with fixed SL/TP for simpler execution."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum is amplified when EMA crosses above Bollinger middle band during high-volume confirmation, but only in an uptrend confirmed by Supertrend. This reduces false breakouts and improves risk-reward by filtering regime changes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -93.91753955343711,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7881026191748817,
+      "win_rate_pct": 34.57943925233645,
+      "trades": 214,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.686737409148266,
+          "trades_confidence": 10.0,
+          "win_rate": -0.1261682242990652
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -93.9%, PF 0.79, Expectancy -43.89"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 4665.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.6%, Trades 214, AvgW/L 472.03/316.59"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 107,
+          "short_signals": 107,
+          "total_signals": 214
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple filters (EMA crossover, volume confirmation, Supertrend regime) may overfit to historical patterns, especially with only 3400 bars. The 20% Bollinger spread exit is arbitrary and may cause premature exits or allow large drawdowns. The dynamic SL based on ATR combined with fixed TP of 2x may not account for volatility spikes or market regime changes.\n[Backup plan] If results are poor, simplify to just EMA + Supertrend filter with fixed SL/TP. If Sharpe is low, widen the Bollinger exit threshold to 30% or 40% and adjust volume threshold to 0.5. As alternative, try a mean-reversion approach using Bollinger bands with EMA trend filter, or switch to a breakout strategy with higher time frame confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.686737409148266,
+            "trades_confidence": 10.0,
+            "win_rate": -0.1261682242990652
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 5
+    }
+  ]
+}

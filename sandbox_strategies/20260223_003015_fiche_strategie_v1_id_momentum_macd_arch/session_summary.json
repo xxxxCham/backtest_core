@@ -1,0 +1,232 @@
+{
+  "session_id": "20260223_003015_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=11, slow_period=28, signal_period=10)\n- rsi(period=15)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 40 and rsi < 75\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 3.0\ndescription: ATR stop-loss (2.0x) and take-profit (3.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -0.04125810687237684,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "MACD cross identifies a change in momentum while RSI kept within mid\u2011range values (40\u201375 for longs, 30\u201360 for shorts) filters out extreme overbought/oversold conditions, giving cleaner entries; ATR\u2011based stops and targets scale risk to current volatility, preventing over\u2011trailing in choppy markets.",
+      "change_type": "accept",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "MACD cross confirms a shift in short\u2011term momentum while RSI kept in the middle 30\u201365 band limits entries into overextended conditions; ATR\u2011based stops adapt to current volatility so that risk per trade remains proportional to market conditions, improving risk\u2011adjusted performance in both trending and ranging environments.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -120.17222684190396,
+      "trades": 837,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -120.2%, PF 0.88, Expectancy -14.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3044.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 837, AvgW/L 371.12/162.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 22: ':' expected after dictionary key"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'cross_up' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'cross_up' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_003015_fiche_strategie_v1_id_momentum_macd_arch\\strategy.py\", line 98, in generate_signals\n    cross_up(indicators['macd']['macd'], indicators['macd']['signal'])\nNameError: name 'cross_up' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include a narrow RSI filter that still permits entries in mildly overbought/oversold zones, MACD periods that may be too sensitive to short\u2011term noise, and a single ATR\u2011based stop that may be too wide during low volatility, leading to many break\u2011outs. The strategy also lacks a trend filter, so it can trade against a strong market direction, and it uses a hard exit on histogram sign change which may trigger too early. Additionally, the 1\u2011hour timeframe may generate frequent false crossings in a choppy market.\n[Backup plan] If the backtest shows negative returns, tighten the RSI band (e.g., 45\u201355) or add a trend filter such as price above a 50\u2011period EMA before taking long. If Sharpe is low, reduce the stop multiplier to 1.5\u00d7 ATR and increase the TP to 4\u00d7 ATR to improve risk\u2011reward, or adjust MACD periods to 12/26/9 for smoother signals. If the strategy still underperforms, switch to a breakout\u2011based approach using ATR\u2011scaled bands or a dual\u2011time\u2011frame trend filter (e.g., 4\u2011hour trend confirmation) to reduce whipsaws."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "A MACD crossover only in a strong trend (ADX > 25) reduces false breakouts; exiting on histogram reversal or trend weakening (ADX < 20) captures profit before reversal, while ATR\u2011based stops protect against sudden volatility spikes.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -0.04125810687237684,
+      "return_pct": -33.74562441837281,
+      "trades": 424,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.7%, PF 0.94, Expectancy -7.96"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 68.3%, Vol 60.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.041, Sortino -0.074, Calmar -0.110"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.8%, Trades 424, AvgW/L 519.87/173.01"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 23: ':' expected after dictionary key"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 216,
+          "short_signals": 213,
+          "total_signals": 429
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on MACD crossovers with loose RSI bands, which can produce many whipsaws especially on 1h AAVEUSDC; it ignores ADX in the actual code even though the hypothesis mentions it, so the trend filter is missing. ATR\u2011based stops may be too tight in low\u2011volatility periods or too loose during spikes, leading to frequent stop\u2011outs. The exit rule only checks histogram sign change or extreme RSI, lacking a clear profit\u2011capture mechanism for trend\u2011driven moves.\n[Backup plan] If the backtest returns negative performance, add an ADX filter (e.g., require ADX>25 for entries and ADX<20 for exits) and tighten the RSI bands (long: 30\u201170, short: 30\u201170) to reduce false signals. For a mediocre Sharpe, increase the ATR stop multiplier to 2.5 and TP multiplier to 4.0 to capture more of the trend, and shorten the MACD fast period to 9 to make it more responsive. If the current approach still fails, switch to a simple EMA\u2011trend filter combined with a volatility breakout entry (e.g., 20\u2011EMA crossover plus price breaking 1\u2011day high) and use a fixed\u2011percentage stop (1.5%) and TP (3%) to test a more classic momentum strategy."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1277 @@
+{
+  "session_id": "20260225_062728_strat_gie_de_momentum_sur_aptusdc_15m_in",
+  "objective": "Strat\u00e9gie de Momentum sur APTUSDC 15m. Indicateurs : MFI + MACD + RSI + ATR. Entr\u00e9e sur divergence haussi\u00e8re/baissi\u00e8re entre MFI et MACD. Take-profit sur perte de momentum, stop bas\u00e9 sur ATR. Stop-loss dynamique bas\u00e9 sur ATR (2.0x), ratio risk/reward 1.8:1.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "MFI and MACD often diverge before price reversals; a bullish divergence (MFI makes lower low while MACD histogram makes higher low) signals hidden buying pressure, while a bearish divergence signals hidden selling pressure. Combining this with RSI to confirm the prevailing momentum reduces false divergences, and using ATR\u2011based stops adapts to volatility, providing a consistent 1.8:1 risk\u2011reward profile.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -427.07581105413936,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6502660625487355,
+      "win_rate_pct": 36.35578583765112,
+      "trades": 1158,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -15.987837140629233,
+          "trades_confidence": 10.0,
+          "win_rate": 0.4067357512953358
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -427.1%, PF 0.65, Expectancy -36.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1227.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.4%, Trades 1158, AvgW/L 188.61/165.69"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['macd']['hist'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: histogram, macd, signal.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 672,
+          "short_signals": 628,
+          "total_signals": 1300
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on rare divergence signals, which may produce few trades and overfit noise; MACD and MFI divergences often lag price, causing late entries. The fixed RSI thresholds (50, 45/55) may not adapt to different market regimes, leading to false confirmations. ATR\u2011based stops and a static 2\u00d7 multiplier can be too wide on volatile crypto, inflating drawdowns, and the 1.8:1 R\u2011R target may be unrealistic on 15\u2011minute bars.\n[Backup plan] If returns are negative, tighten entry criteria by requiring both a bullish divergence and RSI crossing above 55 (or below 45 for shorts) to filter weak signals. For mediocre Sharpe, experiment with a shorter ATR multiplier (1.0\u20111.2\u00d7) for tighter stops and adjust the profit trigger to a dynamic MACD\u2011histogram reversal rather than a fixed level. Should the core concept fail, switch to a pure price\u2011action momentum system using EMA crossovers (e.g., 20\u2011EMA vs 50\u2011EMA) with ATR\u2011scaled stop\u2011losses and a trailing profit target, abandoning divergence detection altogether."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -15.987837140629233,
+            "trades_confidence": 10.0,
+            "win_rate": 0.4067357512953358
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "MFI and MACD often diverge when underlying buying or selling pressure shifts before price does; capturing a higher low in MFI together with a lower low in the MACD histogram signals hidden bullish momentum, while the opposite divergence signals hidden bearish momentum. Adding an ATR volatility filter discards divergences in low\u2011volatility periods, reducing false entries and improving the risk/reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2523.7005155079296,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.49018965875691983,
+      "win_rate_pct": 38.81149056836395,
+      "trades": 8111,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -23.305615599683662,
+          "trades_confidence": 10.0,
+          "win_rate": 1.143447170509185
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2523.7%, PF 0.49, Expectancy -31.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 246.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.8%, Trades 8111, AvgW/L 77.08/99.74"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 8206,
+          "short_signals": 8184,
+          "total_signals": 16390
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -23.305615599683662,
+            "trades_confidence": 10.0,
+            "win_rate": 1.143447170509185
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining the MACD histogram (price momentum) with the MFI (volume\u2011weighted flow) creates a stricter confluence filter that only signals when price momentum is supported by strong buying or selling pressure, reducing false entries that caused the previous ruin; the ATR filter ensures trades are taken only in sufficiently volatile periods, and ATR\u2011based stops/take\u2011profits provide a consistent risk/reward ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1928.2588436418444,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.61178372341524,
+      "win_rate_pct": 32.75302952722308,
+      "trades": 5859,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.747029786731886,
+          "trades_confidence": 10.0,
+          "win_rate": -0.6740911418330768
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1928.3%, PF 0.61, Expectancy -32.91"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 645.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.8%, Trades 5859, AvgW/L 158.35/126.07"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 21033,
+          "short_signals": 21513,
+          "total_signals": 42546
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on simultaneous bullish/bearish divergences between MFI and MACD, which are rare on a 15\u2011minute chart and can lead to long periods of inactivity or missed trends. Using a fixed ATR threshold may filter out useful trades during low\u2011volatility regimes and over\u2011expose the portfolio when volatility spikes. The stop\u2011loss of 2\u00d7ATR can be too wide for a 15\u2011minute timeframe, causing large drawdowns on sudden reversals. The exit rule (MACD histogram crossing zero or MFI crossing 50) is blunt and may close positions prematurely before the momentum fully reverses.\n[Backup plan] If returns are negative, tighten the stop\u2011loss to 1.0\u20131.2\u00d7ATR and add a trailing\u2011ATR stop to protect profits. For low Sharpe, lower the ATR volatility filter (e.g., use the 20\u2011period ATR instead of a higher threshold) and adjust the MFI level to 55/45 to reduce noise. Should the divergence filter prove too sparse, switch to a simpler confluence: enter long when MACD histogram > 0 and price > EMA(50), exit on histogram crossing zero, while keeping the ATR\u2011based risk management. This alternative reduces reliance on rare divergence signals and improves trade frequency while preserving volatility\u2011adjusted stops."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.747029786731886,
+            "trades_confidence": 10.0,
+            "win_rate": -0.6740911418330768
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a positive MACD histogram with rising MFI above 50 captures genuine bullish momentum while the opposite captures bearish momentum; adding an ATR volatility filter (ATR > threshold) screens out low\u2011volatility periods that produce noisy signals, and ATR\u2011based stops/targets provide a consistent 1.8:1 risk\u2011reward, reducing large drawdowns caused by premature entries.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1424.0995779988434,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6479315210768791,
+      "win_rate_pct": 34.170967018173656,
+      "trades": 4457,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.094559036485528,
+          "trades_confidence": 10.0,
+          "win_rate": -0.24870989454790335
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1424.1%, PF 0.65, Expectancy -31.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 366.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.2%, Trades 4457, AvgW/L 172.08/137.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9443,
+          "short_signals": 9698,
+          "total_signals": 19141
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.094559036485528,
+            "trades_confidence": 10.0,
+            "win_rate": -0.24870989454790335
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "A true bullish (or bearish) divergence between MFI and MACD histogram signals a reversal of momentum while the ATR filter ensures the market is sufficiently volatile, reducing false entries in low\u2011volume periods; using only these three complementary indicators limits overfitting and the ATR\u2011based stop/tp with a 1.8:1 reward\u2011to\u2011risk targets the expected price move after a divergence confirmation.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2752.660600302515,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.47685506852812926,
+      "win_rate_pct": 38.90954151177199,
+      "trades": 8877,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -23.915196867285523,
+          "trades_confidence": 10.0,
+          "win_rate": 1.1728624535315975
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2752.7%, PF 0.48, Expectancy -31.01"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 467.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.9%, Trades 8877, AvgW/L 72.64/97.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9504,
+          "short_signals": 9454,
+          "total_signals": 18958
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -23.915196867285523,
+            "trades_confidence": 10.0,
+            "win_rate": 1.1728624535315975
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "RSI captures short\u2011term momentum while the EMA filters trades to the prevailing trend; adding an ATR volatility filter ensures signals are taken only in sufficiently volatile periods, reducing noise from low\u2011volume moves and improving the risk\u2011reward balance, which should raise Sharpe and lower drawdown compared to the prior divergence\u2011only approach.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -6220.6210725500105,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33785533994628897,
+      "win_rate_pct": 24.32259650848291,
+      "trades": 20335,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.203221047455127
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -6220.6%, PF 0.34, Expectancy -30.59"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 258.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.3%, Trades 20335, AvgW/L 64.17/61.05"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 108: unexpected indent"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'rsi' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'rsi' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_062728_strat_gie_de_momentum_sur_aptusdc_15m_in\\strategy.py\", line 108, in generate_signals\n    long_mask = (rsi > 55) & (df['close'].values > ema) & (atr > atr_vol_threshold)\nNameError: name 'rsi' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on multiple overlapping momentum filters (MFI, MACD, RSI, EMA) which can cause over\u2011filtering and few high\u2011quality signals, especially on a low\u2011liquidity pair like APT/USDC. The ATR\u2011based stop may be too wide on volatile 15\u2011minute bars, inflating drawdowns, while the fixed RSI thresholds ignore dynamic market regimes. Divergence entry criteria are noisy on short timeframes, leading to false positives, and the risk\u2011reward target of 1.8:1 may be unrealistic given the high transaction cost and slippage in such a thin market.\n[Backup plan] If returns are negative, tighten entry criteria by requiring confluence of MFI\u2011MACD divergence AND RSI crossing a stronger threshold (e.g., >65 for longs) plus price above a higher\u2011period EMA (e.g., 50\u2011bar). Reduce ATR stop multiplier to 1.0\u00d7 and add a trailing stop to lock profits. For mediocre Sharpe, experiment with longer look\u2011backs (30\u2011min or 1\u2011hour) for the indicators to smooth noise, and adjust the risk\u2011reward to at least 2.5:1. Should this still underperform, switch to a pure trend\u2011following model using a multi\u2011EMA crossover with volatility\u2011scaled position sizing, abandoning divergence signals altogether."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.203221047455127
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "MFI and MACD often diverge before price reversals; a bullish divergence (MFI makes lower low while MACD histogram makes higher low) signals hidden buying pressure, while a bearish divergence signals hidden selling pressure. Combining this with RSI to confirm the prevailing momentum reduces false divergences, and using ATR\u2011based stops adapts to volatility, providing a consistent 1.8:1 risk\u2011reward profile.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -427.07581105413936,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6502660625487355,
+      "win_rate_pct": 36.35578583765112,
+      "trades": 1158,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -15.987837140629233,
+          "trades_confidence": 10.0,
+          "win_rate": 0.4067357512953358
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -427.1%, PF 0.65, Expectancy -36.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1227.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.4%, Trades 1158, AvgW/L 188.61/165.69"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['macd']['hist'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: histogram, macd, signal.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 672,
+          "short_signals": 628,
+          "total_signals": 1300
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on rare divergence signals, which may produce few trades and overfit noise; MACD and MFI divergences often lag price, causing late entries. The fixed RSI thresholds (50, 45/55) may not adapt to different market regimes, leading to false confirmations. ATR\u2011based stops and a static 2\u00d7 multiplier can be too wide on volatile crypto, inflating drawdowns, and the 1.8:1 R\u2011R target may be unrealistic on 15\u2011minute bars.\n[Backup plan] If returns are negative, tighten entry criteria by requiring both a bullish divergence and RSI crossing above 55 (or below 45 for shorts) to filter weak signals. For mediocre Sharpe, experiment with a shorter ATR multiplier (1.0\u20111.2\u00d7) for tighter stops and adjust the profit trigger to a dynamic MACD\u2011histogram reversal rather than a fixed level. Should the core concept fail, switch to a pure price\u2011action momentum system using EMA crossovers (e.g., 20\u2011EMA vs 50\u2011EMA) with ATR\u2011scaled stop\u2011losses and a trailing profit target, abandoning divergence detection altogether."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -15.987837140629233,
+            "trades_confidence": 10.0,
+            "win_rate": 0.4067357512953358
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "MFI and MACD often diverge when underlying buying or selling pressure shifts before price does; capturing a higher low in MFI together with a lower low in the MACD histogram signals hidden bullish momentum, while the opposite divergence signals hidden bearish momentum. Adding an ATR volatility filter discards divergences in low\u2011volatility periods, reducing false entries and improving the risk/reward balance.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2523.7005155079296,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.49018965875691983,
+      "win_rate_pct": 38.81149056836395,
+      "trades": 8111,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -23.305615599683662,
+          "trades_confidence": 10.0,
+          "win_rate": 1.143447170509185
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2523.7%, PF 0.49, Expectancy -31.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 246.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.8%, Trades 8111, AvgW/L 77.08/99.74"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 8206,
+          "short_signals": 8184,
+          "total_signals": 16390
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -23.305615599683662,
+            "trades_confidence": 10.0,
+            "win_rate": 1.143447170509185
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining the MACD histogram (price momentum) with the MFI (volume\u2011weighted flow) creates a stricter confluence filter that only signals when price momentum is supported by strong buying or selling pressure, reducing false entries that caused the previous ruin; the ATR filter ensures trades are taken only in sufficiently volatile periods, and ATR\u2011based stops/take\u2011profits provide a consistent risk/reward ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1928.2588436418444,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.61178372341524,
+      "win_rate_pct": 32.75302952722308,
+      "trades": 5859,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.747029786731886,
+          "trades_confidence": 10.0,
+          "win_rate": -0.6740911418330768
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1928.3%, PF 0.61, Expectancy -32.91"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 645.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.8%, Trades 5859, AvgW/L 158.35/126.07"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 21033,
+          "short_signals": 21513,
+          "total_signals": 42546
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on simultaneous bullish/bearish divergences between MFI and MACD, which are rare on a 15\u2011minute chart and can lead to long periods of inactivity or missed trends. Using a fixed ATR threshold may filter out useful trades during low\u2011volatility regimes and over\u2011expose the portfolio when volatility spikes. The stop\u2011loss of 2\u00d7ATR can be too wide for a 15\u2011minute timeframe, causing large drawdowns on sudden reversals. The exit rule (MACD histogram crossing zero or MFI crossing 50) is blunt and may close positions prematurely before the momentum fully reverses.\n[Backup plan] If returns are negative, tighten the stop\u2011loss to 1.0\u20131.2\u00d7ATR and add a trailing\u2011ATR stop to protect profits. For low Sharpe, lower the ATR volatility filter (e.g., use the 20\u2011period ATR instead of a higher threshold) and adjust the MFI level to 55/45 to reduce noise. Should the divergence filter prove too sparse, switch to a simpler confluence: enter long when MACD histogram > 0 and price > EMA(50), exit on histogram crossing zero, while keeping the ATR\u2011based risk management. This alternative reduces reliance on rare divergence signals and improves trade frequency while preserving volatility\u2011adjusted stops."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.747029786731886,
+            "trades_confidence": 10.0,
+            "win_rate": -0.6740911418330768
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a positive MACD histogram with rising MFI above 50 captures genuine bullish momentum while the opposite captures bearish momentum; adding an ATR volatility filter (ATR > threshold) screens out low\u2011volatility periods that produce noisy signals, and ATR\u2011based stops/targets provide a consistent 1.8:1 risk\u2011reward, reducing large drawdowns caused by premature entries.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1424.0995779988434,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6479315210768791,
+      "win_rate_pct": 34.170967018173656,
+      "trades": 4457,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.094559036485528,
+          "trades_confidence": 10.0,
+          "win_rate": -0.24870989454790335
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1424.1%, PF 0.65, Expectancy -31.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 366.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.2%, Trades 4457, AvgW/L 172.08/137.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9443,
+          "short_signals": 9698,
+          "total_signals": 19141
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.094559036485528,
+            "trades_confidence": 10.0,
+            "win_rate": -0.24870989454790335
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "A true bullish (or bearish) divergence between MFI and MACD histogram signals a reversal of momentum while the ATR filter ensures the market is sufficiently volatile, reducing false entries in low\u2011volume periods; using only these three complementary indicators limits overfitting and the ATR\u2011based stop/tp with a 1.8:1 reward\u2011to\u2011risk targets the expected price move after a divergence confirmation.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -2752.660600302515,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.47685506852812926,
+      "win_rate_pct": 38.90954151177199,
+      "trades": 8877,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -23.915196867285523,
+          "trades_confidence": 10.0,
+          "win_rate": 1.1728624535315975
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -2752.7%, PF 0.48, Expectancy -31.01"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 467.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.9%, Trades 8877, AvgW/L 72.64/97.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9504,
+          "short_signals": 9454,
+          "total_signals": 18958
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -23.915196867285523,
+            "trades_confidence": 10.0,
+            "win_rate": 1.1728624535315975
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "RSI captures short\u2011term momentum while the EMA filters trades to the prevailing trend; adding an ATR volatility filter ensures signals are taken only in sufficiently volatile periods, reducing noise from low\u2011volume moves and improving the risk\u2011reward balance, which should raise Sharpe and lower drawdown compared to the prior divergence\u2011only approach.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -6220.6210725500105,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.33785533994628897,
+      "win_rate_pct": 24.32259650848291,
+      "trades": 20335,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 10.0,
+          "win_rate": -3.203221047455127
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -6220.6%, PF 0.34, Expectancy -30.59"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 258.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 24.3%, Trades 20335, AvgW/L 64.17/61.05"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 108: unexpected indent"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'rsi' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'rsi' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_062728_strat_gie_de_momentum_sur_aptusdc_15m_in\\strategy.py\", line 108, in generate_signals\n    long_mask = (rsi > 55) & (df['close'].values > ema) & (atr > atr_vol_threshold)\nNameError: name 'rsi' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on multiple overlapping momentum filters (MFI, MACD, RSI, EMA) which can cause over\u2011filtering and few high\u2011quality signals, especially on a low\u2011liquidity pair like APT/USDC. The ATR\u2011based stop may be too wide on volatile 15\u2011minute bars, inflating drawdowns, while the fixed RSI thresholds ignore dynamic market regimes. Divergence entry criteria are noisy on short timeframes, leading to false positives, and the risk\u2011reward target of 1.8:1 may be unrealistic given the high transaction cost and slippage in such a thin market.\n[Backup plan] If returns are negative, tighten entry criteria by requiring confluence of MFI\u2011MACD divergence AND RSI crossing a stronger threshold (e.g., >65 for longs) plus price above a higher\u2011period EMA (e.g., 50\u2011bar). Reduce ATR stop multiplier to 1.0\u00d7 and add a trailing stop to lock profits. For mediocre Sharpe, experiment with longer look\u2011backs (30\u2011min or 1\u2011hour) for the indicators to smooth noise, and adjust the risk\u2011reward to at least 2.5:1. Should this still underperform, switch to a pure trend\u2011following model using a multi\u2011EMA crossover with volatility\u2011scaled position sizing, abandoning divergence signals altogether."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 10.0,
+            "win_rate": -3.203221047455127
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

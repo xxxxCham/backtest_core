@@ -1,0 +1,1325 @@
+{
+  "session_id": "20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o",
+  "objective": "Momentum sur 0GUSDC 1h. Indicateurs : EMA + OBV + Vortex. Entr\u00e9es : EMA haussi\u00e8re avec OBV en hausse et Vortex croissant au-dessus de 0.5. Sorties : RSI > 70 ou perte de momentum sur 3 p\u00e9riodes. Risk management : SL dynamique bas\u00e9 sur ATR, TP fixe \u00e0 2x le SL. Mode_offbeat : priorisation de la combinaison rare EMA + OBV + Vortex pour d\u00e9tecter les mouvements de force cach\u00e9s.",
+  "status": "failed",
+  "best_sharpe": 0.674514160136661,
+  "best_score": -67.08155613109477,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "The combination of EMA trend confirmation, OBV momentum accumulation, and Vortex momentum strength creates a robust entry filter that identifies strong breakout moves before they reverse, reducing false signals in volatile 0GUSDC markets",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 91, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_retry_error": "KeyError: 'atr'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy risks overfitting to the specific indicator combination, with EMA + OBV + Vortex potentially generating false signals during consolidation phases. The momentum exit condition may be too aggressive, causing premature exits during strong trends, while the fixed TP/SL ratio ignores volatility changes. The 0.5 Vortex threshold might be too high for 0GUSDC's relatively low volatility.\n[Backup plan] If results are poor, I'd simplify to EMA + RSI only with dynamic SL/TP. If mediocre, I'd adjust Vortex threshold to 0.3 and add volatility filter. Alternative approach: use MACD + volume + ATR for trend confirmation with adaptive exit rules based on recent volatility."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA trend confirmation with OBV volume flow and Vortex momentum indicator creates a robust filter for identifying strong breakout moves. EMA ensures trend alignment, OBV validates volume support, and Vortex confirms momentum strength above 0.5, reducing false signals from volatile market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 302,
+          "short_signals": 100,
+          "total_signals": 402
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to the specific indicator combination, lack of robustness in mean-reversion environments, and potential look-ahead bias in OBV and Vortex comparisons. The 0.5 Vortex threshold may be too high for 0GUSDC's volatility, and the exit rules don't account for profit-taking during strong trends. The dynamic SL based on ATR might be too tight for momentum plays.\n[Backup plan] If poor results, switch to EMA + RSI + MACD filter with fixed SL/TP and 1.5x risk ratio. If mediocre Sharpe, reduce Vortex threshold to 0.3 and add volatility filter. Alternative: try 15m data with breakout channel + volume filters for better signal quality."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA trend filter with OBV volume confirmation and Vortex momentum indicator creates a robust entry signal for strong momentum moves, while ATR-based risk management ensures dynamic stop-losses that adapt to volatility and protect profits with fixed 2x SL take-profit targets",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `vortex ...` alors que `vortex` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: vortex['oscillator']).",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 84, in generate_signals\n    (close > ema) &\nNameError: name 'close' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: comparaison `vortex ...` alors que `vortex` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: vortex['oscillator']).",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to the specific indicator combination, lack of profit-taking mechanism beyond RSI/ momentum, and potential whipsaw from Vortex's false signals. The 2x SL TP ratio may be too aggressive for volatile 0GUSDC, and the entry filter could generate too many false positives. The combination of three momentum indicators might create redundancy and sensitivity to parameter tuning.\n[Backup plan] If results are poor, I'd simplify to EMA + RSI(70) entry with ATR SL/TP, or switch to a mean-reversion approach using Bollinger Bands + MACD. If mediocre Sharpe, I'd adjust vortex threshold to 0.6-0.7 and extend momentum lookback to 5 periods. As alternative, I'd test a volatility breakout strategy with Keltner Channels and ADX to capture stronger trends without relying on the complex indicator mix."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining EMA trend direction with OBV momentum and Vortex strength filter creates a robust entry signal for hidden force movements. The EMA confirms the trend direction, OBV validates price momentum through volume, and Vortex ensures the move is not a false breakout. This three-pronged approach reduces whipsaws while capturing strong momentum moves.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 121, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on three indicators may cause overfitting or false signals, especially with tight filters like vortex > 0.5 and consecutive momentum declines. The exit rules are too simplistic, potentially exiting too early or missing prolonged moves. The dynamic SL based on ATR is sound, but the fixed TP of 2x SL may be too aggressive for volatile 0GUSDC.\n[Backup plan] If results are poor, reduce the vortex threshold to 0.3 and add a minimum price change filter to avoid small tick movements. If Sharpe is low, widen the entry filter to require 2 consecutive OBV and vortex confirmations. As an alternative, switch to a mean-reversion filter with Bollinger Bands + RSI for better performance in ranging conditions."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The combination of EMA trend filter with OBV volume confirmation and Vortex momentum indicator creates a robust entry signal for strong momentum moves. The EMA ensures we're aligned with the trend, OBV validates volume support, and Vortex confirms the strength of the move. This three-part filter reduces false signals while maintaining sensitivity to genuine momentum shifts.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 302,
+          "short_signals": 100,
+          "total_signals": 402
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on three confirming indicators may overfit to specific market regimes, with EMA + OBV + Vortex potentially generating sparse signals that miss broader momentum trends. The exit rules are too simplistic\u2014RSI overbought and momentum decay may trigger premature exits, while the 3-period momentum filter could cause whipsaws. The dynamic SL based on ATR may be too tight for 0GUSDC's volatility profile, and the 2x TP may not account for momentum exhaustion.\n[Backup plan] If results are poor, switch to a simpler EMA+RSI entry with fixed SL/TP and test wider ATR multipliers. If Sharpe is mediocre, reduce vortex threshold to 0.4 and add a minimum price change filter. As an alternative, test a mean-reversion filter using Bollinger Bands + RSI to capture counter-trend momentum during strong moves."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The combination of EMA trend filter with OBV volume confirmation and Vortex momentum indicator creates a robust entry signal for capturing strong directional moves while avoiding false breakouts. The ATR-based dynamic stop-loss ensures proper risk management that adapts to volatility conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 100, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on three confirmatory indicators may cause overfitting and reduce signal frequency, especially with 0GUSDC's low volatility. The exit rules are too simplistic, potentially exiting too early or holding losing positions. The dynamic SL based on ATR may be too tight for this asset class, leading to premature exits.\n[Backup plan] If results are poor, switch to a single EMA + RSI entry with fixed SL/TP. If Sharpe is mediocre, increase EMA period and loosen Vortex threshold. As alternative, try a mean-reversion approach using Bollinger Bands with volume filter, or switch to a multi-timeframe confirmation system."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA trend filter with OBV volume confirmation and Vortex momentum indicator creates a robust entry signal for strong momentum moves, while ATR-based risk management ensures dynamic stop-losses that adapt to volatility and protect profits with fixed 2x SL take-profit targets",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `vortex ...` alors que `vortex` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: vortex['oscillator']).",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 84, in generate_signals\n    (close > ema) &\nNameError: name 'close' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: comparaison `vortex ...` alors que `vortex` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: vortex['oscillator']).",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to the specific indicator combination, lack of profit-taking mechanism beyond RSI/ momentum, and potential whipsaw from Vortex's false signals. The 2x SL TP ratio may be too aggressive for volatile 0GUSDC, and the entry filter could generate too many false positives. The combination of three momentum indicators might create redundancy and sensitivity to parameter tuning.\n[Backup plan] If results are poor, I'd simplify to EMA + RSI(70) entry with ATR SL/TP, or switch to a mean-reversion approach using Bollinger Bands + MACD. If mediocre Sharpe, I'd adjust vortex threshold to 0.6-0.7 and extend momentum lookback to 5 periods. As alternative, I'd test a volatility breakout strategy with Keltner Channels and ADX to capture stronger trends without relying on the complex indicator mix."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA trend confirmation with OBV volume flow and Vortex momentum indicator creates a robust filter for identifying strong breakout moves. EMA ensures trend alignment, OBV validates volume support, and Vortex confirms momentum strength above 0.5, reducing false signals from volatile market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 302,
+          "short_signals": 100,
+          "total_signals": 402
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to the specific indicator combination, lack of robustness in mean-reversion environments, and potential look-ahead bias in OBV and Vortex comparisons. The 0.5 Vortex threshold may be too high for 0GUSDC's volatility, and the exit rules don't account for profit-taking during strong trends. The dynamic SL based on ATR might be too tight for momentum plays.\n[Backup plan] If poor results, switch to EMA + RSI + MACD filter with fixed SL/TP and 1.5x risk ratio. If mediocre Sharpe, reduce Vortex threshold to 0.3 and add volatility filter. Alternative: try 15m data with breakout channel + volume filters for better signal quality."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining EMA trend direction with OBV momentum and Vortex strength filter creates a robust entry signal for hidden force movements. The EMA confirms the trend direction, OBV validates price momentum through volume, and Vortex ensures the move is not a false breakout. This three-pronged approach reduces whipsaws while capturing strong momentum moves.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 121, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on three indicators may cause overfitting or false signals, especially with tight filters like vortex > 0.5 and consecutive momentum declines. The exit rules are too simplistic, potentially exiting too early or missing prolonged moves. The dynamic SL based on ATR is sound, but the fixed TP of 2x SL may be too aggressive for volatile 0GUSDC.\n[Backup plan] If results are poor, reduce the vortex threshold to 0.3 and add a minimum price change filter to avoid small tick movements. If Sharpe is low, widen the entry filter to require 2 consecutive OBV and vortex confirmations. As an alternative, switch to a mean-reversion filter with Bollinger Bands + RSI for better performance in ranging conditions."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The combination of EMA trend filter with OBV volume confirmation and Vortex momentum indicator creates a robust entry signal for strong momentum moves. The EMA ensures we're aligned with the trend, OBV validates volume support, and Vortex confirms the strength of the move. This three-part filter reduces false signals while maintaining sensitivity to genuine momentum shifts.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 302,
+          "short_signals": 100,
+          "total_signals": 402
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on three confirming indicators may overfit to specific market regimes, with EMA + OBV + Vortex potentially generating sparse signals that miss broader momentum trends. The exit rules are too simplistic\u2014RSI overbought and momentum decay may trigger premature exits, while the 3-period momentum filter could cause whipsaws. The dynamic SL based on ATR may be too tight for 0GUSDC's volatility profile, and the 2x TP may not account for momentum exhaustion.\n[Backup plan] If results are poor, switch to a simpler EMA+RSI entry with fixed SL/TP and test wider ATR multipliers. If Sharpe is mediocre, reduce vortex threshold to 0.4 and add a minimum price change filter. As an alternative, test a mean-reversion filter using Bollinger Bands + RSI to capture counter-trend momentum during strong moves."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The combination of EMA trend filter with OBV volume confirmation and Vortex momentum indicator creates a robust entry signal for capturing strong directional moves while avoiding false breakouts. The ATR-based dynamic stop-loss ensures proper risk management that adapts to volatility conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.674514160136661,
+      "return_pct": -23.743839282636372,
+      "max_drawdown_pct": -72.09101374078021,
+      "profit_factor": 0.9470995720543656,
+      "win_rate_pct": 32.6530612244898,
+      "trades": 196,
+      "continuous_score": -67.08155613109477,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 18.88639648382651,
+          "return": -26.118223210900013,
+          "profit_factor": -2.418305277514717,
+          "trades_confidence": 10.0,
+          "win_rate": -0.704081632653061
+        },
+        "penalties": {
+          "drawdown_pressure": 34.72734249385348,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 37.09101374078021
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -23.7%, PF 0.95, Expectancy -12.11"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 72.1%, Vol 228.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.675, Sortino 1.657, Calmar -0.697"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.7%, Trades 196, AvgW/L 664.21/340.03"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 100, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on three confirmatory indicators may cause overfitting and reduce signal frequency, especially with 0GUSDC's low volatility. The exit rules are too simplistic, potentially exiting too early or holding losing positions. The dynamic SL based on ATR may be too tight for this asset class, leading to premature exits.\n[Backup plan] If results are poor, switch to a single EMA + RSI entry with fixed SL/TP. If Sharpe is mediocre, increase EMA period and loosen Vortex threshold. As alternative, try a mean-reversion approach using Bollinger Bands with volume filter, or switch to a multi-timeframe confirmation system."
+        },
+        "scoring": {
+          "continuous_score": -67.08155613109477,
+          "drawdown_excess_pct": 37.09101374078021,
+          "components": {
+            "sharpe": 18.88639648382651,
+            "return": -26.118223210900013,
+            "profit_factor": -2.418305277514717,
+            "trades_confidence": 10.0,
+            "win_rate": -0.704081632653061
+          },
+          "penalties": {
+            "drawdown_pressure": 34.72734249385348,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "The combination of EMA trend confirmation, OBV momentum accumulation, and Vortex momentum strength creates a robust entry filter that identifies strong breakout moves before they reverse, reducing false signals in volatile 0GUSDC markets",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_184811_momentum_sur_0gusdc_1h_indicateurs_ema_o\\strategy.py\", line 91, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_retry_error": "KeyError: 'atr'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy risks overfitting to the specific indicator combination, with EMA + OBV + Vortex potentially generating false signals during consolidation phases. The momentum exit condition may be too aggressive, causing premature exits during strong trends, while the fixed TP/SL ratio ignores volatility changes. The 0.5 Vortex threshold might be too high for 0GUSDC's relatively low volatility.\n[Backup plan] If results are poor, I'd simplify to EMA + RSI only with dynamic SL/TP. If mediocre, I'd adjust Vortex threshold to 0.3 and add volatility filter. Alternative approach: use MACD + volume + ATR for trend confirmation with adaptive exit rules based on recent volatility."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

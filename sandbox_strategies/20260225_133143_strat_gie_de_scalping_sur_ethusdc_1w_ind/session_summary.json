@@ -1,0 +1,1399 @@
+{
+  "session_id": "20260225_133143_strat_gie_de_scalping_sur_ethusdc_1w_ind",
+  "objective": "Strat\u00e9gie de Scalping sur ETHUSDC 1w. Indicateurs : EMA + MACD + STOCHASTIC + ATR. Entr\u00e9e rapide sur signal EMA avec confirmation MACD sur timeframe court. Sortie rapide : take-profit serr\u00e9 (1-1.5x ATR), stop-loss serr\u00e9 (0.5-1x ATR). Stop serr\u00e9 1.1x ATR pour limiter le drawdown, TP \u00e0 2.8x ATR.",
+  "status": "failed",
+  "best_sharpe": 1.1299817413935371,
+  "best_score": 58.45337852865659,
+  "total_iterations": 9,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "The EMA provides a short\u2011term trend filter, MACD confirms the momentum direction, and the Stochastic identifies quick overbought or oversold conditions; together they generate high\u2011probability scalping entries while ATR\u2011based stops adapt to current volatility, limiting drawdown and protecting gains.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8766669433023747,
+      "return_pct": 112.62611449604232,
+      "max_drawdown_pct": -58.11992172661951,
+      "profit_factor": 1.323613371134956,
+      "win_rate_pct": 37.83783783783784,
+      "trades": 37,
+      "continuous_score": 45.6785639495818,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.54667441246649,
+          "return": 44.0,
+          "profit_factor": 14.793754109026562,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 0.8513513513513516
+        },
+        "penalties": {
+          "drawdown_pressure": 25.413281151079673,
+          "drawdown_excess": 19.26660143884959,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 23.11992172661951
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +112.6%, PF 1.32, Expectancy 304.39"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 58.1%, Vol 115.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.877, Sortino 0.905, Calmar 0.195"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.8%, Trades 37, AvgW/L 3290.38/1513.16"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 86,
+          "short_signals": 40,
+          "total_signals": 126
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy mixes a long\u2011term EMA filter with short\u2011term momentum and overbought/oversold signals on a weekly chart, which may produce conflicting signals and too few trades. The 1\u20112.8x ATR TP/SL range is aggressive for a weekly time\u2011frame and could be hit by normal whipsaws, especially with stochastic >80 as a buy signal that is more appropriate for shorter periods. The exit rule (cross below EMA or MACD hist<0) may lag, causing the stop\u2011loss to be ineffective. The combination of all four indicators risks over\u2011parameterization and data\u2011mining bias. Finally, the use of a single asset and a fixed 1\u2011week horizon ignores changing market regimes and liquidity.\n\nIf results are negative, I would first remove the stochastic filter and rely solely on EMA+MACD to reduce noise. If Sharpe is low, tightening the ATR TP to 1.5x and SL to 0.75x ATR, or increasing the EMA period to 50 to smooth out false signals, would be tested. As a fallback, I would switch to a trend\u2011following approach using a 20\u2011period EMA with a 1\u2011bar ATR stop on a 1\u2011hour chart, applying a volatility\u2011adjusted position sizing and a trailing stop to capture longer moves while limiting drawdown.\n[Backup plan] Should the EMA+MACD+Stochastic combo fail, I would trial a pure momentum strategy: enter when the 20\u2011period EMA is sloping up and the MACD histogram exceeds its 1\u2011month SMA, exit on a 30\u2011minute EMA cross or when the histogram turns negative. Alternatively, implement a volatility\u2011based breakout using Bollinger Bands or Keltner Channels on the 1\u2011hour chart, with ATR\u2011based stops and a fixed 2:1 reward\u2011to\u2011risk ratio. This would provide a simpler, more robust framework while still adapting to current volatility."
+        },
+        "scoring": {
+          "continuous_score": 45.6785639495818,
+          "drawdown_excess_pct": 23.11992172661951,
+          "components": {
+            "sharpe": 24.54667441246649,
+            "return": 44.0,
+            "profit_factor": 14.793754109026562,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 0.8513513513513516
+          },
+          "penalties": {
+            "drawdown_pressure": 25.413281151079673,
+            "drawdown_excess": 19.26660143884959,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding an ADX > 25 trend filter to the EMA + MACD entry logic reduces entries during weak or sideways markets, cutting the number of large losses and thus lowering drawdown while keeping the high-frequency, tight ATR\u2011based risk management.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -10.67379063853763,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9786541697801409,
+      "win_rate_pct": 30.23255813953488,
+      "trades": 43,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -11.741169702391392,
+          "profit_factor": -0.9758093814792751,
+          "trades_confidence": 7.166666666666667,
+          "win_rate": -1.4302325581395356
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -10.7%, PF 0.98, Expectancy -24.82"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 14735.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.2%, Trades 43, AvgW/L 3764.36/1666.80"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 93,
+          "short_signals": 29,
+          "total_signals": 122
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The weekly timeframe for a scalping logic is contradictory, producing very few trades and high slippage; the EMA+MACD combo may over\u2011react to noise and the ADX filter may prune profitable opportunistic moves. 2. If negative return, try dropping the ADX filter or lowering its threshold to 20, and switch to a trend\u2011following EMA crossover on a shorter timeframe (e.g., 4\u2011hour) to capture more moves. 3. For a low Sharpe, tighten the ATR\u2011based TP/SL (e.g., TP 1.5x ATR, SL 0.75x ATR), extend the EMA window for smoother trend detection, and add a trailing stop at 0.5x ATR to lock profits. 4. If the strategy still fails, pivot to a volatility\u2011breakout model using ATR\u2011based entry bands with a short\u2011term RSI filter for confirmation, or test a Bollinger\u2011Band mean\u2011reversion approach on the same asset.\n[Backup plan] 1. Re\u2011engineer the entry to use a 4\u2011hour EMA crossover with MACD confirmation and a 1\u2011week ADX as a filter only when ADX > 30. 2. Implement a dynamic TP/SL scaling: set SL at 0.6x ATR and TP at 2.0x ATR, then trail by 0.4x ATR after 50% of target. 3. Add a volatility filter: trade only when 14\u2011day ATR > 0.5% of price. 4. If still unprofitable, switch to a pair\u2011based momentum strategy on ETHUSDC with a 1\u2011hour timeframe, using a 20\u2011period EMA and a 9\u2011period RSI > 70 for shorts, <30 for longs, with fixed 1% SL and 3% TP."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -11.741169702391392,
+            "profit_factor": -0.9758093814792751,
+            "trades_confidence": 7.166666666666667,
+            "win_rate": -1.4302325581395356
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a short\u2011term EMA trend filter with MACD momentum confirmation and Stochastic overbought/oversold conditions limits entries to strong directional moves while ATR\u2011based sizing and exit guard against excessive volatility. This reduces false signals in a weekly timeframe and aligns risk with market breadth, improving Sharpe and curbing drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.1299817413935371,
+      "return_pct": 280.0984386022177,
+      "max_drawdown_pct": -78.27916534554366,
+      "profit_factor": 1.7504123910488005,
+      "win_rate_pct": 47.22222222222222,
+      "trades": 36,
+      "continuous_score": 58.45337852865659,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 31.639488759019038,
+          "return": 44.0,
+          "profit_factor": 32.0,
+          "trades_confidence": 6.0,
+          "win_rate": 3.666666666666666
+        },
+        "penalties": {
+          "drawdown_pressure": 38.85277689702911,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 43.27916534554366
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +280.1%, PF 1.75, Expectancy 778.05"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 78.3%, Vol 182.8%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.130, Sortino 0.880, Calmar 0.268"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.2%, Trades 36, AvgW/L 3843.28/1964.52"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 117,
+          "short_signals": 71,
+          "total_signals": 188
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The entry rules (EMA\u201120 + MACD hist >0 + Stoch K >70) are overly restrictive on a weekly chart, likely yielding too few, noisy trades and high slippage. 2. The exit logic (crossing zero or EMA) may cut gains prematurely, especially in trending markets where MACD can stay positive for long periods. 3. The tight ATR\u2011based SL (0.5\u20111\u00d7ATR) combined with a high TP (2.8\u00d7ATR) can produce a low win\u2011rate if the market is range\u2011bound, hurting Sharpe. 4. The strategy ignores volume or volatility clustering, which can cause false signals during low\u2011activity weeks.\n[Backup plan] If the backtest returns negative, first relax the Stoch filter to 60 or remove it entirely, and consider a 50\u2011period EMA as a trend filter to capture stronger weekly moves. If Sharpe remains low, increase the ATR multiplier for TP to 3\u00d7ATR, tighten SL to 0.75\u00d7ATR, and add a trailing stop at 1\u00d7ATR to lock in profits. As an alternative, switch to a breakout\u2011based weekly strategy using Bollinger\u2011band entry with MACD confirmation, or test a 4\u2011week horizon to reduce noise and improve trend capture."
+        },
+        "scoring": {
+          "continuous_score": 58.45337852865659,
+          "drawdown_excess_pct": 43.27916534554366,
+          "components": {
+            "sharpe": 31.639488759019038,
+            "return": 44.0,
+            "profit_factor": 32.0,
+            "trades_confidence": 6.0,
+            "win_rate": 3.666666666666666
+          },
+          "penalties": {
+            "drawdown_pressure": 38.85277689702911,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a trend confirmation from EMA with momentum confirmation from MACD and a market condition filter from RSI reduces whipsaw entries on the weekly ETHUSDC chart; ATR-based risk limits keep drawdown controlled by scaling stops and targets to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.1149156117649919,
+      "return_pct": 293.11396827479024,
+      "max_drawdown_pct": -78.27916534554366,
+      "profit_factor": 1.6457432344376812,
+      "win_rate_pct": 42.22222222222222,
+      "trades": 45,
+      "continuous_score": 55.55121761620847,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 31.21763712941977,
+          "return": 44.0,
+          "profit_factor": 29.519690717151143,
+          "trades_confidence": 7.5,
+          "win_rate": 2.166666666666666
+        },
+        "penalties": {
+          "drawdown_pressure": 38.85277689702911,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 43.27916534554366
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +293.1%, PF 1.65, Expectancy 651.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 78.3%, Vol 189.7%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.115, Sortino 1.010, Calmar 0.275"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.2%, Trades 45, AvgW/L 3931.74/1745.84"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_133143_strat_gie_de_scalping_sur_ethusdc_1w_ind\\strategy.py\", line 105, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The weekly chart is too slow for true scalping; EMA+MACD+RSI may still generate whipsaws during low\u2011volatility periods and the tight ATR stops can clip gains.  The strategy also ignores transaction costs, slippage, and lacks a volatility\u2011adjusted position\u2011size rule, which can inflate drawdown.  Over\u2011fitting to 368 bars is a risk, as the EMA period and ATR multiplier may not generalise to future weeks.\n[Backup plan] If the run shows a negative return, tighten the MACD confirmation (require a 2\u2011bar cross) or add a volume\u2011based filter to avoid low\u2011liquidity weeks.  For a low Sharpe, consider raising the TP to 3\u00d7ATR, lowering the SL to 0.75\u00d7ATR, and extending the EMA to 50/200 to filter out noise.  If the strategy still fails, switch to a breakout\u2011based approach on the weekly chart using ATR\u2011bands and a trend filter from the daily EMA, or test a simple mean\u2011reversion pair\u2011trade on ETH/USDC using a Bollinger\u2011band squeeze indicator."
+        },
+        "scoring": {
+          "continuous_score": 55.55121761620847,
+          "drawdown_excess_pct": 43.27916534554366,
+          "components": {
+            "sharpe": 31.21763712941977,
+            "return": 44.0,
+            "profit_factor": 29.519690717151143,
+            "trades_confidence": 7.5,
+            "win_rate": 2.166666666666666
+          },
+          "penalties": {
+            "drawdown_pressure": 38.85277689702911,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Adding a strong\u2011trend filter with ADX (>25) limits entries to periods of sustained momentum, which reduces whipsaw losses and therefore lowers maximum drawdown while still allowing the EMA\u2011MACD combination to capture short\u2011term reversals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -76.99701425721537,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8570950568490522,
+      "win_rate_pct": 30.555555555555557,
+      "trades": 36,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.532797401186186,
+          "trades_confidence": 6.0,
+          "win_rate": -1.333333333333333
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -77.0%, PF 0.86, Expectancy -213.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 826.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.6%, Trades 36, AvgW/L 4198.20/2155.20"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 93,
+          "short_signals": 29,
+          "total_signals": 122
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is over\u2011constrained on a 1\u2011week chart: EMA + MACD signals are lagging, the tight ATR stop (0.5\u20111\u00d7) often kills gains, and the ADX filter may remove profitable short\u2011term moves. The 1\u2011w timeframe also contradicts the \u201cscalping\u201d label, likely leading to low trade frequency and high slippage. Additionally, the exit rule (cross below EMA or MACD<0) is too simplistic and can trigger during normal pullbacks, inflating drawdowns.\n[Backup plan] If results stay negative, loosen the ATR stop to 1\u00d7 and add a trailing ATR\u2011based exit to capture partial gains. For a mediocre Sharpe, increase the EMA period (e.g., 50\u2192100) to smooth noise, and raise the TP to 3\u00d7ATR while keeping SL at 1\u00d7ATR. As an alternative, switch to a breakout\u2011based approach on the same 1\u2011week data: use a 20\u2011bar high/low filter with a 2\u00d7ATR risk\u2011reward and a simple EMA filter for trend confirmation, thereby reducing whipsaw losses and improving consistency."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.532797401186186,
+            "trades_confidence": 6.0,
+            "win_rate": -1.333333333333333
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Using the EMA to identify the prevailing trend and MACD histogram to confirm momentum limits trades to strong directional moves; the RSI filter removes entries near extreme overbought or oversold levels that often reverse, improving win rate in a weekly timeframe. ATR-based risk limits adapt to volatility, keeping drawdowns manageable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_133143_strat_gie_de_scalping_sur_ethusdc_1w_ind\\strategy.py\", line 123, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The EMA\u2011MACD\u2011RSI combo on a 1\u2011week frame can be overly sensitive to noise and may generate many false signals; the tight ATR\u2011based SL (0.5\u20111\u00d7ATR) can be hit by normal volatility, eroding returns. Relying solely on a single EMA for both trend and exit ignores price structure and can trigger whipsaws. The fixed TP/SL ratios may not adapt to changing market regimes, and the lack of a position\u2011sizing rule can amplify drawdowns. Finally, the RSI filter (\u226470) is too loose for a weekly strategy and may still allow entries near extremes.\n[Backup plan] If the backtest returns negative, tighten the entry filter by requiring a longer\u2011term EMA (e.g., 20\u2011period) and add an ADX>20 trend confirmation to avoid weak\u2011trend trades. Increase the SL to 1\u00d7ATR and raise TP to 3\u00d7ATR to improve risk\u2011reward. If Sharpe remains low, adjust the MACD signal (e.g., use 12\u201126\u20119 on a 4\u2011week chart) and test a 2\u00d7ATR TP. As a fallback, switch to a breakout\u2011based approach using weekly highs/lows with a 1\u00d7ATR stop and 2\u00d7ATR take\u2011profit, or try a mean\u2011reversion strategy with Bollinger Bands on the same timeframe."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 3,
+            "llm_positive": 3,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "The EMA establishes the prevailing weekly trend, MACD confirms short\u2011term momentum in the same direction, and the stochastic oscillator flags extreme overbought or oversold levels that often reverse quickly; combining these reduces false entries in a low\u2011frequency market while ATR\u2011based SL/TP keeps risk tight.",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "Validation \u00e9chou\u00e9e: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key | retry: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key | fallback: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key"
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "The combination of a short\u2011term EMA trend confirmation, MACD momentum crossing, and stochastic overbought/oversold conditions captures rapid directional moves in a weekly ETHUSDC chart, while ATR\u2011based risk limits adapt to volatility and keep drawdowns tight.",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "Validation \u00e9chou\u00e9e: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key | retry: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key | fallback: [AST001] Erreur de syntaxe ligne 26: ':' expected after dictionary key",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key"
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "EMA cross identifies trend direction, MACD histogram confirms that momentum is strengthening in that direction, and ATR\u2011based stops scale with market volatility to keep risk tight on a weekly ETHUSDC chart, producing more reliable scalping entries and exits.",
+      "change_type": "both",
+      "diagnostic_category": "",
+      "error": "Validation \u00e9chou\u00e9e: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key | retry: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key | fallback: [AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 24: ':' expected after dictionary key"
+        }
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 3,
+      "hypothesis": "Combining a short\u2011term EMA trend filter with MACD momentum confirmation and Stochastic overbought/oversold conditions limits entries to strong directional moves while ATR\u2011based sizing and exit guard against excessive volatility. This reduces false signals in a weekly timeframe and aligns risk with market breadth, improving Sharpe and curbing drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.1299817413935371,
+      "return_pct": 280.0984386022177,
+      "max_drawdown_pct": -78.27916534554366,
+      "profit_factor": 1.7504123910488005,
+      "win_rate_pct": 47.22222222222222,
+      "trades": 36,
+      "continuous_score": 58.45337852865659,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 31.639488759019038,
+          "return": 44.0,
+          "profit_factor": 32.0,
+          "trades_confidence": 6.0,
+          "win_rate": 3.666666666666666
+        },
+        "penalties": {
+          "drawdown_pressure": 38.85277689702911,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 43.27916534554366
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +280.1%, PF 1.75, Expectancy 778.05"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 78.3%, Vol 182.8%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.130, Sortino 0.880, Calmar 0.268"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.2%, Trades 36, AvgW/L 3843.28/1964.52"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 117,
+          "short_signals": 71,
+          "total_signals": 188
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The entry rules (EMA\u201120 + MACD hist >0 + Stoch K >70) are overly restrictive on a weekly chart, likely yielding too few, noisy trades and high slippage. 2. The exit logic (crossing zero or EMA) may cut gains prematurely, especially in trending markets where MACD can stay positive for long periods. 3. The tight ATR\u2011based SL (0.5\u20111\u00d7ATR) combined with a high TP (2.8\u00d7ATR) can produce a low win\u2011rate if the market is range\u2011bound, hurting Sharpe. 4. The strategy ignores volume or volatility clustering, which can cause false signals during low\u2011activity weeks.\n[Backup plan] If the backtest returns negative, first relax the Stoch filter to 60 or remove it entirely, and consider a 50\u2011period EMA as a trend filter to capture stronger weekly moves. If Sharpe remains low, increase the ATR multiplier for TP to 3\u00d7ATR, tighten SL to 0.75\u00d7ATR, and add a trailing stop at 1\u00d7ATR to lock in profits. As an alternative, switch to a breakout\u2011based weekly strategy using Bollinger\u2011band entry with MACD confirmation, or test a 4\u2011week horizon to reduce noise and improve trend capture."
+        },
+        "scoring": {
+          "continuous_score": 58.45337852865659,
+          "drawdown_excess_pct": 43.27916534554366,
+          "components": {
+            "sharpe": 31.639488759019038,
+            "return": 44.0,
+            "profit_factor": 32.0,
+            "trades_confidence": 6.0,
+            "win_rate": 3.666666666666666
+          },
+          "penalties": {
+            "drawdown_pressure": 38.85277689702911,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a trend confirmation from EMA with momentum confirmation from MACD and a market condition filter from RSI reduces whipsaw entries on the weekly ETHUSDC chart; ATR-based risk limits keep drawdown controlled by scaling stops and targets to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.1149156117649919,
+      "return_pct": 293.11396827479024,
+      "max_drawdown_pct": -78.27916534554366,
+      "profit_factor": 1.6457432344376812,
+      "win_rate_pct": 42.22222222222222,
+      "trades": 45,
+      "continuous_score": 55.55121761620847,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 31.21763712941977,
+          "return": 44.0,
+          "profit_factor": 29.519690717151143,
+          "trades_confidence": 7.5,
+          "win_rate": 2.166666666666666
+        },
+        "penalties": {
+          "drawdown_pressure": 38.85277689702911,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 43.27916534554366
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +293.1%, PF 1.65, Expectancy 651.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 78.3%, Vol 189.7%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.115, Sortino 1.010, Calmar 0.275"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.2%, Trades 45, AvgW/L 3931.74/1745.84"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_133143_strat_gie_de_scalping_sur_ethusdc_1w_ind\\strategy.py\", line 105, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The weekly chart is too slow for true scalping; EMA+MACD+RSI may still generate whipsaws during low\u2011volatility periods and the tight ATR stops can clip gains.  The strategy also ignores transaction costs, slippage, and lacks a volatility\u2011adjusted position\u2011size rule, which can inflate drawdown.  Over\u2011fitting to 368 bars is a risk, as the EMA period and ATR multiplier may not generalise to future weeks.\n[Backup plan] If the run shows a negative return, tighten the MACD confirmation (require a 2\u2011bar cross) or add a volume\u2011based filter to avoid low\u2011liquidity weeks.  For a low Sharpe, consider raising the TP to 3\u00d7ATR, lowering the SL to 0.75\u00d7ATR, and extending the EMA to 50/200 to filter out noise.  If the strategy still fails, switch to a breakout\u2011based approach on the weekly chart using ATR\u2011bands and a trend filter from the daily EMA, or test a simple mean\u2011reversion pair\u2011trade on ETH/USDC using a Bollinger\u2011band squeeze indicator."
+        },
+        "scoring": {
+          "continuous_score": 55.55121761620847,
+          "drawdown_excess_pct": 43.27916534554366,
+          "components": {
+            "sharpe": 31.21763712941977,
+            "return": 44.0,
+            "profit_factor": 29.519690717151143,
+            "trades_confidence": 7.5,
+            "win_rate": 2.166666666666666
+          },
+          "penalties": {
+            "drawdown_pressure": 38.85277689702911,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "The EMA provides a short\u2011term trend filter, MACD confirms the momentum direction, and the Stochastic identifies quick overbought or oversold conditions; together they generate high\u2011probability scalping entries while ATR\u2011based stops adapt to current volatility, limiting drawdown and protecting gains.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8766669433023747,
+      "return_pct": 112.62611449604232,
+      "max_drawdown_pct": -58.11992172661951,
+      "profit_factor": 1.323613371134956,
+      "win_rate_pct": 37.83783783783784,
+      "trades": 37,
+      "continuous_score": 45.6785639495818,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.54667441246649,
+          "return": 44.0,
+          "profit_factor": 14.793754109026562,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 0.8513513513513516
+        },
+        "penalties": {
+          "drawdown_pressure": 25.413281151079673,
+          "drawdown_excess": 19.26660143884959,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 23.11992172661951
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +112.6%, PF 1.32, Expectancy 304.39"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 58.1%, Vol 115.3%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.877, Sortino 0.905, Calmar 0.195"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.8%, Trades 37, AvgW/L 3290.38/1513.16"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 86,
+          "short_signals": 40,
+          "total_signals": 126
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy mixes a long\u2011term EMA filter with short\u2011term momentum and overbought/oversold signals on a weekly chart, which may produce conflicting signals and too few trades. The 1\u20112.8x ATR TP/SL range is aggressive for a weekly time\u2011frame and could be hit by normal whipsaws, especially with stochastic >80 as a buy signal that is more appropriate for shorter periods. The exit rule (cross below EMA or MACD hist<0) may lag, causing the stop\u2011loss to be ineffective. The combination of all four indicators risks over\u2011parameterization and data\u2011mining bias. Finally, the use of a single asset and a fixed 1\u2011week horizon ignores changing market regimes and liquidity.\n\nIf results are negative, I would first remove the stochastic filter and rely solely on EMA+MACD to reduce noise. If Sharpe is low, tightening the ATR TP to 1.5x and SL to 0.75x ATR, or increasing the EMA period to 50 to smooth out false signals, would be tested. As a fallback, I would switch to a trend\u2011following approach using a 20\u2011period EMA with a 1\u2011bar ATR stop on a 1\u2011hour chart, applying a volatility\u2011adjusted position sizing and a trailing stop to capture longer moves while limiting drawdown.\n[Backup plan] Should the EMA+MACD+Stochastic combo fail, I would trial a pure momentum strategy: enter when the 20\u2011period EMA is sloping up and the MACD histogram exceeds its 1\u2011month SMA, exit on a 30\u2011minute EMA cross or when the histogram turns negative. Alternatively, implement a volatility\u2011based breakout using Bollinger Bands or Keltner Channels on the 1\u2011hour chart, with ATR\u2011based stops and a fixed 2:1 reward\u2011to\u2011risk ratio. This would provide a simpler, more robust framework while still adapting to current volatility."
+        },
+        "scoring": {
+          "continuous_score": 45.6785639495818,
+          "drawdown_excess_pct": 23.11992172661951,
+          "components": {
+            "sharpe": 24.54667441246649,
+            "return": 44.0,
+            "profit_factor": 14.793754109026562,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 0.8513513513513516
+          },
+          "penalties": {
+            "drawdown_pressure": 25.413281151079673,
+            "drawdown_excess": 19.26660143884959,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Using the EMA to identify the prevailing trend and MACD histogram to confirm momentum limits trades to strong directional moves; the RSI filter removes entries near extreme overbought or oversold levels that often reverse, improving win rate in a weekly timeframe. ATR-based risk limits adapt to volatility, keeping drawdowns manageable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_133143_strat_gie_de_scalping_sur_ethusdc_1w_ind\\strategy.py\", line 123, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The EMA\u2011MACD\u2011RSI combo on a 1\u2011week frame can be overly sensitive to noise and may generate many false signals; the tight ATR\u2011based SL (0.5\u20111\u00d7ATR) can be hit by normal volatility, eroding returns. Relying solely on a single EMA for both trend and exit ignores price structure and can trigger whipsaws. The fixed TP/SL ratios may not adapt to changing market regimes, and the lack of a position\u2011sizing rule can amplify drawdowns. Finally, the RSI filter (\u226470) is too loose for a weekly strategy and may still allow entries near extremes.\n[Backup plan] If the backtest returns negative, tighten the entry filter by requiring a longer\u2011term EMA (e.g., 20\u2011period) and add an ADX>20 trend confirmation to avoid weak\u2011trend trades. Increase the SL to 1\u00d7ATR and raise TP to 3\u00d7ATR to improve risk\u2011reward. If Sharpe remains low, adjust the MACD signal (e.g., use 12\u201126\u20119 on a 4\u2011week chart) and test a 2\u00d7ATR TP. As a fallback, switch to a breakout\u2011based approach using weekly highs/lows with a 1\u00d7ATR stop and 2\u00d7ATR take\u2011profit, or try a mean\u2011reversion strategy with Bollinger Bands on the same timeframe."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 3,
+            "llm_positive": 3,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding an ADX > 25 trend filter to the EMA + MACD entry logic reduces entries during weak or sideways markets, cutting the number of large losses and thus lowering drawdown while keeping the high-frequency, tight ATR\u2011based risk management.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -10.67379063853763,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9786541697801409,
+      "win_rate_pct": 30.23255813953488,
+      "trades": 43,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -11.741169702391392,
+          "profit_factor": -0.9758093814792751,
+          "trades_confidence": 7.166666666666667,
+          "win_rate": -1.4302325581395356
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -10.7%, PF 0.98, Expectancy -24.82"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 14735.3%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.2%, Trades 43, AvgW/L 3764.36/1666.80"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 93,
+          "short_signals": 29,
+          "total_signals": 122
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The weekly timeframe for a scalping logic is contradictory, producing very few trades and high slippage; the EMA+MACD combo may over\u2011react to noise and the ADX filter may prune profitable opportunistic moves. 2. If negative return, try dropping the ADX filter or lowering its threshold to 20, and switch to a trend\u2011following EMA crossover on a shorter timeframe (e.g., 4\u2011hour) to capture more moves. 3. For a low Sharpe, tighten the ATR\u2011based TP/SL (e.g., TP 1.5x ATR, SL 0.75x ATR), extend the EMA window for smoother trend detection, and add a trailing stop at 0.5x ATR to lock profits. 4. If the strategy still fails, pivot to a volatility\u2011breakout model using ATR\u2011based entry bands with a short\u2011term RSI filter for confirmation, or test a Bollinger\u2011Band mean\u2011reversion approach on the same asset.\n[Backup plan] 1. Re\u2011engineer the entry to use a 4\u2011hour EMA crossover with MACD confirmation and a 1\u2011week ADX as a filter only when ADX > 30. 2. Implement a dynamic TP/SL scaling: set SL at 0.6x ATR and TP at 2.0x ATR, then trail by 0.4x ATR after 50% of target. 3. Add a volatility filter: trade only when 14\u2011day ATR > 0.5% of price. 4. If still unprofitable, switch to a pair\u2011based momentum strategy on ETHUSDC with a 1\u2011hour timeframe, using a 20\u2011period EMA and a 9\u2011period RSI > 70 for shorts, <30 for longs, with fixed 1% SL and 3% TP."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -11.741169702391392,
+            "profit_factor": -0.9758093814792751,
+            "trades_confidence": 7.166666666666667,
+            "win_rate": -1.4302325581395356
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Adding a strong\u2011trend filter with ADX (>25) limits entries to periods of sustained momentum, which reduces whipsaw losses and therefore lowers maximum drawdown while still allowing the EMA\u2011MACD combination to capture short\u2011term reversals.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -76.99701425721537,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8570950568490522,
+      "win_rate_pct": 30.555555555555557,
+      "trades": 36,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.532797401186186,
+          "trades_confidence": 6.0,
+          "win_rate": -1.333333333333333
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -77.0%, PF 0.86, Expectancy -213.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 826.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.6%, Trades 36, AvgW/L 4198.20/2155.20"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 93,
+          "short_signals": 29,
+          "total_signals": 122
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is over\u2011constrained on a 1\u2011week chart: EMA + MACD signals are lagging, the tight ATR stop (0.5\u20111\u00d7) often kills gains, and the ADX filter may remove profitable short\u2011term moves. The 1\u2011w timeframe also contradicts the \u201cscalping\u201d label, likely leading to low trade frequency and high slippage. Additionally, the exit rule (cross below EMA or MACD<0) is too simplistic and can trigger during normal pullbacks, inflating drawdowns.\n[Backup plan] If results stay negative, loosen the ATR stop to 1\u00d7 and add a trailing ATR\u2011based exit to capture partial gains. For a mediocre Sharpe, increase the EMA period (e.g., 50\u2192100) to smooth noise, and raise the TP to 3\u00d7ATR while keeping SL at 1\u00d7ATR. As an alternative, switch to a breakout\u2011based approach on the same 1\u2011week data: use a 20\u2011bar high/low filter with a 2\u00d7ATR risk\u2011reward and a simple EMA filter for trend confirmation, thereby reducing whipsaw losses and improving consistency."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.532797401186186,
+            "trades_confidence": 6.0,
+            "win_rate": -1.333333333333333
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

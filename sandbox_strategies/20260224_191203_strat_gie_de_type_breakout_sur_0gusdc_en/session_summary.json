@@ -1,0 +1,1339 @@
+{
+  "session_id": "20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en",
+  "objective": "Strat\u00e9gie de type breakout sur 0GUSDC en 1h. Indicateurs : STOCHASTIC + ATR + VORTEX. Entr\u00e9es : crossover de STOCHASTIC vers le haut avec ATR sup\u00e9rieur \u00e0 la moyenne des 20 derni\u00e8res p\u00e9riodes et VORTEX confirmant la tendance. Sorties : sortie du canal de Donchian ou augmentation significative de la volatilit\u00e9 (Keltner Channel). Risk management : SL dynamique bas\u00e9 sur ATR avec rotation du profile risque (serre quand volatilit\u00e9 < 50% du max, large quand > 80%).",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -60.2091975653964,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false signals during low-volatility or choppy market conditions, while VORTEX ensures trend alignment to reduce whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'stochastic' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'stochastic' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 81, in generate_signals\n    signals[stochastic['stoch_k'] > indicators['stochastic'][\"stoch_d\"]] = 1.0\nNameError: name 'stochastic' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `vortex['vortex_pos']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy risks overfitting to historical volatility patterns, with ATR and VORTEX filters potentially creating look-ahead bias. The Donchian channel exit may cause premature exits during strong trends, while Keltner-based volatility spikes could trigger false signals. The dynamic SL based on 50%/80% thresholds might be too rigid for varying market conditions.\n[Backup plan] If results are poor, I'd test a simpler stochastic crossover with fixed ATR threshold and trailing SL instead of Donchian exit. For mediocre Sharpe, I'd optimize ATR period (10-30) and VORTEX sensitivity (0.7-1.3). Alternative: switch to momentum-based breakout with RSI + Bollinger Bands, or try mean-reversion with MACD + ATR filters."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining STOCHASTIC crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false signals during low-volatility or choppy market conditions, while VORTEX ensures trend alignment for better directional bias.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -11.451677188492049,
+      "max_drawdown_pct": -11.451677188492049,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 2,
+      "continuous_score": -62.26351157400792,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -12.596844907341254,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.3333333333333333,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -11.5%, PF 0.00, Expectancy -572.58"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 11.5%, Vol 12.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino -0.258, Calmar -2.350"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 2, AvgW/L 0.00/572.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 128, in generate_signals\n    atr_filtered = atr > atr_mean\nValueError: operands could not be broadcast together with shapes (3400,) (3401,)",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to 0GUSDC's specific volatility pattern, reliance on multiple lagging indicators that may cause whipsaws, and potential look-ahead bias in the vortex confirmation filter. The dynamic SL based on ATR rotation might be too aggressive during mean reversion periods, and the exit rules may be too sensitive to volatility spikes. The stochastic crossover alone is prone to false signals during ranging markets.\n[Backup plan] If results are poor, I'd simplify to just stochastic crossover with fixed SL/TP and remove ATR filter. If mediocre Sharpe, I'd increase the stochastic period to reduce noise and adjust vortex threshold to 0.8-1.0. As alternative, I'd test a volatility break-out with Bollinger Bands or RSI momentum filter instead of stochastic."
+        },
+        "scoring": {
+          "continuous_score": -62.26351157400792,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -12.596844907341254,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.3333333333333333,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout entry that avoids false signals during low volatility or counter-trend conditions, while the dynamic ATR-based risk management adapts to changing market conditions for optimal risk-reward.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -9.432603847330064,
+      "max_drawdown_pct": -9.432603847330064,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 1,
+      "continuous_score": -60.2091975653964,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -10.375864232063071,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.16666666666666666,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.4%, PF 0.00, Expectancy -943.26"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 9.4%, Vol 12.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar -2.389"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 1, AvgW/L 0.00/943.26"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 131, in generate_signals\n    dc = indicators['donchian']\nKeyError: 'donchian'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to specific indicator thresholds, potential look-ahead bias in stochastic crossover signals, and reliance on multiple indicators that may not consistently align. The dynamic ATR SL may be too rigid for 0GUSDC's volatility patterns, and the exit rules may be too simplistic. The 20-period ATR mean filter could be too slow to react to sudden volatility shifts.\n[Backup plan] If results are poor, I'd simplify to just stochastic + ATR filter with fixed SL/TP, or switch to RSI + ADX for entry with volatility scaling. If Sharpe is mediocre, I'd optimize ATR period (10-25) and adjust vortex threshold (0.9-1.2). Alternative: try mean-reversion with Bollinger Bands + volume filter, or momentum filter with MACD + volatility rank for better diversification."
+        },
+        "scoring": {
+          "continuous_score": -60.2091975653964,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -10.375864232063071,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.16666666666666666,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false entries during low volatility or counter-trend conditions, while the dynamic ATR-based risk management ensures consistent risk-reward profiles across varying market environments.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -10.797223463166047,
+      "max_drawdown_pct": -10.797223463166047,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 2,
+      "continuous_score": -61.54361247614932,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -11.87694580948265,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.3333333333333333,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -10.8%, PF 0.00, Expectancy -539.86"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 10.8%, Vol 10.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino -0.958, Calmar -2.362"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 2, AvgW/L 0.00/539.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 131, in generate_signals\n    dc = indicators['donchian']\nKeyError: 'donchian'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to stochastic crossovers, reliance on multiple filters that may generate false signals, and static exit rules that don't account for profit-taking. The dynamic SL based on ATR is sound but may be too rigid given the 1h timeframe. The combination of three indicators creates potential for conflicting signals and reduces trade frequency unnecessarily.\n[Backup plan] If results are poor, I'd simplify to just stochastic + ATR filter with fixed SL/TP. If Sharpe is mediocre, I'd optimize ATR period and stochastic thresholds. As alternative, I'd test a momentum-based breakout with RSI + Bollinger Bands, or switch to mean-reversion with MACD + ATR for 0GUSDC's volatility profile."
+        },
+        "scoring": {
+          "continuous_score": -61.54361247614932,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -11.87694580948265,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.3333333333333333,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false entries during low-volatility or ranging periods, while VORTEX ensures trend alignment to reduce whipsaw losses",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -9.432603847330064,
+      "max_drawdown_pct": -9.432603847330064,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 1,
+      "continuous_score": -60.2091975653964,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -10.375864232063071,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.16666666666666666,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.4%, PF 0.00, Expectancy -943.26"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 9.4%, Vol 12.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar -2.389"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 1, AvgW/L 0.00/943.26"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 109, in generate_signals\n    donchian = indicators['donchian']\nKeyError: 'donchian'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to specific volatility thresholds, rigid exit rules that may exit too early, and potential lookahead bias in VORTEX confirmation. The stochastic crossover alone is prone to whipsaws, and the Donchian channel exit may be too sensitive. ATR filtering might exclude valid breakouts during moderate volatility periods.\n[Backup plan] If results are poor, I'd simplify to just stochastic crossover with dynamic SL, removing ATR and VORTEX filters. If mediocre Sharpe, I'd adjust stochastic thresholds (e.g., stoch_k < 15) and widen Donchian period. Alternative: try momentum-based entry with ATR-normalized breakout distance, or switch to RSI+BBands for better trend filtering."
+        },
+        "scoring": {
+          "continuous_score": -60.2091975653964,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -10.375864232063071,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.16666666666666666,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Stochastic crossover with Vortex trend confirmation and ATR volatility filtering creates a robust breakout signal that avoids false entries during low-volatility periods while ensuring trend alignment. The ATR-based dynamic stop-loss and take-profit provide adaptive risk management that scales with market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 129, in generate_signals\n    (atr > atr_mean_20)\nValueError: operands could not be broadcast together with shapes (3400,) (3401,)",
+          "runtime_fix_retry_error": "KeyError: 'donchian'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to stochastic crossover with limited filter effectiveness, reliance on multiple indicators that may conflict, and static Donchian exit logic without volatility consideration. The ATR-based SL may be too rigid, and vortex confirmation could generate whipsaws. The 20-period ATR mean might not adapt well to changing market regimes.\n[Backup plan] If poor returns: switch to RSI + ADX filter with dynamic exit based on ATR multiples. If low Sharpe: reduce stochastic thresholds, increase ATR filter to 30 periods, or add volume filter. Alternative: try mean-reversion with Bollinger Bands + MACD for counter-trend entries, or momentum filter with ROC + EMA crossovers for trend-following."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Stochastic crossover with Vortex trend confirmation and ATR volatility filtering creates a robust breakout signal that avoids false entries during low-volatility periods while ensuring trend alignment. The ATR-based dynamic stop-loss and take-profit provide adaptive risk management that scales with market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 129, in generate_signals\n    (atr > atr_mean_20)\nValueError: operands could not be broadcast together with shapes (3400,) (3401,)",
+          "runtime_fix_retry_error": "KeyError: 'donchian'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to stochastic crossover with limited filter effectiveness, reliance on multiple indicators that may conflict, and static Donchian exit logic without volatility consideration. The ATR-based SL may be too rigid, and vortex confirmation could generate whipsaws. The 20-period ATR mean might not adapt well to changing market regimes.\n[Backup plan] If poor returns: switch to RSI + ADX filter with dynamic exit based on ATR multiples. If low Sharpe: reduce stochastic thresholds, increase ATR filter to 30 periods, or add volume filter. Alternative: try mean-reversion with Bollinger Bands + MACD for counter-trend entries, or momentum filter with ROC + EMA crossovers for trend-following."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout entry that avoids false signals during low volatility or counter-trend conditions, while the dynamic ATR-based risk management adapts to changing market conditions for optimal risk-reward.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -9.432603847330064,
+      "max_drawdown_pct": -9.432603847330064,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 1,
+      "continuous_score": -60.2091975653964,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -10.375864232063071,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.16666666666666666,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.4%, PF 0.00, Expectancy -943.26"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 9.4%, Vol 12.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar -2.389"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 1, AvgW/L 0.00/943.26"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 131, in generate_signals\n    dc = indicators['donchian']\nKeyError: 'donchian'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to specific indicator thresholds, potential look-ahead bias in stochastic crossover signals, and reliance on multiple indicators that may not consistently align. The dynamic ATR SL may be too rigid for 0GUSDC's volatility patterns, and the exit rules may be too simplistic. The 20-period ATR mean filter could be too slow to react to sudden volatility shifts.\n[Backup plan] If results are poor, I'd simplify to just stochastic + ATR filter with fixed SL/TP, or switch to RSI + ADX for entry with volatility scaling. If Sharpe is mediocre, I'd optimize ATR period (10-25) and adjust vortex threshold (0.9-1.2). Alternative: try mean-reversion with Bollinger Bands + volume filter, or momentum filter with MACD + volatility rank for better diversification."
+        },
+        "scoring": {
+          "continuous_score": -60.2091975653964,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -10.375864232063071,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.16666666666666666,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false entries during low-volatility or ranging periods, while VORTEX ensures trend alignment to reduce whipsaw losses",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -9.432603847330064,
+      "max_drawdown_pct": -9.432603847330064,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 1,
+      "continuous_score": -60.2091975653964,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -10.375864232063071,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.16666666666666666,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.4%, PF 0.00, Expectancy -943.26"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 9.4%, Vol 12.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar -2.389"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 1, AvgW/L 0.00/943.26"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 109, in generate_signals\n    donchian = indicators['donchian']\nKeyError: 'donchian'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to specific volatility thresholds, rigid exit rules that may exit too early, and potential lookahead bias in VORTEX confirmation. The stochastic crossover alone is prone to whipsaws, and the Donchian channel exit may be too sensitive. ATR filtering might exclude valid breakouts during moderate volatility periods.\n[Backup plan] If results are poor, I'd simplify to just stochastic crossover with dynamic SL, removing ATR and VORTEX filters. If mediocre Sharpe, I'd adjust stochastic thresholds (e.g., stoch_k < 15) and widen Donchian period. Alternative: try momentum-based entry with ATR-normalized breakout distance, or switch to RSI+BBands for better trend filtering."
+        },
+        "scoring": {
+          "continuous_score": -60.2091975653964,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -10.375864232063071,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.16666666666666666,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false entries during low volatility or counter-trend conditions, while the dynamic ATR-based risk management ensures consistent risk-reward profiles across varying market environments.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -10.797223463166047,
+      "max_drawdown_pct": -10.797223463166047,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 2,
+      "continuous_score": -61.54361247614932,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -11.87694580948265,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.3333333333333333,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -10.8%, PF 0.00, Expectancy -539.86"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 10.8%, Vol 10.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino -0.958, Calmar -2.362"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 2, AvgW/L 0.00/539.86"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'donchian'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'donchian'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 131, in generate_signals\n    dc = indicators['donchian']\nKeyError: 'donchian'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to stochastic crossovers, reliance on multiple filters that may generate false signals, and static exit rules that don't account for profit-taking. The dynamic SL based on ATR is sound but may be too rigid given the 1h timeframe. The combination of three indicators creates potential for conflicting signals and reduces trade frequency unnecessarily.\n[Backup plan] If results are poor, I'd simplify to just stochastic + ATR filter with fixed SL/TP. If Sharpe is mediocre, I'd optimize ATR period and stochastic thresholds. As alternative, I'd test a momentum-based breakout with RSI + Bollinger Bands, or switch to mean-reversion with MACD + ATR for 0GUSDC's volatility profile."
+        },
+        "scoring": {
+          "continuous_score": -61.54361247614932,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -11.87694580948265,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.3333333333333333,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining STOCHASTIC crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false signals during low-volatility or choppy market conditions, while VORTEX ensures trend alignment for better directional bias.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": -11.451677188492049,
+      "max_drawdown_pct": -11.451677188492049,
+      "profit_factor": 0.0,
+      "win_rate_pct": 0.0,
+      "trades": 2,
+      "continuous_score": -62.26351157400792,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": -12.596844907341254,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.3333333333333333,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -11.5%, PF 0.00, Expectancy -572.58"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 11.5%, Vol 12.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino -0.258, Calmar -2.350"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 2, AvgW/L 0.00/572.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (3400,) (3401,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 128, in generate_signals\n    atr_filtered = atr > atr_mean\nValueError: operands could not be broadcast together with shapes (3400,) (3401,)",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to 0GUSDC's specific volatility pattern, reliance on multiple lagging indicators that may cause whipsaws, and potential look-ahead bias in the vortex confirmation filter. The dynamic SL based on ATR rotation might be too aggressive during mean reversion periods, and the exit rules may be too sensitive to volatility spikes. The stochastic crossover alone is prone to false signals during ranging markets.\n[Backup plan] If results are poor, I'd simplify to just stochastic crossover with fixed SL/TP and remove ATR filter. If mediocre Sharpe, I'd increase the stochastic period to reduce noise and adjust vortex threshold to 0.8-1.0. As alternative, I'd test a volatility break-out with Bollinger Bands or RSI momentum filter instead of stochastic."
+        },
+        "scoring": {
+          "continuous_score": -62.26351157400792,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": -12.596844907341254,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.3333333333333333,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Stochastic crossover with ATR volatility filter and VORTEX trend confirmation creates a robust breakout signal that avoids false signals during low-volatility or choppy market conditions, while VORTEX ensures trend alignment to reduce whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'stochastic' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'stochastic' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191203_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 81, in generate_signals\n    signals[stochastic['stoch_k'] > indicators['stochastic'][\"stoch_d\"]] = 1.0\nNameError: name 'stochastic' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `vortex['vortex_pos']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy risks overfitting to historical volatility patterns, with ATR and VORTEX filters potentially creating look-ahead bias. The Donchian channel exit may cause premature exits during strong trends, while Keltner-based volatility spikes could trigger false signals. The dynamic SL based on 50%/80% thresholds might be too rigid for varying market conditions.\n[Backup plan] If results are poor, I'd test a simpler stochastic crossover with fixed ATR threshold and trailing SL instead of Donchian exit. For mediocre Sharpe, I'd optimize ATR period (10-30) and VORTEX sensitivity (0.7-1.3). Alternative: switch to momentum-based breakout with RSI + Bollinger Bands, or try mean-reversion with MACD + ATR filters."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

@@ -1,0 +1,227 @@
+{
+  "session_id": "20260223_091007_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=11, slow_period=35, signal_period=6)\n- rsi(period=19)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 35 and rsi < 60\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 2.75\ntp_atr_mult: 4.5\ndescription: ATR stop-loss (2.75x) and take-profit (4.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": 0.0055791761978868535,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "MACD cross detects a change in short\u2011term momentum; restricting entries to the RSI middle band (35\u201160 for longs, 30\u201160 for shorts) avoids overbought/oversold noise; ATR\u2011based risk limits adapt to market volatility, ensuring consistent risk\u2011reward ratios.",
+      "change_type": "accept",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -68.9082244930258,
+      "trades": 210,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -68.9%, PF 0.82, Expectancy -32.81"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1431.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.4%, Trades 210, AvgW/L 472.71/264.51"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 100,
+          "short_signals": 111,
+          "total_signals": 211
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies solely on MACD cross and a broad RSI middle band, which can trigger many false signals in choppy 1\u2011hour crypto markets; the exit on histogram sign change or extreme RSI may be too reactive. ATR\u2011based stop/TP may be mis\u2011scaled for highly volatile pairs like 2ZUSDC, and the same RSI thresholds for both sides ignore directional bias. Lack of a trend filter or additional confirmation (e.g., MA slope) can lead to whipsaws.\n[Backup plan] If the backtest shows a negative net return, tighten the entry filter by adding a short\u2011term EMA trend check (e.g., price above 20\u2011EMA for longs, below for shorts) or require a minimum MACD histogram magnitude (|hist|>0.5). If the Sharpe is low, adjust the ATR multipliers to 3.0/5.0 for a higher risk\u2011reward ratio, extend the RSI window to 25, and narrow the entry band to 45\u201155. If performance remains poor, switch to a volatility\u2011breakout approach: use a 10\u2011period EMA and a 20\u2011period ATR to generate breakout entries and a 2\u00d7ATR trailing stop, or experiment with a dual\u2011momentum filter combining RSI and Bollinger Band squeeze to reduce noise."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Bollinger band breakouts capture strong price moves, while an intermediate RSI (30-70) filters out overextended conditions; ATR ensures volatility\u2011adjusted risk limits, improving risk\u2011return balance.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.7494374769598937,
+      "return_pct": -45.71503997967981,
+      "trades": 53,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -45.7%, PF 0.61, Expectancy -86.25"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 53.8%, Vol 57.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.749, Sortino -3.101, Calmar -1.516"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.2%, Trades 53, AvgW/L 450.50/318.37"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 107,
+          "short_signals": 0,
+          "total_signals": 107
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The MACD\u2011RSI combination may generate too many whipsaw signals in a 1\u2011hour crypto market, especially with a wide ATR\u2011based TP/SL that could let losing trades run. The RSI filter (35\u201360 for longs, 30\u201360 for shorts) is very permissive and does not exclude overbought/oversold extremes, potentially allowing entry into already exhausted moves. The strategy lacks a trend filter or a minimum price\u2011action confirmation, so it may trade against prevailing volatility. Additionally, the 2.75\u00d7 ATR stop and 4.5\u00d7 TP may be mismatched to the asset\u2019s volatility profile, leading to frequent stop\u2011outs before the TP is hit. Finally, the use of both long and short in the same signal set increases transaction costs and may dilute performance.\n[Backup plan] If the backtest shows negative return, tighten the RSI bounds to 40\u201360 for longs and 40\u201360 for shorts, and add a 50\u2011period EMA filter to only trade when price is above the EMA for longs (below for shorts). If the Sharpe is low but returns are positive, reduce the stop_atr_mult to 2.0 and TP to 3.5 to capture more frequent, smaller moves, and consider a trailing stop of 1.5\u00d7 ATR. As an alternative, switch to a volatility\u2011breakout scheme using a 20\u2011period Keltner channel with a 1\u00d7 ATR stop and 2\u00d7 ATR TP, combined with a 14\u2011period RSI filter (30\u201370) to capture directional breaks while limiting overextension. This approach is simpler, more robust to noise, and better suited to the 1\u2011hour crypto timeframe."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "A MACD crossover signals a change in momentum, but without a trend filter it often trades in sideways markets, leading to large losses. Adding a simple moving average filter ensures that the price is already in a trend, while constraining RSI to a middle band reduces overbought/oversold noise. This combination is expected to cut false entries and thereby lower drawdown while ATR-based stops keep risk proportional to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0055791761978868535,
+      "return_pct": -0.25143161620324467,
+      "trades": 58,
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -0.3%, PF 0.99, Expectancy -0.43"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 10.0%, Vol 10.4%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.006, Sortino 0.004, Calmar -0.070"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 50.0%, Trades 58, AvgW/L 80.25/81.11"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 23: ':' expected after dictionary key"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 30,
+          "short_signals": 28,
+          "total_signals": 58
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Weaknesses: 1) MACD cross without trend filter causes whipsaw in range markets; 2) RSI band (35\u201160) is wide, letting noisy signals in; 3) ATR stop/TP multipliers may be too aggressive for 1\u2011hour 2ZUSDC, inflating drawdown; 4) many trades (210) hint at over\u2011trading and slippage. If results stay negative, add a trend filter such as close > sma20 or use a higher\u2011period SMA; tighten RSI to 45\u201155 or 50\u201160 to reduce false entries. If Sharpe is low but positive, test shorter MACD periods (fast 9, slow 21, signal 5), lower ATR multipliers (stop 2, TP 3), and a trailing stop to lock gains. Alternative: switch to a breakout\u2011based rule (e.g., price above 20\u2011day high + MACD cross) or combine MACD with Bollinger Band width to capture trend shifts while filtering noise."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

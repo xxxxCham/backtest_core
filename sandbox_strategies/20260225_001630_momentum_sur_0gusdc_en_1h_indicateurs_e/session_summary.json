@@ -1,0 +1,1106 @@
+{
+  "session_id": "20260225_001630_momentum_sur_0gusdc_en_1h_indicateurs_e",
+  "objective": "[Momentum] sur 0GUSDC en 1h. Indicateurs : EMA + BOLLINGER + MACD + VAPOR_TREND + PSAR. Entr\u00e9es : EMA(6) > BOLLINGER(95), MACD diff\u00e9rentiel positif, BOLLINGER(80) et STOCHASTIC intersection \u00e0 20%, VAPOR_TREND en mode offbeat avec seuil d'entr\u00e9e haut. Sorties : TP = entr\u00e9es, SL= EMA(6). Risk management: Stop Loss = -5% tp Entry, Take Profit = +10%. Hypoth\u00e8se testable et falsifiable : Lorsque les conditions sont satisfaites, la strat\u00e9gie devrait g\u00e9n\u00e9rer des profits en exploitant le sentiment de croissance sur le march\u00e9 am\u00e9ricain.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining momentum with mean reversion strategies can potentially generate profitable trades in trending markets and reduce drawdown during choppy market conditions.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6385256664025802,
+      "return_pct": -92.75359554497716,
+      "max_drawdown_pct": -96.19397379162066,
+      "profit_factor": 0.7053956473434728,
+      "win_rate_pct": 39.705882352941174,
+      "trades": 136,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -17.878718659272245,
+          "return": -33.0,
+          "profit_factor": -13.467627550012672,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4117647058823524
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 61.193973791620664
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -92.8%, PF 0.71, Expectancy -68.20"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 96.2%, Vol 218.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.639, Sortino -0.628, Calmar -1.038"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.7%, Trades 136, AvgW/L 411.27/383.95"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_001630_momentum_sur_0gusdc_en_1h_indicateurs_e\\strategy.py\", line 103, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy combines momentum with mean reversion using Bollinger bands, EMA and MACD. The hypothesis is that this combination can generate profitable trades in trending markets and reduce drawdown during choppy market conditions. Weaknesses could include the fact that it only considers one type of trend (upward) and may not perform well when the trend changes or market becomes range-bound. If results are poor, changing to a different mean reversion strategy like RSI or CCI might be considered. Modifying stop loss parameters might help improve returns if they were too aggressive and caused unnecessary trades. An alternative approach could include using another momentum indicator such as ATR or ROC in addition to MACD for more robust trend detection."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 61.193973791620664,
+          "components": {
+            "sharpe": -17.878718659272245,
+            "return": -33.0,
+            "profit_factor": -13.467627550012672,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4117647058823524
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining ATR based stop loss, Bollinger band and momentum oscillator to identify trending stocks which are less likely to reverse after a breakout.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_001630_momentum_sur_0gusdc_en_1h_indicateurs_e\\strategy.py\", line 92, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is based on momentum and uses several indicators to identify trending stocks. The main weakness of this strategy could be that it may not perform well in choppy markets or during periods of consolidation, as the Bollinger bands and EMA may not provide accurate signals for trend identification. Additionally, stop loss based on ATR may not always protect from large drawdowns. If results are poor (negative return), adjusting stop loss to be closer to recent price action, and considering adding a volatility filter could help improve performance. For mediocre Sharpe ratio, optimizing the parameters of MACD and Stochastic%K might increase profitability without significantly increasing risk. As an alternative approach, trying other momentum indicators or incorporating fundamental analysis into the strategy may yield better results.\n[Backup plan] ['If current strategy underperforms with negative returns: 1) Adjust stop loss to be closer to recent price action; 2) Add volatility filter for more accurate trend identification']"
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum trade on 0GUSDC in 1h using EMA, BOLLINGER, MACD, VAPOR_TREND, PSAR.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The combination of RSI, Bollinger Bands and ATR with a trend filter enhances the performance by reducing false signals in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.2632736706879868,
+      "return_pct": -52.97795027807031,
+      "max_drawdown_pct": -82.69254462324629,
+      "profit_factor": 0.9104714993658806,
+      "win_rate_pct": 29.959514170040485,
+      "trades": 494,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -7.37166277926363,
+          "return": -33.0,
+          "profit_factor": -4.092731457559746,
+          "trades_confidence": 10.0,
+          "win_rate": -1.5121457489878543
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 47.69254462324629
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -53.0%, PF 0.91, Expectancy -10.72"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 82.7%, Vol 141.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.263, Sortino -0.420, Calmar -1.036"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.0%, Trades 494, AvgW/L 364.03/171.02"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 287,
+          "short_signals": 362,
+          "total_signals": 649
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 47.69254462324629,
+          "components": {
+            "sharpe": -7.37166277926363,
+            "return": -33.0,
+            "profit_factor": -4.092731457559746,
+            "trades_confidence": 10.0,
+            "win_rate": -1.5121457489878543
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "This strategy seeks to capture momentum in the USDC market during the American session by combining multiple technical indicators. The idea is that the volatility and trend information provided by these indicators can help identify high-probability trade setups.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -0.016657264527601762,
+      "return_pct": -58.06876096679427,
+      "max_drawdown_pct": -79.3471475271776,
+      "profit_factor": 0.8645257145272761,
+      "win_rate_pct": 34.78260869565217,
+      "trades": 207,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -0.46640340677284936,
+          "return": -33.0,
+          "profit_factor": -6.193110193038807,
+          "trades_confidence": 10.0,
+          "win_rate": -0.0652173913043484
+        },
+        "penalties": {
+          "drawdown_pressure": 39.5647650181184,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 44.3471475271776
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -58.1%, PF 0.86, Expectancy -28.05"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 79.3%, Vol 183.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.017, Sortino -0.030, Calmar -1.126"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 207, AvgW/L 514.67/317.51"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SANDBOX001] Import/appel dangereux d\u00e9tect\u00e9: 'eval('",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 70: invalid syntax",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 204,
+          "total_signals": 308
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy is based on multiple technical indicators that are combined to capture momentum in the USDC market. The backtest has produced negative results, and if this trend continues, I would consider the following changes:\n\n1. Adjusting the stop-loss parameter to increase its effectiveness.\n2. Tuning the take profit parameters to maximize profits while maintaining a reasonable risk management strategy.\n3. Considering different market conditions or periods (e.g., European session) and adjust the entry signals accordingly.\n4. Trying other strategies with better historical performance in similar market conditions."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 44.3471475271776,
+          "components": {
+            "sharpe": -0.46640340677284936,
+            "return": -33.0,
+            "profit_factor": -6.193110193038807,
+            "trades_confidence": 10.0,
+            "win_rate": -0.0652173913043484
+          },
+          "penalties": {
+            "drawdown_pressure": 39.5647650181184,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 4
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 2,
+      "hypothesis": "Combining ATR based stop loss, Bollinger band and momentum oscillator to identify trending stocks which are less likely to reverse after a breakout.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_001630_momentum_sur_0gusdc_en_1h_indicateurs_e\\strategy.py\", line 92, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is based on momentum and uses several indicators to identify trending stocks. The main weakness of this strategy could be that it may not perform well in choppy markets or during periods of consolidation, as the Bollinger bands and EMA may not provide accurate signals for trend identification. Additionally, stop loss based on ATR may not always protect from large drawdowns. If results are poor (negative return), adjusting stop loss to be closer to recent price action, and considering adding a volatility filter could help improve performance. For mediocre Sharpe ratio, optimizing the parameters of MACD and Stochastic%K might increase profitability without significantly increasing risk. As an alternative approach, trying other momentum indicators or incorporating fundamental analysis into the strategy may yield better results.\n[Backup plan] ['If current strategy underperforms with negative returns: 1) Adjust stop loss to be closer to recent price action; 2) Add volatility filter for more accurate trend identification']"
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining momentum with mean reversion strategies can potentially generate profitable trades in trending markets and reduce drawdown during choppy market conditions.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.6385256664025802,
+      "return_pct": -92.75359554497716,
+      "max_drawdown_pct": -96.19397379162066,
+      "profit_factor": 0.7053956473434728,
+      "win_rate_pct": 39.705882352941174,
+      "trades": 136,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -17.878718659272245,
+          "return": -33.0,
+          "profit_factor": -13.467627550012672,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4117647058823524
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 61.193973791620664
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -92.8%, PF 0.71, Expectancy -68.20"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 96.2%, Vol 218.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.639, Sortino -0.628, Calmar -1.038"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.7%, Trades 136, AvgW/L 411.27/383.95"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_001630_momentum_sur_0gusdc_en_1h_indicateurs_e\\strategy.py\", line 103, in generate_signals\n    signals = pd.Series(0.0, index=df.index, dtype=np.float64)\nUnboundLocalError: cannot access local variable 'pd' where it is not associated with a value",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy combines momentum with mean reversion using Bollinger bands, EMA and MACD. The hypothesis is that this combination can generate profitable trades in trending markets and reduce drawdown during choppy market conditions. Weaknesses could include the fact that it only considers one type of trend (upward) and may not perform well when the trend changes or market becomes range-bound. If results are poor, changing to a different mean reversion strategy like RSI or CCI might be considered. Modifying stop loss parameters might help improve returns if they were too aggressive and caused unnecessary trades. An alternative approach could include using another momentum indicator such as ATR or ROC in addition to MACD for more robust trend detection."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 61.193973791620664,
+          "components": {
+            "sharpe": -17.878718659272245,
+            "return": -33.0,
+            "profit_factor": -13.467627550012672,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4117647058823524
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The combination of RSI, Bollinger Bands and ATR with a trend filter enhances the performance by reducing false signals in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.2632736706879868,
+      "return_pct": -52.97795027807031,
+      "max_drawdown_pct": -82.69254462324629,
+      "profit_factor": 0.9104714993658806,
+      "win_rate_pct": 29.959514170040485,
+      "trades": 494,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -7.37166277926363,
+          "return": -33.0,
+          "profit_factor": -4.092731457559746,
+          "trades_confidence": 10.0,
+          "win_rate": -1.5121457489878543
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 47.69254462324629
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -53.0%, PF 0.91, Expectancy -10.72"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 82.7%, Vol 141.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.263, Sortino -0.420, Calmar -1.036"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.0%, Trades 494, AvgW/L 364.03/171.02"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 287,
+          "short_signals": 362,
+          "total_signals": 649
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 47.69254462324629,
+          "components": {
+            "sharpe": -7.37166277926363,
+            "return": -33.0,
+            "profit_factor": -4.092731457559746,
+            "trades_confidence": 10.0,
+            "win_rate": -1.5121457489878543
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "This strategy seeks to capture momentum in the USDC market during the American session by combining multiple technical indicators. The idea is that the volatility and trend information provided by these indicators can help identify high-probability trade setups.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -0.016657264527601762,
+      "return_pct": -58.06876096679427,
+      "max_drawdown_pct": -79.3471475271776,
+      "profit_factor": 0.8645257145272761,
+      "win_rate_pct": 34.78260869565217,
+      "trades": 207,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -0.46640340677284936,
+          "return": -33.0,
+          "profit_factor": -6.193110193038807,
+          "trades_confidence": 10.0,
+          "win_rate": -0.0652173913043484
+        },
+        "penalties": {
+          "drawdown_pressure": 39.5647650181184,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 44.3471475271776
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -58.1%, PF 0.86, Expectancy -28.05"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 79.3%, Vol 183.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.017, Sortino -0.030, Calmar -1.126"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 207, AvgW/L 514.67/317.51"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SANDBOX001] Import/appel dangereux d\u00e9tect\u00e9: 'eval('",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 70: invalid syntax",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 204,
+          "total_signals": 308
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy is based on multiple technical indicators that are combined to capture momentum in the USDC market. The backtest has produced negative results, and if this trend continues, I would consider the following changes:\n\n1. Adjusting the stop-loss parameter to increase its effectiveness.\n2. Tuning the take profit parameters to maximize profits while maintaining a reasonable risk management strategy.\n3. Considering different market conditions or periods (e.g., European session) and adjust the entry signals accordingly.\n4. Trying other strategies with better historical performance in similar market conditions."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 44.3471475271776,
+          "components": {
+            "sharpe": -0.46640340677284936,
+            "return": -33.0,
+            "profit_factor": -6.193110193038807,
+            "trades_confidence": 10.0,
+            "win_rate": -0.0652173913043484
+          },
+          "penalties": {
+            "drawdown_pressure": 39.5647650181184,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

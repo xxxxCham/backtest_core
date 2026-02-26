@@ -1,0 +1,758 @@
+{
+  "session_id": "20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en",
+  "objective": "Strat\u00e9gie de type breakout sur 0GUSDC en 1h. Indicateurs : EMA + Vortex + Volume Oscillator. Entr\u00e9es : Une cassure haute de la bande de Keltner confirm\u00e9e par un Vortex croissant et un volume oscillant au-dessus de sa moyenne sur 5 p\u00e9riodes. Sorties : Fin de la tendance confirm\u00e9e par une cassure basse de la bande de Keltner ou un signal RSI > 70. Risk management : SL fix\u00e9 sur l\u2019ATR, TP dynamique bas\u00e9 sur le niveau de support/r\u00e9sistance adjacent.",
+  "status": "failed",
+  "best_sharpe": -0.1999570789819482,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Keltner Channel breakout with Vortex and Volume Oscillator filters helps identify strong momentum moves while filtering out false breakouts in low-volume or range-bound conditions. The Vortex indicator confirms the strength of the breakout move, and volume oscillator ensures the move is supported by increasing trading activity.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.1999570789819482,
+      "return_pct": -33.9164349621186,
+      "max_drawdown_pct": -75.56953881859694,
+      "profit_factor": 0.7688581651519933,
+      "win_rate_pct": 40.74074074074074,
+      "trades": 54,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -5.598798211494549,
+          "return": -33.0,
+          "profit_factor": -10.56648387876602,
+          "trades_confidence": 9.0,
+          "win_rate": 1.7222222222222223
+        },
+        "penalties": {
+          "drawdown_pressure": 37.04635921239796,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 40.56953881859694
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.9%, PF 0.77, Expectancy -62.81"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 75.6%, Vol 102.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.200, Sortino -0.204, Calmar -0.868"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.7%, Trades 54, AvgW/L 512.81/458.54"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 93, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy risks overfitting to specific market conditions, with Vortex and volume filters potentially causing frequent whipsaws. The fixed SL based on ATR may be too tight for volatile moves, and RSI exit could trigger prematurely. Keltner channel breakouts are prone to false signals in ranging markets.\n[Backup plan] If poor results: switch to ADX filter + dynamic SL based on ATR multiple. If mediocre Sharpe: widen entry filters, add 20-period RSI confirmation, or reduce volume threshold. Alternative: try mean-reversion approach with Bollinger Bands + MACD histogram for contrarian entries."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 40.56953881859694,
+          "components": {
+            "sharpe": -5.598798211494549,
+            "return": -33.0,
+            "profit_factor": -10.56648387876602,
+            "trades_confidence": 9.0,
+            "win_rate": 1.7222222222222223
+          },
+          "penalties": {
+            "drawdown_pressure": 37.04635921239796,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Keltner Channel breakouts with Vortex indicator and volume confirmation filters out weak signals while the ATR-based risk management ensures consistent position sizing and prevents large drawdowns from volatile market moves.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 89, in generate_signals\n    vol_sma[params[\"volume_sma_period\"]:] = np.convolve(vol, np.ones(params[\"volume_sma_period\"]) / params[\"volume_sma_period\"], mode='valid')\nValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "runtime_fix_retry_error": "ValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to Keltner channels, ambiguous exit signals (crossing middle band doesn't confirm trend reversal), and potential look-ahead bias in volume oscillator. The ATR-based SL is good but TP logic is flawed - using support/resistance levels without confirmation creates whipsaw risk. Entry filter may be too restrictive, causing missed opportunities.\n[Backup plan] If poor results: switch to RSI > 70 exit with fixed TP/SL, or replace volume filter with MACD histogram. If mediocre Sharpe: reduce Keltner multiplier from 1.5 to 1.2, increase Vortex period from 14 to 20. Alternative: try mean-reversion with Bollinger Bands + stochastic, or momentum filter with ADX > 20 for trend confirmation."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Keltner Channel breakout with Vortex and Volume Oscillator filters creates a robust entry signal that avoids false breakouts during low volatility or low volume periods, while ATR-based risk management ensures consistent risk-reward profiles.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 75, in generate_signals\n    long_condition = (close > indicators['keltner'][\"upper\"]) & (vortex['vortex'] > vortex['vortex'].shift(1)) & (volume_oscillator > np.nanmean(volume_oscillator, 5))\nNameError: name 'close' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `vortex['vortex']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to specific indicator combinations, potential look-ahead bias in vortex confirmation, and rigid exit rules that may exit too early. The ATR-based SL might be too tight given 0GUSDC's volatility, and the RSI exit could conflict with Keltner signals. The volume filter may miss breakout opportunities during high-volume trending periods.\n[Backup plan] If results are poor, I'd simplify to just Keltner breakout with ATR SL and trailing TP, removing vortex and volume filters. If mediocre Sharpe, I'd adjust Keltner multiplier from 1.5 to 2.0 and RSI threshold from 70 to 65. Alternative: switch to mean-reversion filter with Bollinger Bands and MACD histogram for contrarian entries."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining Keltner breakout with Vortex and Volume Oscillator filters creates a robust trend continuation signal that reduces whipsaws while maintaining sensitivity to genuine breakouts. The Vortex ensures strong directional momentum, and the Volume Oscillator confirms breakout strength by filtering out low-volume false signals.",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "RuntimeError: cannot schedule new futures after interpreter shutdown",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "RuntimeError: cannot schedule new futures after interpreter shutdown",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "RuntimeError: cannot schedule new futures after interpreter shutdown",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Keltner Channel breakout with Vortex and Volume Oscillator filters creates a robust entry signal that avoids false breakouts during low volatility or low volume periods, while ATR-based risk management ensures consistent risk-reward profiles.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 75, in generate_signals\n    long_condition = (close > indicators['keltner'][\"upper\"]) & (vortex['vortex'] > vortex['vortex'].shift(1)) & (volume_oscillator > np.nanmean(volume_oscillator, 5))\nNameError: name 'close' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `vortex['vortex']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include overfitting to specific indicator combinations, potential look-ahead bias in vortex confirmation, and rigid exit rules that may exit too early. The ATR-based SL might be too tight given 0GUSDC's volatility, and the RSI exit could conflict with Keltner signals. The volume filter may miss breakout opportunities during high-volume trending periods.\n[Backup plan] If results are poor, I'd simplify to just Keltner breakout with ATR SL and trailing TP, removing vortex and volume filters. If mediocre Sharpe, I'd adjust Keltner multiplier from 1.5 to 2.0 and RSI threshold from 70 to 65. Alternative: switch to mean-reversion filter with Bollinger Bands and MACD histogram for contrarian entries."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Keltner Channel breakouts with Vortex indicator and volume confirmation filters out weak signals while the ATR-based risk management ensures consistent position sizing and prevents large drawdowns from volatile market moves.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 89, in generate_signals\n    vol_sma[params[\"volume_sma_period\"]:] = np.convolve(vol, np.ones(params[\"volume_sma_period\"]) / params[\"volume_sma_period\"], mode='valid')\nValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "runtime_fix_retry_error": "ValueError: could not broadcast input array from shape (3396,) into shape (3395,)",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to Keltner channels, ambiguous exit signals (crossing middle band doesn't confirm trend reversal), and potential look-ahead bias in volume oscillator. The ATR-based SL is good but TP logic is flawed - using support/resistance levels without confirmation creates whipsaw risk. Entry filter may be too restrictive, causing missed opportunities.\n[Backup plan] If poor results: switch to RSI > 70 exit with fixed TP/SL, or replace volume filter with MACD histogram. If mediocre Sharpe: reduce Keltner multiplier from 1.5 to 1.2, increase Vortex period from 14 to 20. Alternative: try mean-reversion with Bollinger Bands + stochastic, or momentum filter with ADX > 20 for trend confirmation."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Keltner Channel breakout with Vortex and Volume Oscillator filters helps identify strong momentum moves while filtering out false breakouts in low-volume or range-bound conditions. The Vortex indicator confirms the strength of the breakout move, and volume oscillator ensures the move is supported by increasing trading activity.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.1999570789819482,
+      "return_pct": -33.9164349621186,
+      "max_drawdown_pct": -75.56953881859694,
+      "profit_factor": 0.7688581651519933,
+      "win_rate_pct": 40.74074074074074,
+      "trades": 54,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -5.598798211494549,
+          "return": -33.0,
+          "profit_factor": -10.56648387876602,
+          "trades_confidence": 9.0,
+          "win_rate": 1.7222222222222223
+        },
+        "penalties": {
+          "drawdown_pressure": 37.04635921239796,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 40.56953881859694
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.9%, PF 0.77, Expectancy -62.81"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 75.6%, Vol 102.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.200, Sortino -0.204, Calmar -0.868"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.7%, Trades 54, AvgW/L 512.81/458.54"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_200056_strat_gie_de_type_breakout_sur_0gusdc_en\\strategy.py\", line 93, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy risks overfitting to specific market conditions, with Vortex and volume filters potentially causing frequent whipsaws. The fixed SL based on ATR may be too tight for volatile moves, and RSI exit could trigger prematurely. Keltner channel breakouts are prone to false signals in ranging markets.\n[Backup plan] If poor results: switch to ADX filter + dynamic SL based on ATR multiple. If mediocre Sharpe: widen entry filters, add 20-period RSI confirmation, or reduce volume threshold. Alternative: try mean-reversion approach with Bollinger Bands + MACD histogram for contrarian entries."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 40.56953881859694,
+          "components": {
+            "sharpe": -5.598798211494549,
+            "return": -33.0,
+            "profit_factor": -10.56648387876602,
+            "trades_confidence": 9.0,
+            "win_rate": 1.7222222222222223
+          },
+          "penalties": {
+            "drawdown_pressure": 37.04635921239796,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    }
+  ]
+}

@@ -1,0 +1,250 @@
+{
+  "session_id": "20260224_120427_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=25)\n- adx(period=14)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 25\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 5.5\ndescription: ATR stop-loss (1.75x) and take-profit (5.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A Donchian channel breakout is more reliable when the market exhibits a strong trend, which is verified by a high ADX value; adding an ATR filter ensures the breakout occurs in a volatile environment, reducing false signals in low\u2011volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'doncian_middle' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'doncian_middle' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_120427_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 77, in generate_signals\n    prev_middle = np.roll(doncian_middle, 1)\nNameError: name 'doncian_middle' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate many breakouts in choppy markets because Donchian channels can be hit by noise; the ADX filter (>30) may be too strict and miss weaker yet profitable trends. 2. The exit logic (crossing middle or ADX<25) can be premature, especially on a 1\u2011hour chart where price may retrace before the middle line. 3. Fixed ATR multipliers for SL/TP ignore changing volatility, potentially locking in small gains or exposing to large losses. 4. Using both long and short entries doubles position count and may inflate transaction costs.\n\nIf the backtest shows negative returns, I would first lower the ADX entry threshold to 25 or add a trend\u2011strength filter like a moving\u2011average slope to avoid false breakouts. If the Sharpe is mediocre, I would tighten the ATR stop to 1.5x, reduce TP to 4x, and implement a trailing stop based on a 3\u2011period ATR to capture more profit while limiting drawdown. As an alternative, replace the Donchian channel with a Bollinger\u2011Band breakout combined with a momentum indicator (e.g., RSI>70 for longs, <30 for shorts) to capture stronger trend\u2011driven moves.\n[Backup plan] 1. Adjust entry to require ADX>25 and a positive EMA\u2011slope over the last 5 periods. 2. Change exit to a trailing stop of 1.2\u00d7ATR and a hard TP of 4\u00d7ATR. 3. Switch to a 30\u2011period Donchian channel to smooth noise and test on 4\u2011hour timeframe. 4. If still poor, abandon Donchian and try a simple breakout on a 20\u2011period Bollinger Band with a 14\u2011period ADX confirmation. 5. Finally, evaluate performance on a different crypto pair or add a volatility filter (ATR > 0.5\u00d7average) to ensure only high\u2011volatility breakouts are taken."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "A Donchian breakout identifies potential trend starts; ADX > 20 confirms that the market is in a sustained trend; RSI > 50 for longs and RSI < 50 for shorts filters out extreme overbought/oversold conditions that often produce false breakouts, thus increasing trade quality while still allowing more frequent entries.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_120427_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 76, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Weaknesses: (a) Over\u2011reliance on Donchian breakouts may produce many false signals in sideways markets; (b) ADX threshold of 30 is high, potentially missing moderate trends; (c) No volume or trend strength filters beyond ADX; (d) Exit on donchian.middle may cut gains early; (e) Fixed ATR multiples may be suboptimal for ADA\u2019s volatility regime.\n[Backup plan] If negative return: lower ADX threshold to 20 and add a volume filter (e.g., volume > SMA(20) to confirm breakout). If low Sharpe: tighten stop to 1.25x ATR, raise TP to 4x ATR, and add a trailing stop at 1x ATR. Alternative approach: switch to a dual\u2011timeframe Donchian + EMA trend filter, using 4\u2011hour Donchian for trend and 1\u2011hour for entry, with a volatility\u2011adjusted ATR exit. Also consider adding a momentum filter such as ROC > 0.5% for longs and < -0.5% for shorts to reduce whipsaws."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "EMA crossovers identify trend shifts while RSI confirms that the price momentum is sufficient; combining these reduces whipsaw entries in sideways markets and ATR-based risk limits exposure to current volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -383.09466630986384,
+      "trades": 959,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -383.1%, PF 0.78, Expectancy -39.95"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 98.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.9%, Trades 959, AvgW/L 397.67/274.89"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'sma'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'sma'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_120427_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 63, in generate_signals\n    sma_long = np.nan_to_num(indicators['sma'])\nKeyError: 'sma'",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: cl\u00e9 string `ema['short']` sur indicateur ndarray. Utiliser directement l'array.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The Donchian\u2011ADX rule may trigger too late in fast\u2011moving markets like ADAUSDC and the 1\u2011hour timeframe is highly noisy; the ADX threshold of 30 is strict and can eliminate many trades. The 1.75\u00d7ATR stop and 5.5\u00d7ATR take\u2011profit ratio is aggressive and may lock in losses before the TP is reached. The strategy lacks a trend filter beyond ADX, so it can suffer in sideways or choppy conditions. The description also references EMA/RSI logic that isn\u2019t implemented, indicating a potential mismatch in intent and code. Finally, no position\u2011sizing or volatility\u2011adjusted trade\u2011counting is present, risking over\u2011exposure.\n[Backup plan] If the backtest shows negative returns, first lower the ADX entry threshold to 20 and add a 50\u2011period EMA filter to confirm direction, then tighten the TP to 3\u00d7ATR to capture quicker moves. For a mediocre Sharpe, reduce the stop multiplier to 1.5\u00d7ATR and adjust the Donchian period to 20 for more responsive breakouts. If both fail, switch to a dual\u2011EMA crossover with an RSI 50 filter and use a 1\u00d7ATR stop with 3\u00d7ATR TP, or try a Bollinger\u2011Band breakout with a 14\u2011period ATR stop for tighter volatility control."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

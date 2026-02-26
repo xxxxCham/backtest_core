@@ -379,6 +379,154 @@ def _infer_step_decimals(step: float) -> int:
     return 0
 
 
+def _to_float(value: Any) -> Optional[float]:
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_ratio(value: Any, spec: Optional[ParameterSpec]) -> Optional[float]:
+    if spec is None:
+        return None
+
+    min_val = _to_float(getattr(spec, "min_val", None))
+    max_val = _to_float(getattr(spec, "max_val", None))
+    step = _to_float(getattr(spec, "step", None))
+    if min_val is None or max_val is None:
+        return None
+    if step is None or step <= 0:
+        return None
+
+    span = max_val - min_val
+    if span <= 0:
+        return None
+
+    value_float = _to_float(value)
+    if value_float is None:
+        return None
+
+    ratio = (value_float - min_val) / span
+    if ratio < 0.0:
+        return 0.0
+    if ratio > 1.0:
+        return 1.0
+    return ratio
+
+
+def _snap_value_to_spec(value: float, spec: Optional[ParameterSpec]) -> float:
+    if spec is None:
+        return value
+
+    min_val = _to_float(getattr(spec, "min_val", None))
+    max_val = _to_float(getattr(spec, "max_val", None))
+    step = _to_float(getattr(spec, "step", None))
+    if min_val is None or max_val is None:
+        return value
+
+    clamped = min(max(value, min_val), max_val)
+
+    if step is None or step <= 0:
+        return clamped
+
+    min_dec = Decimal(str(min_val))
+    step_dec = Decimal(str(step))
+    target_dec = Decimal(str(clamped))
+    steps = int(round(float((target_dec - min_dec) / step_dec)))
+    snapped = min_dec + step_dec * steps
+
+    max_dec = Decimal(str(max_val))
+    if snapped < min_dec:
+        snapped = min_dec
+    elif snapped > max_dec:
+        snapped = max_dec
+
+    is_int = getattr(spec, "param_type", "") in ("int", int)
+    if is_int:
+        return float(int(round(float(snapped))))
+
+    decimals = _infer_step_decimals(step)
+    if decimals > 0:
+        snapped = snapped.quantize(Decimal(1).scaleb(-decimals))
+    return float(snapped)
+
+
+def granularity_transform(
+    params: Dict[str, Any],
+    param_specs: Dict[str, ParameterSpec],
+    delta: float,
+    direction: str,
+) -> Dict[str, Any]:
+    """
+    Applique une variation de granularité globale sur des paramètres.
+
+    Règles:
+    - direction='increase': rapproche vers max
+    - direction='decrease': rapproche vers min
+    - respect strict de min/max/step via snap final
+    """
+    if not params:
+        return dict(params)
+
+    delta_float = _to_float(delta)
+    if delta_float is None or delta_float <= 0:
+        return dict(params)
+    delta_float = min(delta_float, 1.0)
+
+    direction_norm = str(direction or "").strip().lower()
+    if direction_norm not in {"increase", "decrease"}:
+        return dict(params)
+
+    transformed: Dict[str, Any] = dict(params)
+    for name, current_value in params.items():
+        spec = param_specs.get(name)
+        ratio = _normalize_ratio(current_value, spec)
+        if ratio is None:
+            continue
+
+        min_val = _to_float(getattr(spec, "min_val", None))
+        max_val = _to_float(getattr(spec, "max_val", None))
+        if min_val is None or max_val is None:
+            continue
+
+        if direction_norm == "increase":
+            ratio_new = 1.0 - (1.0 - ratio) * (1.0 - delta_float)
+        else:
+            ratio_new = ratio * (1.0 - delta_float)
+
+        target_value = min_val + ratio_new * (max_val - min_val)
+        snapped_value = _snap_value_to_spec(target_value, spec)
+
+        if getattr(spec, "param_type", "") in ("int", int):
+            transformed[name] = int(round(snapped_value))
+        else:
+            transformed[name] = float(snapped_value)
+
+    return transformed
+
+
+def compute_global_granularity_percent(
+    all_params: Dict[str, Dict[str, Any]],
+    all_param_specs: Dict[str, Dict[str, ParameterSpec]],
+) -> Optional[float]:
+    """Calcule la granularité globale agrégée (moyenne des ratios normalisés) en %."""
+    ratios: List[float] = []
+    for strategy_key, params in (all_params or {}).items():
+        specs = (all_param_specs or {}).get(strategy_key, {})
+        if not params or not specs:
+            continue
+        for name, value in params.items():
+            ratio = _normalize_ratio(value, specs.get(name))
+            if ratio is not None:
+                ratios.append(ratio)
+
+    if not ratios:
+        return None
+    return (sum(ratios) / len(ratios)) * 100.0
+
+
 def build_param_values(
     min_v: float,
     max_v: float,
@@ -425,6 +573,7 @@ def create_param_range_selector(
     mode: str = "single",
     spec: Optional[ParameterSpec] = None,
     label: Optional[str] = None,
+    container: Any = None,
 ) -> Any:
     constraints: Dict[str, Any] = {}
     is_int = False
@@ -466,10 +615,11 @@ def create_param_range_selector(
                 is_int = False
 
     unique_key = f"{key_prefix}_{name}"
+    ui = container or st.sidebar
 
     if mode == "single":
         if is_int:
-            return st.sidebar.slider(
+            return ui.slider(
                 display_name,
                 min_value=int(constraints["min"]),
                 max_value=int(constraints["max"]),
@@ -478,7 +628,7 @@ def create_param_range_selector(
                 help=constraints["description"],
                 key=unique_key,
             )
-        return st.sidebar.slider(
+        return ui.slider(
             display_name,
             min_value=float(constraints["min"]),
             max_value=float(constraints["max"]),
@@ -488,7 +638,7 @@ def create_param_range_selector(
             key=unique_key,
         )
 
-    with st.sidebar.expander(f"📊 {display_name}", expanded=False):
+    with ui.expander(f"📊 {display_name}", expanded=False):
         st.caption(constraints["description"])
 
         col1, col2 = st.columns(2)
@@ -562,6 +712,185 @@ def create_constrained_slider(name: str, granularity: float, key_prefix: str = "
     return create_param_range_selector(name, key_prefix, mode="single")
 
 
+def extract_strategy_params_metadata(strategy_key: str) -> Tuple[Dict[str, ParameterSpec], Dict[str, Any], Dict[str, Any]]:
+    """
+    Extrait les métadonnées des paramètres d'une stratégie sans créer de widgets UI.
+
+    Args:
+        strategy_key: Clé unique de la stratégie
+
+    Returns:
+        Tuple de (param_specs, params, param_ranges) où:
+        - param_specs: Dict des ParameterSpec
+        - params: Dict des valeurs par défaut
+        - param_ranges: Dict vide (pour compatibilité)
+    """
+    from ui.context import get_strategy
+
+    strategy_class = get_strategy(strategy_key)
+    if not strategy_class:
+        return {}, {}, {}
+
+    temp_strategy = strategy_class()
+    param_specs = temp_strategy.parameter_specs or {}
+    params = {}
+
+    for param_name, spec in param_specs.items():
+        if not getattr(spec, "optimize", True):
+            continue
+        params[param_name] = spec.default
+
+    return param_specs, params, {}
+
+
+def render_multi_strategy_params(
+    strategy_keys: List[str],
+    strategy_names: List[str],
+    param_mode: str = "single",
+    existing_state: Optional[Dict[str, Dict[str, Any]]] = None,
+    granularity_delta: float = 0.0,
+    granularity_direction: Optional[str] = None,
+) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+    """
+    Affiche les widgets de paramètres pour plusieurs stratégies sélectionnées.
+
+    Args:
+        strategy_keys: Liste des clés de stratégies
+        strategy_names: Liste des noms d'affichage
+        param_mode: "single" ou "range"
+        existing_state: État existant des paramètres (pour préserver les valeurs modifiées)
+
+    Returns:
+        Tuple de (all_params, all_param_ranges, all_param_specs)
+    """
+    if existing_state is None:
+        existing_state = st.session_state.get("multi_strategy_params", {})
+
+    all_params = {}
+    all_param_ranges = {}
+    all_param_specs = {}
+
+    for idx, (strat_key, strat_name) in enumerate(zip(strategy_keys, strategy_names)):
+        # Extraire les métadonnées de la stratégie
+        param_specs, default_params, _ = extract_strategy_params_metadata(strat_key)
+
+        if not param_specs:
+            continue
+
+        # Section pour cette stratégie
+        st.sidebar.markdown("---")
+        strategy_header = f"📋 **Stratégie {idx + 1}**: {strat_name}"
+        st.sidebar.markdown(strategy_header)
+
+        params = {}
+        param_ranges = {}
+
+        # Récupérer l'état existant pour cette stratégie (si déjà modifié)
+        existing_params = existing_state.get(strat_key, {})
+
+        if param_mode == "single":
+            # Prépare les valeurs actuelles pour une éventuelle transformation globale.
+            current_values: Dict[str, Any] = {}
+            for param_name, spec in param_specs.items():
+                if not getattr(spec, "optimize", True):
+                    continue
+                unique_key_prefix = f"strat{idx}_{strat_key}"
+                widget_key = f"{unique_key_prefix}_{param_name}"
+                if widget_key not in st.session_state:
+                    init_value = existing_params.get(param_name, spec.default)
+                    st.session_state[widget_key] = init_value
+                current_values[param_name] = st.session_state.get(widget_key, spec.default)
+
+            if granularity_direction in {"increase", "decrease"} and granularity_delta > 0:
+                updated_values = granularity_transform(
+                    params=current_values,
+                    param_specs=param_specs,
+                    delta=granularity_delta,
+                    direction=granularity_direction,
+                )
+                for param_name, new_value in updated_values.items():
+                    widget_key = f"strat{idx}_{strat_key}_{param_name}"
+                    st.session_state[widget_key] = new_value
+        elif (
+            param_mode == "range"
+            and granularity_direction in {"increase", "decrease"}
+            and granularity_delta > 0
+        ):
+            # En mode range, on ajuste la borne max de chaque paramètre.
+            for param_name, spec in param_specs.items():
+                if not getattr(spec, "optimize", True):
+                    continue
+
+                unique_key_prefix = f"strat{idx}_{strat_key}"
+                min_key = f"{unique_key_prefix}_{param_name}_min"
+                max_key = f"{unique_key_prefix}_{param_name}_max"
+
+                if min_key not in st.session_state:
+                    st.session_state[min_key] = getattr(spec, "min_val", None)
+                if max_key not in st.session_state:
+                    st.session_state[max_key] = getattr(spec, "max_val", None)
+
+                current_min = st.session_state.get(min_key, getattr(spec, "min_val", None))
+                current_max = st.session_state.get(max_key, getattr(spec, "max_val", None))
+                updated_max = granularity_transform(
+                    params={param_name: current_max},
+                    param_specs={param_name: spec},
+                    delta=granularity_delta,
+                    direction=granularity_direction,
+                ).get(param_name, current_max)
+
+                try:
+                    if float(updated_max) < float(current_min):
+                        updated_max = current_min
+                except (TypeError, ValueError):
+                    pass
+
+                st.session_state[max_key] = updated_max
+
+        for param_name, spec in param_specs.items():
+            if not getattr(spec, "optimize", True):
+                continue
+
+            # Clé unique pour éviter les collisions entre stratégies
+            unique_key_prefix = f"strat{idx}_{strat_key}"
+            widget_key = f"{unique_key_prefix}_{param_name}"
+
+            if param_mode == "single":
+                value = create_param_range_selector(
+                    param_name,
+                    unique_key_prefix,
+                    mode="single",
+                    spec=spec,
+                )
+                if value is not None:
+                    params[param_name] = value
+            else:  # mode == "range"
+                # En mode range, on ne pré-initialise pas (les widgets sont des expanders)
+                range_data = create_param_range_selector(
+                    param_name,
+                    unique_key_prefix,
+                    mode="range",
+                    spec=spec,
+                )
+                if range_data is not None:
+                    param_ranges[param_name] = range_data
+                    params[param_name] = spec.default
+
+        all_params[strat_key] = params
+        all_param_ranges[strat_key] = param_ranges
+        all_param_specs[strat_key] = param_specs
+
+        # Mettre à jour l'état persistant avec les nouvelles valeurs
+        if strat_key not in existing_state:
+            existing_state[strat_key] = {}
+        existing_state[strat_key].update(params)
+
+    # Persister l'état global
+    st.session_state["multi_strategy_params"] = existing_state
+
+    return all_params, all_param_ranges, all_param_specs
+
+
 def safe_load_data(
     symbol: str,
     timeframe: str,
@@ -622,6 +951,132 @@ def safe_load_data(
         import traceback
         tb_summary = traceback.format_exc().split('\n')[-3] if len(traceback.format_exc().split('\n')) > 2 else str(exc)
         return None, f"⚠️ Erreur inattendue: {tb_summary}"
+
+
+def apply_auto_market_stabilization_filter(
+    df: pd.DataFrame,
+    *,
+    enabled: bool = False,
+    method: str = "hybrid",
+    window: int = 48,
+    volume_ratio_max: float = 3.0,
+    volatility_ratio_max: float = 2.5,
+    min_consecutive_bars: int = 6,
+    min_bars_keep: int = 200,
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    """
+    Coupe automatiquement un préfixe de marché instable (warmup/anomalies),
+    puis retourne le DataFrame filtré et un rapport synthétique.
+
+    Le rapport contient toujours les clés attendues par l'UI:
+    - applied: bool
+    - cut_bars: int
+    - start_ts: str
+    """
+    info: Dict[str, Any] = {
+        "applied": False,
+        "cut_bars": 0,
+        "start_ts": "n/a",
+        "method": str(method or "hybrid"),
+        "reason": "disabled",
+    }
+
+    if df is None or df.empty:
+        info["reason"] = "empty_dataframe"
+        return df, info
+
+    if not enabled:
+        return df, info
+
+    required_cols = {"close", "volume"}
+    missing_cols = [c for c in required_cols if c not in df.columns]
+    if missing_cols:
+        info["reason"] = f"missing_columns:{','.join(sorted(missing_cols))}"
+        return df, info
+
+    try:
+        n_rows = len(df)
+        min_keep = max(10, int(min_bars_keep))
+        if n_rows <= min_keep:
+            info["reason"] = "not_enough_rows"
+            return df, info
+
+        method_norm = str(method or "hybrid").strip().lower()
+        if method_norm not in {"hybrid", "volume", "volatility"}:
+            method_norm = "hybrid"
+        info["method"] = method_norm
+
+        window = max(5, int(window))
+        min_consecutive = max(1, int(min_consecutive_bars))
+
+        volume = pd.to_numeric(df["volume"], errors="coerce").astype(float)
+        close = pd.to_numeric(df["close"], errors="coerce").astype(float)
+        abs_returns = close.pct_change().abs().replace([float("inf"), -float("inf")], pd.NA)
+
+        min_periods = max(5, window // 4)
+        vol_base = volume.rolling(window=window, min_periods=min_periods).median()
+        vol_base = vol_base.fillna(volume.expanding(min_periods=1).median())
+
+        ret_base = abs_returns.rolling(window=window, min_periods=min_periods).median()
+        ret_base = ret_base.fillna(abs_returns.expanding(min_periods=1).median())
+
+        vol_denom = vol_base.where(vol_base > 0)
+        ret_denom = ret_base.where(ret_base > 0)
+
+        vol_ratio = (volume / vol_denom).fillna(1.0)
+        volatility_ratio = (abs_returns / ret_denom).fillna(1.0)
+
+        volume_ok = vol_ratio <= max(1.0, float(volume_ratio_max))
+        volatility_ok = volatility_ratio <= max(1.0, float(volatility_ratio_max))
+
+        if method_norm == "volume":
+            stable_mask = volume_ok
+        elif method_norm == "volatility":
+            stable_mask = volatility_ok
+        else:
+            stable_mask = volume_ok & volatility_ok
+
+        stable_values = stable_mask.fillna(False).to_numpy(dtype=bool)
+        cut_bars = 0
+        upper_bound = max(0, n_rows - min_consecutive + 1)
+        for idx in range(upper_bound):
+            if stable_values[idx : idx + min_consecutive].all():
+                cut_bars = idx
+                break
+
+        if cut_bars <= 0:
+            info["reason"] = "already_stable"
+            return df, info
+
+        if (n_rows - cut_bars) < min_keep:
+            info["reason"] = "min_bars_keep_guard"
+            return df, info
+
+        filtered = df.iloc[cut_bars:].copy()
+        if filtered.empty:
+            info["reason"] = "filtered_empty"
+            return df, info
+
+        first_ts = filtered.index[0]
+        if isinstance(first_ts, pd.Timestamp):
+            if first_ts.tzinfo is not None:
+                first_ts = first_ts.tz_convert("UTC")
+            start_ts = first_ts.strftime("%Y-%m-%d %H:%M")
+        else:
+            start_ts = str(first_ts)
+
+        info.update(
+            {
+                "applied": True,
+                "cut_bars": int(cut_bars),
+                "start_ts": start_ts,
+                "reason": "applied",
+            }
+        )
+        return filtered, info
+    except Exception as exc:
+        info["reason"] = f"error:{exc}"
+        return df, info
 
 
 def _data_cache_key(
@@ -1297,145 +1752,6 @@ def build_indicator_overlays(
 def safe_copy_cleanup(logger=None) -> None:
     # Mode CPU-only: aucun cleanup GPU requis
     return None
-
-
-# LEGACY CODE - SUPPRIMÉ: Remplacé par version SweepEngine moderne (ligne ~1306)
-# Cette fonction n'était jamais appelée (écrasée par définition suivante)
-def _legacy_run_sweep_parallel_with_callback_UNUSED(
-    df,
-    strategy_name,
-    param_combinations,
-    param_names,
-    base_params,
-    symbol,
-    timeframe,
-    initial_capital,
-    n_workers,
-    period_days,
-    fast_metrics,
-    silent_mode=True,
-    callback=None
-):
-    """[LEGACY - NON UTILISÉ] Version du sweep parallèle avec callback pour affichage temps réel."""
-
-    # Préparer les tâches
-    tasks = []
-    for i, combo in enumerate(param_combinations):
-        params = base_params.copy()
-        for j, param_name in enumerate(param_names):
-            params[param_name] = combo[j]
-
-        tasks.append({
-            "df": df,
-            "params": params,
-            "combo_id": i
-        })
-
-    # Fonction de traitement des résultats avec callback
-    results = []
-    completed = 0
-    total = len(tasks)
-
-    def process_result(result):
-        nonlocal completed, results
-        completed += 1
-        if result and "error" not in result:
-            results.append(result)
-
-        # Callback pour affichage temps réel
-        if callback:
-            try:
-                callback(completed, total, result)
-            except Exception:
-                # Client déconnecté - ignorer l'erreur et continuer le sweep
-                pass
-
-    # Exécuter avec callback
-    from backtest.worker import run_backtest_worker
-    try:
-        for task in tasks:
-            result = run_backtest_worker(task)
-            process_result(result)
-    except Exception as e:
-        print(f"Erreur sweep parallèle: {e}")
-
-    return results
-
-
-def run_sweep_sequential_with_callback_legacy(
-    df,
-    strategy_name,
-    param_combinations,
-    param_names,
-    base_params,
-    symbol,
-    timeframe,
-    initial_capital,
-    period_days,
-    fast_metrics,
-    silent_mode=True,
-    callback=None
-):
-    """[LEGACY - NON UTILISÉ] Version du sweep séquentiel avec callback pour affichage temps réel."""
-
-    from backtest.engine import BacktestEngine
-    from ui.context import get_strategy
-
-    results = []
-    total = len(param_combinations)
-
-    for i, combo in enumerate(param_combinations):
-        # Construire paramètres
-        params = base_params.copy()
-        for j, param_name in enumerate(param_names):
-            params[param_name] = combo[j]
-
-        try:
-            # Exécuter backtest
-            engine = BacktestEngine(initial_capital=initial_capital)
-            strategy = get_strategy(strategy_name)()
-            result = engine.run(
-                df=df,
-                strategy=strategy,
-                params=params,
-                symbol=symbol,
-                timeframe=timeframe,
-                silent_mode=silent_mode
-            )
-
-            # Formater pour compatibilité avec worker
-            result_dict = {
-                "params": params,
-                "metrics": result.metrics,
-                "meta": result.meta,
-                "period_days": period_days,
-                "combo_id": i
-            }
-            results.append(result_dict)
-
-            # Callback pour affichage temps réel
-            if callback:
-                try:
-                    callback(i + 1, total, result_dict)
-                except Exception:
-                    # Client déconnecté - ignorer l'erreur et continuer le sweep
-                    pass
-
-        except Exception as e:
-            error_result = {
-                "params": params,
-                "error": str(e),
-                "combo_id": i
-            }
-            # Callback même en cas d'erreur
-            if callback:
-                try:
-                    callback(i + 1, total, error_result)
-                except Exception:
-                    # Client déconnecté - ignorer l'erreur et continuer le sweep
-                    pass
-
-    return results
 
 
 def run_sweep_parallel_with_callback(

@@ -1,0 +1,274 @@
+{
+  "session_id": "20260226_082335_objectif_de_strat_gie_sur_le_token_orcau",
+  "objective": "Objectif de strat\u00e9gie: Sur le token ORCAUSDC dans le timeframe 4h, j'utilisera les indicateurs EMA et ROC pour une robuste detection des familles robustes en mode breakout, mode_inverse ou mean_reversion. J'ajouterai ensuite l'indicateur BOLLINGER + STOCHASTIC en combinaison positive EMA + OBV dans le mode_hors_sentiers battus avec un filtre anti-faux-signaisls pour une gestion de risque non lineaire (SL/TP adaptes a la volatilite). Je vais \u00e9galement prendre en compte les comportements aleatoires impos\u00e9s par mode_offbeat et mode inverse. Afin d'\u00e9viter des formulations generiques, j'ajouterai une condition additionnelle pour filtrer l'indicateur RSI entre 30/70. En fin de strat\u00e9gie, je vais utiliser un SL/TP en fonction de la volatilit\u00e9 implicite/realisee et tester ma hypothese avec un risque management diversifi\u00e9.",
+  "status": "max_iterations",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "marginal",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.2531821305963543,
+      "return_pct": 4.725006268247035,
+      "max_drawdown_pct": -33.931551592579574,
+      "profit_factor": 1.0292421381587797,
+      "win_rate_pct": 39.53488372093023,
+      "trades": 43,
+      "continuous_score": 12.862820731682753,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 7.08909965669792,
+          "return": 5.197506895071738,
+          "profit_factor": 1.336783458687074,
+          "trades_confidence": 7.166666666666667,
+          "win_rate": 1.3604651162790695
+        },
+        "penalties": {
+          "drawdown_pressure": 9.287701061719716,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +4.7%, PF 1.03, Expectancy 10.99"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 33.9%, Vol 34.7%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.253, Sortino 0.158, Calmar 0.123"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.5%, Trades 43, AvgW/L 978.28/621.47"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 73: expected an indented block after 'if' statement on line 70",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 30,
+          "short_signals": 19,
+          "total_signals": 49
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses EMA, ROC for robust family detection and BOLLINGER + STOCHASTIC in combination with positive EMA+OBV. It also considers RSI behavior within 30-70 range. A SL/TP is set based on volatility implied/realized. Hypothesis: Fallback contract if LLM not exploitable. Entry long confirmed by momentum and risk controlled, Exit on signal reverse or momentum invalidation. Potential weaknesses include overfitting to recent history as the strategy uses only 4h timeframe.\n[Backup plan] 1) Increase time frame for more data points, 2) Add more indicators like macd, stochastic etc., 3) Adjust SL/TP based on absolute volatility rather than relative one. If results are poor (negative return), try increasing position size and decreasing risk per trade. If results are mediocre (low Sharpe), adjust EMA or ROC settings to improve signal."
+        },
+        "scoring": {
+          "continuous_score": 12.862820731682753,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 7.08909965669792,
+            "return": 5.197506895071738,
+            "profit_factor": 1.336783458687074,
+            "trades_confidence": 7.166666666666667,
+            "win_rate": 1.3604651162790695
+          },
+          "penalties": {
+            "drawdown_pressure": 9.287701061719716,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "marginal",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.2531821305963543,
+      "return_pct": 4.725006268247035,
+      "max_drawdown_pct": -33.931551592579574,
+      "profit_factor": 1.0292421381587797,
+      "win_rate_pct": 39.53488372093023,
+      "trades": 43,
+      "continuous_score": 12.862820731682753,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 7.08909965669792,
+          "return": 5.197506895071738,
+          "profit_factor": 1.336783458687074,
+          "trades_confidence": 7.166666666666667,
+          "win_rate": 1.3604651162790695
+        },
+        "penalties": {
+          "drawdown_pressure": 9.287701061719716,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +4.7%, PF 1.03, Expectancy 10.99"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 33.9%, Vol 34.7%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.253, Sortino 0.158, Calmar 0.123"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 39.5%, Trades 43, AvgW/L 978.28/621.47"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 73: expected an indented block after 'if' statement on line 70",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 30,
+          "short_signals": 19,
+          "total_signals": 49
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses EMA, ROC for robust family detection and BOLLINGER + STOCHASTIC in combination with positive EMA+OBV. It also considers RSI behavior within 30-70 range. A SL/TP is set based on volatility implied/realized. Hypothesis: Fallback contract if LLM not exploitable. Entry long confirmed by momentum and risk controlled, Exit on signal reverse or momentum invalidation. Potential weaknesses include overfitting to recent history as the strategy uses only 4h timeframe.\n[Backup plan] 1) Increase time frame for more data points, 2) Add more indicators like macd, stochastic etc., 3) Adjust SL/TP based on absolute volatility rather than relative one. If results are poor (negative return), try increasing position size and decreasing risk per trade. If results are mediocre (low Sharpe), adjust EMA or ROC settings to improve signal."
+        },
+        "scoring": {
+          "continuous_score": 12.862820731682753,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 7.08909965669792,
+            "return": 5.197506895071738,
+            "profit_factor": 1.336783458687074,
+            "trades_confidence": 7.166666666666667,
+            "win_rate": 1.3604651162790695
+          },
+          "penalties": {
+            "drawdown_pressure": 9.287701061719716,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ]
+}

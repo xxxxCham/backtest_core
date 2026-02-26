@@ -1,0 +1,802 @@
+{
+  "session_id": "20260224_191755_style_momentum_sur_0gusdc_en_1h_indicate",
+  "objective": "Style momentum sur 0GUSDC en 1h. Indicateurs : EMA + OBV + VOLUME_OSCILLATOR. Entr\u00e9es : EMA 50>EMA 200 avec OBV en hausse et VOLUME_OSCILLATOR croissant depuis 3 p\u00e9riodes. Sorties : EMA 50<EMA 200 ou VOLUME_OSCILLATOR descend. Risk management : SL \u00e0 1.5x ATR, TP \u00e0 2x ATR. Mode_offbeat : utilisation combin\u00e9e de OBV et VOLUME_OSCILLATOR pour d\u00e9tecter les mouvements de liquidit\u00e9 cach\u00e9s. Mode_inverse : test de la logique inverse de l'indicateur OBV en contexte de volatilit\u00e9 \u00e9lev\u00e9e. Hypoth\u00e8se testable : les mouvements de liquidit\u00e9 d\u00e9tect\u00e9s par le volume oscillateur et OBV peuvent pr\u00e9dire les retournements de tendance avant que l'EMA ne change de direction.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA trend confirmation with OBV and Volume Oscillator detects hidden liquidity flows that precede momentum shifts, allowing early entry before EMA signals change direction, while ATR-based risk management ensures position sizing adapts to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.7016834046340423,
+      "return_pct": -32.99532602849136,
+      "max_drawdown_pct": -42.9439871541469,
+      "profit_factor": 0.783627273212571,
+      "win_rate_pct": 37.68115942028986,
+      "trades": 69,
+      "continuous_score": -85.6500928880262,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -19.647135329753183,
+          "return": -33.0,
+          "profit_factor": -9.891324653139613,
+          "trades_confidence": 10.0,
+          "win_rate": 0.8043478260869578
+        },
+        "penalties": {
+          "drawdown_pressure": 15.295991436097935,
+          "drawdown_excess": 6.619989295122419,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 7.943987154146903
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.0%, PF 0.78, Expectancy -47.82"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 42.9%, Vol 68.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.702, Sortino -0.701, Calmar -1.499"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.7%, Trades 69, AvgW/L 459.61/354.63"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191755_style_momentum_sur_0gusdc_en_1h_indicate\\strategy.py\", line 82, in generate_signals\n    long_condition = (ema.ema_50 > ema.ema_200) & (np.roll(ema.ema_50, 1) <= np.roll(ema.ema_200, 1)) & (obv > np.roll(obv, 1)) & (volume_oscillator > np.roll(volume_oscillator, 1)) & (np.roll(volume_oscillator, 1) > np.roll(volume_oscillator, 2))\nNameError: name 'ema' is not defined",
+          "runtime_fix_retry_error": "AttributeError: 'numpy.ndarray' object has no attribute 'ema_50'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple lagging indicators (EMA, OBV, Volume Oscillator) may cause delayed signals, and the combination of OBV with volume oscillators could lead to false positives. The 1.5x ATR SL might be too tight for volatile assets like 0GUSDC, and the entry logic is complex, risking overfitting. The offbeat/inverse modes add risk without clear edge if not properly validated.\n[Backup plan] If results are poor, simplify to EMA crossover + ATR-based SL/TP with optional OBV filter. If Sharpe is low, widen SL/TP to 2.5x ATR and optimize volume oscillator lookback periods. As alternative, try a mean-reversion filter using RSI or ADX to reduce false entries during ranging markets."
+        },
+        "scoring": {
+          "continuous_score": -85.6500928880262,
+          "drawdown_excess_pct": 7.943987154146903,
+          "components": {
+            "sharpe": -19.647135329753183,
+            "return": -33.0,
+            "profit_factor": -9.891324653139613,
+            "trades_confidence": 10.0,
+            "win_rate": 0.8043478260869578
+          },
+          "penalties": {
+            "drawdown_pressure": 15.295991436097935,
+            "drawdown_excess": 6.619989295122419,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The combination of EMA crossovers with OBV and Volume Oscillator filters creates a robust momentum signal that identifies true trend shifts before they are confirmed by price action alone. When EMA 50 crosses above EMA 200, it signals a bullish momentum shift, but only when OBV is rising and Volume Oscillator shows increasing volume momentum, it confirms institutional accumulation. This approach filters out false breakouts and reduces whipsaw effects by requiring multiple confirmations from liquidity and momentum indicators.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining OBV and Volume Oscillator with EMA crossovers detects hidden liquidity movements that precede trend changes, improving entry timing and reducing false signals in volatile markets.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining OBV and Volume Oscillator to detect hidden liquidity movements can anticipate trend reversals before EMA signals change, leveraging the fact that large institutional flows often precede price action shifts. This approach filters for strong volume confirmation and avoids false breakouts during low-liquidity periods.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191755_style_momentum_sur_0gusdc_en_1h_indicate\\strategy.py\", line 81, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on OBV and Volume Oscillator for hidden liquidity detection may lag behind price action, especially in illiquid markets like 0GUSDC. The complex entry logic with multiple roll conditions increases risk of overfitting and false signals. It also assumes institutional flows always precede price moves, which may not hold in all market regimes.\n[Backup plan] If results are poor, simplify to just EMA crossover with volume filter (OBV or Volume Oscillator alone). If Sharpe is mediocre, reduce ATR multipliers (SL/TP) and tighten entry filters. As alternative, try a mean-reversion approach using RSI + volume, or a momentum filter with MACD + OBV. Consider switching to 15m timeframe if 1h lacks sufficient liquidity signals."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Le croisement de EMA 50 au-dessus de EMA 200 avec une tendance haussi\u00e8re confirm\u00e9e par OBV et un volume oscillateur croissant indique un momentum fort. L'utilisation combin\u00e9e de ces indicateurs permet de capturer les mouvements de liquidit\u00e9 cach\u00e9s avant que le prix ne change de direction, r\u00e9duisant ainsi les faux signaux.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining EMA trend confirmation with OBV and Volume Oscillator detects hidden liquidity flows that precede momentum shifts, enabling early entry before EMA signals change direction, while ATR-based risk management controls volatility exposure",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 4,
+      "hypothesis": "Combining OBV and Volume Oscillator to detect hidden liquidity movements can anticipate trend reversals before EMA signals change, leveraging the fact that large institutional flows often precede price action shifts. This approach filters for strong volume confirmation and avoids false breakouts during low-liquidity periods.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191755_style_momentum_sur_0gusdc_en_1h_indicate\\strategy.py\", line 81, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on OBV and Volume Oscillator for hidden liquidity detection may lag behind price action, especially in illiquid markets like 0GUSDC. The complex entry logic with multiple roll conditions increases risk of overfitting and false signals. It also assumes institutional flows always precede price moves, which may not hold in all market regimes.\n[Backup plan] If results are poor, simplify to just EMA crossover with volume filter (OBV or Volume Oscillator alone). If Sharpe is mediocre, reduce ATR multipliers (SL/TP) and tighten entry filters. As alternative, try a mean-reversion approach using RSI + volume, or a momentum filter with MACD + OBV. Consider switching to 15m timeframe if 1h lacks sufficient liquidity signals."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA trend confirmation with OBV and Volume Oscillator detects hidden liquidity flows that precede momentum shifts, allowing early entry before EMA signals change direction, while ATR-based risk management ensures position sizing adapts to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.7016834046340423,
+      "return_pct": -32.99532602849136,
+      "max_drawdown_pct": -42.9439871541469,
+      "profit_factor": 0.783627273212571,
+      "win_rate_pct": 37.68115942028986,
+      "trades": 69,
+      "continuous_score": -85.6500928880262,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -19.647135329753183,
+          "return": -33.0,
+          "profit_factor": -9.891324653139613,
+          "trades_confidence": 10.0,
+          "win_rate": 0.8043478260869578
+        },
+        "penalties": {
+          "drawdown_pressure": 15.295991436097935,
+          "drawdown_excess": 6.619989295122419,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 7.943987154146903
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.0%, PF 0.78, Expectancy -47.82"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 42.9%, Vol 68.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.702, Sortino -0.701, Calmar -1.499"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.7%, Trades 69, AvgW/L 459.61/354.63"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_191755_style_momentum_sur_0gusdc_en_1h_indicate\\strategy.py\", line 82, in generate_signals\n    long_condition = (ema.ema_50 > ema.ema_200) & (np.roll(ema.ema_50, 1) <= np.roll(ema.ema_200, 1)) & (obv > np.roll(obv, 1)) & (volume_oscillator > np.roll(volume_oscillator, 1)) & (np.roll(volume_oscillator, 1) > np.roll(volume_oscillator, 2))\nNameError: name 'ema' is not defined",
+          "runtime_fix_retry_error": "AttributeError: 'numpy.ndarray' object has no attribute 'ema_50'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple lagging indicators (EMA, OBV, Volume Oscillator) may cause delayed signals, and the combination of OBV with volume oscillators could lead to false positives. The 1.5x ATR SL might be too tight for volatile assets like 0GUSDC, and the entry logic is complex, risking overfitting. The offbeat/inverse modes add risk without clear edge if not properly validated.\n[Backup plan] If results are poor, simplify to EMA crossover + ATR-based SL/TP with optional OBV filter. If Sharpe is low, widen SL/TP to 2.5x ATR and optimize volume oscillator lookback periods. As alternative, try a mean-reversion filter using RSI or ADX to reduce false entries during ranging markets."
+        },
+        "scoring": {
+          "continuous_score": -85.6500928880262,
+          "drawdown_excess_pct": 7.943987154146903,
+          "components": {
+            "sharpe": -19.647135329753183,
+            "return": -33.0,
+            "profit_factor": -9.891324653139613,
+            "trades_confidence": 10.0,
+            "win_rate": 0.8043478260869578
+          },
+          "penalties": {
+            "drawdown_pressure": 15.295991436097935,
+            "drawdown_excess": 6.619989295122419,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    }
+  ]
+}

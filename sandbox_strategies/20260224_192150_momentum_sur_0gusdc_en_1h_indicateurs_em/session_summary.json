@@ -1,0 +1,1112 @@
+{
+  "session_id": "20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em",
+  "objective": "Momentum sur 0GUSDC en 1h. Indicateurs : EMA + BOLLINGER + VOLUME_OSCILLATOR. Entr\u00e9es : crossover EMA 50/200 vers le haut avec bande de Bollinger en expansion et volume oscillateur positif. Sorties : crossover EMA 50/200 vers le bas ou perte de 20% sur 1h. Risk management : SL \u00e0 1.5x ATR, TP \u00e0 2x ATR. Filtre horaire : uniquement les sessions 1h-1h UTC pour \u00e9viter les faux signaux li\u00e9s \u00e0 la liquidit\u00e9 matinale. Confirmation contrarienne : n\u00e9cessite un retour de la bande de Bollinger vers le haut apr\u00e8s une violation pour confirmer la tendance.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA crossovers with Bollinger Band expansion and Volume Oscillator confirmation creates a robust momentum entry filter that avoids false signals during low-liquidity periods, while the ATR-based risk management ensures position sizing adapts to volatility and the 1h-1h UTC time filter removes morning noise.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.7016834046340423,
+      "return_pct": -32.99532602849136,
+      "max_drawdown_pct": -42.9439871541469,
+      "profit_factor": 0.783627273212571,
+      "win_rate_pct": 37.68115942028986,
+      "trades": 69,
+      "continuous_score": -85.6500928880262,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -19.647135329753183,
+          "return": -33.0,
+          "profit_factor": -9.891324653139613,
+          "trades_confidence": 10.0,
+          "win_rate": 0.8043478260869578
+        },
+        "penalties": {
+          "drawdown_pressure": 15.295991436097935,
+          "drawdown_excess": 6.619989295122419,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 7.943987154146903
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.0%, PF 0.78, Expectancy -47.82"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 42.9%, Vol 68.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.702, Sortino -0.701, Calmar -1.499"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.7%, Trades 69, AvgW/L 459.61/354.63"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (3351,) (3201,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (3351,) (3201,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 115, in generate_signals\n    ema_cross_up = (ema_fast > ema_slow) & (prev_ema_fast <= prev_ema_slow)\nValueError: operands could not be broadcast together with shapes (3351,) (3201,)",
+          "runtime_fix_retry_error": "ValueError: operands could not be broadcast together with shapes (3351,) (3201,) ",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include over-reliance on EMA crossovers which can generate whipsaws, potential look-ahead bias in Bollinger expansion detection, and the 1h-1h UTC filter may exclude profitable trading windows. The volume oscillator confirmation might be too strict, reducing entry frequency, and the 20% stop-loss is aggressive for a momentum strategy.\n[Backup plan] If results are poor, I'd test a 15-minute entry confirmation with a 50% stop-loss instead. If mediocre Sharpe, I'd reduce the ATR multiplier for TP/SL and widen the Bollinger band expansion threshold. As alternative, I'd try a MACD + RSI combo with volatility filtering, or switch to a mean-reversion approach with Bollinger bands as the sole signal."
+        },
+        "scoring": {
+          "continuous_score": -85.6500928880262,
+          "drawdown_excess_pct": 7.943987154146903,
+          "components": {
+            "sharpe": -19.647135329753183,
+            "return": -33.0,
+            "profit_factor": -9.891324653139613,
+            "trades_confidence": 10.0,
+            "win_rate": 0.8043478260869578
+          },
+          "penalties": {
+            "drawdown_pressure": 15.295991436097935,
+            "drawdown_excess": 6.619989295122419,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and volume oscillator creates a robust momentum signal that filters out low-quality breakouts. The EMA 50/200 crossover identifies trend direction, Bollinger expansion confirms strength in the move, and volume oscillator ensures momentum is present. This multi-factor approach reduces false signals while maintaining sensitivity to genuine trend changes. The 1.5x ATR stop-loss and 2x ATR take-profit ensure proper risk-reward ratios, while the 1h-1h UTC filter removes morning liquidity noise.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and volume oscillator confirms strong momentum entries while filtering out weak breakouts. The ATR-based risk management ensures position sizing adapts to volatility, and the 1h-1h UTC session filter reduces false signals from low-liquidity morning sessions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and volume oscillator confirms strong momentum entries while filtering out weak breakouts. The ATR-based risk management ensures position sizing adapts to volatility, and the 1h-1h UTC session filter reduces false signals from low-liquidity morning sessions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + Bollinger expansion + volume oscillator may overfit to specific market regimes, especially with the narrow 1h-1h UTC filter. The 20% stop-loss is aggressive and may cause premature exits, while the 1.5x ATR SL might be too tight for volatile environments. The confirmation contrarian rule adds complexity but could delay entries or miss early momentum.\n[Backup plan] If results are poor, reduce the 20% stop-loss to 10% and widen the ATR multiplier for SL/TP to 2.5x. If Sharpe is mediocre, optimize the Bollinger expansion threshold (e.g., use 2x std dev instead of width change) and test 15m entry filter. As an alternative, switch to a simple RSI+volume filter with fixed SL/TP, or incorporate a mean-reversion filter to reduce directional bias."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and positive volume oscillator filters out weak momentum signals while maintaining sensitivity to true trend reversals. The ATR-based risk management ensures consistent risk-reward profiles regardless of volatility changes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -108.20870426059584,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7646623676042593,
+      "win_rate_pct": 28.57142857142857,
+      "trades": 266,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.758291766662431,
+          "trades_confidence": 10.0,
+          "win_rate": -1.928571428571429
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -108.2%, PF 0.76, Expectancy -40.68"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1979.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 266, AvgW/L 462.62/242.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 110, in generate_signals\n    (ema['ema50'] > ema['ema200']) &\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `bollinger['expansion']` pour indicateur dict 'bollinger'. Sous-cl\u00e9s valides: lower, middle, upper.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weakness lies in its reliance on multiple filters that may cull too many valid signals, especially in ranging markets. The 20% stop-loss is aggressive and may cause premature exits during healthy momentum moves. The Bollinger expansion filter could lag behind true trend changes, and the 1-hour UTC session filter might miss profitable opportunities. Confirmation contrarienne adds complexity but may reduce trade frequency significantly.\n[Backup plan] If results are poor, I'd simplify to just EMA crossover with ATR-based SL/TP, removing Bollinger and volume filters. If mediocre Sharpe, I'd reduce SL/TP multipliers to 1.2x ATR and widen stop-loss to 1.8x ATR to capture more momentum. As alternative, I'd test a price action approach using higher time frame trend filters with 1h breakout confirmation, or a mean-reversion filter during momentum exhaustion periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.758291766662431,
+            "trades_confidence": 10.0,
+            "win_rate": -1.928571428571429
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and volume oscillator confirms strong momentum entries while ATR-based risk management controls drawdown in volatile conditions. The hourly session filter removes illiquid morning false signals, and the contrarian confirmation ensures trend persistence before entering.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7256131935412294,
+      "return_pct": 9.57581606710104,
+      "max_drawdown_pct": -67.99024009787064,
+      "profit_factor": 1.0352604135341377,
+      "win_rate_pct": 45.73643410852713,
+      "trades": 129,
+      "continuous_score": -6.310091454353284,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 20.317169419154425,
+          "return": 10.533397673811145,
+          "profit_factor": 1.6119046187034365,
+          "trades_confidence": 10.0,
+          "win_rate": 3.2209302325581386
+        },
+        "penalties": {
+          "drawdown_pressure": 31.993493398580426,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 32.99024009787064
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +9.6%, PF 1.04, Expectancy 7.42"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 68.0%, Vol 124.7%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.726, Sortino 1.084, Calmar 0.391"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 45.7%, Trades 129, AvgW/L 476.53/387.96"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 83, in generate_signals\n    long_condition = (ema['ema50'] > ema['ema200']) & (np.roll(ema['ema50'], 1) <= np.roll(ema['ema200'], 1)) & (bollinger['expansion'] > 0) & (volume_oscillator > 0)\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `bollinger['expansion']` pour indicateur dict 'bollinger'. Sous-cl\u00e9s valides: lower, middle, upper.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple confirmations (EMA crossover, Bollinger expansion, volume oscillator) may create excessive whipsaws and reduce trade frequency. The 20% stop-loss is overly tight for a momentum strategy and may exit prematurely. The hourly session filter might be too restrictive, especially for 0GUSDC which has limited liquidity. The contrarian confirmation adds complexity but may delay entries or miss early momentum.\n[Backup plan] If results are poor, simplify to just EMA crossover with ATR-based SL/TP and remove Bollinger and volume filters. If Sharpe is low, widen stop-loss to 2x ATR and tighten take-profit to 1.5x ATR. As an alternative, try a mean-reversion approach using Bollinger bands with volume confirmation, or switch to a breakout strategy with volatility filtering. Reduce the session filter to 2h-10h UTC to capture more liquid hours."
+        },
+        "scoring": {
+          "continuous_score": -6.310091454353284,
+          "drawdown_excess_pct": 32.99024009787064,
+          "components": {
+            "sharpe": 20.317169419154425,
+            "return": 10.533397673811145,
+            "profit_factor": 1.6119046187034365,
+            "trades_confidence": 10.0,
+            "win_rate": 3.2209302325581386
+          },
+          "penalties": {
+            "drawdown_pressure": 31.993493398580426,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 1,
+            "llm_positive": 1,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 6,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and volume oscillator confirms strong momentum entries while ATR-based risk management controls drawdown in volatile conditions. The hourly session filter removes illiquid morning false signals, and the contrarian confirmation ensures trend persistence before entering.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7256131935412294,
+      "return_pct": 9.57581606710104,
+      "max_drawdown_pct": -67.99024009787064,
+      "profit_factor": 1.0352604135341377,
+      "win_rate_pct": 45.73643410852713,
+      "trades": 129,
+      "continuous_score": -6.310091454353284,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 20.317169419154425,
+          "return": 10.533397673811145,
+          "profit_factor": 1.6119046187034365,
+          "trades_confidence": 10.0,
+          "win_rate": 3.2209302325581386
+        },
+        "penalties": {
+          "drawdown_pressure": 31.993493398580426,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 32.99024009787064
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +9.6%, PF 1.04, Expectancy 7.42"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 68.0%, Vol 124.7%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.726, Sortino 1.084, Calmar 0.391"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 45.7%, Trades 129, AvgW/L 476.53/387.96"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 83, in generate_signals\n    long_condition = (ema['ema50'] > ema['ema200']) & (np.roll(ema['ema50'], 1) <= np.roll(ema['ema200'], 1)) & (bollinger['expansion'] > 0) & (volume_oscillator > 0)\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `bollinger['expansion']` pour indicateur dict 'bollinger'. Sous-cl\u00e9s valides: lower, middle, upper.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple confirmations (EMA crossover, Bollinger expansion, volume oscillator) may create excessive whipsaws and reduce trade frequency. The 20% stop-loss is overly tight for a momentum strategy and may exit prematurely. The hourly session filter might be too restrictive, especially for 0GUSDC which has limited liquidity. The contrarian confirmation adds complexity but may delay entries or miss early momentum.\n[Backup plan] If results are poor, simplify to just EMA crossover with ATR-based SL/TP and remove Bollinger and volume filters. If Sharpe is low, widen stop-loss to 2x ATR and tighten take-profit to 1.5x ATR. As an alternative, try a mean-reversion approach using Bollinger bands with volume confirmation, or switch to a breakout strategy with volatility filtering. Reduce the session filter to 2h-10h UTC to capture more liquid hours."
+        },
+        "scoring": {
+          "continuous_score": -6.310091454353284,
+          "drawdown_excess_pct": 32.99024009787064,
+          "components": {
+            "sharpe": 20.317169419154425,
+            "return": 10.533397673811145,
+            "profit_factor": 1.6119046187034365,
+            "trades_confidence": 10.0,
+            "win_rate": 3.2209302325581386
+          },
+          "penalties": {
+            "drawdown_pressure": 31.993493398580426,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 1,
+            "llm_positive": 1,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and volume oscillator confirms strong momentum entries while filtering out weak breakouts. The ATR-based risk management ensures position sizing adapts to volatility, and the 1h-1h UTC session filter reduces false signals from low-liquidity morning sessions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 3400 rows. Every boolean mask MUST also have exactly 3400 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + Bollinger expansion + volume oscillator may overfit to specific market regimes, especially with the narrow 1h-1h UTC filter. The 20% stop-loss is aggressive and may cause premature exits, while the 1.5x ATR SL might be too tight for volatile environments. The confirmation contrarian rule adds complexity but could delay entries or miss early momentum.\n[Backup plan] If results are poor, reduce the 20% stop-loss to 10% and widen the ATR multiplier for SL/TP to 2.5x. If Sharpe is mediocre, optimize the Bollinger expansion threshold (e.g., use 2x std dev instead of width change) and test 15m entry filter. As an alternative, switch to a simple RSI+volume filter with fixed SL/TP, or incorporate a mean-reversion filter to reduce directional bias."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA crossovers with Bollinger Band expansion and Volume Oscillator confirmation creates a robust momentum entry filter that avoids false signals during low-liquidity periods, while the ATR-based risk management ensures position sizing adapts to volatility and the 1h-1h UTC time filter removes morning noise.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.7016834046340423,
+      "return_pct": -32.99532602849136,
+      "max_drawdown_pct": -42.9439871541469,
+      "profit_factor": 0.783627273212571,
+      "win_rate_pct": 37.68115942028986,
+      "trades": 69,
+      "continuous_score": -85.6500928880262,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -19.647135329753183,
+          "return": -33.0,
+          "profit_factor": -9.891324653139613,
+          "trades_confidence": 10.0,
+          "win_rate": 0.8043478260869578
+        },
+        "penalties": {
+          "drawdown_pressure": 15.295991436097935,
+          "drawdown_excess": 6.619989295122419,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 7.943987154146903
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -33.0%, PF 0.78, Expectancy -47.82"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 42.9%, Vol 68.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.702, Sortino -0.701, Calmar -1.499"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 37.7%, Trades 69, AvgW/L 459.61/354.63"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: operands could not be broadcast together with shapes (3351,) (3201,) ",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: operands could not be broadcast together with shapes (3351,) (3201,) ",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 115, in generate_signals\n    ema_cross_up = (ema_fast > ema_slow) & (prev_ema_fast <= prev_ema_slow)\nValueError: operands could not be broadcast together with shapes (3351,) (3201,)",
+          "runtime_fix_retry_error": "ValueError: operands could not be broadcast together with shapes (3351,) (3201,) ",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include over-reliance on EMA crossovers which can generate whipsaws, potential look-ahead bias in Bollinger expansion detection, and the 1h-1h UTC filter may exclude profitable trading windows. The volume oscillator confirmation might be too strict, reducing entry frequency, and the 20% stop-loss is aggressive for a momentum strategy.\n[Backup plan] If results are poor, I'd test a 15-minute entry confirmation with a 50% stop-loss instead. If mediocre Sharpe, I'd reduce the ATR multiplier for TP/SL and widen the Bollinger band expansion threshold. As alternative, I'd try a MACD + RSI combo with volatility filtering, or switch to a mean-reversion approach with Bollinger bands as the sole signal."
+        },
+        "scoring": {
+          "continuous_score": -85.6500928880262,
+          "drawdown_excess_pct": 7.943987154146903,
+          "components": {
+            "sharpe": -19.647135329753183,
+            "return": -33.0,
+            "profit_factor": -9.891324653139613,
+            "trades_confidence": 10.0,
+            "win_rate": 0.8043478260869578
+          },
+          "penalties": {
+            "drawdown_pressure": 15.295991436097935,
+            "drawdown_excess": 6.619989295122419,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA crossover with Bollinger expansion and positive volume oscillator filters out weak momentum signals while maintaining sensitivity to true trend reversals. The ATR-based risk management ensures consistent risk-reward profiles regardless of volatility changes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -108.20870426059584,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7646623676042593,
+      "win_rate_pct": 28.57142857142857,
+      "trades": 266,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.758291766662431,
+          "trades_confidence": 10.0,
+          "win_rate": -1.928571428571429
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -108.2%, PF 0.76, Expectancy -40.68"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1979.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 266, AvgW/L 462.62/242.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `ema_fast[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_192150_momentum_sur_0gusdc_en_1h_indicateurs_em\\strategy.py\", line 110, in generate_signals\n    (ema['ema50'] > ema['ema200']) &\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: `bollinger['expansion']` pour indicateur dict 'bollinger'. Sous-cl\u00e9s valides: lower, middle, upper.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weakness lies in its reliance on multiple filters that may cull too many valid signals, especially in ranging markets. The 20% stop-loss is aggressive and may cause premature exits during healthy momentum moves. The Bollinger expansion filter could lag behind true trend changes, and the 1-hour UTC session filter might miss profitable opportunities. Confirmation contrarienne adds complexity but may reduce trade frequency significantly.\n[Backup plan] If results are poor, I'd simplify to just EMA crossover with ATR-based SL/TP, removing Bollinger and volume filters. If mediocre Sharpe, I'd reduce SL/TP multipliers to 1.2x ATR and widen stop-loss to 1.8x ATR to capture more momentum. As alternative, I'd test a price action approach using higher time frame trend filters with 1h breakout confirmation, or a mean-reversion filter during momentum exhaustion periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.758291766662431,
+            "trades_confidence": 10.0,
+            "win_rate": -1.928571428571429
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

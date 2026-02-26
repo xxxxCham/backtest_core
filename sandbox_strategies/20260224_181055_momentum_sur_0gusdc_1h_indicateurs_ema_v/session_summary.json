@@ -1,0 +1,689 @@
+{
+  "session_id": "20260224_181055_momentum_sur_0gusdc_1h_indicateurs_ema_v",
+  "objective": "Momentum sur 0GUSDC 1h. Indicateurs : EMA + Vortex + Volume Oscillator. Entr\u00e9es : EMA haussier avec Vortex > 1.2 et Volume Oscillator croissant. Sorties : RSI > 70 ou perte de 20 points de volatilit\u00e9. Risk management : SL dynamique sur ATR, TP fixe \u00e0 2x le SL.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA trend confirmation with Vortex indicator's noise filtering and Volume Oscillator's momentum acceleration creates a robust long entry signal that filters out weak trend reversals while capturing strong momentum moves in the 0GUSDC market.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -837.9028727404435,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6143737744792821,
+      "win_rate_pct": 29.952510176390774,
+      "trades": 2948,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.628627452375678,
+          "trades_confidence": 10.0,
+          "win_rate": -1.5142469470827677
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -837.9%, PF 0.61, Expectancy -28.42"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 520.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.0%, Trades 2948, AvgW/L 151.18/105.22"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5339, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4780, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4757, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_181055_momentum_sur_0gusdc_1h_indicateurs_ema_v\\strategy.py\", line 88, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy's main weaknesses include overfitting to 0GUSDC's specific volatility patterns, rigid exit rules that may miss extended momentum, and potential look-ahead bias in volume oscillator calculation. The ATR-based SL might be too tight for 0GUSDC's low volatility, while RSI exit could trigger prematurely. The 20-point volatility loss rule is arbitrary and may cause early exits.\n[Backup plan] If poor results: switch to ATR-based exit with 1.5x ATR instead of fixed 20 points, and add a minimum holding period of 30 bars. If mediocre Sharpe: increase EMA period to 50, reduce Vortex threshold to 1.0, and add a 1000x volume filter. Alternative: replace Vortex with ADX for trend strength filtering, or use MACD histogram instead of Volume Oscillator."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.628627452375678,
+            "trades_confidence": 10.0,
+            "win_rate": -1.5142469470827677
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The revised strategy uses EMA as trend filter, Vortex as momentum confirmation, and Volume Oscillator to validate trade strength. This combination avoids false breakouts by ensuring momentum aligns with volume, while ATR-based risk management controls for volatility and prevents ruin from over-leveraged positions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -769.6952827264056,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6182252300049134,
+      "win_rate_pct": 28.641571194762683,
+      "trades": 2444,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.452560914061106,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9075286415711952
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -769.7%, PF 0.62, Expectancy -31.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 585.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 2444, AvgW/L 178.06/115.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 6263,
+          "short_signals": 1125,
+          "total_signals": 7388
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses include overfitting to the 0GUSDC pair, reliance on multiple lagging indicators that may cause whipsaws, and a potentially too-strict exit rule that could miss extended momentum. The 20-point volatility loss trigger is arbitrary and may be too sensitive. ATR-based SL may be too tight for this volatile asset.\n[Backup plan] If results are poor, I'd simplify to EMA + RSI exit with fixed SL/TP, or switch to a mean-reversion approach using Bollinger Bands. If mediocre Sharpe, I'd adjust Vortex threshold to 1.0 and increase exit volatility to 30 points. Alternative: MACD + Volume confirmation with dynamic position sizing instead of fixed ATR SL."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.452560914061106,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9075286415711952
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA trend filter with Vortex indicator and Volume Oscillator creates a robust momentum entry signal that avoids false breakouts. The ATR-based dynamic stop-loss ensures position sizing adapts to volatility, while the 2x TP multiplier targets a risk-reward ratio of 1:2, improving profitability in trending conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -769.6952827264056,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6182252300049134,
+      "win_rate_pct": 28.641571194762683,
+      "trades": 2444,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.452560914061106,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9075286415711952
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -769.7%, PF 0.62, Expectancy -31.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 585.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 2444, AvgW/L 178.06/115.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5339, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4780, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4757, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_181055_momentum_sur_0gusdc_1h_indicateurs_ema_v\\strategy.py\", line 102, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy's main weaknesses are overfitting to 0GUSDC's specific volatility regime, poor risk-reward profile with 20-point SL (too tight for 0GUSDC's typical range), and lack of proper position sizing. The exit conditions are too simplistic - exiting on EMA cross or fixed ATR threshold doesn't account for trend exhaustion or mean reversion. The 2x TP multiplier may be too aggressive given the high volatility of 0GUSDC.\n[Backup plan] If results are poor, I'd test a 50-point SL with 1.5x TP and add a volatility filter (ATR > X) to avoid trading in choppy markets. If Sharpe is mediocre, I'd optimize EMA period (try 20, 50, 100) and adjust Vortex threshold from 1.2 to 1.0-1.5. Alternative approach: switch to a volatility breakout filter with dynamic ATR-based TP/SL, or implement a trend strength filter using ADX."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.452560914061106,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9075286415711952
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      },
+      "rank": 3
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA trend confirmation with Vortex indicator's noise filtering and Volume Oscillator's momentum acceleration creates a robust long entry signal that filters out weak trend reversals while capturing strong momentum moves in the 0GUSDC market.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -837.9028727404435,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6143737744792821,
+      "win_rate_pct": 29.952510176390774,
+      "trades": 2948,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.628627452375678,
+          "trades_confidence": 10.0,
+          "win_rate": -1.5142469470827677
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -837.9%, PF 0.61, Expectancy -28.42"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 520.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.0%, Trades 2948, AvgW/L 151.18/105.22"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5339, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4780, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4757, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_181055_momentum_sur_0gusdc_1h_indicateurs_ema_v\\strategy.py\", line 88, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy's main weaknesses include overfitting to 0GUSDC's specific volatility patterns, rigid exit rules that may miss extended momentum, and potential look-ahead bias in volume oscillator calculation. The ATR-based SL might be too tight for 0GUSDC's low volatility, while RSI exit could trigger prematurely. The 20-point volatility loss rule is arbitrary and may cause early exits.\n[Backup plan] If poor results: switch to ATR-based exit with 1.5x ATR instead of fixed 20 points, and add a minimum holding period of 30 bars. If mediocre Sharpe: increase EMA period to 50, reduce Vortex threshold to 1.0, and add a 1000x volume filter. Alternative: replace Vortex with ADX for trend strength filtering, or use MACD histogram instead of Volume Oscillator."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.628627452375678,
+            "trades_confidence": 10.0,
+            "win_rate": -1.5142469470827677
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The revised strategy uses EMA as trend filter, Vortex as momentum confirmation, and Volume Oscillator to validate trade strength. This combination avoids false breakouts by ensuring momentum aligns with volume, while ATR-based risk management controls for volatility and prevents ruin from over-leveraged positions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -769.6952827264056,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6182252300049134,
+      "win_rate_pct": 28.641571194762683,
+      "trades": 2444,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.452560914061106,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9075286415711952
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -769.7%, PF 0.62, Expectancy -31.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 585.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 2444, AvgW/L 178.06/115.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 6263,
+          "short_signals": 1125,
+          "total_signals": 7388
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses include overfitting to the 0GUSDC pair, reliance on multiple lagging indicators that may cause whipsaws, and a potentially too-strict exit rule that could miss extended momentum. The 20-point volatility loss trigger is arbitrary and may be too sensitive. ATR-based SL may be too tight for this volatile asset.\n[Backup plan] If results are poor, I'd simplify to EMA + RSI exit with fixed SL/TP, or switch to a mean-reversion approach using Bollinger Bands. If mediocre Sharpe, I'd adjust Vortex threshold to 1.0 and increase exit volatility to 30 points. Alternative: MACD + Volume confirmation with dynamic position sizing instead of fixed ATR SL."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.452560914061106,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9075286415711952
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining EMA trend filter with Vortex indicator and Volume Oscillator creates a robust momentum entry signal that avoids false breakouts. The ATR-based dynamic stop-loss ensures position sizing adapts to volatility, while the 2x TP multiplier targets a risk-reward ratio of 1:2, improving profitability in trending conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -769.6952827264056,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6182252300049134,
+      "win_rate_pct": 28.641571194762683,
+      "trades": 2444,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -17.452560914061106,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9075286415711952
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -769.7%, PF 0.62, Expectancy -31.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 585.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 2444, AvgW/L 178.06/115.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5339, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4780, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4757, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_181055_momentum_sur_0gusdc_1h_indicateurs_ema_v\\strategy.py\", line 102, in generate_signals\n    rsi = np.nan_to_num(indicators['rsi'])\nKeyError: 'rsi'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy's main weaknesses are overfitting to 0GUSDC's specific volatility regime, poor risk-reward profile with 20-point SL (too tight for 0GUSDC's typical range), and lack of proper position sizing. The exit conditions are too simplistic - exiting on EMA cross or fixed ATR threshold doesn't account for trend exhaustion or mean reversion. The 2x TP multiplier may be too aggressive given the high volatility of 0GUSDC.\n[Backup plan] If results are poor, I'd test a 50-point SL with 1.5x TP and add a volatility filter (ATR > X) to avoid trading in choppy markets. If Sharpe is mediocre, I'd optimize EMA period (try 20, 50, 100) and adjust Vortex threshold from 1.2 to 1.0-1.5. Alternative approach: switch to a volatility breakout filter with dynamic ATR-based TP/SL, or implement a trend strength filter using ADX."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -17.452560914061106,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9075286415711952
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      },
+      "rank": 3
+    }
+  ]
+}

@@ -1,0 +1,1333 @@
+{
+  "session_id": "20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu",
+  "objective": "Strat\u00e9gie de type mean-reversion sur 0GUSDC en 1h. Indicateurs : STOCHASTIC + WILLIAMS_R + VOLUME_OSCILLATOR. Entr\u00e9es : lorsque le STOCHASTIC croise en dessous de 20 avec un volume sup\u00e9rieur \u00e0 la moyenne mobile sur 5 p\u00e9riodes, et que WILLIAMS_R est inf\u00e9rieur \u00e0 -80, avec un volume oscillateur positif. Sorties : sortie en cours de session si le STOCHASTIC d\u00e9passe 80 ou si le prix touche la moyenne de Bollinger sup\u00e9rieure. Risk management : SL \u00e0 1.5x ATR, TP \u00e0 2x le SL, avec gating par volatilit\u00e9 implicite (si VIX > 20, ne pas entrer).",
+  "status": "failed",
+  "best_sharpe": 0.22020726041671723,
+  "best_score": -15.56496711962676,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Stochastic crossover below 20 with Williams %R below -80 and positive volume oscillator confirms strong momentum reversal signal, while ATR-based risk management ensures position sizing adapts to volatility for consistent risk-adjusted returns",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.083659053162553,
+      "return_pct": -24.617864135554274,
+      "max_drawdown_pct": -33.110134573481616,
+      "profit_factor": 0.7464008670620915,
+      "win_rate_pct": 34.090909090909086,
+      "trades": 44,
+      "continuous_score": -82.69469091272822,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -30.342453488551484,
+          "return": -27.0796505491097,
+          "profit_factor": -11.593103220018675,
+          "trades_confidence": 7.333333333333333,
+          "win_rate": -0.27272727272727404
+        },
+        "penalties": {
+          "drawdown_pressure": 8.740089715654412,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -24.6%, PF 0.75, Expectancy -55.95"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 33.1%, Vol 39.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.084, Sortino -1.332, Calmar -1.562"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.1%, Trades 44, AvgW/L 483.04/334.74"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 33,
+          "short_signals": 16,
+          "total_signals": 49
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weakness lies in over-reliance on multiple momentum indicators that may generate false signals during ranging markets. The volume filter may be too lenient, and the fixed ATR multipliers might not adapt well to changing volatility regimes. Additionally, the VIX gating could unnecessarily exclude profitable opportunities during low-volatility periods.\n[Backup plan] If results are poor, I'd simplify to just Stochastic crossover below 20 with Williams %R below -80, removing volume filters and Bollinger exit. If mediocre Sharpe, I'd optimize ATR periods (14-20) and adjust TP/SL ratios (1.5x-2.5x SL). As alternative, I'd test a mean-reversion strategy using RSI + MACD crossovers with dynamic position sizing based on volatility clustering."
+        },
+        "scoring": {
+          "continuous_score": -82.69469091272822,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -30.342453488551484,
+            "return": -27.0796505491097,
+            "profit_factor": -11.593103220018675,
+            "trades_confidence": 7.333333333333333,
+            "win_rate": -0.27272727272727404
+          },
+          "penalties": {
+            "drawdown_pressure": 8.740089715654412,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The original strategy failed because it relied on overlapping signals from stochastic and williams_r that often triggered in the same direction, leading to poor signal discrimination. By switching to a more robust mean-reversion framework using stochastic crossovers with volume confirmation, and incorporating volatility gating, we can improve signal quality and reduce false entries. The new logic filters out low-volume entries and uses a stronger volatility filter to avoid entering during low-volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'williams_r' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'williams_r' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 85, in generate_signals\n    (williams_r < -80) &\nNameError: name 'williams_r' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on stochastic crossovers below 20 may generate frequent false signals, especially in ranging markets. The combination of multiple filters (volume, Williams %R, volume oscillator) could overfit to past data, reducing robustness. The exit logic (stochastic crossing 80 or 20) is too simplistic and may lead to premature exits or whipsaws.\n[Backup plan] If return is negative, switch to a fixed Bollinger Band reversion rule with tighter volatility gating (VIX > 25). If Sharpe is low, reduce ATR multiplier for SL/TP and tighten volume filter to 3-period SMA. As alternative, test a momentum-based breakout strategy with dynamic stop-losses and volatility-adjusted position sizing."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Stochastic and Williams %R creates a robust mean-reversion signal by identifying extreme overbought/oversold conditions, while the volume oscillator confirms conviction. Filtering with ATR-based risk management ensures trades are taken only in sufficiently volatile environments, avoiding whipsaws in low-volatility regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 96, in generate_signals\n    vol_osc_sma[params[\"volume_oscillator_long\"]:] = np.convolve(vol_osc, np.ones(params[\"volume_oscillator_long\"])/params[\"volume_oscillator_long\"], mode='valid')\nValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "runtime_fix_retry_error": "ValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple overlapping momentum indicators (Stochastic, Williams %R) increases risk of false signals. The volume filter may be too restrictive, eliminating viable trades. Exit logic based solely on Stochastic crossing 80/20 is simplistic and may cause premature exits. The VIX gating could miss volatile regimes where mean-reversion performs best.\n[Backup plan] If poor results: switch to RSI + ADX filter instead of Stochastic + Williams, and use trailing stop instead of fixed TP/SL. If mediocre Sharpe: reduce ATR multiplier from 1.5x to 1.2x, widen Stochastic entry threshold to 15, and add a minimum price change filter. Alternative: test a volatility breakout filter with Bollinger Bands instead of mean-reversion, or use a machine learning model to classify market regimes and adjust signal strength accordingly."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "The combination of STOCHASTIC crossing below 20 with WILLIAMS_R below -80 and positive volume oscillator confirms strong mean-reversion momentum in oversold conditions, while ATR-based risk management ensures proper position sizing and volatility-adjusted stops.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'sma' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'sma' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 86, in generate_signals\n    sma_vol_osc = sma(vol_osc, 5)\nNameError: name 'sma' is not defined",
+          "runtime_fix_retry_error": "NameError: name 'window' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple overlapping momentum indicators (STOCHASTIC, WILLIAMS_R, VOLUME_OSCILLATOR) increases false signal risk. The 1.5x ATR SL may be too tight for 0GUSDC's volatility, and the VIX gating might be too restrictive. The exit rules are too simple and may cause premature exits or missed profits.\n[Backup plan] If results are poor, switch to a single, robust mean-reversion signal (e.g., STOCHASTIC crossing below 20 with WILLIAMS_R below -80) and tighten the volume filter. If Sharpe is mediocre, increase TP to 3x SL and reduce ATR multiplier to 1x. As an alternative, test a volatility breakout strategy with Bollinger bands and RSI for trend confirmation."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Stochastic RSI with Williams %R and Volume Oscillator creates a robust mean-reversion signal by identifying extreme momentum conditions and confirming volume, while ATR-based risk management ensures position sizing adapts to volatility without overfitting.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -104.10741034764837,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7794855824817754,
+      "win_rate_pct": 22.30769230769231,
+      "trades": 260,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.080659086547413,
+          "trades_confidence": 10.0,
+          "win_rate": -3.8076923076923066
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -104.1%, PF 0.78, Expectancy -40.04"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 6302.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.3%, Trades 260, AvgW/L 634.49/233.72"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `vol_sma[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'sma' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'sma' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 86, in generate_signals\n    vol_osc_sma = sma(vol_osc, 5)\nNameError: name 'sma' is not defined",
+          "runtime_fix_retry_error": "NameError: name 'window' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple momentum indicators creates risk of signal overlap and false positives. The strict entry filters may limit trade frequency, while the exit rules could cause premature exits during strong trends. The VIX gating might unnecessarily block profitable opportunities during low-volatility pullbacks.\n[Backup plan] If results are poor, simplify to stochastic crossover below 20 with volume confirmation only. If Sharpe is mediocre, reduce ATR multiplier to 1x and widen TP to 1.5x SL. As alternative, try a volatility-breakout filter to avoid mean-reversion trades during trending periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.080659086547413,
+            "trades_confidence": 10.0,
+            "win_rate": -3.8076923076923066
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Stochastic RSI with Williams %R and Volume Oscillator creates a robust mean-reversion signal that filters out weak moves. Stochastic crossing below 20 with volume confirmation identifies oversold momentum, while Williams %R below -80 confirms extreme sentiment. The volume oscillator positive signal ensures increased conviction. This multi-factor approach reduces false signals and improves trade quality.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.22020726041671723,
+      "return_pct": -3.8769370147828885,
+      "max_drawdown_pct": -38.59218935024527,
+      "profit_factor": 0.9775732230155352,
+      "win_rate_pct": 38.15789473684211,
+      "trades": 76,
+      "continuous_score": -15.56496711962676,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 6.165803291668082,
+          "return": -4.264630716261177,
+          "profit_factor": -1.025224090718392,
+          "trades_confidence": 10.0,
+          "win_rate": 0.9473684210526329
+        },
+        "penalties": {
+          "drawdown_pressure": 12.394792900163514,
+          "drawdown_excess": 2.9934911252043923,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 3.5921893502452704
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -3.9%, PF 0.98, Expectancy -5.10"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 38.6%, Vol 71.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.220, Sortino 0.455, Calmar -0.251"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.2%, Trades 76, AvgW/L 582.74/367.81"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 60,
+          "short_signals": 29,
+          "total_signals": 89
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple oscillators creates potential for conflicting signals and overfitting. The volume filter may be too restrictive, especially in low-volume ranges, and the exit rules may be too aggressive, leading to premature exits. The VIX gating may miss opportunities during low-volatility periods, and the 1.5x ATR SL might be too tight for mean-reversion plays.\n[Backup plan] If results are poor, reduce the volume filter threshold or remove it entirely; if mediocre Sharpe, widen SL/TP ratios and relax Williams %R threshold. As an alternative, try a simpler mean-reversion approach using only Stochastic crossing below 20 with ATR-based stops, or switch to a momentum-based breakout strategy with dynamic volatility filters."
+        },
+        "scoring": {
+          "continuous_score": -15.56496711962676,
+          "drawdown_excess_pct": 3.5921893502452704,
+          "components": {
+            "sharpe": 6.165803291668082,
+            "return": -4.264630716261177,
+            "profit_factor": -1.025224090718392,
+            "trades_confidence": 10.0,
+            "win_rate": 0.9473684210526329
+          },
+          "penalties": {
+            "drawdown_pressure": 12.394792900163514,
+            "drawdown_excess": 2.9934911252043923,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 6,
+      "hypothesis": "Combining Stochastic RSI with Williams %R and Volume Oscillator creates a robust mean-reversion signal that filters out weak moves. Stochastic crossing below 20 with volume confirmation identifies oversold momentum, while Williams %R below -80 confirms extreme sentiment. The volume oscillator positive signal ensures increased conviction. This multi-factor approach reduces false signals and improves trade quality.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.22020726041671723,
+      "return_pct": -3.8769370147828885,
+      "max_drawdown_pct": -38.59218935024527,
+      "profit_factor": 0.9775732230155352,
+      "win_rate_pct": 38.15789473684211,
+      "trades": 76,
+      "continuous_score": -15.56496711962676,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 6.165803291668082,
+          "return": -4.264630716261177,
+          "profit_factor": -1.025224090718392,
+          "trades_confidence": 10.0,
+          "win_rate": 0.9473684210526329
+        },
+        "penalties": {
+          "drawdown_pressure": 12.394792900163514,
+          "drawdown_excess": 2.9934911252043923,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 3.5921893502452704
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -3.9%, PF 0.98, Expectancy -5.10"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 38.6%, Vol 71.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.220, Sortino 0.455, Calmar -0.251"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 38.2%, Trades 76, AvgW/L 582.74/367.81"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 60,
+          "short_signals": 29,
+          "total_signals": 89
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple oscillators creates potential for conflicting signals and overfitting. The volume filter may be too restrictive, especially in low-volume ranges, and the exit rules may be too aggressive, leading to premature exits. The VIX gating may miss opportunities during low-volatility periods, and the 1.5x ATR SL might be too tight for mean-reversion plays.\n[Backup plan] If results are poor, reduce the volume filter threshold or remove it entirely; if mediocre Sharpe, widen SL/TP ratios and relax Williams %R threshold. As an alternative, try a simpler mean-reversion approach using only Stochastic crossing below 20 with ATR-based stops, or switch to a momentum-based breakout strategy with dynamic volatility filters."
+        },
+        "scoring": {
+          "continuous_score": -15.56496711962676,
+          "drawdown_excess_pct": 3.5921893502452704,
+          "components": {
+            "sharpe": 6.165803291668082,
+            "return": -4.264630716261177,
+            "profit_factor": -1.025224090718392,
+            "trades_confidence": 10.0,
+            "win_rate": 0.9473684210526329
+          },
+          "penalties": {
+            "drawdown_pressure": 12.394792900163514,
+            "drawdown_excess": 2.9934911252043923,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The original strategy failed because it relied on overlapping signals from stochastic and williams_r that often triggered in the same direction, leading to poor signal discrimination. By switching to a more robust mean-reversion framework using stochastic crossovers with volume confirmation, and incorporating volatility gating, we can improve signal quality and reduce false entries. The new logic filters out low-volume entries and uses a stronger volatility filter to avoid entering during low-volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'williams_r' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'williams_r' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 85, in generate_signals\n    (williams_r < -80) &\nNameError: name 'williams_r' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on stochastic crossovers below 20 may generate frequent false signals, especially in ranging markets. The combination of multiple filters (volume, Williams %R, volume oscillator) could overfit to past data, reducing robustness. The exit logic (stochastic crossing 80 or 20) is too simplistic and may lead to premature exits or whipsaws.\n[Backup plan] If return is negative, switch to a fixed Bollinger Band reversion rule with tighter volatility gating (VIX > 25). If Sharpe is low, reduce ATR multiplier for SL/TP and tighten volume filter to 3-period SMA. As alternative, test a momentum-based breakout strategy with dynamic stop-losses and volatility-adjusted position sizing."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "The combination of STOCHASTIC crossing below 20 with WILLIAMS_R below -80 and positive volume oscillator confirms strong mean-reversion momentum in oversold conditions, while ATR-based risk management ensures proper position sizing and volatility-adjusted stops.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'sma' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'sma' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 86, in generate_signals\n    sma_vol_osc = sma(vol_osc, 5)\nNameError: name 'sma' is not defined",
+          "runtime_fix_retry_error": "NameError: name 'window' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple overlapping momentum indicators (STOCHASTIC, WILLIAMS_R, VOLUME_OSCILLATOR) increases false signal risk. The 1.5x ATR SL may be too tight for 0GUSDC's volatility, and the VIX gating might be too restrictive. The exit rules are too simple and may cause premature exits or missed profits.\n[Backup plan] If results are poor, switch to a single, robust mean-reversion signal (e.g., STOCHASTIC crossing below 20 with WILLIAMS_R below -80) and tighten the volume filter. If Sharpe is mediocre, increase TP to 3x SL and reduce ATR multiplier to 1x. As an alternative, test a volatility breakout strategy with Bollinger bands and RSI for trend confirmation."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining Stochastic and Williams %R creates a robust mean-reversion signal by identifying extreme overbought/oversold conditions, while the volume oscillator confirms conviction. Filtering with ATR-based risk management ensures trades are taken only in sufficiently volatile environments, avoiding whipsaws in low-volatility regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.3195057279137166,
+      "return_pct": -25.196473915830246,
+      "max_drawdown_pct": -43.52636311999366,
+      "profit_factor": 0.8648730230858195,
+      "win_rate_pct": 32.35294117647059,
+      "trades": 68,
+      "continuous_score": -68.42317724640918,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -8.946160381584065,
+          "return": -27.71612130741327,
+          "profit_factor": -6.177233230362538,
+          "trades_confidence": 10.0,
+          "win_rate": -0.7941176470588238
+        },
+        "penalties": {
+          "drawdown_pressure": 15.684242079995773,
+          "drawdown_excess": 7.105302599994717,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 8.526363119993661
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -25.2%, PF 0.86, Expectancy -37.05"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 43.5%, Vol 75.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.320, Sortino -0.285, Calmar -1.210"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.4%, Trades 68, AvgW/L 733.04/405.36"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 96, in generate_signals\n    vol_osc_sma[params[\"volume_oscillator_long\"]:] = np.convolve(vol_osc, np.ones(params[\"volume_oscillator_long\"])/params[\"volume_oscillator_long\"], mode='valid')\nValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "runtime_fix_retry_error": "ValueError: could not broadcast input array from shape (3375,) into shape (3374,)",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple overlapping momentum indicators (Stochastic, Williams %R) increases risk of false signals. The volume filter may be too restrictive, eliminating viable trades. Exit logic based solely on Stochastic crossing 80/20 is simplistic and may cause premature exits. The VIX gating could miss volatile regimes where mean-reversion performs best.\n[Backup plan] If poor results: switch to RSI + ADX filter instead of Stochastic + Williams, and use trailing stop instead of fixed TP/SL. If mediocre Sharpe: reduce ATR multiplier from 1.5x to 1.2x, widen Stochastic entry threshold to 15, and add a minimum price change filter. Alternative: test a volatility breakout filter with Bollinger Bands instead of mean-reversion, or use a machine learning model to classify market regimes and adjust signal strength accordingly."
+        },
+        "scoring": {
+          "continuous_score": -68.42317724640918,
+          "drawdown_excess_pct": 8.526363119993661,
+          "components": {
+            "sharpe": -8.946160381584065,
+            "return": -27.71612130741327,
+            "profit_factor": -6.177233230362538,
+            "trades_confidence": 10.0,
+            "win_rate": -0.7941176470588238
+          },
+          "penalties": {
+            "drawdown_pressure": 15.684242079995773,
+            "drawdown_excess": 7.105302599994717,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining Stochastic crossover below 20 with Williams %R below -80 and positive volume oscillator confirms strong momentum reversal signal, while ATR-based risk management ensures position sizing adapts to volatility for consistent risk-adjusted returns",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.083659053162553,
+      "return_pct": -24.617864135554274,
+      "max_drawdown_pct": -33.110134573481616,
+      "profit_factor": 0.7464008670620915,
+      "win_rate_pct": 34.090909090909086,
+      "trades": 44,
+      "continuous_score": -82.69469091272822,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -30.342453488551484,
+          "return": -27.0796505491097,
+          "profit_factor": -11.593103220018675,
+          "trades_confidence": 7.333333333333333,
+          "win_rate": -0.27272727272727404
+        },
+        "penalties": {
+          "drawdown_pressure": 8.740089715654412,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -24.6%, PF 0.75, Expectancy -55.95"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 33.1%, Vol 39.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.084, Sortino -1.332, Calmar -1.562"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.1%, Trades 44, AvgW/L 483.04/334.74"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 33,
+          "short_signals": 16,
+          "total_signals": 49
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weakness lies in over-reliance on multiple momentum indicators that may generate false signals during ranging markets. The volume filter may be too lenient, and the fixed ATR multipliers might not adapt well to changing volatility regimes. Additionally, the VIX gating could unnecessarily exclude profitable opportunities during low-volatility periods.\n[Backup plan] If results are poor, I'd simplify to just Stochastic crossover below 20 with Williams %R below -80, removing volume filters and Bollinger exit. If mediocre Sharpe, I'd optimize ATR periods (14-20) and adjust TP/SL ratios (1.5x-2.5x SL). As alternative, I'd test a mean-reversion strategy using RSI + MACD crossovers with dynamic position sizing based on volatility clustering."
+        },
+        "scoring": {
+          "continuous_score": -82.69469091272822,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -30.342453488551484,
+            "return": -27.0796505491097,
+            "profit_factor": -11.593103220018675,
+            "trades_confidence": 7.333333333333333,
+            "win_rate": -0.27272727272727404
+          },
+          "penalties": {
+            "drawdown_pressure": 8.740089715654412,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining Stochastic RSI with Williams %R and Volume Oscillator creates a robust mean-reversion signal by identifying extreme momentum conditions and confirming volume, while ATR-based risk management ensures position sizing adapts to volatility without overfitting.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -104.10741034764837,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7794855824817754,
+      "win_rate_pct": 22.30769230769231,
+      "trades": 260,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.080659086547413,
+          "trades_confidence": 10.0,
+          "win_rate": -3.8076923076923066
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -104.1%, PF 0.78, Expectancy -40.04"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 6302.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.3%, Trades 260, AvgW/L 634.49/233.72"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `vol_sma[..., ...]` sur indicateur 1D.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'sma' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'sma' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_183805_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 86, in generate_signals\n    vol_osc_sma = sma(vol_osc, 5)\nNameError: name 'sma' is not defined",
+          "runtime_fix_retry_error": "NameError: name 'window' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple momentum indicators creates risk of signal overlap and false positives. The strict entry filters may limit trade frequency, while the exit rules could cause premature exits during strong trends. The VIX gating might unnecessarily block profitable opportunities during low-volatility pullbacks.\n[Backup plan] If results are poor, simplify to stochastic crossover below 20 with volume confirmation only. If Sharpe is mediocre, reduce ATR multiplier to 1x and widen TP to 1.5x SL. As alternative, try a volatility-breakout filter to avoid mean-reversion trades during trending periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.080659086547413,
+            "trades_confidence": 10.0,
+            "win_rate": -3.8076923076923066
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

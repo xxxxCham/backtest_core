@@ -8,13 +8,18 @@ Couvre :
 - Chargement dynamique de stratégie
 """
 
+import json
+import shutil
 import textwrap
+from uuid import uuid4
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
 
+import agents.strategy_builder as strategy_builder_module
 from agents.strategy_builder import (
     GENERATED_CLASS_NAME,
     SANDBOX_ROOT,
@@ -24,11 +29,13 @@ from agents.strategy_builder import (
     _build_deterministic_fallback_code,
     _validate_llm_logic_block,
     _repair_code,
+    compute_continuous_builder_score,
     _is_accept_candidate,
     _policy_change_type_override,
     _ranking_sharpe,
     _extract_json_from_response,
     _extract_python_from_response,
+    generate_llm_objective,
     normalize_variant_for_builder,
     recommend_market_context,
     sanitize_objective_text,
@@ -542,6 +549,48 @@ class TestMarketRecommendation:
         assert result["timeframe"] == "5m"
 
 
+class TestObjectiveGenerationIndicatorSanitization:
+    def test_generate_llm_objective_sanitizes_unavailable_indicator(self):
+        llm = _DummyLLMClient(
+            (
+                "Momentum sur BTCUSDC 1h. "
+                "Indicateurs : FEAR_GREED + ONCHAIN_SMOOTHING + ATR. "
+                "Entrées : confirmation momentum. "
+                "Sorties : signal inverse. "
+                "Risk management : stop ATR."
+            )
+        )
+        objective = generate_llm_objective(
+            llm,
+            symbol=["BTCUSDC"],
+            timeframe=["1h"],
+            available_indicators=["ema", "rsi", "atr", "onchain_smoothing"],
+        )
+        lower = objective.lower()
+        assert "fear_greed" not in lower
+        assert "onchain_smoothing" in lower
+        assert "atr" in lower
+
+    def test_generate_llm_objective_auto_market_keeps_placeholders_and_sanitizes(self):
+        llm = _DummyLLMClient(
+            (
+                "Contrarian sur BTCUSDC 1m. "
+                "Indicateurs : FEAR_GREED + RSI + ATR. "
+                "Entrées : rebond. Sorties : invalidation."
+            )
+        )
+        objective = generate_llm_objective(
+            llm,
+            symbol=None,
+            timeframe=None,
+            available_indicators=["rsi", "atr", "ema"],
+        )
+        lower = objective.lower()
+        assert "{symbol}" in objective
+        assert "{timeframe}" in objective
+        assert "fear_greed" not in lower
+
+
 # ─── Tests session ─────────────────────────────────────────────────────────
 
 class TestSession:
@@ -623,7 +672,7 @@ class TestBuilderRobustnessGate:
             "max_drawdown_pct": -100.0,
             "total_trades": 1200,
         }
-        assert _ranking_sharpe(metrics) == -20.0
+        assert _ranking_sharpe(metrics) <= -90.0
 
     def test_ranking_penalizes_no_trades(self):
         metrics = {
@@ -937,4 +986,233 @@ class TestBuilderRobustnessProfitFactor:
         ok, reason = _is_accept_candidate(metrics, target_sharpe=1.0)
         assert ok is False
         assert reason == "profit_factor_too_low"
+
+    def test_accept_candidate_allows_small_drawdown_excess_when_quality_high(self):
+        metrics = {
+            "sharpe_ratio": 1.55,
+            "total_return_pct": 19.0,
+            "max_drawdown_pct": 36.0,  # +1% au-dessus du seuil nominal
+            "total_trades": 62,
+            "profit_factor": 1.24,
+            "win_rate_pct": 39.0,
+        }
+        score = compute_continuous_builder_score(metrics, target_sharpe=1.0)["score"]
+        assert score > 45.0
+        ok, reason = _is_accept_candidate(metrics, target_sharpe=1.0)
+        assert ok is True
+        assert reason == "ok"
+
+    def test_accept_candidate_rejects_extreme_drawdown(self):
+        metrics = {
+            "sharpe_ratio": 1.8,
+            "total_return_pct": 35.0,
+            "max_drawdown_pct": 70.0,
+            "total_trades": 88,
+            "profit_factor": 1.3,
+            "win_rate_pct": 41.0,
+        }
+        ok, reason = _is_accept_candidate(metrics, target_sharpe=1.0)
+        assert ok is False
+        assert reason == "drawdown_extreme"
+
+
+class TestBuilderSummaryLeaderboard:
+    def test_save_session_summary_writes_leaderboard_files(self):
+        builder = StrategyBuilder.__new__(StrategyBuilder)
+        session_dir = Path(".tmp") / f"summary_test_{uuid4().hex[:8]}"
+        session = BuilderSession(
+            session_id="summary_test",
+            objective="Test leaderboard export",
+            session_dir=session_dir,
+            target_sharpe=1.0,
+        )
+        session.session_dir.mkdir(parents=True, exist_ok=True)
+
+        bt_good = SimpleNamespace(
+            metrics={
+                "sharpe_ratio": 1.4,
+                "total_return_pct": 15.0,
+                "max_drawdown_pct": 30.0,
+                "profit_factor": 1.2,
+                "win_rate_pct": 38.0,
+                "total_trades": 55,
+            },
+            meta={"params": {"x": 1}},
+        )
+        bt_mid = SimpleNamespace(
+            metrics={
+                "sharpe_ratio": 0.9,
+                "total_return_pct": 5.0,
+                "max_drawdown_pct": 26.0,
+                "profit_factor": 1.08,
+                "win_rate_pct": 34.0,
+                "total_trades": 43,
+            },
+            meta={"params": {"x": 2}},
+        )
+
+        it1 = BuilderIteration(iteration=1, backtest_result=bt_mid, decision="continue")
+        it2 = BuilderIteration(iteration=2, backtest_result=bt_good, decision="accept")
+        session.iterations = [it1, it2]
+        session.best_iteration = it2
+        session.best_sharpe = 1.4
+        session.best_score = compute_continuous_builder_score(
+            bt_good.metrics,
+            target_sharpe=1.0,
+        )["score"]
+        session.status = "success"
+
+        try:
+            builder._save_session_summary(session)
+
+            summary_path = session.session_dir / "session_summary.json"
+            csv_path = session.session_dir / "leaderboard_builder.csv"
+            md_path = session.session_dir / "leaderboard_builder.md"
+
+            assert summary_path.exists()
+            assert csv_path.exists()
+            assert md_path.exists()
+
+            payload = json.loads(summary_path.read_text(encoding="utf-8"))
+            assert "leaderboard" in payload
+            assert len(payload["leaderboard"]) == 2
+            assert payload["leaderboard"][0]["iteration"] == 2
+        finally:
+            shutil.rmtree(session_dir, ignore_errors=True)
+
+
+class TestParametricCatalogRandomization:
+    def test_generate_parametric_catalog_seed_none_uses_system_random(self, monkeypatch):
+        captured: dict[str, int] = {}
+
+        class _FakeSystemRandom:
+            def randrange(self, start, stop):
+                assert start == 1
+                assert stop == 2**31 - 1
+                return 987654321
+
+        def fake_generate_catalog(config):
+            captured["seed"] = int(config.seed)
+            return SimpleNamespace(
+                run_id="run_test",
+                variants=[],
+                total_generated=0,
+            )
+
+        monkeypatch.setattr(strategy_builder_module.random, "SystemRandom", lambda: _FakeSystemRandom())
+        monkeypatch.setattr("catalog.chainer.generate_catalog", fake_generate_catalog)
+
+        strategy_builder_module.reset_parametric_catalog()
+        count = strategy_builder_module.generate_parametric_catalog(n_variants=5, seed=None)
+
+        assert count == 0
+        assert captured["seed"] == 987654321
+        stats = strategy_builder_module.get_parametric_catalog_stats()
+        assert stats["seed"] == 987654321
+
+    def test_generate_parametric_catalog_order_is_seed_reproducible(self, monkeypatch):
+        base_variants = [
+            {"variant_id": "v1"},
+            {"variant_id": "v2"},
+            {"variant_id": "v3"},
+        ]
+
+        def fake_generate_catalog(_config):
+            return SimpleNamespace(
+                run_id="run_test",
+                variants=list(base_variants),
+                total_generated=len(base_variants),
+            )
+
+        def fake_normalize_variant_for_builder(variant, **kwargs):
+            return {
+                "run_id": str(kwargs.get("run_id", "run_test")),
+                "variant_id": str(variant.get("variant_id", "")),
+                "archetype_id": "arch",
+                "param_pack_id": "pack",
+                "params": {},
+                "proposal": {},
+                "builder_text": "",
+                "fingerprint": str(variant.get("variant_id", "")),
+                "objective_text": "objective",
+            }
+
+        monkeypatch.setattr("catalog.chainer.generate_catalog", fake_generate_catalog)
+        monkeypatch.setattr(
+            strategy_builder_module,
+            "normalize_variant_for_builder",
+            fake_normalize_variant_for_builder,
+        )
+
+        strategy_builder_module.reset_parametric_catalog()
+        strategy_builder_module.generate_parametric_catalog(n_variants=3, seed=123)
+        order_1 = [
+            variant["variant_id"]
+            for variant in (strategy_builder_module._PARAMETRIC_VARIANTS or [])
+        ]
+
+        strategy_builder_module.reset_parametric_catalog()
+        strategy_builder_module.generate_parametric_catalog(n_variants=3, seed=123)
+        order_2 = [
+            variant["variant_id"]
+            for variant in (strategy_builder_module._PARAMETRIC_VARIANTS or [])
+        ]
+
+        assert order_1 == order_2
+        assert order_1 != ["v1", "v2", "v3"]
+
+
+# ─── Tests refactor scoring souple ──────────────────────────────────────────
+
+class TestRefactorCheckpoints:
+    """Tests de validation du refactor checkpoints souples."""
+
+    def test_positive_progress_gate_checkpoints_updated(self):
+        """Vérifie que les checkpoints sont bien à {6: 1, 9: 2}."""
+        from agents.strategy_builder import POSITIVE_PROGRESS_GATE_CHECKPOINTS
+        assert POSITIVE_PROGRESS_GATE_CHECKPOINTS == {6: 1, 9: 2}
+
+    def test_min_successful_iterations_updated(self):
+        """Vérifie que MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP = 5."""
+        from agents.strategy_builder import MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP
+        assert MIN_SUCCESSFUL_ITERATIONS_BEFORE_STOP == 5
+
+    def test_count_positive_iterations_with_fallback_quota(self):
+        """Vérifie que les fallbacks positifs comptent avec quota."""
+        from agents.strategy_builder import (
+            _count_positive_iterations,
+            BuilderIteration,
+            MAX_POSITIVE_FALLBACK_COUNT,
+        )
+        from types import SimpleNamespace
+
+        # Scénario : 2 fallbacks positifs + 1 LLM positif
+        iterations = [
+            BuilderIteration(
+                iteration=1,
+                is_fallback=True,
+                backtest_result=SimpleNamespace(
+                    metrics={"total_return_pct": 5.0, "total_trades": 25}
+                ),
+            ),
+            BuilderIteration(
+                iteration=2,
+                is_fallback=True,
+                backtest_result=SimpleNamespace(
+                    metrics={"total_return_pct": 3.0, "total_trades": 22}
+                ),
+            ),
+            BuilderIteration(
+                iteration=3,
+                is_fallback=False,
+                backtest_result=SimpleNamespace(
+                    metrics={"total_return_pct": 8.0, "total_trades": 30}
+                ),
+            ),
+        ]
+
+        count = _count_positive_iterations(iterations)
+        # 1 fallback (quota max 1) + 1 LLM = 2 positifs
+        assert count == 2
+        assert MAX_POSITIVE_FALLBACK_COUNT == 1
 

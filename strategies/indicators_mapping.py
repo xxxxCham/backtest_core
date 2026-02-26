@@ -228,6 +228,56 @@ STRATEGY_INDICATORS_MAP: Dict[str, StrategyIndicators] = {
         description="Breakout de range Donchian filtré par force de tendance ADX/+DI/-DI",
         ui_indicators=["donchian", "adx"],
     ),
+
+    # 15. Breakout Donchian ADX (Builder)
+    "breakout_donchian_adx": StrategyIndicators(
+        name="Breakout Donchian ADX",
+        ui_label="🧱 Breakout Donchian + ADX",
+        required_indicators=["donchian", "adx", "rsi", "atr"],
+        internal_indicators=[],
+        description="Breakout Donchian filtre ADX avec stop/tp ATR",
+        ui_indicators=["donchian", "adx", "rsi", "atr"],
+    ),
+
+    # 16. Mean Reversion Bollinger RSI (Builder)
+    "mean_reversion_bollinger_rsi": StrategyIndicators(
+        name="Mean Reversion Bollinger RSI",
+        ui_label="🧱 Mean Reversion Bollinger + RSI",
+        required_indicators=["bollinger", "rsi", "adx", "atr"],
+        internal_indicators=[],
+        description="Mean reversion Bollinger/RSI avec filtre ADX et risk ATR",
+        ui_indicators=["bollinger", "rsi", "adx", "atr"],
+    ),
+
+    # 17. Momentum MACD (Builder)
+    "momentum_macd": StrategyIndicators(
+        name="Momentum MACD",
+        ui_label="🧱 Momentum MACD",
+        required_indicators=["macd", "bollinger", "atr"],
+        internal_indicators=[],
+        description="Momentum sur croisements MACD avec filtre Bollinger",
+        ui_indicators=["macd", "bollinger", "atr"],
+    ),
+
+    # 18. Trend Supertrend (Builder)
+    "trend_supertrend": StrategyIndicators(
+        name="Trend Supertrend",
+        ui_label="🧱 Trend Supertrend",
+        required_indicators=["supertrend", "adx", "rsi", "atr"],
+        internal_indicators=[],
+        description="Suivi de tendance via Supertrend + ADX avec gestion ATR",
+        ui_indicators=["supertrend", "adx", "rsi", "atr"],
+    ),
+
+    # 19. Vol Amplitude Breakout (Builder)
+    "vol_amplitude_breakout": StrategyIndicators(
+        name="Vol Amplitude Breakout",
+        ui_label="🧱 Volatility Amplitude Breakout",
+        required_indicators=["amplitude_hunter", "donchian", "adx", "atr"],
+        internal_indicators=[],
+        description="Breakout range/volatilite avec filtre ADX et risk ATR",
+        ui_indicators=["amplitude_hunter", "donchian", "adx", "atr"],
+    ),
 }
 
 

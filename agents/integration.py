@@ -23,6 +23,7 @@ Skip-if: Vous ne changez que les stratégies/indicateurs ou la UI.
 from __future__ import annotations
 
 # pylint: disable=logging-fstring-interpolation
+import random
 from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Tuple, TypedDict, Union
 
 import numpy as np
@@ -1054,12 +1055,24 @@ def create_comparison_context(
     Returns:
         Dict contenant le contexte complet pour les templates LLM
     """
+    # Anti-biais d'ordre pour le contexte LLM:
+    # on mélange les listes candidates afin d'éviter l'effet "premier élément".
+    shuffled_strategies = list(strategies or [])
+    shuffled_symbols = list(symbols or [])
+    shuffled_timeframes = list(timeframes or [])
+    if len(shuffled_strategies) > 1:
+        random.shuffle(shuffled_strategies)
+    if len(shuffled_symbols) > 1:
+        random.shuffle(shuffled_symbols)
+    if len(shuffled_timeframes) > 1:
+        random.shuffle(shuffled_timeframes)
+
     context = {
         "mode": mode,
-        "strategies": strategies or [],
-        "symbols": symbols or [],
-        "timeframes": timeframes or [],
-        "total_combinations": len(strategies or []) * len(symbols or []) * len(timeframes or []),
+        "strategies": shuffled_strategies,
+        "symbols": shuffled_symbols,
+        "timeframes": shuffled_timeframes,
+        "total_combinations": len(shuffled_strategies) * len(shuffled_symbols) * len(shuffled_timeframes),
         "sweep_results": sweep_results or [],
         "best_overall": best_overall or {},
         "has_results": bool(sweep_results),

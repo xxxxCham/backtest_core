@@ -1,0 +1,1043 @@
+{
+  "session_id": "20260225_065905_strat_gie_de_mean_reversion_sur_0gusdc_3",
+  "objective": "Strat\u00e9gie de Mean-reversion sur 0GUSDC 30m. Indicateurs : OBV + MFI + RSI + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de OBV avec MFI en zone de survente/surachat. Sortie quand le prix revient vers la moyenne (OBV neutre). Stop-loss = 1.1x ATR, take-profit = 2.4x ATR.",
+  "status": "success",
+  "best_sharpe": 1.567574681051181,
+  "best_score": 100.0,
+  "total_iterations": 5,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When OBV reaches an extreme relative to its recent range, price is likely to revert as volume pressure dissipates; confirming with MFI in oversold (for longs) or overbought (for shorts) zones filters out weak moves, while ATR\u2011based stops and targets size risk proportionally to market volatility.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.8820755927847908,
+      "return_pct": -21.907036623813912,
+      "max_drawdown_pct": -23.026777670534766,
+      "profit_factor": 0.4071212629890622,
+      "win_rate_pct": 22.727272727272727,
+      "trades": 22,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -24.097740286195304,
+          "profit_factor": -24.0,
+          "trades_confidence": 3.6666666666666665,
+          "win_rate": -3.6818181818181817
+        },
+        "penalties": {
+          "drawdown_pressure": 2.0178517803565112,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -21.9%, PF 0.41, Expectancy -99.58"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 23.0%, Vol 22.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.882, Sortino -0.975, Calmar -2.046"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.7%, Trades 22, AvgW/L 300.86/217.35"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 21,
+          "total_signals": 32
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on a single price\u2011volume extreme (OBV) which can be noisy on a 30\u2011min crypto pair, leading to many false signals; MFI and RSI may be redundant and add lag. Fixed look\u2011back windows (20 bars) ignore changing market regimes, and the 1.1\u00d7ATR stop may be too tight, causing premature exits. No position sizing or risk\u2011adjusted exposure control is defined, so a string of losing trades could blow the account.\n[Backup plan] If returns are negative, tighten the OBV extreme definition (e.g., require a 2\u2011\u03c3 deviation from its rolling mean) and raise the stop\u2011loss to 1.5\u00d7ATR. For low Sharpe, expand the MFI overbought/oversold thresholds to 20\u201180 and lengthen the ATR window to 30 to smooth volatility. Should the mean\u2011reversion concept fail, switch to a breakout momentum model using VWAP crossovers with volume filters, preserving the ATR\u2011based risk management."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -24.097740286195304,
+            "profit_factor": -24.0,
+            "trades_confidence": 3.6666666666666665,
+            "win_rate": -3.6818181818181817
+          },
+          "penalties": {
+            "drawdown_pressure": 2.0178517803565112,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "In a mean\u2011reversion market the price tends to bounce after OBV reaches an extreme opposite to the price move; buying when OBV is at its recent low and MFI is oversold (and selling when OBV is at its recent high and MFI is overbought) captures the corrective move. Adding an ATR\u2011based volatility filter (trade only when ATR is above its recent average) removes low\u2011volatility noise that caused the previous strategy to take many losing trades, while the ATR stop\u2011loss/take\u2011profit keeps risk proportional to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.07827751961911411,
+      "return_pct": -16.147909801922378,
+      "max_drawdown_pct": -45.211592377650604,
+      "profit_factor": 0.9616543867596494,
+      "win_rate_pct": 41.25,
+      "trades": 240,
+      "continuous_score": -42.76626111881421,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 2.191770549335195,
+          "return": -17.762700782114614,
+          "profit_factor": -1.7529423195588836,
+          "trades_confidence": 10.0,
+          "win_rate": 1.875
+        },
+        "penalties": {
+          "drawdown_pressure": 16.80772825176707,
+          "drawdown_excess": 8.509660314708837,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 10.211592377650604
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -16.1%, PF 0.96, Expectancy -6.73"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 45.2%, Vol 84.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.078, Sortino 0.072, Calmar -0.807"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.2%, Trades 240, AvgW/L 409.06/298.66"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 181,
+          "short_signals": 175,
+          "total_signals": 356
+        },
+        "scoring": {
+          "continuous_score": -42.76626111881421,
+          "drawdown_excess_pct": 10.211592377650604,
+          "components": {
+            "sharpe": 2.191770549335195,
+            "return": -17.762700782114614,
+            "profit_factor": -1.7529423195588836,
+            "trades_confidence": 10.0,
+            "win_rate": 1.875
+          },
+          "penalties": {
+            "drawdown_pressure": 16.80772825176707,
+            "drawdown_excess": 8.509660314708837,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining OBV extreme points with MFI extreme readings filters out random volume spikes, while an ATR volatility filter ensures trades are taken only in sufficiently active markets; this reduces false entries and improves risk\u2011adjusted returns in a mean\u2011reversion regime.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.18613900301727834,
+      "return_pct": -9.67632468595526,
+      "max_drawdown_pct": -41.86717202555006,
+      "profit_factor": 0.9771258460162666,
+      "win_rate_pct": 41.66666666666667,
+      "trades": 228,
+      "continuous_score": -26.77849871907704,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 5.211892084483794,
+          "return": -10.643957154550787,
+          "profit_factor": -1.0456756106849545,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0000000000000018
+        },
+        "penalties": {
+          "drawdown_pressure": 14.57811468370004,
+          "drawdown_excess": 5.722643354625051,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 6.867172025550062
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.7%, PF 0.98, Expectancy -4.24"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 41.9%, Vol 77.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.186, Sortino 0.171, Calmar -0.551"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.7%, Trades 228, AvgW/L 435.10/318.06"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 180,
+          "short_signals": 166,
+          "total_signals": 346
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The rule ties entry to a single OBV extreme, making it highly sensitive to noise and causing many low\u2011probability trades; the MFI filter may be too blunt, and the ATR threshold could still allow entries during sideways periods. Additionally, using a fixed 1.1\u00d7ATR stop and 2.4\u00d7ATR target may not adapt to changing volatility, leading to premature exits or excessive losses.\n[Backup plan] If returns are negative, tighten the OBV signal by requiring a consecutive extreme (e.g., min over 3 bars) and raise the MFI oversold/overbought bands (e.g., <20 or >80). For mediocre Sharpe, increase the ATR filter (e.g., ATR > 1.5\u00d7MA) and lengthen the OBV median exit window to avoid whipsaws. Should the approach still fail, switch to a dual\u2011threshold mean\u2011reversion using Bollinger Bands on price with volume\u2011weighted confirmation instead of OBV."
+        },
+        "scoring": {
+          "continuous_score": -26.77849871907704,
+          "drawdown_excess_pct": 6.867172025550062,
+          "components": {
+            "sharpe": 5.211892084483794,
+            "return": -10.643957154550787,
+            "profit_factor": -1.0456756106849545,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0000000000000018
+          },
+          "penalties": {
+            "drawdown_pressure": 14.57811468370004,
+            "drawdown_excess": 5.722643354625051,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining OBV extreme\u2011value reversals with a strong MFI overbought/oversold filter isolates moments when volume\u2011driven price moves are likely exhausted, while requiring ATR to be above its recent average ensures the market is sufficiently volatile for the mean\u2011reversion to be exploitable; this tighter filter should reduce whipsaws, improve win\u2011rate and Sharpe, and lower drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "marginal",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.34446151654771895,
+      "return_pct": 0.30037313285514755,
+      "max_drawdown_pct": -37.499888655260975,
+      "profit_factor": 1.0009439899584547,
+      "win_rate_pct": 40.57142857142857,
+      "trades": 175,
+      "continuous_score": 7.9400823246861165,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 9.64492246333613,
+          "return": 0.3304104461406623,
+          "profit_factor": 0.04315382667221408,
+          "trades_confidence": 10.0,
+          "win_rate": 1.6714285714285708
+        },
+        "penalties": {
+          "drawdown_pressure": 11.66659243684065,
+          "drawdown_excess": 2.083240546050812,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 2.4998886552609747
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.3%, PF 1.00, Expectancy 0.17"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 37.5%, Vol 63.1%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.344, Sortino 0.292, Calmar 0.021"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.6%, Trades 175, AvgW/L 448.59/305.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 137,
+          "short_signals": 118,
+          "total_signals": 255
+        },
+        "scoring": {
+          "continuous_score": 7.9400823246861165,
+          "drawdown_excess_pct": 2.4998886552609747,
+          "components": {
+            "sharpe": 9.64492246333613,
+            "return": 0.3304104461406623,
+            "profit_factor": 0.04315382667221408,
+            "trades_confidence": 10.0,
+            "win_rate": 1.6714285714285708
+          },
+          "penalties": {
+            "drawdown_pressure": 11.66659243684065,
+            "drawdown_excess": 2.083240546050812,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Tighter OBV lookback and more extreme MFI thresholds focus the strategy on clearer over\u2011extension of volume flow, while a shorter ATR moving\u2011average filter ensures we only trade in sufficiently volatile regimes; this should increase win\u2011rate and Sharpe by reducing marginal entries and improving stop\u2011loss placement.",
+      "change_type": "params",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.567574681051181,
+      "return_pct": 45.21020648463758,
+      "max_drawdown_pct": -23.669480247383746,
+      "profit_factor": 1.1808239506291867,
+      "win_rate_pct": 43.05555555555556,
+      "trades": 144,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 43.89209106943307,
+          "return": 44.0,
+          "profit_factor": 8.266237743048533,
+          "trades_confidence": 10.0,
+          "win_rate": 2.416666666666667
+        },
+        "penalties": {
+          "drawdown_pressure": 2.446320164922497,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +45.2%, PF 1.18, Expectancy 31.40"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 23.7%, Vol 51.1%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.568, Sortino 1.430, Calmar 6.822"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.1%, Trades 144, AvgW/L 476.18/304.91"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 117,
+          "short_signals": 102,
+          "total_signals": 219
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy hinges on exact OBV extremes, which are noisy and can trigger many false signals; coupling that with a single MFI threshold may not capture true volume\u2011price divergence. ATR\u2011based stops/tps assume stationary volatility, yet 30\u2011minute crypto data can shift regimes quickly, leading to premature exits or excessive drawdowns. The exit rule (OBV crossing its median) is lagging and may let losing positions run longer than intended. Finally, the lack of a trend filter means the mean\u2011reversion premise is applied during strong trends, eroding performance.\n[Backup plan] If returns are negative, tighten entry criteria: require OBV to be in the lowest 5% (or highest 5%) of a longer rolling window and add a confirming price\u2011action signal such as a candle engulfing pattern. If Sharpe is low, broaden the ATR filter (e.g., use a 20\u2011period ATR MA) and adjust risk\u2011reward to 1:2.5 to give trades more breathing room. Should both tweaks fail, pivot to a hybrid strategy: apply a trend filter (e.g., 200\u2011period EMA) to trade only when price is near the EMA and then use the OBV\u2011MFI mean\u2011reversion signal on the residual, or replace OBV with a volume\u2011weighted moving average (VWMA) to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 43.89209106943307,
+            "return": 44.0,
+            "profit_factor": 8.266237743048533,
+            "trades_confidence": 10.0,
+            "win_rate": 2.416666666666667
+          },
+          "penalties": {
+            "drawdown_pressure": 2.446320164922497,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 5,
+      "hypothesis": "Tighter OBV lookback and more extreme MFI thresholds focus the strategy on clearer over\u2011extension of volume flow, while a shorter ATR moving\u2011average filter ensures we only trade in sufficiently volatile regimes; this should increase win\u2011rate and Sharpe by reducing marginal entries and improving stop\u2011loss placement.",
+      "change_type": "params",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.567574681051181,
+      "return_pct": 45.21020648463758,
+      "max_drawdown_pct": -23.669480247383746,
+      "profit_factor": 1.1808239506291867,
+      "win_rate_pct": 43.05555555555556,
+      "trades": 144,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 43.89209106943307,
+          "return": 44.0,
+          "profit_factor": 8.266237743048533,
+          "trades_confidence": 10.0,
+          "win_rate": 2.416666666666667
+        },
+        "penalties": {
+          "drawdown_pressure": 2.446320164922497,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +45.2%, PF 1.18, Expectancy 31.40"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 23.7%, Vol 51.1%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.568, Sortino 1.430, Calmar 6.822"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.1%, Trades 144, AvgW/L 476.18/304.91"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 117,
+          "short_signals": 102,
+          "total_signals": 219
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy hinges on exact OBV extremes, which are noisy and can trigger many false signals; coupling that with a single MFI threshold may not capture true volume\u2011price divergence. ATR\u2011based stops/tps assume stationary volatility, yet 30\u2011minute crypto data can shift regimes quickly, leading to premature exits or excessive drawdowns. The exit rule (OBV crossing its median) is lagging and may let losing positions run longer than intended. Finally, the lack of a trend filter means the mean\u2011reversion premise is applied during strong trends, eroding performance.\n[Backup plan] If returns are negative, tighten entry criteria: require OBV to be in the lowest 5% (or highest 5%) of a longer rolling window and add a confirming price\u2011action signal such as a candle engulfing pattern. If Sharpe is low, broaden the ATR filter (e.g., use a 20\u2011period ATR MA) and adjust risk\u2011reward to 1:2.5 to give trades more breathing room. Should both tweaks fail, pivot to a hybrid strategy: apply a trend filter (e.g., 200\u2011period EMA) to trade only when price is near the EMA and then use the OBV\u2011MFI mean\u2011reversion signal on the residual, or replace OBV with a volume\u2011weighted moving average (VWMA) to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 43.89209106943307,
+            "return": 44.0,
+            "profit_factor": 8.266237743048533,
+            "trades_confidence": 10.0,
+            "win_rate": 2.416666666666667
+          },
+          "penalties": {
+            "drawdown_pressure": 2.446320164922497,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining OBV extreme\u2011value reversals with a strong MFI overbought/oversold filter isolates moments when volume\u2011driven price moves are likely exhausted, while requiring ATR to be above its recent average ensures the market is sufficiently volatile for the mean\u2011reversion to be exploitable; this tighter filter should reduce whipsaws, improve win\u2011rate and Sharpe, and lower drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "marginal",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.34446151654771895,
+      "return_pct": 0.30037313285514755,
+      "max_drawdown_pct": -37.499888655260975,
+      "profit_factor": 1.0009439899584547,
+      "win_rate_pct": 40.57142857142857,
+      "trades": 175,
+      "continuous_score": 7.9400823246861165,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 9.64492246333613,
+          "return": 0.3304104461406623,
+          "profit_factor": 0.04315382667221408,
+          "trades_confidence": 10.0,
+          "win_rate": 1.6714285714285708
+        },
+        "penalties": {
+          "drawdown_pressure": 11.66659243684065,
+          "drawdown_excess": 2.083240546050812,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 2.4998886552609747
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.3%, PF 1.00, Expectancy 0.17"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 37.5%, Vol 63.1%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.344, Sortino 0.292, Calmar 0.021"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.6%, Trades 175, AvgW/L 448.59/305.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 137,
+          "short_signals": 118,
+          "total_signals": 255
+        },
+        "scoring": {
+          "continuous_score": 7.9400823246861165,
+          "drawdown_excess_pct": 2.4998886552609747,
+          "components": {
+            "sharpe": 9.64492246333613,
+            "return": 0.3304104461406623,
+            "profit_factor": 0.04315382667221408,
+            "trades_confidence": 10.0,
+            "win_rate": 1.6714285714285708
+          },
+          "penalties": {
+            "drawdown_pressure": 11.66659243684065,
+            "drawdown_excess": 2.083240546050812,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining OBV extreme points with MFI extreme readings filters out random volume spikes, while an ATR volatility filter ensures trades are taken only in sufficiently active markets; this reduces false entries and improves risk\u2011adjusted returns in a mean\u2011reversion regime.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.18613900301727834,
+      "return_pct": -9.67632468595526,
+      "max_drawdown_pct": -41.86717202555006,
+      "profit_factor": 0.9771258460162666,
+      "win_rate_pct": 41.66666666666667,
+      "trades": 228,
+      "continuous_score": -26.77849871907704,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 5.211892084483794,
+          "return": -10.643957154550787,
+          "profit_factor": -1.0456756106849545,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0000000000000018
+        },
+        "penalties": {
+          "drawdown_pressure": 14.57811468370004,
+          "drawdown_excess": 5.722643354625051,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 6.867172025550062
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.7%, PF 0.98, Expectancy -4.24"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 41.9%, Vol 77.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.186, Sortino 0.171, Calmar -0.551"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.7%, Trades 228, AvgW/L 435.10/318.06"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 180,
+          "short_signals": 166,
+          "total_signals": 346
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The rule ties entry to a single OBV extreme, making it highly sensitive to noise and causing many low\u2011probability trades; the MFI filter may be too blunt, and the ATR threshold could still allow entries during sideways periods. Additionally, using a fixed 1.1\u00d7ATR stop and 2.4\u00d7ATR target may not adapt to changing volatility, leading to premature exits or excessive losses.\n[Backup plan] If returns are negative, tighten the OBV signal by requiring a consecutive extreme (e.g., min over 3 bars) and raise the MFI oversold/overbought bands (e.g., <20 or >80). For mediocre Sharpe, increase the ATR filter (e.g., ATR > 1.5\u00d7MA) and lengthen the OBV median exit window to avoid whipsaws. Should the approach still fail, switch to a dual\u2011threshold mean\u2011reversion using Bollinger Bands on price with volume\u2011weighted confirmation instead of OBV."
+        },
+        "scoring": {
+          "continuous_score": -26.77849871907704,
+          "drawdown_excess_pct": 6.867172025550062,
+          "components": {
+            "sharpe": 5.211892084483794,
+            "return": -10.643957154550787,
+            "profit_factor": -1.0456756106849545,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0000000000000018
+          },
+          "penalties": {
+            "drawdown_pressure": 14.57811468370004,
+            "drawdown_excess": 5.722643354625051,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "In a mean\u2011reversion market the price tends to bounce after OBV reaches an extreme opposite to the price move; buying when OBV is at its recent low and MFI is oversold (and selling when OBV is at its recent high and MFI is overbought) captures the corrective move. Adding an ATR\u2011based volatility filter (trade only when ATR is above its recent average) removes low\u2011volatility noise that caused the previous strategy to take many losing trades, while the ATR stop\u2011loss/take\u2011profit keeps risk proportional to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.07827751961911411,
+      "return_pct": -16.147909801922378,
+      "max_drawdown_pct": -45.211592377650604,
+      "profit_factor": 0.9616543867596494,
+      "win_rate_pct": 41.25,
+      "trades": 240,
+      "continuous_score": -42.76626111881421,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 2.191770549335195,
+          "return": -17.762700782114614,
+          "profit_factor": -1.7529423195588836,
+          "trades_confidence": 10.0,
+          "win_rate": 1.875
+        },
+        "penalties": {
+          "drawdown_pressure": 16.80772825176707,
+          "drawdown_excess": 8.509660314708837,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 10.211592377650604
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -16.1%, PF 0.96, Expectancy -6.73"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 45.2%, Vol 84.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.078, Sortino 0.072, Calmar -0.807"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.2%, Trades 240, AvgW/L 409.06/298.66"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 181,
+          "short_signals": 175,
+          "total_signals": 356
+        },
+        "scoring": {
+          "continuous_score": -42.76626111881421,
+          "drawdown_excess_pct": 10.211592377650604,
+          "components": {
+            "sharpe": 2.191770549335195,
+            "return": -17.762700782114614,
+            "profit_factor": -1.7529423195588836,
+            "trades_confidence": 10.0,
+            "win_rate": 1.875
+          },
+          "penalties": {
+            "drawdown_pressure": 16.80772825176707,
+            "drawdown_excess": 8.509660314708837,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "When OBV reaches an extreme relative to its recent range, price is likely to revert as volume pressure dissipates; confirming with MFI in oversold (for longs) or overbought (for shorts) zones filters out weak moves, while ATR\u2011based stops and targets size risk proportionally to market volatility.",
+      "change_type": "both",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.8820755927847908,
+      "return_pct": -21.907036623813912,
+      "max_drawdown_pct": -23.026777670534766,
+      "profit_factor": 0.4071212629890622,
+      "win_rate_pct": 22.727272727272727,
+      "trades": 22,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -24.097740286195304,
+          "profit_factor": -24.0,
+          "trades_confidence": 3.6666666666666665,
+          "win_rate": -3.6818181818181817
+        },
+        "penalties": {
+          "drawdown_pressure": 2.0178517803565112,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -21.9%, PF 0.41, Expectancy -99.58"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 23.0%, Vol 22.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.882, Sortino -0.975, Calmar -2.046"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 22.7%, Trades 22, AvgW/L 300.86/217.35"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 11,
+          "short_signals": 21,
+          "total_signals": 32
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on a single price\u2011volume extreme (OBV) which can be noisy on a 30\u2011min crypto pair, leading to many false signals; MFI and RSI may be redundant and add lag. Fixed look\u2011back windows (20 bars) ignore changing market regimes, and the 1.1\u00d7ATR stop may be too tight, causing premature exits. No position sizing or risk\u2011adjusted exposure control is defined, so a string of losing trades could blow the account.\n[Backup plan] If returns are negative, tighten the OBV extreme definition (e.g., require a 2\u2011\u03c3 deviation from its rolling mean) and raise the stop\u2011loss to 1.5\u00d7ATR. For low Sharpe, expand the MFI overbought/oversold thresholds to 20\u201180 and lengthen the ATR window to 30 to smooth volatility. Should the mean\u2011reversion concept fail, switch to a breakout momentum model using VWAP crossovers with volume filters, preserving the ATR\u2011based risk management."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -24.097740286195304,
+            "profit_factor": -24.0,
+            "trades_confidence": 3.6666666666666665,
+            "win_rate": -3.6818181818181817
+          },
+          "penalties": {
+            "drawdown_pressure": 2.0178517803565112,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ]
+}

@@ -1,0 +1,1093 @@
+{
+  "session_id": "20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu",
+  "objective": "Strat\u00e9gie de type mean-reversion sur 0GUSDC en 1h avec filtrage par regime trend vs range. Indicateurs : EMA + BOLLINGER + VORTEX. Entr\u00e9es : crossover EMA vers le haut avec prix en dessous de la bande inf\u00e9rieure Bollinger, VORTEX croissant depuis un minimum local. Sorties : prix franchissant la bande sup\u00e9rieure Bollinger ou VORTEX d\u00e9croissant. Risk management : SL dynamique bas\u00e9 sur ATR, TP fixe \u00e0 2x le SL, mode_risk_rotation activ\u00e9 selon volatilit\u00e9 (ATR > moyenne 20 p\u00e9riodes = SL serr\u00e9, sinon SL large).",
+  "status": "success",
+  "best_sharpe": 1.6220753236528236,
+  "best_score": 100.0,
+  "total_iterations": 5,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA with Bollinger bands and VORTEX creates a robust mean-reversion signal that filters out trend-based moves. When price is below the lower Bollinger band and EMA crosses above it, it suggests a potential reversal. VORTEX rising from a local minimum confirms the strength of the reversal signal, while ATR-based stop-loss ensures proper risk management in varying volatility conditions.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'prev_bb_upper' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'prev_bb_upper' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 123, in generate_signals\n    long_exit_cross_bb = (close > indicators['bollinger']['upper']) & (prev_close <= prev_bb_upper)\nUnboundLocalError: cannot access local variable 'prev_bb_upper' where it is not associated with a value",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This mean-reversion strategy risks whipsaws during strong trends when price remains outside Bollinger bands, and the VORTEX confirmation may lag behind actual reversals. The dynamic SL based on ATR could be too tight in low-volatility regimes, leading to premature exits. The 1-period lookback for VORTEX crossover might generate false signals.\n[Backup plan] If results are poor, I'd switch to a momentum filter (RSI > 70 on exit) or reduce EMA period to 10. For mediocre Sharpe, I'd test wider Bollinger bands (2.5 std) and adjust TP to 1.5x SL. As alternative, I'd test a simple RSI+BB strategy with 20-period RSI and 20-period BB, or add a volatility breakout filter to avoid range-trading in trending markets."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA crossover with Bollinger band reversion and VORTEX trend confirmation creates a robust mean-reversion signal that filters out noise during ranging markets while capturing strong momentum reversals. The VORTEX indicator ensures entries occur only when the market shows clear directional strength, reducing false signals. ATR-based risk management adapts to volatility conditions for optimal position sizing.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 91, in generate_signals\n    ema_val = ema(df['close'], 21)\nNameError: name 'ema' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to specific market regimes, reliance on multiple indicators that may conflict, and potential whipsaw during choppy markets. The VORTEX confirmation may filter too many valid entries, and the ATR-based SL adaptation could be too slow to react. The 1h timeframe may not capture optimal reversion windows for 0GUSDC.\n[Backup plan] If results are poor, I'd simplify to just EMA crossover + Bollinger reversion without VORTEX filter, or switch to a volatility breakout filter instead. If Sharpe is mediocre, I'd reduce EMA period and tighten Bollinger bands. As alternative, I'd test a momentum-based mean-reversion using RSI + ATR for entries, or a volatility clustering approach with GARCH-based position sizing."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining VORTEX as a trend strength indicator with Bollinger Bands for mean-reversion signals creates a robust filter that avoids trading against the trend. When VORTEX is rising, it confirms the market is in a trending regime, making mean-reversion strategies more reliable. The Bollinger crossover provides clear entry points, while ATR-based risk management ensures dynamic stop-losses that adapt to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.5012485378656076,
+      "return_pct": -2.709274581991194,
+      "max_drawdown_pct": -7.296568771581461,
+      "profit_factor": 0.6286919692248749,
+      "win_rate_pct": 25.0,
+      "trades": 4,
+      "continuous_score": -56.32257584062352,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -14.034959060237014,
+          "return": -2.9802020401903135,
+          "profit_factor": -16.97408140686286,
+          "trades_confidence": 0.6666666666666666,
+          "win_rate": -3.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -2.7%, PF 0.63, Expectancy -67.73"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 7.3%, Vol 9.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.501, Sortino -0.290, Calmar -0.937"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.0%, Trades 4, AvgW/L 458.73/243.22"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 4,
+          "total_signals": 4
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on VORTEX for trend filtering may lag behind price movements, causing false signals during choppy markets. The Bollinger crossover alone doesn't account for mean-reversion strength, and the fixed TP of 2x SL may be too tight or loose depending on volatility regime. The dynamic SL based on ATR could be too aggressive during low volatility, leading to premature exits.\n[Backup plan] If results are poor, I'd test a modified entry: require VORTEX to be above its 20-period moving average AND price above EMA(20) for stronger trend confirmation. If Sharpe is mediocre, adjust TP to 1.5x-3x SL and fine-tune Bollinger period from 20 to 15/25. As alternative, switch to a volatility-adjusted Z-score for mean-reversion with a simpler trend filter using ADX(14) instead of VORTEX."
+        },
+        "scoring": {
+          "continuous_score": -56.32257584062352,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -14.034959060237014,
+            "return": -2.9802020401903135,
+            "profit_factor": -16.97408140686286,
+            "trades_confidence": 0.6666666666666666,
+            "win_rate": -3.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining VORTEX as a trend strength indicator with Bollinger Bands for mean-reversion signals creates a robust filtering mechanism that avoids trading against strong trends while capitalizing on range-bound market conditions. The VORTEX oscillator helps identify when the market is transitioning from trend to range, making entries more reliable. ATR-based risk management ensures proper position sizing and dynamic stop-loss levels that adapt to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.4363305600537324,
+      "return_pct": -36.986339446508296,
+      "max_drawdown_pct": -46.73666792342204,
+      "profit_factor": 0.5396361434162155,
+      "win_rate_pct": 45.16129032258064,
+      "trades": 31,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -40.217255681504504,
+          "return": -33.0,
+          "profit_factor": -21.04520487240158,
+          "trades_confidence": 5.166666666666667,
+          "win_rate": 3.048387096774192
+        },
+        "penalties": {
+          "drawdown_pressure": 17.82444528228136,
+          "drawdown_excess": 9.7805566028517,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 11.73666792342204
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -37.0%, PF 0.54, Expectancy -119.31"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 46.7%, Vol 48.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.436, Sortino -0.675, Calmar -1.489"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 45.2%, Trades 31, AvgW/L 309.68/472.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 169, in generate_signals\n    if atr > atr_avg:\nValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on VORTEX for trend filtering may lag behind price action, causing delayed entries or false signals during trend transitions. The static TP of 2x SL and fixed Bollinger bands might not adapt well to varying market conditions. Overfitting to 0GUSDC's specific volatility profile could limit robustness.\n[Backup plan] If results are poor, switch to a volatility-adjusted entry filter using RSI + ATR instead of VORTEX, and reduce TP to 1.5x SL. If Sharpe is low, tighten Bollinger parameters (e.g., 20,2) and add a minimum price change filter. As alternative, test a momentum-based breakout strategy with dynamic TP/SL based on recent volatility peaks."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 11.73666792342204,
+          "components": {
+            "sharpe": -40.217255681504504,
+            "return": -33.0,
+            "profit_factor": -21.04520487240158,
+            "trades_confidence": 5.166666666666667,
+            "win_rate": 3.048387096774192
+          },
+          "penalties": {
+            "drawdown_pressure": 17.82444528228136,
+            "drawdown_excess": 9.7805566028517,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining VORTEX with Bollinger Bands creates a robust mean-reversion signal by identifying momentum shifts in trending markets, while using ADX as a trend filter prevents false signals during strong trends. The ATR-based risk management ensures dynamic stops that adapt to volatility conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.6220753236528236,
+      "return_pct": 42.49078083391017,
+      "max_drawdown_pct": -14.839891101374286,
+      "profit_factor": 1.6513062881624323,
+      "win_rate_pct": 46.875,
+      "trades": 32,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 45.41810906227906,
+          "return": 44.0,
+          "profit_factor": 29.774001744568334,
+          "trades_confidence": 5.333333333333333,
+          "win_rate": 3.5625
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +42.5%, PF 1.65, Expectancy 132.78"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 14.8%, Vol 44.9%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.622, Sortino 1.741, Calmar 10.046"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.9%, Trades 32, AvgW/L 718.20/383.76"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 151, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on VORTEX and Bollinger Bands for mean-reversion may generate frequent whipsaws in ranging markets, while the ADX filter might be too lenient, allowing entries during weak trends. The dynamic SL based on ATR could be too aggressive during low-volatility phases, and the fixed TP of 2x SL may not account for market regime changes. The current setup appears vulnerable to overfitting and lacks robustness in volatile or trending conditions.\n[Backup plan] If results are poor, I'd simplify by removing VORTEX and using only EMA + Bollinger Bands with a stronger ADX threshold (ADX > 30). If Sharpe is mediocre, I'd increase the Bollinger period to 20, widen TP to 3x SL, and tighten the ADX filter to 35. As an alternative, I'd test a momentum breakout strategy with RSI + ATR filters instead of mean-reversion, focusing on trend continuation rather than reversal."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 45.41810906227906,
+            "return": 44.0,
+            "profit_factor": 29.774001744568334,
+            "trades_confidence": 5.333333333333333,
+            "win_rate": 3.5625
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 5,
+      "hypothesis": "Combining VORTEX with Bollinger Bands creates a robust mean-reversion signal by identifying momentum shifts in trending markets, while using ADX as a trend filter prevents false signals during strong trends. The ATR-based risk management ensures dynamic stops that adapt to volatility conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.6220753236528236,
+      "return_pct": 42.49078083391017,
+      "max_drawdown_pct": -14.839891101374286,
+      "profit_factor": 1.6513062881624323,
+      "win_rate_pct": 46.875,
+      "trades": 32,
+      "continuous_score": 100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 45.41810906227906,
+          "return": 44.0,
+          "profit_factor": 29.774001744568334,
+          "trades_confidence": 5.333333333333333,
+          "win_rate": 3.5625
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +42.5%, PF 1.65, Expectancy 132.78"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 14.8%, Vol 44.9%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.622, Sortino 1.741, Calmar 10.046"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.9%, Trades 32, AvgW/L 718.20/383.76"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 151, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on VORTEX and Bollinger Bands for mean-reversion may generate frequent whipsaws in ranging markets, while the ADX filter might be too lenient, allowing entries during weak trends. The dynamic SL based on ATR could be too aggressive during low-volatility phases, and the fixed TP of 2x SL may not account for market regime changes. The current setup appears vulnerable to overfitting and lacks robustness in volatile or trending conditions.\n[Backup plan] If results are poor, I'd simplify by removing VORTEX and using only EMA + Bollinger Bands with a stronger ADX threshold (ADX > 30). If Sharpe is mediocre, I'd increase the Bollinger period to 20, widen TP to 3x SL, and tighten the ADX filter to 35. As an alternative, I'd test a momentum breakout strategy with RSI + ATR filters instead of mean-reversion, focusing on trend continuation rather than reversal."
+        },
+        "scoring": {
+          "continuous_score": 100.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 45.41810906227906,
+            "return": 44.0,
+            "profit_factor": 29.774001744568334,
+            "trades_confidence": 5.333333333333333,
+            "win_rate": 3.5625
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA with Bollinger bands and VORTEX creates a robust mean-reversion signal that filters out trend-based moves. When price is below the lower Bollinger band and EMA crosses above it, it suggests a potential reversal. VORTEX rising from a local minimum confirms the strength of the reversal signal, while ATR-based stop-loss ensures proper risk management in varying volatility conditions.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "UnboundLocalError: cannot access local variable 'prev_bb_upper' where it is not associated with a value",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "UnboundLocalError: cannot access local variable 'prev_bb_upper' where it is not associated with a value",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 123, in generate_signals\n    long_exit_cross_bb = (close > indicators['bollinger']['upper']) & (prev_close <= prev_bb_upper)\nUnboundLocalError: cannot access local variable 'prev_bb_upper' where it is not associated with a value",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This mean-reversion strategy risks whipsaws during strong trends when price remains outside Bollinger bands, and the VORTEX confirmation may lag behind actual reversals. The dynamic SL based on ATR could be too tight in low-volatility regimes, leading to premature exits. The 1-period lookback for VORTEX crossover might generate false signals.\n[Backup plan] If results are poor, I'd switch to a momentum filter (RSI > 70 on exit) or reduce EMA period to 10. For mediocre Sharpe, I'd test wider Bollinger bands (2.5 std) and adjust TP to 1.5x SL. As alternative, I'd test a simple RSI+BB strategy with 20-period RSI and 20-period BB, or add a volatility breakout filter to avoid range-trading in trending markets."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA crossover with Bollinger band reversion and VORTEX trend confirmation creates a robust mean-reversion signal that filters out noise during ranging markets while capturing strong momentum reversals. The VORTEX indicator ensures entries occur only when the market shows clear directional strength, reducing false signals. ATR-based risk management adapts to volatility conditions for optimal position sizing.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 91, in generate_signals\n    ema_val = ema(df['close'], 21)\nNameError: name 'ema' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's main weaknesses are overfitting to specific market regimes, reliance on multiple indicators that may conflict, and potential whipsaw during choppy markets. The VORTEX confirmation may filter too many valid entries, and the ATR-based SL adaptation could be too slow to react. The 1h timeframe may not capture optimal reversion windows for 0GUSDC.\n[Backup plan] If results are poor, I'd simplify to just EMA crossover + Bollinger reversion without VORTEX filter, or switch to a volatility breakout filter instead. If Sharpe is mediocre, I'd reduce EMA period and tighten Bollinger bands. As alternative, I'd test a momentum-based mean-reversion using RSI + ATR for entries, or a volatility clustering approach with GARCH-based position sizing."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining VORTEX as a trend strength indicator with Bollinger Bands for mean-reversion signals creates a robust filter that avoids trading against the trend. When VORTEX is rising, it confirms the market is in a trending regime, making mean-reversion strategies more reliable. The Bollinger crossover provides clear entry points, while ATR-based risk management ensures dynamic stop-losses that adapt to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "insufficient_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.5012485378656076,
+      "return_pct": -2.709274581991194,
+      "max_drawdown_pct": -7.296568771581461,
+      "profit_factor": 0.6286919692248749,
+      "win_rate_pct": 25.0,
+      "trades": 4,
+      "continuous_score": -56.32257584062352,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -14.034959060237014,
+          "return": -2.9802020401903135,
+          "profit_factor": -16.97408140686286,
+          "trades_confidence": 0.6666666666666666,
+          "win_rate": -3.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -2.7%, PF 0.63, Expectancy -67.73"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 7.3%, Vol 9.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.501, Sortino -0.290, Calmar -0.937"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.0%, Trades 4, AvgW/L 458.73/243.22"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 4,
+          "total_signals": 4
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on VORTEX for trend filtering may lag behind price movements, causing false signals during choppy markets. The Bollinger crossover alone doesn't account for mean-reversion strength, and the fixed TP of 2x SL may be too tight or loose depending on volatility regime. The dynamic SL based on ATR could be too aggressive during low volatility, leading to premature exits.\n[Backup plan] If results are poor, I'd test a modified entry: require VORTEX to be above its 20-period moving average AND price above EMA(20) for stronger trend confirmation. If Sharpe is mediocre, adjust TP to 1.5x-3x SL and fine-tune Bollinger period from 20 to 15/25. As alternative, switch to a volatility-adjusted Z-score for mean-reversion with a simpler trend filter using ADX(14) instead of VORTEX."
+        },
+        "scoring": {
+          "continuous_score": -56.32257584062352,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -14.034959060237014,
+            "return": -2.9802020401903135,
+            "profit_factor": -16.97408140686286,
+            "trades_confidence": 0.6666666666666666,
+            "win_rate": -3.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining VORTEX as a trend strength indicator with Bollinger Bands for mean-reversion signals creates a robust filtering mechanism that avoids trading against strong trends while capitalizing on range-bound market conditions. The VORTEX oscillator helps identify when the market is transitioning from trend to range, making entries more reliable. ATR-based risk management ensures proper position sizing and dynamic stop-loss levels that adapt to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "wrong_direction",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.4363305600537324,
+      "return_pct": -36.986339446508296,
+      "max_drawdown_pct": -46.73666792342204,
+      "profit_factor": 0.5396361434162155,
+      "win_rate_pct": 45.16129032258064,
+      "trades": 31,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -40.217255681504504,
+          "return": -33.0,
+          "profit_factor": -21.04520487240158,
+          "trades_confidence": 5.166666666666667,
+          "win_rate": 3.048387096774192
+        },
+        "penalties": {
+          "drawdown_pressure": 17.82444528228136,
+          "drawdown_excess": 9.7805566028517,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 11.73666792342204
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -37.0%, PF 0.54, Expectancy -119.31"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 46.7%, Vol 48.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.436, Sortino -0.675, Calmar -1.489"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 45.2%, Trades 31, AvgW/L 309.68/472.60"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260224_190737_strat_gie_de_type_mean_reversion_sur_0gu\\strategy.py\", line 169, in generate_signals\n    if atr > atr_avg:\nValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on VORTEX for trend filtering may lag behind price action, causing delayed entries or false signals during trend transitions. The static TP of 2x SL and fixed Bollinger bands might not adapt well to varying market conditions. Overfitting to 0GUSDC's specific volatility profile could limit robustness.\n[Backup plan] If results are poor, switch to a volatility-adjusted entry filter using RSI + ATR instead of VORTEX, and reduce TP to 1.5x SL. If Sharpe is low, tighten Bollinger parameters (e.g., 20,2) and add a minimum price change filter. As alternative, test a momentum-based breakout strategy with dynamic TP/SL based on recent volatility peaks."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 11.73666792342204,
+          "components": {
+            "sharpe": -40.217255681504504,
+            "return": -33.0,
+            "profit_factor": -21.04520487240158,
+            "trades_confidence": 5.166666666666667,
+            "win_rate": 3.048387096774192
+          },
+          "penalties": {
+            "drawdown_pressure": 17.82444528228136,
+            "drawdown_excess": 9.7805566028517,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ]
+}

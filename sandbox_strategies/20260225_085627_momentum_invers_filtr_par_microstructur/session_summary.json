@@ -1,0 +1,954 @@
+{
+  "session_id": "20260225_085627_momentum_invers_filtr_par_microstructur",
+  "objective": "[Momentum invers\u00e9 filtr\u00e9 par microstructure] sur AAVEUSDC 30m. Indicateurs : WILLIAMS_R + ONCHAIN_SMOOTHING + ATR. Entr\u00e9es : Entr\u00e9e long si WILLIAMS_R > -20 et ONCHAIN_SMOOTHING haussier en s\u00e9ance europ\u00e9enne uniquement. Sorties : TP \u00e0 2xATR, SL trailing bas\u00e9 sur la volatilit\u00e9 r\u00e9cente. Risk management : SL ajust\u00e9 dynamiquement via ATR, taille de position inversement proportionnelle \u00e0 la peur/greed du march\u00e9.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Williams %R > -20 signals momentum reversal from oversold conditions, filtered by on-chain smoothing trend confirmation during high-liquidity European hours to reduce false signals, with ATR-based dynamic position sizing that increases exposure during low fear/greed periods",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 262, in run\n    indicators = self._calculate_indicators(df, strategy, final_params)\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 485, in _calculate_indicators\n    raise RuntimeError(\nRuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Williams %R > -20 signals potential reversal from oversold territory, while on-chain smoothing provides trend confirmation during high-activity European session. ATR filters ensure trades occur only in sufficiently volatile conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -372.4527638554444,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7445373416152797,
+      "win_rate_pct": 42.847503373819166,
+      "trades": 1482,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.67829295473007,
+          "trades_confidence": 10.0,
+          "win_rate": 2.35425101214575
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -372.5%, PF 0.74, Expectancy -25.13"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 433.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.8%, Trades 1482, AvgW/L 170.95/172.13"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1923,
+          "short_signals": 2408,
+          "total_signals": 4331
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.67829295473007,
+            "trades_confidence": 10.0,
+            "win_rate": 2.35425101214575
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Williams R oversold reversals filtered by on-chain momentum and volatility regime (high ATR) should capture mean reversion moves while avoiding false signals in low-volatility environments, with dynamic position sizing based on fear/greed to reduce risk during market stress",
+      "change_type": "logic",
+      "diagnostic_category": "",
+      "error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 91: expected an indented block after 'if' statement on line 89",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 91: unterminated string literal (detected at line 91)",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": false,
+          "error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "RuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 262, in run\n    indicators = self._calculate_indicators(df, strategy, final_params)\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 485, in _calculate_indicators\n    raise RuntimeError(\nRuntimeError: \u00c9chec calcul indicateur requis 'fear_greed': Column not found for fear_greed: fear_greed",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Williams %R > -20 signals momentum reversal from oversold conditions, filtered by on-chain smoothing uptrend during European hours when AAVE activity peaks, reducing false signals during low-volatility periods",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -335.83761287778077,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7610466400011163,
+      "win_rate_pct": 48.822605965463104,
+      "trades": 1274,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.92358217137754,
+          "trades_confidence": 10.0,
+          "win_rate": 4.146781789638931
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -335.8%, PF 0.76, Expectancy -26.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 5017.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 48.8%, Trades 1274, AvgW/L 171.96/215.56"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1673,
+          "short_signals": 2191,
+          "total_signals": 3864
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.92358217137754,
+            "trades_confidence": 10.0,
+            "win_rate": 4.146781789638931
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Williams %R reversal signals filtered by European session activity and confirmed with momentum divergence to avoid whipsaws in volatile crypto markets",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -243.821791594518,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7651090990641636,
+      "win_rate_pct": 49.00314795383001,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.73786975706681,
+          "trades_confidence": 10.0,
+          "win_rate": 4.200944386149002
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -243.8%, PF 0.77, Expectancy -25.58"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1294.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 49.0%, Trades 953, AvgW/L 170.06/213.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 629,
+          "short_signals": 780,
+          "total_signals": 1409
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.73786975706681,
+            "trades_confidence": 10.0,
+            "win_rate": 4.200944386149002
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Previous strategy failed due to poor entry timing and lack of trend confirmation. This version uses Williams %R oversold reversal filtered by European hours and momentum divergence, with ATR volatility confirmation to avoid false signals during low-volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4549927655929075,
+      "return_pct": 33.97037667661505,
+      "max_drawdown_pct": -73.71718328533723,
+      "profit_factor": 1.0256514671519585,
+      "win_rate_pct": 47.985004686035616,
+      "trades": 1067,
+      "continuous_score": 9.36389616150575,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 12.73979743660141,
+          "return": 37.367414344276554,
+          "profit_factor": 1.1726384983752476,
+          "trades_confidence": 10.0,
+          "win_rate": 3.8955014058106845
+        },
+        "penalties": {
+          "drawdown_pressure": 35.81145552355815,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 38.71718328533723
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +34.0%, PF 1.03, Expectancy 3.18"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 73.7%, Vol 223.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.455, Sortino 6.736, Calmar 0.077"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 48.0%, Trades 1067, AvgW/L 265.29/238.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 90: expected an indented block after 'if' statement on line 88",
+          "validation_error_retry": "[IND001] Usage invalide: atr.rolling(...) sur ndarray. Utiliser pandas Series ou logique vectoris\u00e9e numpy.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 737,
+          "short_signals": 760,
+          "total_signals": 1497
+        },
+        "scoring": {
+          "continuous_score": 9.36389616150575,
+          "drawdown_excess_pct": 38.71718328533723,
+          "components": {
+            "sharpe": 12.73979743660141,
+            "return": 37.367414344276554,
+            "profit_factor": 1.1726384983752476,
+            "trades_confidence": 10.0,
+            "win_rate": 3.8955014058106845
+          },
+          "penalties": {
+            "drawdown_pressure": 35.81145552355815,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 1,
+            "llm_positive": 1,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 6,
+      "hypothesis": "Previous strategy failed due to poor entry timing and lack of trend confirmation. This version uses Williams %R oversold reversal filtered by European hours and momentum divergence, with ATR volatility confirmation to avoid false signals during low-volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4549927655929075,
+      "return_pct": 33.97037667661505,
+      "max_drawdown_pct": -73.71718328533723,
+      "profit_factor": 1.0256514671519585,
+      "win_rate_pct": 47.985004686035616,
+      "trades": 1067,
+      "continuous_score": 9.36389616150575,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 12.73979743660141,
+          "return": 37.367414344276554,
+          "profit_factor": 1.1726384983752476,
+          "trades_confidence": 10.0,
+          "win_rate": 3.8955014058106845
+        },
+        "penalties": {
+          "drawdown_pressure": 35.81145552355815,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 38.71718328533723
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +34.0%, PF 1.03, Expectancy 3.18"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 73.7%, Vol 223.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.455, Sortino 6.736, Calmar 0.077"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 48.0%, Trades 1067, AvgW/L 265.29/238.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 90: expected an indented block after 'if' statement on line 88",
+          "validation_error_retry": "[IND001] Usage invalide: atr.rolling(...) sur ndarray. Utiliser pandas Series ou logique vectoris\u00e9e numpy.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 737,
+          "short_signals": 760,
+          "total_signals": 1497
+        },
+        "scoring": {
+          "continuous_score": 9.36389616150575,
+          "drawdown_excess_pct": 38.71718328533723,
+          "components": {
+            "sharpe": 12.73979743660141,
+            "return": 37.367414344276554,
+            "profit_factor": 1.1726384983752476,
+            "trades_confidence": 10.0,
+            "win_rate": 3.8955014058106845
+          },
+          "penalties": {
+            "drawdown_pressure": 35.81145552355815,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 1,
+            "llm_positive": 1,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Williams %R > -20 signals potential reversal from oversold territory, while on-chain smoothing provides trend confirmation during high-activity European session. ATR filters ensure trades occur only in sufficiently volatile conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -372.4527638554444,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7445373416152797,
+      "win_rate_pct": 42.847503373819166,
+      "trades": 1482,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.67829295473007,
+          "trades_confidence": 10.0,
+          "win_rate": 2.35425101214575
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -372.5%, PF 0.74, Expectancy -25.13"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 433.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.8%, Trades 1482, AvgW/L 170.95/172.13"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1923,
+          "short_signals": 2408,
+          "total_signals": 4331
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.67829295473007,
+            "trades_confidence": 10.0,
+            "win_rate": 2.35425101214575
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Williams %R > -20 signals momentum reversal from oversold conditions, filtered by on-chain smoothing uptrend during European hours when AAVE activity peaks, reducing false signals during low-volatility periods",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -335.83761287778077,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7610466400011163,
+      "win_rate_pct": 48.822605965463104,
+      "trades": 1274,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.92358217137754,
+          "trades_confidence": 10.0,
+          "win_rate": 4.146781789638931
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -335.8%, PF 0.76, Expectancy -26.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 5017.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 48.8%, Trades 1274, AvgW/L 171.96/215.56"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1673,
+          "short_signals": 2191,
+          "total_signals": 3864
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.92358217137754,
+            "trades_confidence": 10.0,
+            "win_rate": 4.146781789638931
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Williams %R reversal signals filtered by European session activity and confirmed with momentum divergence to avoid whipsaws in volatile crypto markets",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -243.821791594518,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7651090990641636,
+      "win_rate_pct": 49.00314795383001,
+      "trades": 953,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.73786975706681,
+          "trades_confidence": 10.0,
+          "win_rate": 4.200944386149002
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -243.8%, PF 0.77, Expectancy -25.58"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1294.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 49.0%, Trades 953, AvgW/L 170.06/213.58"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 629,
+          "short_signals": 780,
+          "total_signals": 1409
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.73786975706681,
+            "trades_confidence": 10.0,
+            "win_rate": 4.200944386149002
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

@@ -51,3 +51,8 @@ _optional_strategy("scalp_donchian_adx_breakout", "ScalpDonchianAdxBreakoutStrat
 _optional_strategy("scalp_ema_rsi_pullback", "ScalpEmaRsiPullbackStrategy")
 _optional_strategy("scalp_ema_bb_rsi_labs", "ScalpEmaBbRsiLabsStrategy")
 _optional_strategy("scalping_bollinger_vwap_atr", "ScalpingBollingerVwapAtrStrategy")
+_optional_strategy("breakout_donchian_adx", "BreakoutDonchianAdxStrategy")
+_optional_strategy("mean_reversion_bollinger_rsi", "MeanReversionBollingerRsiStrategy")
+_optional_strategy("momentum_macd", "MomentumMacdStrategy")
+_optional_strategy("trend_supertrend", "TrendSupertrendStrategy")
+_optional_strategy("vol_amplitude_breakout", "VolAmplitudeBreakoutStrategy")

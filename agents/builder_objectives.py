@@ -148,11 +148,53 @@ def generate_random_objective(
     Returns:
         Objectif structuré en français prêt à être passé au StrategyBuilder.
     """
-    # Normaliser listes → valeur unique (choix aléatoire)
+    # Import classification tokens/TF
+    try:
+        from data.token_classification import (
+            get_recommended_timeframes,
+            get_recommended_token_profile,
+            get_tokens_by_profile,
+            get_preferred_timeframe,
+        )
+        use_recommendations = True
+    except ImportError:
+        logger.warning("Module token_classification non disponible, fallback aléatoire")
+        use_recommendations = False
+
+    # Détecter l'archetype de stratégie depuis family_key
+    archetype_map = {
+        "trend-following": "trend_following",
+        "mean-reversion": "mean_reversion",
+        "momentum": "day_trading",
+        "breakout": "breakout",
+        "volatility": "scalping",
+    }
+
+    # Normaliser listes → valeur unique avec recommandations
     if isinstance(symbol, list):
-        symbol = random.choice(symbol) if symbol else "BTCUSDC"
+        if use_recommendations and family_key in archetype_map:
+            # Utiliser recommandations basées sur archetype
+            archetype = archetype_map[family_key]
+            token_profile = get_recommended_token_profile(archetype)
+            recommended_tokens = get_tokens_by_profile(token_profile, fallback_to_all=True)
+
+            # Intersection avec tokens disponibles
+            valid_tokens = [t for t in recommended_tokens if t in symbol] if symbol else recommended_tokens
+            symbol = random.choice(valid_tokens) if valid_tokens else random.choice(symbol) if symbol else "BTCUSDC"
+        else:
+            symbol = random.choice(symbol) if symbol else "BTCUSDC"
+
     if isinstance(timeframe, list):
-        timeframe = random.choice(timeframe) if timeframe else "1h"
+        if use_recommendations and family_key in archetype_map:
+            # Utiliser TF recommandés pour cet archetype
+            archetype = archetype_map[family_key]
+            recommended_tfs = get_recommended_timeframes(archetype)
+
+            # Intersection avec TFs disponibles
+            valid_tfs = [tf for tf in recommended_tfs if tf in timeframe] if timeframe else recommended_tfs
+            timeframe = random.choice(valid_tfs) if valid_tfs else get_preferred_timeframe(archetype)
+        else:
+            timeframe = random.choice(timeframe) if timeframe else "1h"
 
     if available_indicators is None:
         available_indicators = list_indicators()
@@ -315,6 +357,10 @@ def generate_llm_objective(
         )
     else:
         market_instruction = f"Marché : {symbols_list[0]} en {timeframes_list[0]}.\n\n"
+
+
+
+
 
     system_msg = LLMMessage(
         role="system",

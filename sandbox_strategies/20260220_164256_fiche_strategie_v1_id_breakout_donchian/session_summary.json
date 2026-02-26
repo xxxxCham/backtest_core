@@ -1,0 +1,242 @@
+{
+  "session_id": "20260220_164256_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=25)\n- adx(period=19)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 15\nrisk:\nstop_atr_mult: 3.0\ntp_atr_mult: 3.5\ndescription: ATR stop-loss (3.0x) and take-profit (3.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Bollinger breakout with ADX trend filter reduces false signals in ranging markets",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7029312395639734,
+      "return_pct": 90.37194632058562,
+      "trades": 383,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +90.4%, PF 1.09, Expectancy 23.60"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 92.3%, Vol 229.8%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.703, Sortino 1.626, Calmar 0.578"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.5%, Trades 383, AvgW/L 613.99/489.04"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 58: invalid syntax",
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 310,
+          "short_signals": 359,
+          "total_signals": 669
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may have poor risk-reward ratio due to excessive stop and take profit parameters. It could be improved by reducing the leverage or tightening the exit conditions.\n[Backup plan] In case of poor performance, I would reduce the leverage from 1:3.5 to a more reasonable level such as 1:2 and tighten the exit condition to close when crossing any moving average instead of only donchian middle."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Donchian breakout with ADX trend filter reduces false signals in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7029312395639734,
+      "return_pct": 90.37194632058562,
+      "trades": 383,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +90.4%, PF 1.09, Expectancy 23.60"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 92.3%, Vol 229.8%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.703, Sortino 1.626, Calmar 0.578"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.5%, Trades 383, AvgW/L 613.99/489.04"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['cci_100', 'rsi_7']. Utiliser uniquement les noms du registre.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 85: invalid syntax. Perhaps you forgot a comma?",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 310,
+          "short_signals": 359,
+          "total_signals": 669
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The potential weaknesses of this strategy are its limited trade volume and high risk.\n[Backup plan] If the results are poor, we may consider increasing the trade frequency or widening the risk. Alternatively, we can explore other approaches such as mean reversion, trend following, or a combination of both."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Bollinger breakout with ADX trend filter reduces false signals in ranging markets",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

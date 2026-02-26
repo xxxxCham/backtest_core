@@ -1,0 +1,266 @@
+{
+  "session_id": "20260223_200146_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=45)\n- adx(period=10)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 25\nrisk:\nstop_atr_mult: 2.25\ntp_atr_mult: 3.0\ndescription: ATR stop-loss (2.25x) and take-profit (3.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -223.9994727523399,
+      "trades": 916,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -224.0%, PF 0.82, Expectancy -24.45"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1017.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.0%, Trades 916, AvgW/L 330.04/206.68"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "error_code": "DSL001",
+          "final_kind": "text",
+          "final_valid": false,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['atr'].rolling(...) sur ndarray. Utiliser une logique numpy.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 471,
+          "short_signals": 528,
+          "total_signals": 999
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses Donchian Channels, Average Directional Index (ADX), and ATR for identifying breakouts. It considers both long and short positions with the conditions of ADX being above 30, a cross over of close price with Donchian's middle band as an exit condition. Additionally, it has stop loss at 2.25 times the average true range (ATR) value and take profit at 3 times ATR. The constraints include using only registry indicators and no lookahead.\n[Backup plan] 1. Weaknesses: High drawdown due to frequent whipsaws from Donchian Channels, ADX may not provide accurate signals during trending markets with low volatility.  2. If results are poor (negative return), increase the period of momentum indicator like RSI or EMA for smoother entry and exit conditions. 3. Increase the take-profit value to reduce the frequency of trades or try mean reversion strategies using ATR and other indicators."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: Invalid comparison between dtype=datetime64[ns, UTC] and int",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: Invalid comparison between dtype=datetime64[ns, UTC] and int",
+          "runtime_traceback_tail": "signals[df.index < warmup] = 1.0 # Assuming you have a long position at the start of backtesting period\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\ops\\common.py\", line 76, in new_method\n    return method(self, other)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\arraylike.py\", line 48, in __lt__\n    return self._cmp_method(other, operator.lt)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 7197, in _cmp_method\n    result = op(self._values, other)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\ops\\common.py\", line 76, in new_method\n    return method(self, other)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\arraylike.py\", line 48, in __lt__\n    return self._cmp_method(other, operator.lt)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\arrays\\datetimelike.py\", line 985, in _cmp_method\n    return invalid_comparison(self, other, op)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\ops\\invalid.py\", line 40, in invalid_comparison\n    raise TypeError(f\"Invalid comparison between dtype={left.dtype} and {typ}\")\nTypeError: Invalid comparison between dtype=datetime64[ns, UTC] and int",
+          "runtime_fix_retry_error": "NameError: name 'tp' is not defined",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Iteration 3/10; Objectives, constraints and indicators of FICHE_STRATEGIE v1 have been assessed. The strategy focuses on breakout trading with Donchian Channels & ADX in the TRXUSDC 1h market (44936 bars). It includes ATR stop-loss (2.25x) and take-profit (3.0x), no lookahead, only registry indicators and fallback contractuel parameters for managing results when LLM is not exploitable.\n[Backup plan] 1. The strategy might be impacted by high transaction costs leading to poor performance if not managed properly.\n2. If the current strategy shows negative returns, it could switch to another momentum based indicator or risk management technique such as ATR trailing stop loss.\n3. Adjusting parameters like period of Donchian Channels and ADX, take-profit & stop-loss multiplier might improve results with low Sharpe ratio.\n4. Trying a different market or instrument could be the alternative approach if this strategy fails."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

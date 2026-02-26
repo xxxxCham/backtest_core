@@ -1,0 +1,725 @@
+{
+  "session_id": "20260221_013222_fiche_strategie_v1_id_vol_amplitude_brea",
+  "objective": "FICHE_STRATEGIE v1\nid: vol_amplitude_breakout\narchetype: vol_amplitude_breakout\nfamily: volatility\ntimeframe: 1h\nside: both\nindicators:\n- amplitude_hunter(period=16)\n- donchian(period=35)\n- atr(period=14)\nentry:\n- long: amplitude_hunter.score > 0.65 and close > donchian.upper\n- short: amplitude_hunter.score > 0.65 and close < donchian.lower\nexit:\n- condition: amplitude_hunter.score < 0.3 or cross_any(close, donchian.middle)\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 2.5\ndescription: ATR stop-loss (1.75x) and take-profit (2.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "max_iterations",
+  "best_sharpe": 0.8943911731576182,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "<Describe why this strategy should work>",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -212.42618751565288,
+      "trades": 94,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -212.4%, PF 0.11, Expectancy -225.99"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7147.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 9.6%, Trades 94, AvgW/L 292.79/280.91"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 9037,
+          "short_signals": 0,
+          "total_signals": 9037
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] ITERATION 1/10\nObjective: FICHE_STRATEGIE v1\nid: vol_amplitude_breakout\narrative: A volatility-based strategy that uses the amplitude hunter, donchian, and atr indicators to enter long or short trades with a take profit and stop loss.\nrisk: ATR stop-loss (1.75x) and take-profit (2.5x)\ncircumstances:\n  - no lookahead\n  - only registry indicators are used\n[Backup plan] 1. The strategy is based on volatility, which can be impacted by market conditions or sudden changes that the strategy might not be able to account for.\n2. If results are poor (negative return), we could try adjusting our stop-loss and take-profit multipliers to see if this improves performance.\n3. We could experiment with different moving averages such as sma, ema or wma and look at their correlation with the strategy's returns.\n4. Another approach would be to use a different volatility indicator like Bollinger bands or Keltner channels instead of ATR."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "The combination of ATR based stop loss and take profit along with using 2 indicators for a volatility based breakout strategy improves the results.",
+      "change_type": "logic",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is based on ATR stop loss and take profit along with two volatility indicators. It has high risk as it uses 1.75 times of the ATR for stop-loss which can lead to significant losses if price moves against trade. The use of multiple indicators makes the system complex and might not be suitable for all traders. Potential weaknesses include overfitting due to the complexity, limited backtest period, and potential issues with high volatility during live trading that could trigger false signals. If results are poor (negative return), I would consider using a smaller ATR stop-loss or increasing the lookback period of amplitude_hunter as it might not be sensitive enough in capturing true breakouts. For mediocre Sharpe, adjusting the TP/SL multiplier ratio and considering different volatility based indicators could improve performance. Alternative approach can include using other technical indicators for trade entry and exit, more diversification across assets and timeframe or incorporating machine learning techniques to better predict market trends."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is designed to trade based on volatility breakouts in conjunction with ATR stop loss and take profit. However, the strategy has exhibited a Sharpe ratio of 0.894 from two iterations. This indicates that while it has generated positive returns, it also carries high risk. The potential weaknesses of this strategy include reliance on one momentum indicator (donchian) for trade entry, and lack of diversification in indicators used. Additionally, the constraints such as no lookahead and only registry indicators may limit its flexibility to adapt to changing market conditions. If results are poor (negative return), a change could be made to use multiple momentum indicators or explore other indicators like RSI and EMA for confirmation. For mediocre Sharpe ratio, adjusting the trade parameters (entry/exit points or ATR ratios) might improve it. An alternative approach could involve exploring different strategies that leverage volatility breakouts.\n[Backup plan] ['Test additional momentum indicators such as RSI and EMA', 'Adjust entry/exit trade parameters based on ATR ratios', 'Expand constraints to allow more flexibility in indicator selection']"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using amplitude hunter score above 0.65 and close price above donchian middle to identify potential trade opportunities while considering ATR based risk management.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.6550511856949481,
+      "return_pct": 38.756648390590854,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +38.8%, PF 1.12, Expectancy 21.77"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 34.0%, Vol 55.1%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.655, Sortino 0.937, Calmar 1.092"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.8%, Trades 178, AvgW/L 419.22/341.48"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is using a volume breakout method with additional filters to confirm momentum. The fallback contract could be based on relative strength index, exponential moving average and average true range.\n[Backup plan] If the current one fails, we can try other volatility strategies like straddle or condor spreads."
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "...",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Based on previous iterations, this strategy has shown promising results with an average Sharpe ratio of 0.82 and a total net profit increase of 63% over 9147 bars (ANIMEUSDC 1h). However, it's important to note that the market conditions can change rapidly, so continuous monitoring is necessary. Potential weaknesses include reliance on donchian channel for trend identification and potential overfitting with the use of high-frequency indicators like macd and stochastic.\n[Backup plan] In case results are poor (negative return), we would consider changing parameters such as stop-loss or take-profit multiples, or reducing the frequency at which the ATR is recalculated. If performance remains mediocre (low Sharpe ratio), we may look into adding more indicators to further refine our signal and improving risk management techniques."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 2
+          },
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] {'1) Potential weaknesses of this strategy': {}}\n[Backup plan] {'Iteration 8/10': [{'Specific change if results are poor (negative return)': '', 'Parameter adjustments to improve performance (if Sharpe is low)': ''}]}"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "approaching target sharpe ratio with amplitude hunter and donchian bands",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.6550511856949481,
+      "return_pct": 38.756648390590854,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +38.8%, PF 1.12, Expectancy 21.77"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 34.0%, Vol 55.1%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.655, Sortino 0.937, Calmar 1.092"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 47.8%, Trades 178, AvgW/L 419.22/341.48"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is based on volatility bands and ATR to determine entry and exit points. It uses both amplitude hunter score and donchian channel for this purpose with stop-loss at 1.75x the ATR and take profit at 2.5x ATR. This approach seems reasonable as it incorporates multiple indicators, however further investigation is required on their combined effectiveness.\n[Backup plan] If results are poor (negative return), we would consider changing our entry conditions to something more robust, like an RSI crossover or MACD for instance. If results are mediocre (low Sharpe), we could try adjusting the stop loss and take profit parameters to see if it affects performance. Alternatively, we may explore other volatility indicators such as Bollinger Bands."
+        },
+        "decision": {
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "A combination of Bollinger Band, Donchian Channel and ATR provides a simple yet effective strategy.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] \n[Backup plan] {'Iteration 10 - Post Backtest Reflection & Adjustments': [{'Plan': '', 'Details': ''}, {'Plan': '', 'Details': ''}], 'Alternative Approaches if Strategy Fails': ['Testing different combinations of indicators and strategies', 'Adjusting risk parameters, such as stop-loss and take-profit levels']}"
+        }
+      }
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8943911731576182,
+      "return_pct": 62.45822181464191,
+      "trades": 178,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +62.5%, PF 1.19, Expectancy 35.09"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 27.7%, Vol 48.9%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.894, Sortino 1.279, Calmar 2.154"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 42.1%, Trades 178, AvgW/L 512.47/312.52"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "placeholder_entry_long_logic"
+          ],
+          "error_code": "DSL001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "placeholder_entry_long_logic"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 104,
+          "short_signals": 88,
+          "total_signals": 192
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    }
+  ]
+}

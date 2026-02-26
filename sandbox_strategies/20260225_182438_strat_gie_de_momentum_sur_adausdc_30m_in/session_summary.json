@@ -1,0 +1,1260 @@
+{
+  "session_id": "20260225_182438_strat_gie_de_momentum_sur_adausdc_30m_in",
+  "objective": "Strat\u00e9gie de Momentum sur ADAUSDC 30m. Indicateurs : MOMENTUM + ROC + ATR. Position quand le momentum (MOMENTUM) acc\u00e9l\u00e8re et ROC est align\u00e9. Sortie quand le momentum (MOMENTUM) s'\u00e9puise ou diverge du prix. Stop serr\u00e9 2.2x ATR pour limiter le drawdown, TP \u00e0 6.4x ATR.",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "best_score": -100.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Momentum and ROC together capture short\u2011term price acceleration; when both are positive and increasing momentum, a trend is building, while a reversal is signaled when either metric turns negative, providing clear entry and exit points. ATR\u2011based risk limits volatility\u2011driven drawdowns and locks in gains proportional to market noise.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -3003.252070505917,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.679433310154126,
+      "win_rate_pct": 28.564459080375652,
+      "trades": 8199,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -14.654477250097099,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9306622758873042
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -3003.3%, PF 0.68, Expectancy -36.63"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1108.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 8199, AvgW/L 271.79/159.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 19434,
+          "short_signals": 19795,
+          "total_signals": 39229
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate many whipsaws in sideways markets because it only checks for positive momentum and ROC without a trend filter or volatility context. 2. The fixed 2.2\u00d7ATR stop/6.4\u00d7ATR take\u2011profit can be too tight or too loose depending on market regime, leading to premature exits or missed moves. 3. Using raw momentum values (no threshold) can trigger on noise; the ROC condition alone may not capture true acceleration. 4. No position\u2011sizing or volatility\u2011adjusted scaling is applied, so risk per trade is not controlled relative to recent volatility.\n[Backup plan] If performance is negative, add a simple trend filter (e.g., 20\u2011period SMA or 50\u2011period EMA) and only trade when price is above it for longs, and require momentum > a small positive threshold (e.g., 0.5). If Sharpe is low, experiment with longer ATR multipliers for TP (e.g., 8\u00d7ATR) and tighter stops (e.g., 1.5\u00d7ATR), and extend the ROC look\u2011back to 10 periods to smooth out noise. If the strategy still fails, pivot to a volatility\u2011breakout approach: enter when price closes above a 20\u2011period high and exit at a fixed ATR multiple, or switch to a mean\u2011reversion on RSI/BB bands for ADAUSDC 30m."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -14.654477250097099,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9306622758873042
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Bollinger band breakouts capture strong price moves while the RSI filter removes over\u2011extended entries; ATR\u2011based risk limits protect against sudden volatility spikes in the ADAUSDC 30\u2011minute market.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1148.5179542134026,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.744092332151752,
+      "win_rate_pct": 30.494595479855878,
+      "trades": 3053,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.69863624449134,
+          "trades_confidence": 10.0,
+          "win_rate": -1.3516213560432364
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1148.5%, PF 0.74, Expectancy -37.62"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 271.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.5%, Trades 3053, AvgW/L 358.70/211.50"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3519,
+          "short_signals": 3903,
+          "total_signals": 7422
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy trades too frequently (8k+ trades) causing high slippage and fees; the Bollinger + RSI filters are too simplistic and may generate many false signals in a volatile crypto market. 2. If returns are negative, tighten the RSI filter (e.g., RSI>60 for longs, <40 for shorts) or add a volume filter to confirm breakouts. 3. If Sharpe is low, adjust ATR multipliers (e.g., stop 1.5x, TP 4x) and shorten Bollinger period to 10 or 12 to capture tighter moves. 4. As an alternative, switch to a momentum\u2011plus\u2011ROC strategy: enter when momentum rises and ROC is positive, exit on momentum reversal, using ATR\u2011based trailing stops to adapt to volatility.\n[Backup plan] Implement a dynamic risk management module: calculate a volatility\u2011adjusted stop based on recent ATR percentiles, and use a 20\u2011period EMA filter to ensure trend alignment before taking a breakout. Test the revised parameters on a 30\u2011minute ADAUSDC dataset and compare Sharpe and max drawdown to the original. If the new approach still underperforms, move to a multi\u2011time\u2011frame confirmation (e.g., 1\u2011hour trend + 30\u2011minute momentum) or a machine\u2011learning feature selection to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.69863624449134,
+            "trades_confidence": 10.0,
+            "win_rate": -1.3516213560432364
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum and ROC together capture price acceleration; requiring both to be positive (or negative) and increasing filters out weak or random moves. Adding an ATR volatility filter ensures the strategy only trades when the market has enough movement, while ATR-based SL/TP scales risk to current volatility, reducing overtrading in low\u2011volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -367.6840798646214,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8874104972581772,
+      "win_rate_pct": 25.385694249649372,
+      "trades": 1426,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.146948696769042,
+          "trades_confidence": 10.0,
+          "win_rate": -2.8842917251051885
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -367.7%, PF 0.89, Expectancy -25.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 364.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 1426, AvgW/L 800.56/306.93"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 20893,
+          "short_signals": 0,
+          "total_signals": 20893
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is highly sensitive to noise: it triggers on every small acceleration of momentum/ROC, leading to over\u2011trading and high transaction costs. The 2.2\u00d7ATR stop and 6.4\u00d7ATR take\u2011profit are static and may be too tight for a volatile asset like ADA, causing many early exits. There\u2019s no trend filter or position\u2011sizing logic, so it can open opposite\u2011direction trades in choppy markets.\n[Backup plan] If the backtest remains negative, I\u2019ll first add a simple trend filter (e.g., 50\u2011period SMA) and only trade when price is above (for longs) or below (for shorts) that SMA, and I\u2019ll increase the ATR stop to 3\u00d7ATR to reduce whipsaws. If the Sharpe is still low, I\u2019ll adjust the ROC period to a shorter 5\u2011period and tighten the entry condition to require ROC > previous ROC by at least 0.5% and momentum > 0.01. If the strategy still fails, I\u2019ll switch to a breakout\u2011based approach: trade on the 30\u2011min close crossing a 20\u2011period EMA with a 1.5\u00d7ATR trailing stop, or explore a mean\u2011reversion strategy using Bollinger Bands to capture pullbacks."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.146948696769042,
+            "trades_confidence": 10.0,
+            "win_rate": -2.8842917251051885
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a short\u2011term rate of change (ROC) with a trend confirmation from a 20\u2011period EMA reduces entry noise while ATR\u2011scaled stops and targets adapt to market volatility, thereby limiting large drawdowns that plagued the previous momentum\u2011only scheme.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -5089.688799848664,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6431520263345326,
+      "win_rate_pct": 27.681899765290623,
+      "trades": 14486,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.31305022470708,
+          "trades_confidence": 10.0,
+          "win_rate": -2.1954300704128134
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -5089.7%, PF 0.64, Expectancy -35.14"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 548.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 14486, AvgW/L 228.76/136.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 40147,
+          "short_signals": 40875,
+          "total_signals": 81022
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is too noisy: a simple ROC + EMA20 on 30\u2011m ADAUSDC generates 8k+ trades with high slippage, and the 2.2\u00d7ATR stop/6.4\u00d7ATR target may be too tight for crypto volatility, causing frequent stop\u2011outs before a move materialises. It also ignores volume, market regime, and does not adapt to trend strength, leading to false entries when the ROC is positive but the price is in a sideways zone.\n[Backup plan] If returns stay negative, switch to a two\u2011period ROC threshold (e.g., ROC>1%) and add an ADX>20 filter to confirm trend strength before entering. If Sharpe is low, increase the ATR stop to 3\u00d7ATR and target to 8\u00d7ATR to reduce whipsaw exits, and extend the EMA to 50 periods to smooth entry signals. As an alternative, try a breakout strategy using a 30\u2011m Donchian channel with ATR\u2011scaled stops, or a mean\u2011reversion system based on Bollinger bands that trades when price touches the upper/lower band and exits when it returns to the middle band."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.31305022470708,
+            "trades_confidence": 10.0,
+            "win_rate": -2.1954300704128134
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using momentum and ROC together captures the acceleration of price movement, while filtering with a 20\u2011period EMA ensures the signal aligns with the prevailing trend. This combination reduces whipsaws in ranging periods and focuses on genuine trend continuations, and ATR\u2011based risk limits adapt to volatility, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -3789.1154296829513,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6450114757999497,
+      "win_rate_pct": 23.52542372881356,
+      "trades": 10325,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.22804682057373,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4423728813559316
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -3789.1%, PF 0.65, Expectancy -36.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 296.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 10325, AvgW/L 283.44/135.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 40147,
+          "short_signals": 40875,
+          "total_signals": 81022
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on raw momentum and ROC without a robust trend filter leads to many false positives, especially in a volatile crypto market; the 20\u2011period EMA is too short to dampen noise, causing frequent whipsaws. The tight 2.2\u00d7ATR stop and 6.4\u00d7ATR take\u2011profit may be mismatched to ADA\u2019s high volatility, resulting in premature exits and under\u2011capture of moves. High trade volume and negative Sharpe suggest the model is over\u2011trading and has a directional bias that isn\u2019t compensated by risk management.\n[Backup plan] If the backtest remains unprofitable, I\u2019ll raise the momentum and ROC thresholds (e.g., require >1.5\u00d7standard deviation) and add a trend filter such as an ADX > 25 or a longer EMA (50) to confirm direction. For a mediocre Sharpe, I\u2019ll widen the ATR stop to 3\u00d7, tighten the TP to 4\u00d7, and test a 30\u2011period EMA to reduce noise. Alternatively, I\u2019ll pivot to a breakout/mean\u2011reversion hybrid using Bollinger Bands or a volatility\u2011scaled VWAP filter, which may better capture ADA\u2019s 30\u2011minute dynamics while limiting false signals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.22804682057373,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4423728813559316
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining momentum and ROC captures price acceleration while an ADX filter above 25 guarantees a strong trend, filtering out false breakouts in choppy markets; ATR-based SL/TP scales risk to current volatility, preventing overexposure during high volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -378.58533703075335,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8876686720819734,
+      "win_rate_pct": 30.104712041884817,
+      "trades": 1528,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.135146419109787,
+          "trades_confidence": 10.0,
+          "win_rate": -1.4685863874345548
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -378.6%, PF 0.89, Expectancy -24.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3992.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.1%, Trades 1528, AvgW/L 650.36/315.57"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 21573,
+          "short_signals": 0,
+          "total_signals": 21573
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) The strategy trades excessively (\u224810k\u201315k per run) with a 2.2\u00d7ATR stop, likely causing frequent whipsaws in a 30\u2011min ADAUSDC chart and over\u2011sensitivity to noise; 2) The ADX filter (>25) is too rigid\u2014many legitimate trends fall below this threshold, while a high ADX can also persist in sideways markets; 3) Momentum and ROC are both linear and may lag, so the entry logic can be delayed, missing optimal points; 4) The exit condition is too simplistic (any negative momentum/ROC or ADX drop), leading to premature exits before a trend completes.\n[Backup plan] If the backtest remains negative, first try relaxing the ADX filter to >20 and use a 3\u2011period ROC to capture quicker acceleration. If Sharpe stays low, tighten the ATR stop to 1.8\u00d7ATR, increase TP to 8\u00d7ATR, and add a trailing stop based on a 5\u2011period EMA to lock gains. As an alternative, switch to a 1\u2011hour candle with a 50\u2011period EMA trend filter and a simple breakout strategy using the ATR range, which has historically performed better on ADAUSDC during volatile periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.135146419109787,
+            "trades_confidence": 10.0,
+            "win_rate": -1.4685863874345548
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Momentum and ROC together capture short\u2011term price acceleration; when both are positive and increasing momentum, a trend is building, while a reversal is signaled when either metric turns negative, providing clear entry and exit points. ATR\u2011based risk limits volatility\u2011driven drawdowns and locks in gains proportional to market noise.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -3003.252070505917,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.679433310154126,
+      "win_rate_pct": 28.564459080375652,
+      "trades": 8199,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -14.654477250097099,
+          "trades_confidence": 10.0,
+          "win_rate": -1.9306622758873042
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -3003.3%, PF 0.68, Expectancy -36.63"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1108.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.6%, Trades 8199, AvgW/L 271.79/159.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 19434,
+          "short_signals": 19795,
+          "total_signals": 39229
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may generate many whipsaws in sideways markets because it only checks for positive momentum and ROC without a trend filter or volatility context. 2. The fixed 2.2\u00d7ATR stop/6.4\u00d7ATR take\u2011profit can be too tight or too loose depending on market regime, leading to premature exits or missed moves. 3. Using raw momentum values (no threshold) can trigger on noise; the ROC condition alone may not capture true acceleration. 4. No position\u2011sizing or volatility\u2011adjusted scaling is applied, so risk per trade is not controlled relative to recent volatility.\n[Backup plan] If performance is negative, add a simple trend filter (e.g., 20\u2011period SMA or 50\u2011period EMA) and only trade when price is above it for longs, and require momentum > a small positive threshold (e.g., 0.5). If Sharpe is low, experiment with longer ATR multipliers for TP (e.g., 8\u00d7ATR) and tighter stops (e.g., 1.5\u00d7ATR), and extend the ROC look\u2011back to 10 periods to smooth out noise. If the strategy still fails, pivot to a volatility\u2011breakout approach: enter when price closes above a 20\u2011period high and exit at a fixed ATR multiple, or switch to a mean\u2011reversion on RSI/BB bands for ADAUSDC 30m."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -14.654477250097099,
+            "trades_confidence": 10.0,
+            "win_rate": -1.9306622758873042
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Bollinger band breakouts capture strong price moves while the RSI filter removes over\u2011extended entries; ATR\u2011based risk limits protect against sudden volatility spikes in the ADAUSDC 30\u2011minute market.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1148.5179542134026,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.744092332151752,
+      "win_rate_pct": 30.494595479855878,
+      "trades": 3053,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -11.69863624449134,
+          "trades_confidence": 10.0,
+          "win_rate": -1.3516213560432364
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1148.5%, PF 0.74, Expectancy -37.62"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 271.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.5%, Trades 3053, AvgW/L 358.70/211.50"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 3519,
+          "short_signals": 3903,
+          "total_signals": 7422
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy trades too frequently (8k+ trades) causing high slippage and fees; the Bollinger + RSI filters are too simplistic and may generate many false signals in a volatile crypto market. 2. If returns are negative, tighten the RSI filter (e.g., RSI>60 for longs, <40 for shorts) or add a volume filter to confirm breakouts. 3. If Sharpe is low, adjust ATR multipliers (e.g., stop 1.5x, TP 4x) and shorten Bollinger period to 10 or 12 to capture tighter moves. 4. As an alternative, switch to a momentum\u2011plus\u2011ROC strategy: enter when momentum rises and ROC is positive, exit on momentum reversal, using ATR\u2011based trailing stops to adapt to volatility.\n[Backup plan] Implement a dynamic risk management module: calculate a volatility\u2011adjusted stop based on recent ATR percentiles, and use a 20\u2011period EMA filter to ensure trend alignment before taking a breakout. Test the revised parameters on a 30\u2011minute ADAUSDC dataset and compare Sharpe and max drawdown to the original. If the new approach still underperforms, move to a multi\u2011time\u2011frame confirmation (e.g., 1\u2011hour trend + 30\u2011minute momentum) or a machine\u2011learning feature selection to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -11.69863624449134,
+            "trades_confidence": 10.0,
+            "win_rate": -1.3516213560432364
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Momentum and ROC together capture price acceleration; requiring both to be positive (or negative) and increasing filters out weak or random moves. Adding an ATR volatility filter ensures the strategy only trades when the market has enough movement, while ATR-based SL/TP scales risk to current volatility, reducing overtrading in low\u2011volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -367.6840798646214,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8874104972581772,
+      "win_rate_pct": 25.385694249649372,
+      "trades": 1426,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.146948696769042,
+          "trades_confidence": 10.0,
+          "win_rate": -2.8842917251051885
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -367.7%, PF 0.89, Expectancy -25.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 364.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 25.4%, Trades 1426, AvgW/L 800.56/306.93"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 20893,
+          "short_signals": 0,
+          "total_signals": 20893
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is highly sensitive to noise: it triggers on every small acceleration of momentum/ROC, leading to over\u2011trading and high transaction costs. The 2.2\u00d7ATR stop and 6.4\u00d7ATR take\u2011profit are static and may be too tight for a volatile asset like ADA, causing many early exits. There\u2019s no trend filter or position\u2011sizing logic, so it can open opposite\u2011direction trades in choppy markets.\n[Backup plan] If the backtest remains negative, I\u2019ll first add a simple trend filter (e.g., 50\u2011period SMA) and only trade when price is above (for longs) or below (for shorts) that SMA, and I\u2019ll increase the ATR stop to 3\u00d7ATR to reduce whipsaws. If the Sharpe is still low, I\u2019ll adjust the ROC period to a shorter 5\u2011period and tighten the entry condition to require ROC > previous ROC by at least 0.5% and momentum > 0.01. If the strategy still fails, I\u2019ll switch to a breakout\u2011based approach: trade on the 30\u2011min close crossing a 20\u2011period EMA with a 1.5\u00d7ATR trailing stop, or explore a mean\u2011reversion strategy using Bollinger Bands to capture pullbacks."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.146948696769042,
+            "trades_confidence": 10.0,
+            "win_rate": -2.8842917251051885
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a short\u2011term rate of change (ROC) with a trend confirmation from a 20\u2011period EMA reduces entry noise while ATR\u2011scaled stops and targets adapt to market volatility, thereby limiting large drawdowns that plagued the previous momentum\u2011only scheme.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -5089.688799848664,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6431520263345326,
+      "win_rate_pct": 27.681899765290623,
+      "trades": 14486,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.31305022470708,
+          "trades_confidence": 10.0,
+          "win_rate": -2.1954300704128134
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -5089.7%, PF 0.64, Expectancy -35.14"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 548.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 14486, AvgW/L 228.76/136.15"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 40147,
+          "short_signals": 40875,
+          "total_signals": 81022
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is too noisy: a simple ROC + EMA20 on 30\u2011m ADAUSDC generates 8k+ trades with high slippage, and the 2.2\u00d7ATR stop/6.4\u00d7ATR target may be too tight for crypto volatility, causing frequent stop\u2011outs before a move materialises. It also ignores volume, market regime, and does not adapt to trend strength, leading to false entries when the ROC is positive but the price is in a sideways zone.\n[Backup plan] If returns stay negative, switch to a two\u2011period ROC threshold (e.g., ROC>1%) and add an ADX>20 filter to confirm trend strength before entering. If Sharpe is low, increase the ATR stop to 3\u00d7ATR and target to 8\u00d7ATR to reduce whipsaw exits, and extend the EMA to 50 periods to smooth entry signals. As an alternative, try a breakout strategy using a 30\u2011m Donchian channel with ATR\u2011scaled stops, or a mean\u2011reversion system based on Bollinger bands that trades when price touches the upper/lower band and exits when it returns to the middle band."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.31305022470708,
+            "trades_confidence": 10.0,
+            "win_rate": -2.1954300704128134
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using momentum and ROC together captures the acceleration of price movement, while filtering with a 20\u2011period EMA ensures the signal aligns with the prevailing trend. This combination reduces whipsaws in ranging periods and focuses on genuine trend continuations, and ATR\u2011based risk limits adapt to volatility, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -3789.1154296829513,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6450114757999497,
+      "win_rate_pct": 23.52542372881356,
+      "trades": 10325,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -16.22804682057373,
+          "trades_confidence": 10.0,
+          "win_rate": -3.4423728813559316
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -3789.1%, PF 0.65, Expectancy -36.70"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 296.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 10325, AvgW/L 283.44/135.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 40147,
+          "short_signals": 40875,
+          "total_signals": 81022
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on raw momentum and ROC without a robust trend filter leads to many false positives, especially in a volatile crypto market; the 20\u2011period EMA is too short to dampen noise, causing frequent whipsaws. The tight 2.2\u00d7ATR stop and 6.4\u00d7ATR take\u2011profit may be mismatched to ADA\u2019s high volatility, resulting in premature exits and under\u2011capture of moves. High trade volume and negative Sharpe suggest the model is over\u2011trading and has a directional bias that isn\u2019t compensated by risk management.\n[Backup plan] If the backtest remains unprofitable, I\u2019ll raise the momentum and ROC thresholds (e.g., require >1.5\u00d7standard deviation) and add a trend filter such as an ADX > 25 or a longer EMA (50) to confirm direction. For a mediocre Sharpe, I\u2019ll widen the ATR stop to 3\u00d7, tighten the TP to 4\u00d7, and test a 30\u2011period EMA to reduce noise. Alternatively, I\u2019ll pivot to a breakout/mean\u2011reversion hybrid using Bollinger Bands or a volatility\u2011scaled VWAP filter, which may better capture ADA\u2019s 30\u2011minute dynamics while limiting false signals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -16.22804682057373,
+            "trades_confidence": 10.0,
+            "win_rate": -3.4423728813559316
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining momentum and ROC captures price acceleration while an ADX filter above 25 guarantees a strong trend, filtering out false breakouts in choppy markets; ATR-based SL/TP scales risk to current volatility, preventing overexposure during high volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -378.58533703075335,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8876686720819734,
+      "win_rate_pct": 30.104712041884817,
+      "trades": 1528,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -5.135146419109787,
+          "trades_confidence": 10.0,
+          "win_rate": -1.4685863874345548
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -378.6%, PF 0.89, Expectancy -24.78"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3992.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 30.1%, Trades 1528, AvgW/L 650.36/315.57"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 21573,
+          "short_signals": 0,
+          "total_signals": 21573
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) The strategy trades excessively (\u224810k\u201315k per run) with a 2.2\u00d7ATR stop, likely causing frequent whipsaws in a 30\u2011min ADAUSDC chart and over\u2011sensitivity to noise; 2) The ADX filter (>25) is too rigid\u2014many legitimate trends fall below this threshold, while a high ADX can also persist in sideways markets; 3) Momentum and ROC are both linear and may lag, so the entry logic can be delayed, missing optimal points; 4) The exit condition is too simplistic (any negative momentum/ROC or ADX drop), leading to premature exits before a trend completes.\n[Backup plan] If the backtest remains negative, first try relaxing the ADX filter to >20 and use a 3\u2011period ROC to capture quicker acceleration. If Sharpe stays low, tighten the ATR stop to 1.8\u00d7ATR, increase TP to 8\u00d7ATR, and add a trailing stop based on a 5\u2011period EMA to lock gains. As an alternative, switch to a 1\u2011hour candle with a 50\u2011period EMA trend filter and a simple breakout strategy using the ATR range, which has historically performed better on ADAUSDC during volatile periods."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -5.135146419109787,
+            "trades_confidence": 10.0,
+            "win_rate": -1.4685863874345548
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

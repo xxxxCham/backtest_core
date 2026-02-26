@@ -1,0 +1,244 @@
+{
+  "session_id": "20260223_023658_fiche_strategie_v1_id_trend_supertrend_a",
+  "objective": "FICHE_STRATEGIE v1\nid: trend_supertrend\narchetype: trend_supertrend\nfamily: trend\ntimeframe: 1h\nside: both\nindicators:\n- supertrend(atr_period=13, multiplier=3.0)\n- adx(period=22)\n- atr(period=14)\nentry:\n- long: supertrend.direction == 1 and adx.adx > 25\n- short: supertrend.direction == -1 and adx.adx > 25\nexit:\n- condition: direction_change(supertrend.direction) or adx.adx < 20\nrisk:\nstop_atr_mult: 2.75\ntp_atr_mult: 5.5\ndescription: ATR trailing stop (2.75x) and take-profit (5.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -20.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "The supertrend indicator captures trend direction based on ATR volatility; filtering entries with a strong ADX (>25) ensures the trend is established, while exiting on a supertrend reversal or weakening ADX (<20) reduces whipsaw losses. ATR-based stops and take\u2011profits scale risk to current volatility, keeping risk/reward consistent across market regimes.",
+      "change_type": "accept",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": 285.5117591713085,
+      "trades": 692,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +285.5%, PF 1.13, Expectancy 41.26"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 882.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.2%, Trades 692, AvgW/L 1065.68/492.34"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_023658_fiche_strategie_v1_id_trend_supertrend_a\\strategy.py\", line 114, in generate_signals\n    prev_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may over\u2011react to short\u2011term volatility because the SuperTrend with a 3\u00d7 multiplier can produce frequent direction changes on a 1\u2011hour chart; the ADX filter (>25) may eliminate many potential moves, especially in ranging markets. Exiting on any direction change or ADX <20 can close positions prematurely, reducing the average holding period and diminishing the risk\u2011reward profile. ATR\u2011based stops and TP (2.75\u00d7 and 5.5\u00d7) are fixed multiples and may not adapt well to sudden volatility spikes or lulls, leading to either whipsaw losses or missed profit opportunities. Slippage and execution lag on ADAUSDC can further erode returns, and the strategy ignores other market context such as trend strength on higher timeframes or volume confirmation.\n[Backup plan] If the backtest shows negative returns, first try reducing the ADX threshold to 20 or adding a 20\u2011period EMA filter to capture weaker but still directional moves. For a low Sharpe, tighten the stop to 2\u00d7 ATR and the TP to 4\u00d7 ATR or switch to a trailing\u2011stop\u2011only approach to lock in gains. If performance remains weak, replace SuperTrend with a double\u2011EMA crossover (e.g., 20/50) combined with ADX > 25 for entry, and exit on EMA cross\u2011under or a 15\u2011period RSI overbought/oversold trigger. Finally, consider a higher\u2011timeframe (4\u2011hour) confirmation to filter out noise and improve entry quality."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Supertrend identifies the prevailing trend, ADX confirms its strength, and RSI filters out entries when momentum is already exhausted, reducing choppy false signals and lowering drawdown while retaining trend\u2011following bias.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -379.13886360591584,
+      "trades": 2494,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -379.1%, PF 0.91, Expectancy -15.20"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1593.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.2%, Trades 2494, AvgW/L 475.17/269.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_023658_fiche_strategie_v1_id_trend_supertrend_a\\strategy.py\", line 95, in generate_signals\n    prev_direction[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may suffer from late entry/exit due to the lag of Supertrend and ADX, especially on a 1\u2011hour chart where price can move quickly. The RSI filter (70/30) can unnecessarily block trend\u2011continuing moves, increasing missed opportunities. A high trade count (692) raises slippage and commission impact, while a 2.75x ATR stop and 5.5x take\u2011profit may be too aggressive for ADA\u2019s volatility, causing premature exits. The fixed ATR periods (13/14) and ADX threshold (25) might not adapt to changing market regimes, leading to false signals in low\u2011trend\u2011strength periods.\n[Backup plan] If the backtest yields a negative return, drop the RSI filter and rely solely on Supertrend + ADX to reduce missed trend entries. For a mediocre Sharpe, tighten the stop to 2.0x ATR and raise the take\u2011profit to 6.0x ATR, or lower the ADX entry threshold to 20 to capture more trades with moderate strength. As a fallback, switch to a volatility\u2011breakout framework using Bollinger Band squeezes combined with a short\u2011term EMA crossover to capture momentum while preserving trend bias. This alternative can be backtested on the same 1\u2011hour ADAUSDC data to compare performance."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining the SuperTrend trend indicator with an ADX strength filter and a simple moving average trend confirmation reduces false entries during sideways or choppy markets, while ATR-based risk management keeps losses bounded in high volatility periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -138.22257517042817,
+      "trades": 638,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -138.2%, PF 0.93, Expectancy -21.66"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 104663.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.9%, Trades 638, AvgW/L 830.85/458.02"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: cannot convert float NaN to integer",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: cannot convert float NaN to integer",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_023658_fiche_strategie_v1_id_trend_supertrend_a\\strategy.py\", line 112, in generate_signals\n    prev_dir[0] = np.nan\nValueError: cannot convert float NaN to integer",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The rule set is over\u2011filtered: requiring ADX>25 and SMA alignment together with SuperTrend can kill early profits and increase slippage in volatile periods. 2. The ATR stop/TP constants (2.75/5.5) are fixed; they may be too tight on a high\u2011volatility asset like ADA, producing many premature exits. 3. The strategy ignores time\u2011of\u2011day or market regime, so it may take many trades in sideways markets, inflating transaction costs. 4. The exit logic includes a direction change or ADX drop, but not a trailing exit on the SuperTrend itself, risking loss of partial gains. 5. The backtest shows extreme volatility in Sharpe, hinting at parameter mis\u2011calibration or over\u2011fitting to the 1\u2011hour window.\n[Backup plan] - If returns are negative, drop the ADX filter (or lower the threshold to 20) and add a simple 50\u2011period EMA to keep the direction signal more robust. - If Sharpe is low, increase the ATR stop multiplier to 3.0 and TP to 6.0 to allow trades to breathe, and add a 5\u2011period trailing stop based on the SuperTrend line. - Reduce the number of trades by requiring a minimum 2\u2011bar SuperTrend confirmation before entry. - If still ineffective, switch to a breakout\u2011based approach: use a 20\u2011period ATR\u2011scaled volatility breakout with a 1\u2011hour trend filter (e.g., 200\u2011EMA) and a fixed 2\u2011day risk\u2011reward ratio. - Finally, test a dual\u2011timeframe filter (e.g., 4\u2011hour trend) to avoid choppy 1\u2011hour noise."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

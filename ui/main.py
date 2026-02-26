@@ -54,11 +54,13 @@ from ui.context import (
 )
 from ui.helpers import (
     ProgressMonitor,
+    apply_auto_market_stabilization_filter,
     build_strategy_params_for_comparison,
     render_progress_monitor,
     safe_load_data,
     load_selected_data,
     safe_run_backtest,
+    safe_run_walk_forward,
     safe_copy_cleanup,
     show_status,
     summarize_comparison_results,
@@ -583,6 +585,13 @@ def render_main(
     debug_enabled = state.debug_enabled
     max_combos = state.max_combos
     n_workers = state.n_workers
+    auto_stabilization_enabled = state.auto_stabilization_enabled
+    stabilization_method = state.stabilization_method
+    stabilization_window = state.stabilization_window
+    stabilization_volume_ratio_max = state.stabilization_volume_ratio_max
+    stabilization_volatility_ratio_max = state.stabilization_volatility_ratio_max
+    stabilization_min_consecutive_bars = state.stabilization_min_consecutive_bars
+    stabilization_min_bars_keep = state.stabilization_min_bars_keep
 
     llm_config = state.llm_config
     llm_model = state.llm_model
@@ -628,6 +637,88 @@ def render_main(
 
     def _format_combo_limit(value: int) -> str:
         return "illimitée" if value >= 1_000_000_000_000 else f"{value:,}"
+
+    def _prepare_market_df(
+        raw_df: pd.DataFrame,
+        *,
+        symbol_value: str,
+        timeframe_value: str,
+        show_ui: bool = True,
+    ) -> tuple[pd.DataFrame, Optional[Dict[str, Any]]]:
+        filtered_df, stab_info = apply_auto_market_stabilization_filter(
+            raw_df,
+            enabled=auto_stabilization_enabled,
+            method=stabilization_method,
+            window=stabilization_window,
+            volume_ratio_max=stabilization_volume_ratio_max,
+            volatility_ratio_max=stabilization_volatility_ratio_max,
+            min_consecutive_bars=stabilization_min_consecutive_bars,
+            min_bars_keep=stabilization_min_bars_keep,
+        )
+        if stab_info.get("applied"):
+            if show_ui:
+                st.caption(
+                    f"🛡️ Stabilisation {symbol_value}/{timeframe_value}: "
+                    f"-{stab_info.get('cut_bars', 0)} barres, départ {stab_info.get('start_ts', 'n/a')}"
+                )
+            return filtered_df, stab_info
+        return raw_df, None
+
+    def _attach_wfa_metrics(
+        run_result: Any,
+        run_df: pd.DataFrame,
+        run_params: Dict[str, Any],
+    ) -> tuple[Any, Optional[Any], str]:
+        if not state.use_walk_forward:
+            return run_result, None, ""
+        summary, message = safe_run_walk_forward(
+            run_df,
+            strategy_key,
+            run_params,
+            n_folds=state.wfa_n_folds,
+            train_ratio=state.wfa_train_ratio,
+            expanding=state.wfa_expanding,
+            initial_capital=state.initial_capital,
+            engine_config=engine.config,
+        )
+        if summary is None:
+            return run_result, None, message
+
+        robust_ratio = float(summary.avg_overfitting_ratio)
+        degradation = float(summary.degradation_pct)
+        test_sharpe = float(summary.avg_test_sharpe)
+        confidence = float(summary.confidence_score)
+
+        # Score anti-overfit simple: privilégie test_sharpe, ratio robuste faible et faible dégradation.
+        sharpe_component = max(0.0, min(1.0, (test_sharpe + 2.0) / 4.0))
+        ratio_component = max(0.0, min(1.0, 1.0 - max(0.0, robust_ratio - 1.0) / 2.0))
+        degradation_component = max(0.0, min(1.0, 1.0 - degradation / 100.0))
+        anti_overfit_score = (
+            0.4 * sharpe_component
+            + 0.35 * ratio_component
+            + 0.25 * degradation_component
+        )
+
+        run_result.metrics["wfa_enabled"] = True
+        run_result.metrics["wfa_is_robust"] = bool(summary.is_robust)
+        run_result.metrics["wfa_n_valid_folds"] = int(summary.n_valid_folds)
+        run_result.metrics["wfa_avg_train_sharpe"] = float(summary.avg_train_sharpe)
+        run_result.metrics["wfa_avg_test_sharpe"] = test_sharpe
+        run_result.metrics["wfa_overfitting_ratio"] = robust_ratio
+        run_result.metrics["wfa_degradation_pct"] = degradation
+        run_result.metrics["wfa_test_stability_std"] = float(summary.test_stability_std)
+        run_result.metrics["wfa_confidence_score"] = confidence
+        run_result.metrics["anti_overfit_score"] = float(anti_overfit_score)
+        run_result.meta["walk_forward"] = summary.to_dict()
+
+        verdict = "✅ robuste" if summary.is_robust else "⚠️ overfitting probable"
+        return run_result, summary, (
+            f"WFA {verdict} | folds={summary.n_valid_folds} | "
+            f"test_sharpe={summary.avg_test_sharpe:.2f} | "
+            f"ratio={summary.avg_overfitting_ratio:.2f} | "
+            f"dégradation={summary.degradation_pct:.1f}% | "
+            f"anti_overfit={anti_overfit_score:.2f}"
+        )
 
     if run_button:
         st.session_state.is_running = True
@@ -715,6 +806,13 @@ def render_main(
                     })
                     overall_progress.progress(idx / total_sweeps)
                     continue
+
+                df, _ = _prepare_market_df(
+                    df,
+                    symbol_value=sym,
+                    timeframe_value=tf,
+                    show_ui=False,
+                )
 
                 combo_engine = BacktestEngine(initial_capital=state.initial_capital)
 
@@ -854,34 +952,52 @@ def render_main(
             st.session_state.is_running = False
             return
 
-        df = st.session_state.get("ohlcv_df")
-        data_msg = st.session_state.get("ohlcv_status_msg", "")
+        with st.spinner("📥 Chargement des données..."):
+            df = st.session_state.get("ohlcv_df")
+            data_msg = st.session_state.get("ohlcv_status_msg", "")
 
-        # Le mode Strategy Builder gère son propre chargement marché/token
-        # (notamment en autonome avec sélection LLM), donc on n'impose pas
-        # de préchargement ici.
-        if optimization_mode != "🏗️ Strategy Builder":
-            with st.spinner("📥 Chargement des données..."):
-                if df is None:
-                    df, data_msg = load_selected_data(
-                        symbol,
-                        timeframe,
-                        state.start_date,
-                        state.end_date,
-                    )
+            if df is None:
+                df, data_msg = load_selected_data(
+                    symbol,
+                    timeframe,
+                    state.start_date,
+                    state.end_date,
+                )
 
-                if df is None:
-                    with status_container:
-                        show_status("error", f"Échec chargement: {data_msg}")
-                        st.info(
-                            "💡 Vérifiez les fichiers dans "
-                            "`D:\\.my_soft\\gestionnaire_telechargement_multi-timeframe\\processed\\parquet\\`"
-                        )
-                    st.session_state.is_running = False
-                    st.stop()
+            if df is None:
+                data_dir_hint = None
+                try:
+                    from data.loader import _get_data_dir
 
+                    data_dir_hint = str(_get_data_dir())
+                except Exception:
+                    data_dir_hint = None
+                with status_container:
+                    show_status("error", f"Échec chargement: {data_msg}")
+                    if data_dir_hint:
+                        st.info(f"💡 Vérifiez les fichiers dans `{data_dir_hint}`")
+                    else:
+                        st.info("💡 Vérifiez la configuration de vos chemins de données.")
+                st.session_state.is_running = False
+                st.stop()
+
+            if df is not None:
+                df, stabilization_info = _prepare_market_df(
+                    df,
+                    symbol_value=symbol,
+                    timeframe_value=timeframe,
+                )
                 with status_container:
                     show_status("success", f"Données chargées: {data_msg}")
+                    if stabilization_info is not None:
+                        show_status(
+                            "info",
+                            (
+                                f"Stabilisation auto appliquée: "
+                                f"-{stabilization_info.get('cut_bars', 0)} barres "
+                                f"(départ {stabilization_info.get('start_ts', 'n/a')})"
+                            ),
+                        )
 
         engine = BacktestEngine(initial_capital=state.initial_capital)
 
@@ -905,6 +1021,10 @@ def render_main(
 
             with status_container:
                 show_status("success", f"Backtest terminé: {result_msg}")
+            result, _, wfa_msg = _attach_wfa_metrics(result, df, params)
+            if wfa_msg:
+                with status_container:
+                    show_status("info", wfa_msg)
             winner_params = result.meta.get("params", params)
             winner_metrics = result.metrics
             winner_origin = "backtest"
@@ -1109,6 +1229,8 @@ def render_main(
             completed = 0
             last_render_time = time.perf_counter()
             start_time = time.perf_counter()
+            from utils.sweep_diagnostics import SweepDiagnostics
+            diag = SweepDiagnostics(run_id=f"grid_{strategy_key}")
 
             def run_sequential_combos(combo_source, key_prefix: str) -> None:
                 nonlocal completed, last_render_time
@@ -1159,9 +1281,6 @@ def render_main(
                 except ImportError:  # pragma: no cover - fallback for older runtimes
                     BrokenProcessPool = RuntimeError
 
-                # Système de diagnostic
-                from utils.sweep_diagnostics import SweepDiagnostics
-                diag = SweepDiagnostics(run_id=f"grid_{strategy_key}")
                 diag.log_pool_start(n_workers_effective, worker_thread_limit, total_runs)
 
                 logger = logging.getLogger(__name__)
@@ -1533,6 +1652,9 @@ def render_main(
                     silent_mode=not debug_enabled,
                 )
                 if result is not None:
+                    result, _, wfa_msg = _attach_wfa_metrics(result, df, best_params)
+                    if wfa_msg:
+                        show_status("info", wfa_msg)
                     winner_params = best_params
                     winner_metrics = result.metrics
                     winner_origin = "grid"
@@ -1639,6 +1761,12 @@ def render_main(
                             if df_cmp is None:
                                 comparison_errors.append(f"{token}/{tf}: {msg}")
                             else:
+                                df_cmp, _ = _prepare_market_df(
+                                    df_cmp,
+                                    symbol_value=token,
+                                    timeframe_value=tf,
+                                    show_ui=False,
+                                )
                                 data_cache[(token, tf)] = df_cmp
 
                     valid_pairs = list(data_cache.keys())
@@ -1952,6 +2080,9 @@ def render_main(
                             silent_mode=not debug_enabled,
                         )
                         if result is not None:
+                            result, _, wfa_msg = _attach_wfa_metrics(result, df, best_params)
+                            if wfa_msg:
+                                show_status("info", wfa_msg)
                             winner_params = best_params
                             winner_metrics = result.metrics
                             winner_origin = "llm"
@@ -2115,6 +2246,9 @@ def render_main(
                         silent_mode=not debug_enabled,
                     )
                     if result is not None:
+                        result, _, wfa_msg = _attach_wfa_metrics(result, df, best_params)
+                        if wfa_msg:
+                            show_status("info", wfa_msg)
                         winner_params = best_params
                         winner_metrics = result.metrics
                         winner_origin = "llm"

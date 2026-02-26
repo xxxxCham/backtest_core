@@ -1,0 +1,2300 @@
+{
+  "session_id": "20260225_100229_objectif_de_strat_gie_utiliser_l_adaptiv",
+  "objective": "Objectif de strat\u00e9gie : \"Utiliser l'Adaptive_Regime (AF) avec un temps horaire adaptatif et une gestion du risque non lineaire pour gating par volatilite implicite/realisee, sur le token NILUSDC en timeframe 4h. Indice AF sera combin\u00e9 a EMA + OBV. Mode de session/horaire ajout\u00e9 pour filtrer la volatility intrins\u00e8que et extraire les comportements al\u00e9atoires.",
+  "status": "failed",
+  "best_sharpe": 0.8760708228754345,
+  "best_score": 80.2984970122796,
+  "total_iterations": 10,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'generate_signals' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'generate_signals' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_100229_objectif_de_strat_gie_utiliser_l_adaptiv\\strategy.py\", line 58, in generate_signals\n    return generate_signals(df, indicators, params)\nNameError: name 'generate_signals' is not defined",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The proposed strategy aims to use the Adaptive Regime with adaptive time frame, non-linear risk management and implicit/realized volatility gate on NILUSDC token in 4h timeframe. An additional trading session/hour added for filtering intrinsic volatility and extracting random behaviors. Momentum indicator RSI, exponential moving average EMA, average true range ATR are used for entry long confirmation along with stop loss. The output JSON format is {"
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Utilizing an adaptive regime with an hourly time frame and risk management not linear to extract random behavior, gate volatility implicitly/realized, on the XRPUSDT token. The Bollinger band and EMA will be combined along with a filter for volatile regimes and inherent volatility.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy employs an adaptive regime, Bollinger Bands and EMA to gate volatility implicitly/realized. It has shown promising results in the past with high Sharpe ratio but it's important to be prepared for potential weaknesses or mediocre performance. Potential changes include adjusting parameters such as time frame, risk management methods etc.\n[Backup plan] If results are poor (negative return), we could start by checking if there might have been any issues with data quality or missing bars in the backtest. We could also analyze whether our Bollinger Bands and EMA settings are appropriate for the current market conditions. If results are mediocre (low Sharpe ratio), we may try adjusting parameters such as time frame, risk management methods etc."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is well-defined and uses robust indicators such as RSI, EMA, and ATR. However, the use of adaptive regime might introduce some unpredictability in market conditions. Additionally, there's a lack of diversification across different assets or strategies within this single strategy. Potential weaknesses include overfitting and exposure to idiosyncratic risks associated with any particular asset. If results are poor (negative return), increasing diversification could be tried. For mediocre returns, improving the Sharpe ratio might require optimizing the parameters of each indicator individually."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using ADR, Donchian band and various momentum indicators to identify trend reversal points in NILUSDC's 4-hour price data.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy has shown promising results in previous iterations, but it's important to anticipate potential weaknesses. Furthermore, having a backup plan is crucial for dealing with adverse outcomes or subpar performance. The proposed backup plans include adjustments of the time frame, indicators and adding filters based on other market data."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is aimed at using adaptive regime with an adaptive time frame and non-linear risk management to filter the intrinsic volatility on NILUSDC token in 4h timeframe. The Adaptive Regime index will be combined with EMA and OBV. An additional session/hour added for filtering out the intrinsic volatility. This strategy has a good historical performance as per sharpe ratio of 0.876, trades=37 returns +43.46%. However, it's important to consider potential weaknesses such as market conditions where this approach might not perform well or any changes in underlying asset behavior which may affect the results.\n[Backup plan] 1. If the strategy fails to generate positive results despite good historical performance, we can try adjusting parameters like increasing trade frequency, adding more indicators, etc. 2. In case of poor returns (negative return), we could modify the risk management system by introducing a stop-loss or modifying it based on market conditions and volatility levels. 3. If Sharpe ratio is low, we might explore improving the strategy through rebalancing assets, using hedging strategies, or increasing diversification."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is using adaptive regime with time-adaptive and nonlinear risk management to gate by implied/realized volatility, NILUSDC token in 4h timeframe. It also includes an added market session for filtering intrinsic volatility and random behavior. The indicators used are RSI, EMA and ATR. Entry long if higher momentum is confirmed and controlled risks. Exit on signal reversal or invalidation of momentum. Recent iterations have shown good sharpe ratio but it's still running the backtest so we need to wait for results.\n[Backup plan] 1. Potential weaknesses include possible overfitting as strategy uses many indicators and adaptive regime may not always work well in changing market conditions. 2. If returns are poor, a change could be trying different set of indicators or using simpler risk management techniques. 3. Parameter adjustments like reducing the timeframe can help improve performance if Sharpe ratio is low currently. 4. Alternative approach could be to use mean reversion strategy instead for better results."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 4,
+            "llm_positive": 3,
+            "fallback_positive": 1
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy seems to have performed well in previous iterations, but it is important to remain cautious as backtests may not always reflect real market conditions. Weaknesses of this strategy include potential limitations in capturing sudden shifts in market conditions and the risk of overfitting with a high-frequency trading approach. In case of poor results (negative return), we could consider adding more filters or changing the lookback period for historical data. For mediocre results, adjustments to parameters such as the moving average window size or the number of standard deviations used can be tried. If the current strategy fails, alternative approaches could include incorporating fundamental analysis, using a different type of indicator or model, or diversifying trading across multiple assets."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 7
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Ajustement structurel bas\u00e9 sur le diagnostic pr\u00e9c\u00e9dent.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy uses Adaptive regime with time adaptive and non-linear risk management to filter out market volatility. It is tested on the NILUSDC token for 4 hours timeframe using RSI, Bollinger Bands, and ATR indicators. The results are promising but there could be weaknesses like not accounting for other factors affecting price changes or overfitting the data. If returns are poor, trying a different time frame or changing the number of periods used in each indicator might help. For low Sharpe ratio, adjusting the risk level or using multiple regression analysis to improve model accuracy may enhance performance."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 8
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "Combining Bollinger bands, ATR and ADX indicators to improve trade signals for a more stable market condition.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is aimed at improving trade signals by combining Bollinger bands, ATR and ADX indicators. The results so far are promising with high Sharpe ratios and low drawdowns. However, the market conditions may change in future iterations which could affect performance. Additionally, there's a risk of overfitting due to the complexity of the model.\n[Backup plan] In case of poor results (negative return), we can try simplifying the model by reducing the number of indicators or adjusting their parameters. If results are mediocre (low Sharpe), we can try increasing the window size for ATR and Bollinger bands, as larger windows may provide better signals. In case of failure of current approach, we could consider other sentiment-based strategies or trend-following strategies."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 9,
+            "required_positive": 2,
+            "observed_positive": 5,
+            "llm_positive": 4,
+            "fallback_positive": 1
+          }
+        }
+      },
+      "rank": 9
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "Utilizing an Adaptive regime with a time-based adaptive filter for volatility and a ATR based risk management, combined with a Bollinger bands and On-Balance Volume (OBV) to identify trend strength and volume imbalances respectively, will result in improved trading outcomes.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy aims to improve trading outcomes using an Adaptive regime, ATR based risk management, Bollinger Bands and On Balance Volume. Weaknesses may include overfitting or lack of robustness against market conditions. In case results are poor (-ve return), we could consider other regimes like mean reversion or news-based strategies. For mediocre Sharpe ratio (>0 but <1) we can try optimizing parameters for better performance. If the current strategy fails, we might explore a machine learning approach.\n[Backup plan] [\"Investigate potential overfitting and robustness issues with this strategy's implementation. Consider alternative regimes like mean reversion or news-based strategies if initial results are poor. Optimize parameters to improve Sharpe ratio for mediocre performance. Explore the use of Machine Learning approaches in case of failure.\"]"
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 10
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'generate_signals' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'generate_signals' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_100229_objectif_de_strat_gie_utiliser_l_adaptiv\\strategy.py\", line 58, in generate_signals\n    return generate_signals(df, indicators, params)\nNameError: name 'generate_signals' is not defined",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The proposed strategy aims to use the Adaptive Regime with adaptive time frame, non-linear risk management and implicit/realized volatility gate on NILUSDC token in 4h timeframe. An additional trading session/hour added for filtering intrinsic volatility and extracting random behaviors. Momentum indicator RSI, exponential moving average EMA, average true range ATR are used for entry long confirmation along with stop loss. The output JSON format is {"
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Utilizing an adaptive regime with an hourly time frame and risk management not linear to extract random behavior, gate volatility implicitly/realized, on the XRPUSDT token. The Bollinger band and EMA will be combined along with a filter for volatile regimes and inherent volatility.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy employs an adaptive regime, Bollinger Bands and EMA to gate volatility implicitly/realized. It has shown promising results in the past with high Sharpe ratio but it's important to be prepared for potential weaknesses or mediocre performance. Potential changes include adjusting parameters such as time frame, risk management methods etc.\n[Backup plan] If results are poor (negative return), we could start by checking if there might have been any issues with data quality or missing bars in the backtest. We could also analyze whether our Bollinger Bands and EMA settings are appropriate for the current market conditions. If results are mediocre (low Sharpe ratio), we may try adjusting parameters such as time frame, risk management methods etc."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is well-defined and uses robust indicators such as RSI, EMA, and ATR. However, the use of adaptive regime might introduce some unpredictability in market conditions. Additionally, there's a lack of diversification across different assets or strategies within this single strategy. Potential weaknesses include overfitting and exposure to idiosyncratic risks associated with any particular asset. If results are poor (negative return), increasing diversification could be tried. For mediocre returns, improving the Sharpe ratio might require optimizing the parameters of each indicator individually."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using ADR, Donchian band and various momentum indicators to identify trend reversal points in NILUSDC's 4-hour price data.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy has shown promising results in previous iterations, but it's important to anticipate potential weaknesses. Furthermore, having a backup plan is crucial for dealing with adverse outcomes or subpar performance. The proposed backup plans include adjustments of the time frame, indicators and adding filters based on other market data."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is aimed at using adaptive regime with an adaptive time frame and non-linear risk management to filter the intrinsic volatility on NILUSDC token in 4h timeframe. The Adaptive Regime index will be combined with EMA and OBV. An additional session/hour added for filtering out the intrinsic volatility. This strategy has a good historical performance as per sharpe ratio of 0.876, trades=37 returns +43.46%. However, it's important to consider potential weaknesses such as market conditions where this approach might not perform well or any changes in underlying asset behavior which may affect the results.\n[Backup plan] 1. If the strategy fails to generate positive results despite good historical performance, we can try adjusting parameters like increasing trade frequency, adding more indicators, etc. 2. In case of poor returns (negative return), we could modify the risk management system by introducing a stop-loss or modifying it based on market conditions and volatility levels. 3. If Sharpe ratio is low, we might explore improving the strategy through rebalancing assets, using hedging strategies, or increasing diversification."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is using adaptive regime with time-adaptive and nonlinear risk management to gate by implied/realized volatility, NILUSDC token in 4h timeframe. It also includes an added market session for filtering intrinsic volatility and random behavior. The indicators used are RSI, EMA and ATR. Entry long if higher momentum is confirmed and controlled risks. Exit on signal reversal or invalidation of momentum. Recent iterations have shown good sharpe ratio but it's still running the backtest so we need to wait for results.\n[Backup plan] 1. Potential weaknesses include possible overfitting as strategy uses many indicators and adaptive regime may not always work well in changing market conditions. 2. If returns are poor, a change could be trying different set of indicators or using simpler risk management techniques. 3. Parameter adjustments like reducing the timeframe can help improve performance if Sharpe ratio is low currently. 4. Alternative approach could be to use mean reversion strategy instead for better results."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 4,
+            "llm_positive": 3,
+            "fallback_positive": 1
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy seems to have performed well in previous iterations, but it is important to remain cautious as backtests may not always reflect real market conditions. Weaknesses of this strategy include potential limitations in capturing sudden shifts in market conditions and the risk of overfitting with a high-frequency trading approach. In case of poor results (negative return), we could consider adding more filters or changing the lookback period for historical data. For mediocre results, adjustments to parameters such as the moving average window size or the number of standard deviations used can be tried. If the current strategy fails, alternative approaches could include incorporating fundamental analysis, using a different type of indicator or model, or diversifying trading across multiple assets."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 7
+    },
+    {
+      "iteration": 8,
+      "hypothesis": "Ajustement structurel bas\u00e9 sur le diagnostic pr\u00e9c\u00e9dent.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy uses Adaptive regime with time adaptive and non-linear risk management to filter out market volatility. It is tested on the NILUSDC token for 4 hours timeframe using RSI, Bollinger Bands, and ATR indicators. The results are promising but there could be weaknesses like not accounting for other factors affecting price changes or overfitting the data. If returns are poor, trying a different time frame or changing the number of periods used in each indicator might help. For low Sharpe ratio, adjusting the risk level or using multiple regression analysis to improve model accuracy may enhance performance."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 8
+    },
+    {
+      "iteration": 9,
+      "hypothesis": "Combining Bollinger bands, ATR and ADX indicators to improve trade signals for a more stable market condition.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is aimed at improving trade signals by combining Bollinger bands, ATR and ADX indicators. The results so far are promising with high Sharpe ratios and low drawdowns. However, the market conditions may change in future iterations which could affect performance. Additionally, there's a risk of overfitting due to the complexity of the model.\n[Backup plan] In case of poor results (negative return), we can try simplifying the model by reducing the number of indicators or adjusting their parameters. If results are mediocre (low Sharpe), we can try increasing the window size for ATR and Bollinger bands, as larger windows may provide better signals. In case of failure of current approach, we could consider other sentiment-based strategies or trend-following strategies."
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 9,
+            "required_positive": 2,
+            "observed_positive": 5,
+            "llm_positive": 4,
+            "fallback_positive": 1
+          }
+        }
+      },
+      "rank": 9
+    },
+    {
+      "iteration": 10,
+      "hypothesis": "Utilizing an Adaptive regime with a time-based adaptive filter for volatility and a ATR based risk management, combined with a Bollinger bands and On-Balance Volume (OBV) to identify trend strength and volume imbalances respectively, will result in improved trading outcomes.",
+      "change_type": "params",
+      "diagnostic_category": "approaching_target",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 0.8760708228754345,
+      "return_pct": 43.463536851167284,
+      "max_drawdown_pct": -36.836884177782586,
+      "profit_factor": 1.3474668880987863,
+      "win_rate_pct": 43.24324324324324,
+      "trades": 37,
+      "continuous_score": 80.2984970122796,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 24.529983040512164,
+          "return": 44.0,
+          "profit_factor": 15.884200598801662,
+          "trades_confidence": 6.166666666666667,
+          "win_rate": 2.472972972972973
+        },
+        "penalties": {
+          "drawdown_pressure": 11.224589451855058,
+          "drawdown_excess": 1.5307368148188218,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 0.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 1.8368841777825864
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +43.5%, PF 1.35, Expectancy 117.47"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 36.8%, Vol 42.5%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.876, Sortino 0.690, Calmar 1.384"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 43.2%, Trades 37, AvgW/L 1053.44/595.65"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 24,
+          "short_signals": 17,
+          "total_signals": 41
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy aims to improve trading outcomes using an Adaptive regime, ATR based risk management, Bollinger Bands and On Balance Volume. Weaknesses may include overfitting or lack of robustness against market conditions. In case results are poor (-ve return), we could consider other regimes like mean reversion or news-based strategies. For mediocre Sharpe ratio (>0 but <1) we can try optimizing parameters for better performance. If the current strategy fails, we might explore a machine learning approach.\n[Backup plan] [\"Investigate potential overfitting and robustness issues with this strategy's implementation. Consider alternative regimes like mean reversion or news-based strategies if initial results are poor. Optimize parameters to improve Sharpe ratio for mediocre performance. Explore the use of Machine Learning approaches in case of failure.\"]"
+        },
+        "scoring": {
+          "continuous_score": 80.2984970122796,
+          "drawdown_excess_pct": 1.8368841777825864,
+          "components": {
+            "sharpe": 24.529983040512164,
+            "return": 44.0,
+            "profit_factor": 15.884200598801662,
+            "trades_confidence": 6.166666666666667,
+            "win_rate": 2.472972972972973
+          },
+          "penalties": {
+            "drawdown_pressure": 11.224589451855058,
+            "drawdown_excess": 1.5307368148188218,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 0.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 10
+    }
+  ]
+}

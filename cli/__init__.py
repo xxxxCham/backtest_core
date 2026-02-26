@@ -29,6 +29,7 @@ from .commands import (
     cmd_backtest,
     cmd_benchmark,
     cmd_builder,
+    cmd_catalog,
     cmd_check_gpu,
     cmd_cycle,
     cmd_export,
@@ -168,8 +169,18 @@ Exemples:
     )
     backtest_parser.add_argument(
         "-s", "--strategy",
-        required=True,
+        required=False,
         help="Nom de la stratégie"
+    )
+    backtest_parser.add_argument(
+        "--from-category",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (catégorie)",
+    )
+    backtest_parser.add_argument(
+        "--from-tag",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (tag)",
     )
     backtest_parser.add_argument(
         "-d", "--data",
@@ -241,8 +252,18 @@ Exemples:
     )
     sweep_parser.add_argument(
         "-s", "--strategy",
-        required=True,
+        required=False,
         help="Nom de la stratégie"
+    )
+    sweep_parser.add_argument(
+        "--from-category",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (catégorie)",
+    )
+    sweep_parser.add_argument(
+        "--from-tag",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (tag)",
     )
     sweep_parser.add_argument(
         "-d", "--data",
@@ -395,8 +416,18 @@ Exemples:
     )
     optuna_parser.add_argument(
         "-s", "--strategy",
-        required=True,
+        required=False,
         help="Nom de la stratégie"
+    )
+    optuna_parser.add_argument(
+        "--from-category",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (catégorie)",
+    )
+    optuna_parser.add_argument(
+        "--from-tag",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (tag)",
     )
     optuna_parser.add_argument(
         "-d", "--data",
@@ -610,8 +641,18 @@ Exemples:
     )
     llm_optimize_parser.add_argument(
         "-s", "--strategy",
-        required=True,
+        required=False,
         help="Nom de la stratégie"
+    )
+    llm_optimize_parser.add_argument(
+        "--from-category",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (catégorie)",
+    )
+    llm_optimize_parser.add_argument(
+        "--from-tag",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (tag)",
     )
     llm_optimize_parser.add_argument(
         "--symbol",
@@ -696,8 +737,18 @@ Exemples:
     )
     grid_backtest_parser.add_argument(
         "-s", "--strategy",
-        required=True,
+        required=False,
         help="Nom de la stratégie"
+    )
+    grid_backtest_parser.add_argument(
+        "--from-category",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (catégorie)",
+    )
+    grid_backtest_parser.add_argument(
+        "--from-tag",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (tag)",
     )
     grid_backtest_parser.add_argument(
         "--symbol",
@@ -817,6 +868,11 @@ Exemples:
         help="Afficher les statistiques globales"
     )
     analyze_parser.add_argument(
+        "--hydrate",
+        action="store_true",
+        help="Compléter les métriques depuis runs/<run_id>/metrics.json (plus lent)"
+    )
+    analyze_parser.add_argument(
         "-o", "--output",
         type=str,
         help="Fichier de sortie pour l'analyse"
@@ -831,8 +887,18 @@ Exemples:
     )
     cycle_parser.add_argument(
         "-s", "--strategy",
-        required=True,
+        required=False,
         help="Nom de la stratégie"
+    )
+    cycle_parser.add_argument(
+        "--from-category",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (catégorie)",
+    )
+    cycle_parser.add_argument(
+        "--from-tag",
+        action="append",
+        help="Sélectionner les stratégies depuis le catalog (tag)",
     )
     cycle_parser.add_argument(
         "-d", "--data",
@@ -1096,6 +1162,59 @@ Exemples:
         help="Modèle LLM à utiliser (override $BACKTEST_LLM_MODEL)",
     )
 
+    # === CATALOG ===
+    catalog_parser = subparsers.add_parser(
+        "catalog",
+        parents=[common_parser],
+        help="Gérer le Strategy Catalog",
+        description="Lister et déplacer les entrées du catalog de stratégies",
+    )
+    catalog_sub = catalog_parser.add_subparsers(dest="catalog_action")
+
+    catalog_list = catalog_sub.add_parser(
+        "list",
+        parents=[common_parser],
+        help="Lister les entrées du catalog",
+    )
+    catalog_list.add_argument("--category", action="append", help="Filtrer par catégorie")
+    catalog_list.add_argument("--tag", action="append", help="Filtrer par tag")
+    catalog_list.add_argument("--status", type=str, default="active", help="Statut (active/archived)")
+    catalog_list.add_argument("--symbol", type=str, help="Filtrer par symbole")
+    catalog_list.add_argument("--timeframe", type=str, help="Filtrer par timeframe")
+    catalog_list.add_argument("--strategy", type=str, help="Filtrer par stratégie")
+    catalog_list.add_argument("--json", action="store_true", help="Sortie JSON")
+
+    catalog_move = catalog_sub.add_parser(
+        "move",
+        parents=[common_parser],
+        help="Déplacer des entrées vers une catégorie",
+    )
+    catalog_move.add_argument("--id", nargs="+", required=True, help="IDs à déplacer")
+    catalog_move.add_argument("--to", required=True, help="Nouvelle catégorie")
+
+    catalog_tag = catalog_sub.add_parser(
+        "tag",
+        parents=[common_parser],
+        help="Tagger des entrées",
+    )
+    catalog_tag.add_argument("--id", nargs="+", required=True, help="IDs à tagger")
+    catalog_tag.add_argument("--tag", required=True, help="Tag à ajouter")
+
+    catalog_note = catalog_sub.add_parser(
+        "note",
+        parents=[common_parser],
+        help="Ajouter/modifier une note",
+    )
+    catalog_note.add_argument("--id", required=True, help="ID de l'entrée")
+    catalog_note.add_argument("--note", required=True, help="Note à enregistrer")
+
+    catalog_archive = catalog_sub.add_parser(
+        "archive",
+        parents=[common_parser],
+        help="Archiver des entrées",
+    )
+    catalog_archive.add_argument("--id", nargs="+", required=True, help="IDs à archiver")
+
     return parser
 
 
@@ -1143,6 +1262,7 @@ def main(args: Optional[list] = None) -> int:
         "analyze": cmd_analyze,
         "cycle": cmd_cycle,
         "builder": cmd_builder,
+        "catalog": cmd_catalog,
     }
 
     try:

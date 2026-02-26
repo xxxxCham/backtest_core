@@ -20,10 +20,11 @@ Read-if: Modification formats supports ou paths par défaut.
 Skip-if: Vous appelez load_ohlcv(filename).
 """
 
+import json
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -40,16 +41,33 @@ logger = get_logger(__name__)
 TRIM_LAUNCH_PCT = float(os.environ.get("BACKTEST_TRIM_LAUNCH_PCT", "2"))
 TRIM_LAUNCH_MIN_HOURS = int(os.environ.get("BACKTEST_TRIM_LAUNCH_MIN_HOURS", "24"))
 
-# Mapping timeframe → timedelta (réutilisé par detect_gaps et trim)
-_TF_UNIT_MAP = {"m": "min", "h": "h", "d": "D", "w": "W", "M": "ME"}
-
-
 def _timeframe_to_timedelta(timeframe: str) -> pd.Timedelta:
     """Convertit un timeframe string ('1h', '15m', '1d') en pd.Timedelta."""
+    if not timeframe or len(timeframe) < 2:
+        raise ValueError(f"Timeframe invalide: '{timeframe}'")
+
     unit = timeframe[-1]
-    amount = int(timeframe[:-1])
-    freq = f"{amount}{_TF_UNIT_MAP.get(unit, 'h')}"
-    return pd.Timedelta(freq)
+    try:
+        amount = int(timeframe[:-1])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Timeframe invalide: '{timeframe}'") from exc
+
+    if amount <= 0:
+        raise ValueError(f"Timeframe invalide (<=0): '{timeframe}'")
+
+    if unit == "m":
+        return pd.Timedelta(minutes=amount)
+    if unit == "h":
+        return pd.Timedelta(hours=amount)
+    if unit == "d":
+        return pd.Timedelta(days=amount)
+    if unit == "w":
+        return pd.Timedelta(weeks=amount)
+    if unit == "M":
+        # Timedelta ne supporte pas "ME" (MonthEnd). Approximation cohérente avec le reste du code.
+        return pd.Timedelta(days=30 * amount)
+
+    raise ValueError(f"Unité de timeframe non supportée: '{timeframe}'")
 
 
 def _trim_launch_period(
@@ -168,29 +186,69 @@ SUPPORTED_EXTENSIONS = (".parquet", ".feather", ".csv", ".json")
 # Répertoire de données par défaut
 DEFAULT_DATA_DIR = Path(__file__).parent / "sample_data"
 
-# Chemin données principales - priorité variable d'environnement
-THREADX_DATA_DIR = Path(
-    os.environ.get(
-        "BACKTEST_CORE_DATA_DIR",
-        r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet",
-    )
-)
+def _optional_env_path(key: str) -> Optional[Path]:
+    value = os.environ.get(key)
+    if not value:
+        return None
+    return Path(value)
 
-# Chemin gestionnaire multi-timeframe (données mises à jour) - priorité variable d'environnement
-GESTIONNAIRE_DATA_DIR = Path(
-    os.environ.get(
-        "BACKTEST_CORE_GESTIONNAIRE_DIR",
-        r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet",
-    )
-)
 
-# Chemin données brutes gestionnaire (fallback) - priorité variable d'environnement
-GESTIONNAIRE_RAW_DIR = Path(
-    os.environ.get(
-        "BACKTEST_CORE_RAW_DIR",
-        r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed",
-    )
-)
+def _dedupe_paths(paths: List[Path]) -> List[Path]:
+    """Supprime les doublons de chemins en conservant l'ordre."""
+    seen = set()
+    out: List[Path] = []
+    for path in paths:
+        key = str(path).lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(path)
+    return out
+
+
+def _build_legacy_windows_data_dirs() -> List[Path]:
+    """Construit des candidats Windows connus pour auto-détection data."""
+    if os.name != "nt":
+        return []
+
+    drive_root = Path(Path.cwd().anchor) if Path.cwd().anchor else Path("D:/")
+    home_root = Path.home()
+
+    candidates = [
+        # Banque principale du gestionnaire multi-timeframe
+        drive_root / ".my_soft" / "gestionnaire_telechargement_multi-timeframe" / "processed" / "parquet",
+        drive_root / ".my_soft" / "gestionnaire_telechargement_multi-timeframe" / "raw",
+        # Variante sous profil utilisateur
+        home_root / ".my_soft" / "gestionnaire_telechargement_multi-timeframe" / "processed" / "parquet",
+        home_root / ".my_soft" / "gestionnaire_telechargement_multi-timeframe" / "raw",
+        # Compat historique ThreadX
+        drive_root / "ThreadX_big" / "data",
+        drive_root / "ThreadX_big" / "processed_data",
+    ]
+    return _dedupe_paths(candidates)
+
+
+def _path_has_supported_data(path: Path) -> bool:
+    """Vérifie rapidement si un dossier contient au moins un fichier data supporté."""
+    if not path.exists() or not path.is_dir():
+        return False
+
+    for ext in SUPPORTED_EXTENSIONS:
+        if next(path.glob(f"*{ext}"), None) is not None:
+            return True
+        if next(path.rglob(f"*{ext}"), None) is not None:
+            return True
+
+    return False
+
+
+# Chemins de données via variables d'environnement (prioritaires)
+THREADX_DATA_DIR = _optional_env_path("BACKTEST_CORE_DATA_DIR")
+GESTIONNAIRE_DATA_DIR = _optional_env_path("BACKTEST_CORE_GESTIONNAIRE_DIR")
+GESTIONNAIRE_RAW_DIR = _optional_env_path("BACKTEST_CORE_RAW_DIR")
+
+# Compatibilité Windows (auto-détection banque externe sans env obligatoire).
+LEGACY_WINDOWS_DATA_DIRS: List[Path] = _build_legacy_windows_data_dirs()
 
 
 def _get_data_dir() -> Path:
@@ -210,31 +268,32 @@ def _get_data_dir() -> Path:
             return tradx_path
 
     # Gestionnaire multi-timeframe (données processed)
-    if GESTIONNAIRE_DATA_DIR.exists():
+    if GESTIONNAIRE_DATA_DIR and GESTIONNAIRE_DATA_DIR.exists():
         return GESTIONNAIRE_DATA_DIR
 
     # Gestionnaire multi-timeframe (données raw en fallback)
-    if GESTIONNAIRE_RAW_DIR.exists():
+    if GESTIONNAIRE_RAW_DIR and GESTIONNAIRE_RAW_DIR.exists():
         return GESTIONNAIRE_RAW_DIR
 
     # Chemin ThreadX_big (données principales)
-    if THREADX_DATA_DIR.exists():
+    if THREADX_DATA_DIR and THREADX_DATA_DIR.exists():
         return THREADX_DATA_DIR
 
-    # Répertoire par défaut
-    if DEFAULT_DATA_DIR.exists():
-        return DEFAULT_DATA_DIR
-
-    # Chercher dans des emplacements courants
-    candidates = [
-        Path(r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet"),
-        Path.cwd() / "data" / "sample_data",
-        Path.cwd() / "data",
-        Path(__file__).parent.parent.parent / "data",
-    ]
+    # Auto-détection: prioriser les banques externes, puis fallback projet.
+    project_data_dir = Path(__file__).parent.parent / "data"
+    candidates = _dedupe_paths(
+        LEGACY_WINDOWS_DATA_DIRS
+        + [
+            Path.cwd() / "data",
+            project_data_dir,
+            Path.cwd() / "data" / "sample_data",
+            project_data_dir / "sample_data",
+            DEFAULT_DATA_DIR,
+        ]
+    )
 
     for candidate in candidates:
-        if candidate.exists():
+        if _path_has_supported_data(candidate):
             return candidate
 
     # Créer le répertoire par défaut
@@ -242,17 +301,23 @@ def _get_data_dir() -> Path:
     return DEFAULT_DATA_DIR
 
 
-@lru_cache(maxsize=1)
-def _scan_data_files() -> Tuple[Path, ...]:
+@lru_cache(maxsize=4)
+def _scan_data_files_for_dir(data_dir: str) -> Tuple[Path, ...]:
     """Scanne les fichiers de données disponibles."""
-    data_dir = _get_data_dir()
+    root = Path(data_dir)
     files: List[Path] = []
 
     for ext in SUPPORTED_EXTENSIONS:
-        files.extend(data_dir.glob(f"*{ext}"))
-        files.extend(data_dir.glob(f"**/*{ext}"))  # Récursif
+        files.extend(root.glob(f"*{ext}"))
+        files.extend(root.glob(f"**/*{ext}"))  # Récursif
 
     return tuple(sorted(set(files)))
+
+
+def _scan_data_files() -> Tuple[Path, ...]:
+    """Scanne les fichiers de données depuis le répertoire actuellement résolu."""
+    data_dir = str(_get_data_dir().resolve())
+    return _scan_data_files_for_dir(data_dir)
 
 
 def discover_available_data() -> Tuple[List[str], List[str]]:
@@ -480,6 +545,12 @@ def load_ohlcv(
         Dates end "pures" (sans heure) incluent toutes les barres du jour.
         Ex: end="2025-02-28" → inclut barres jusqu'à 23:59:59
     """
+    if not is_valid_timeframe(timeframe):
+        raise ValueError(
+            f"Timeframe invalide: '{timeframe}'. "
+            "Format attendu: <nombre><unité> (ex: 1m, 3m, 5m, 15m, 30m, 1h, 4h, 1d, 1w, 1M)."
+        )
+
     logger.info(f"Chargement données: {symbol}/{timeframe}")
 
     # Chercher le fichier

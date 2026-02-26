@@ -1,0 +1,255 @@
+{
+  "session_id": "20260220_133649_strategie_de_mean_reversion_sur_2zusdc_3",
+  "objective": "Strategie de Mean-reversion sur 2ZUSDC 30m. Indicateurs : Bollinger Bands(20,2), RSI(14), ATR. Entree short quand prix dessus bande superieure et RSI > 70. Stop-loss = 1.0x ATR, take-profit = 2.0x ATR.",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "2ZUSDC exhibits mean-reversion on 30m chart; Bollinger Bands define range, RSI identifies momentum extremes, ATR measures volatility for risk scaling",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -1.2341744355087088,
+      "return_pct": -45.44041990081153,
+      "trades": 65,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -45.4%, PF 0.60, Expectancy -69.91"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 58.1%, Vol 73.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -1.234, Sortino -1.496, Calmar -1.401"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.7%, Trades 65, AvgW/L 379.26/241.93"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "no_stable_base_code"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 108: invalid syntax",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'close' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'close' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_133649_strategie_de_mean_reversion_sur_2zusdc_3\\strategy.py\", line 78, in generate_signals\n    (close > indicators['bollinger']['upper']) &\nNameError: name 'close' is not defined",
+          "runtime_fix_validation_error": "[CLASS001] Classe 'BuilderGeneratedStrategy' absente. Classes trouv\u00e9es: []",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Key risks: false breakouts from consolidation, whipsaws in sideways markets, ATR-based stops getting triggered during normal volatility. Strategy assumes clean mean-reversion without strong trends or structural shifts.\n[Backup plan] If failure: switch to stochastic for entry, use Fibonacci retracement levels, or implement trend filter with MACD. If mean-reversion fails, consider momentum approach with moving average crossover."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Adding Bollinger Band width filter reduces false breakout signals by only entering when bands are narrow, improving mean reversion precision",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: `bb['width']` pour indicateur dict 'bollinger'. Sous-cl\u00e9s valides: lower, middle, upper.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['bollinger']['width'] \u2014 sous-cl\u00e9 inconnue. Sous-cl\u00e9s valides: lower, middle, upper.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Ajustement structurel bas\u00e9 sur le diagnostic pr\u00e9c\u00e9dent.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -2.1078036760163648,
+      "return_pct": -70.29183206026177,
+      "trades": 249,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -70.3%, PF 0.79, Expectancy -28.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 76.0%, Vol 90.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -2.108, Sortino -2.242, Calmar -1.270"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 249, AvgW/L 335.53/197.27"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": false,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 85: invalid syntax",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "TypeError: unsupported operand type(s) for |: 'float' and 'float'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "TypeError: unsupported operand type(s) for |: 'float' and 'float'",
+          "runtime_traceback_tail": "raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_133649_strategie_de_mean_reversion_sur_2zusdc_3\\strategy.py\", line 98, in generate_signals\n    indicators['donchian']['upper'] = (df['high'] | df['close']) & (df['low'] | df['close'])\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\ops\\common.py\", line 76, in new_method\n    return method(self, other)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\arraylike.py\", line 78, in __or__\n    return self._logical_method(other, operator.or_)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\series.py\", line 6130, in _logical_method\n    res_values = ops.logical_op(lvalues, rvalues, op)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\ops\\array_ops.py\", line 454, in logical_op\n    res_values = na_logical_op(lvalues, rvalues, op)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\ops\\array_ops.py\", line 369, in na_logical_op\n    result = libops.vec_binop(x.ravel(), y.ravel(), op)\n  File \"ops.pyx\", line 252, in pandas._libs.ops.vec_binop\n  File \"ops.pyx\", line 245, in pandas._libs.ops.vec_binop\nTypeError: unsupported operand type(s) for |: 'float' and 'float'",
+          "runtime_fix_validation_error": "[AST001] Erreur de syntaxe ligne 7: unexpected indent",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Key weaknesses: reliance on mean-reversion after breakout may not align with actual market persistence; Bollinger Bands can stay wide open for long periods; RSI divergence signals may have low predictive value in current setup.\n[Backup plan] If current strategy underperforms: switch to breakout strategy using Bollinger Bands; explore momentum-based approach with MACD and ADX; consider statistical arbitrage if relevant assets show correlated behavior."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

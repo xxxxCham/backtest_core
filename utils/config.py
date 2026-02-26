@@ -21,9 +21,22 @@ Skip-if: Vous appelez juste Config.get_instance().
 """
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+
+
+def _default_data_dir() -> Path:
+    """
+    Résout un data_dir portable:
+    BACKTEST_DATA_DIR > BACKTEST_CORE_DATA_DIR > TRADX_DATA_ROOT > ./data/sample_data
+    """
+    for key in ("BACKTEST_DATA_DIR", "BACKTEST_CORE_DATA_DIR", "TRADX_DATA_ROOT"):
+        value = os.environ.get(key)
+        if value:
+            return Path(value)
+    return Path.cwd() / "data" / "sample_data"
 
 
 @dataclass
@@ -41,7 +54,7 @@ class Config:
     """
 
     # Chemins
-    data_dir: Path = field(default_factory=lambda: Path(r"D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet"))
+    data_dir: Path = field(default_factory=_default_data_dir)
     # Modèles LLM: configurés via D:\models\models.json (voir utils.model_loader)
 
     # Capital & Trading

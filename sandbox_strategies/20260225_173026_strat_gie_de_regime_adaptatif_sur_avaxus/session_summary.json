@@ -1,0 +1,1144 @@
+{
+  "session_id": "20260225_173026_strat_gie_de_regime_adaptatif_sur_avaxus",
+  "objective": "Strat\u00e9gie de Regime-adaptatif sur AVAXUSDC 30m. Indicateurs : ADX + ATR + KELTNER. Signal adaptatif : si volatilite elevee (ADX), suivre la cassure ; sinon trader le retour a la moyenne via ATR. Sortie lors d'un changement de regime detecte par ADX. Trailing stop \u00e0 2.0x ATR, take-profit \u00e0 5.5x ATR.",
+  "status": "failed",
+  "best_sharpe": 0.4030435623151058,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "In volatile, trend\u2011driven periods (high ADX), breaking a Keltner band captures momentum, while in low\u2011trend periods (low ADX) price tends to revert to the band center; ATR scaling ensures risk is proportional to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -86.05354544333588,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9040687260468784,
+      "win_rate_pct": 31.19266055045872,
+      "trades": 545,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.385429666428418,
+          "trades_confidence": 10.0,
+          "win_rate": -1.1422018348623846
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -86.1%, PF 0.90, Expectancy -15.79"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 19218.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.2%, Trades 545, AvgW/L 477.05/239.21"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 485,
+          "short_signals": 566,
+          "total_signals": 1051
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Over\u2011reliance on ADX threshold (25) may miss subtle trend shifts and cause false signals; 2. Keltner band width is static relative to ATR, but market regimes change, leading to mis\u2011timed entries; 3. Exit rule using only keltner.middle or ADX < 25 can trigger too late or too early, reducing risk\u2011reward; 4. 2.0x ATR trailing stop may be too tight in highly volatile periods, causing premature exits; 5. Single\u2011time\u2011frame (30m) may ignore higher\u2011level trend context.\n[Backup plan] If performance is negative, first adjust ADX threshold to 20\u201130 and add a confirmation filter (e.g., RSI oversold/overbought) to reduce whipsaws. For low Sharpe, widen the trailing stop to 2.5\u20113.0x ATR and raise take\u2011profit to 6.0x ATR, then optimize Keltner multipliers (e.g., 2.0\u20112.5) to better capture volatility. If still inadequate, switch to a dual\u2011time\u2011frame approach: use 1\u2011hour ADX for trend direction and 30m Keltner for entry, or replace Keltner with Bollinger Bands to test mean\u2011reversion more robustly."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.385429666428418,
+            "trades_confidence": 10.0,
+            "win_rate": -1.1422018348623846
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Bollinger band breakouts with ADX trend strength allows the strategy to trade true breakouts in volatile regimes while reverting to mean in weak trends; ATR-based risk management keeps exposure proportional to market volatility, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -585.3092905181431,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6981042092476794,
+      "win_rate_pct": 34.83796296296296,
+      "trades": 1728,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.800950434391801,
+          "trades_confidence": 10.0,
+          "win_rate": -0.04861111111111143
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -585.3%, PF 0.70, Expectancy -33.87"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 146.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 1728, AvgW/L 224.83/172.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1023,
+          "short_signals": 1068,
+          "total_signals": 2091
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy over\u2011relies on Bollinger breakout logic while using ADX merely as a binary filter; this can generate many false breakouts in sideways markets, inflating transaction costs.\n2. The ADX thresholds (25/20) may be too rigid for a 30\u2011min AVAX chart, causing missed strong trends or premature exits.\n3. Trailing stops at 2\u00d7ATR and TP at 5.5\u00d7ATR may be mis\u2011scaled for AVAX\u2019s volatility profile, leading to early stop\u2011outs or unrealistically high profit targets.\n4. The rule \u201cclose crosses below middle band OR ADX<20\u201d conflates mean\u2011reversion with trend weakening, potentially exiting profitable trades too early.\n\nbackup_plan':'If negative returns persist, replace the Bollinger breakout with an ATR\u2011based breakout filter (price > MA + k\u00b7ATR) and remove the middle\u2011band exit; alternatively, add a volatility\u2011adjusted position sizing to reduce over\u2011exposure.\nIf Sharpe is low, tighten the ADX filter (e.g., >30 for trend, <15 for mean\u2011reversion), extend the trailing\u2011stop to 3\u00d7ATR, and reduce the TP to 4\u00d7ATR to improve risk\u2011reward.\nAs an alternative, test a simple EMA\u2011cross + ADX\u2011strength strategy with volatility\u2011scaled stops, or a multi\u2011time\u2011frame trend confirmation to reduce noise and improve entry timing."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.800950434391801,
+            "trades_confidence": 10.0,
+            "win_rate": -0.04861111111111143
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Keltner bands, which use ATR to define band width, adapt better to crypto volatility than static Bollinger bands; combining them with an ADX trend filter allows the strategy to take breakouts only in strong trends, while the ATR-based stop and take\u2011profit provide consistent risk scaling, reducing the high drawdown seen with the previous Bollinger\u2011based logic.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4030435623151058,
+      "return_pct": -57.58796390721114,
+      "max_drawdown_pct": -81.49218599864881,
+      "profit_factor": 0.9491071268222502,
+      "win_rate_pct": 32.801161103047896,
+      "trades": 689,
+      "continuous_score": -86.70096326953123,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 11.285219744822962,
+          "return": -33.0,
+          "profit_factor": -2.326531345268563,
+          "trades_confidence": 10.0,
+          "win_rate": -0.6596516690856311
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 46.49218599864881
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -57.6%, PF 0.95, Expectancy -8.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 81.5%, Vol 130.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.403, Sortino 0.766, Calmar -0.183"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.8%, Trades 689, AvgW/L 475.21/244.40"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1951,
+          "short_signals": 1901,
+          "total_signals": 3852
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include an overly restrictive entry (both ADX>25 and close>upper Keltner) that may miss many profitable moves, reliance on a single trend filter (ADX) that can lag, and fixed ATR multiples that may be too wide or narrow for AVAX's rapid volatility changes; slippage and transaction costs are ignored. The strategy is also long\u2011only and ignores short opportunities when the market reverses. Finally, the exit rule (crossing middle band or ADX<20) may trigger too early in a strong trend, cutting profits before the ATR\u2011based TP can be hit.\n[Backup plan] If the run shows negative returns, first lower the ADX entry threshold to 20 and add a short filter (close<lower Keltner AND ADX>25) to capture downtrends. For mediocre Sharpe, tighten the ATR stop to 1.5x and TP to 4x, or lengthen the Keltner period to 50 to smooth noise. If still underperforming, switch to a volatility\u2011breakout model: use a 1\u2011hour ATR\u2011based breakout trigger with a 3\u2011hour trend filter, or try a mean\u2011reversion scheme using RSI and Bollinger bands on a 15\u2011minute chart to capture retracements within a broader trend."
+        },
+        "scoring": {
+          "continuous_score": -86.70096326953123,
+          "drawdown_excess_pct": 46.49218599864881,
+          "components": {
+            "sharpe": 11.285219744822962,
+            "return": -33.0,
+            "profit_factor": -2.326531345268563,
+            "trades_confidence": 10.0,
+            "win_rate": -0.6596516690856311
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a Keltner breakout with an ADX trend strength filter and an RSI momentum filter limits entries to strong directional moves, reducing whipsaws and overtrading while ATR-based risk management keeps position sizing appropriate to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -95.50611268752095,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9076757268531317,
+      "win_rate_pct": 31.57894736842105,
+      "trades": 627,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.220538200999695,
+          "trades_confidence": 10.0,
+          "win_rate": -1.0263157894736845
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -95.5%, PF 0.91, Expectancy -15.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 900.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.6%, Trades 627, AvgW/L 474.22/241.13"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 583,
+          "short_signals": 651,
+          "total_signals": 1234
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011filters with hard ADX/RSI thresholds but still trades 500\u2011700 times per 30\u2011min AVAXUSDC, implying many weak breakouts and frequent whipsaws; the trailing stop and TP are fixed at ATR multiples that may be too tight in low\u2011volatility periods. It also ignores slippage, transaction costs, and dynamic position sizing beyond ATR scaling, which can erode returns. The exit rule (keltner.middle cross or ADX<20) is too reactive and may cut winning moves prematurely, especially when ADX oscillates around 20. Finally, the Keltner period and ATR lookback are not optimized for this asset\u2019s volatility regime, leading to sub\u2011optimal risk\u2011reward ratios.\n\nIf the run shows negative returns, first tighten the entry filter\u2014raise ADX to 30, require RSI>60, and add a short\u2011term EMA (e.g., 9\u2011period) confirmation. If Sharpe is mediocre, experiment with a longer Keltner period (e.g., 20) and a higher ATR multiplier for the trailing stop (3x instead of 2x) to allow more room for genuine moves while keeping TP at 5.5x ATR. If the strategy still fails, shift to a pure trend\u2011following rule: use a 50\u2011period EMA cross with ADX>20 as a trend filter, and set dynamic position sizing based on a volatility\u2011adjusted risk per trade (e.g., 1% of equity)."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.220538200999695,
+            "trades_confidence": 10.0,
+            "win_rate": -1.0263157894736845
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Using Donchian channel breakouts filtered by a strong ADX trend reduces false breakouts in ranging markets while the ATR\u2011based stop and take\u2011profit adapt to volatility, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Using ADX to distinguish trending from ranging markets allows the strategy to apply a breakout rule in strong trends and a mean\u2011reversion rule when the market is weak; Keltner bands provide dynamic price levels that adapt to volatility while ATR offers a consistent risk scale, ensuring that stops and targets are proportional to recent price movement.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -299.976202165323,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8118580713709188,
+      "win_rate_pct": 29.442060085836907,
+      "trades": 1165,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -8.60077388018657,
+          "trades_confidence": 10.0,
+          "win_rate": -1.6673819742489278
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -300.0%, PF 0.81, Expectancy -25.75"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 242.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.4%, Trades 1165, AvgW/L 377.39/193.97"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'adx_trend_threshold'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'adx_trend_threshold'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_173026_strat_gie_de_regime_adaptatif_sur_avaxus\\strategy.py\", line 136, in generate_signals\n    long_mask = ((adx_val > params[\"adx_trend_threshold\"]) & cross_up_close_upper) | \\\nKeyError: 'adx_trend_threshold'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy over\u2011reliably trades on 30\u2011min AVAXUSDC, generating hundreds of trades per run; this suggests high transaction costs and potential over\u2011fitting to noise. 2. The ADX threshold of 25 is static; it may misclassify weak but persistent trends, causing premature exits or wrong regime switches. 3. The mean\u2011reversion condition (close > middle AND close\u2011middle < 0.5\u202fATR) is too restrictive, often missing profitable pullbacks. 4. Trailing stops at 2\u00d7ATR and TP at 5.5\u00d7ATR may be too wide for a volatile crypto pair, diluting risk\u2011adjusted returns.\n[Backup plan] If the backtest returns negative, lower the ADX breakout threshold to 20 and replace the mean\u2011reversion entry with a simple Keltner mid\u2011band pullback (close < middle AND close\u2011middle > \u20130.3\u00d7ATR) to capture more opportunities.  If Sharpe is mediocre, tighten the ATR multipliers: use 1.5\u00d7ATR for stops and 4\u00d7ATR for targets, and extend the Keltner period to 20 for smoother band levels.  As an alternative, shift to a dual\u2011EMA trend filter (fast 12, slow 26) combined with a volatility\u2011scaled breakout on the 1\u2011hour chart, and use a fixed 0.5% stop to reduce slippage and over\u2011trading."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -8.60077388018657,
+            "trades_confidence": 10.0,
+            "win_rate": -1.6673819742489278
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 3,
+      "hypothesis": "Keltner bands, which use ATR to define band width, adapt better to crypto volatility than static Bollinger bands; combining them with an ADX trend filter allows the strategy to take breakouts only in strong trends, while the ATR-based stop and take\u2011profit provide consistent risk scaling, reducing the high drawdown seen with the previous Bollinger\u2011based logic.",
+      "change_type": "logic",
+      "diagnostic_category": "overtrading",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.4030435623151058,
+      "return_pct": -57.58796390721114,
+      "max_drawdown_pct": -81.49218599864881,
+      "profit_factor": 0.9491071268222502,
+      "win_rate_pct": 32.801161103047896,
+      "trades": 689,
+      "continuous_score": -86.70096326953123,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 11.285219744822962,
+          "return": -33.0,
+          "profit_factor": -2.326531345268563,
+          "trades_confidence": 10.0,
+          "win_rate": -0.6596516690856311
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 46.49218599864881
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -57.6%, PF 0.95, Expectancy -8.36"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 81.5%, Vol 130.9%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.403, Sortino 0.766, Calmar -0.183"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.8%, Trades 689, AvgW/L 475.21/244.40"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1951,
+          "short_signals": 1901,
+          "total_signals": 3852
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include an overly restrictive entry (both ADX>25 and close>upper Keltner) that may miss many profitable moves, reliance on a single trend filter (ADX) that can lag, and fixed ATR multiples that may be too wide or narrow for AVAX's rapid volatility changes; slippage and transaction costs are ignored. The strategy is also long\u2011only and ignores short opportunities when the market reverses. Finally, the exit rule (crossing middle band or ADX<20) may trigger too early in a strong trend, cutting profits before the ATR\u2011based TP can be hit.\n[Backup plan] If the run shows negative returns, first lower the ADX entry threshold to 20 and add a short filter (close<lower Keltner AND ADX>25) to capture downtrends. For mediocre Sharpe, tighten the ATR stop to 1.5x and TP to 4x, or lengthen the Keltner period to 50 to smooth noise. If still underperforming, switch to a volatility\u2011breakout model: use a 1\u2011hour ATR\u2011based breakout trigger with a 3\u2011hour trend filter, or try a mean\u2011reversion scheme using RSI and Bollinger bands on a 15\u2011minute chart to capture retracements within a broader trend."
+        },
+        "scoring": {
+          "continuous_score": -86.70096326953123,
+          "drawdown_excess_pct": 46.49218599864881,
+          "components": {
+            "sharpe": 11.285219744822962,
+            "return": -33.0,
+            "profit_factor": -2.326531345268563,
+            "trades_confidence": 10.0,
+            "win_rate": -0.6596516690856311
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "In volatile, trend\u2011driven periods (high ADX), breaking a Keltner band captures momentum, while in low\u2011trend periods (low ADX) price tends to revert to the band center; ATR scaling ensures risk is proportional to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -86.05354544333588,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9040687260468784,
+      "win_rate_pct": 31.19266055045872,
+      "trades": 545,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.385429666428418,
+          "trades_confidence": 10.0,
+          "win_rate": -1.1422018348623846
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -86.1%, PF 0.90, Expectancy -15.79"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 19218.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.2%, Trades 545, AvgW/L 477.05/239.21"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 485,
+          "short_signals": 566,
+          "total_signals": 1051
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. Over\u2011reliance on ADX threshold (25) may miss subtle trend shifts and cause false signals; 2. Keltner band width is static relative to ATR, but market regimes change, leading to mis\u2011timed entries; 3. Exit rule using only keltner.middle or ADX < 25 can trigger too late or too early, reducing risk\u2011reward; 4. 2.0x ATR trailing stop may be too tight in highly volatile periods, causing premature exits; 5. Single\u2011time\u2011frame (30m) may ignore higher\u2011level trend context.\n[Backup plan] If performance is negative, first adjust ADX threshold to 20\u201130 and add a confirmation filter (e.g., RSI oversold/overbought) to reduce whipsaws. For low Sharpe, widen the trailing stop to 2.5\u20113.0x ATR and raise take\u2011profit to 6.0x ATR, then optimize Keltner multipliers (e.g., 2.0\u20112.5) to better capture volatility. If still inadequate, switch to a dual\u2011time\u2011frame approach: use 1\u2011hour ADX for trend direction and 30m Keltner for entry, or replace Keltner with Bollinger Bands to test mean\u2011reversion more robustly."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.385429666428418,
+            "trades_confidence": 10.0,
+            "win_rate": -1.1422018348623846
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Bollinger band breakouts with ADX trend strength allows the strategy to trade true breakouts in volatile regimes while reverting to mean in weak trends; ATR-based risk management keeps exposure proportional to market volatility, improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -585.3092905181431,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6981042092476794,
+      "win_rate_pct": 34.83796296296296,
+      "trades": 1728,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.800950434391801,
+          "trades_confidence": 10.0,
+          "win_rate": -0.04861111111111143
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -585.3%, PF 0.70, Expectancy -33.87"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 146.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 1728, AvgW/L 224.83/172.18"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 1023,
+          "short_signals": 1068,
+          "total_signals": 2091
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy over\u2011relies on Bollinger breakout logic while using ADX merely as a binary filter; this can generate many false breakouts in sideways markets, inflating transaction costs.\n2. The ADX thresholds (25/20) may be too rigid for a 30\u2011min AVAX chart, causing missed strong trends or premature exits.\n3. Trailing stops at 2\u00d7ATR and TP at 5.5\u00d7ATR may be mis\u2011scaled for AVAX\u2019s volatility profile, leading to early stop\u2011outs or unrealistically high profit targets.\n4. The rule \u201cclose crosses below middle band OR ADX<20\u201d conflates mean\u2011reversion with trend weakening, potentially exiting profitable trades too early.\n\nbackup_plan':'If negative returns persist, replace the Bollinger breakout with an ATR\u2011based breakout filter (price > MA + k\u00b7ATR) and remove the middle\u2011band exit; alternatively, add a volatility\u2011adjusted position sizing to reduce over\u2011exposure.\nIf Sharpe is low, tighten the ADX filter (e.g., >30 for trend, <15 for mean\u2011reversion), extend the trailing\u2011stop to 3\u00d7ATR, and reduce the TP to 4\u00d7ATR to improve risk\u2011reward.\nAs an alternative, test a simple EMA\u2011cross + ADX\u2011strength strategy with volatility\u2011scaled stops, or a multi\u2011time\u2011frame trend confirmation to reduce noise and improve entry timing."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.800950434391801,
+            "trades_confidence": 10.0,
+            "win_rate": -0.04861111111111143
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining a Keltner breakout with an ADX trend strength filter and an RSI momentum filter limits entries to strong directional moves, reducing whipsaws and overtrading while ATR-based risk management keeps position sizing appropriate to market volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -95.50611268752095,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.9076757268531317,
+      "win_rate_pct": 31.57894736842105,
+      "trades": 627,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -4.220538200999695,
+          "trades_confidence": 10.0,
+          "win_rate": -1.0263157894736845
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -95.5%, PF 0.91, Expectancy -15.23"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 900.8%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.6%, Trades 627, AvgW/L 474.22/241.13"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 583,
+          "short_signals": 651,
+          "total_signals": 1234
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011filters with hard ADX/RSI thresholds but still trades 500\u2011700 times per 30\u2011min AVAXUSDC, implying many weak breakouts and frequent whipsaws; the trailing stop and TP are fixed at ATR multiples that may be too tight in low\u2011volatility periods. It also ignores slippage, transaction costs, and dynamic position sizing beyond ATR scaling, which can erode returns. The exit rule (keltner.middle cross or ADX<20) is too reactive and may cut winning moves prematurely, especially when ADX oscillates around 20. Finally, the Keltner period and ATR lookback are not optimized for this asset\u2019s volatility regime, leading to sub\u2011optimal risk\u2011reward ratios.\n\nIf the run shows negative returns, first tighten the entry filter\u2014raise ADX to 30, require RSI>60, and add a short\u2011term EMA (e.g., 9\u2011period) confirmation. If Sharpe is mediocre, experiment with a longer Keltner period (e.g., 20) and a higher ATR multiplier for the trailing stop (3x instead of 2x) to allow more room for genuine moves while keeping TP at 5.5x ATR. If the strategy still fails, shift to a pure trend\u2011following rule: use a 50\u2011period EMA cross with ADX>20 as a trend filter, and set dynamic position sizing based on a volatility\u2011adjusted risk per trade (e.g., 1% of equity)."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -4.220538200999695,
+            "trades_confidence": 10.0,
+            "win_rate": -1.0263157894736845
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Using ADX to distinguish trending from ranging markets allows the strategy to apply a breakout rule in strong trends and a mean\u2011reversion rule when the market is weak; Keltner bands provide dynamic price levels that adapt to volatility while ATR offers a consistent risk scale, ensuring that stops and targets are proportional to recent price movement.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -299.976202165323,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8118580713709188,
+      "win_rate_pct": 29.442060085836907,
+      "trades": 1165,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -8.60077388018657,
+          "trades_confidence": 10.0,
+          "win_rate": -1.6673819742489278
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -300.0%, PF 0.81, Expectancy -25.75"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 242.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.4%, Trades 1165, AvgW/L 377.39/193.97"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'adx_trend_threshold'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'adx_trend_threshold'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_173026_strat_gie_de_regime_adaptatif_sur_avaxus\\strategy.py\", line 136, in generate_signals\n    long_mask = ((adx_val > params[\"adx_trend_threshold\"]) & cross_up_close_upper) | \\\nKeyError: 'adx_trend_threshold'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy over\u2011reliably trades on 30\u2011min AVAXUSDC, generating hundreds of trades per run; this suggests high transaction costs and potential over\u2011fitting to noise. 2. The ADX threshold of 25 is static; it may misclassify weak but persistent trends, causing premature exits or wrong regime switches. 3. The mean\u2011reversion condition (close > middle AND close\u2011middle < 0.5\u202fATR) is too restrictive, often missing profitable pullbacks. 4. Trailing stops at 2\u00d7ATR and TP at 5.5\u00d7ATR may be too wide for a volatile crypto pair, diluting risk\u2011adjusted returns.\n[Backup plan] If the backtest returns negative, lower the ADX breakout threshold to 20 and replace the mean\u2011reversion entry with a simple Keltner mid\u2011band pullback (close < middle AND close\u2011middle > \u20130.3\u00d7ATR) to capture more opportunities.  If Sharpe is mediocre, tighten the ATR multipliers: use 1.5\u00d7ATR for stops and 4\u00d7ATR for targets, and extend the Keltner period to 20 for smoother band levels.  As an alternative, shift to a dual\u2011EMA trend filter (fast 12, slow 26) combined with a volatility\u2011scaled breakout on the 1\u2011hour chart, and use a fixed 0.5% stop to reduce slippage and over\u2011trading."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -8.60077388018657,
+            "trades_confidence": 10.0,
+            "win_rate": -1.6673819742489278
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 5
+    }
+  ]
+}

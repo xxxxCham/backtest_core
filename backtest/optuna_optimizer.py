@@ -654,6 +654,13 @@ class OptunaOptimizer:
 
                 storage = get_storage()
 
+                n_bars = int(len(self.data))
+                period_start = ""
+                period_end = ""
+                if isinstance(self.data.index, pd.DatetimeIndex) and n_bars > 0:
+                    period_start = str(self.data.index[0])
+                    period_end = str(self.data.index[-1])
+
                 # Créer un RunResult minimal pour storage (sans equity/trades détaillés)
                 # car Optuna optimise les paramètres, pas les runs complets
                 run_result = RunResult(
@@ -670,6 +677,11 @@ class OptunaOptimizer:
                         "optimizer": "optuna",
                         "n_trials": result.n_trials,
                         "n_completed": result.n_completed,
+                        "n_bars": n_bars,
+                        "n_trades": int((result.best_metrics or {}).get("total_trades", 0) or 0),
+                        "period_start": period_start,
+                        "period_end": period_end,
+                        "duration_sec": float(result.total_time),
                     }
                 )
 

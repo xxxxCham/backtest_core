@@ -1,0 +1,226 @@
+{
+  "session_id": "20260223_100257_fiche_strategie_v1_id_trend_supertrend_a",
+  "objective": "FICHE_STRATEGIE v1\nid: trend_supertrend\narchetype: trend_supertrend\nfamily: trend\ntimeframe: 1h\nside: both\nindicators:\n- supertrend(atr_period=16, multiplier=3.5)\n- adx(period=14)\n- atr(period=14)\nentry:\n- long: supertrend.direction == 1 and adx.adx > 30\n- short: supertrend.direction == -1 and adx.adx > 30\nexit:\n- condition: direction_change(supertrend.direction) or adx.adx < 15\nrisk:\nstop_atr_mult: 2.0\ntp_atr_mult: 4.0\ndescription: ATR trailing stop (2.0x) and take-profit (4.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Supertrend captures trend direction adjusted for volatility while ADX filters for genuine trend strength; using a lower ADX entry threshold (25) expands trade opportunities without sacrificing quality, and exiting when ADX falls below 20 or the supertrend direction reverses captures trend exhaustion early.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -289.42072264635533,
+      "trades": 163,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -289.4%, PF 0.26, Expectancy -177.56"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 359.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 18.4%, Trades 163, AvgW/L 337.71/293.78"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[WARM001] Warmup invalide: seule la forme `signals.iloc[:N] = 0.0` (ou `signals[:N] = 0.0`) est autoris\u00e9e."
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 6235,
+          "short_signals": 0,
+          "total_signals": 6235
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The 16\u2011period ATR and 3.5 multiplier make the Supertrend laggy, especially on 1h data, so entry signals may be late and miss part of the move. 2. Relying on ADX >30 or >25 may filter out many viable trends, and exiting when ADX <15 or direction changes could cut profits prematurely. 3. The fixed 2x/4x ATR stop\u2011loss/take\u2011profit may not adapt to different volatility regimes, leading to over\u2011tight stops or under\u2011rewarding trades. 4. No consideration of slippage, commissions or market micro\u2011structure limits the realism of the backtest.\n[Backup plan] If performance is negative, lower the Supertrend multiplier to 2.5 and use a 12\u2011period ATR to reduce lag; also switch the ADX entry threshold to 20 and exit only on direction change (drop ADX exit).  If Sharpe is low, tighten the stop to 1.5x ATR and TP to 3x ATR, and consider adding a 50\u2011period EMA filter to keep only trades in the broader trend.  As an alternative, replace Supertrend with a moving\u2011average crossover (e.g., 20\u2011MA vs 50\u2011MA) combined with ADX >25, and use a volatility\u2011scaled dynamic exit instead of fixed ATR multiples."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Using the supertrend to capture trend direction, the EMA crossover to filter for momentum, and ADX to ensure trend strength, this combination reduces false entries in choppy markets while ATR-based risk management adapts to current volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: cl\u00e9 string `ema_indicator['fast']` sur indicateur ndarray. Utiliser directement l'array."
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Using the supertrend breakout as the primary trigger while requiring a strong ADX (>30) filters out weak or sideways moves; ATR\u2011based stop\u2011loss and take\u2011profit adapt to volatility, limiting risk and locking in gains during true trend phases.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -316.61680667608465,
+      "trades": 303,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -316.6%, PF 0.72, Expectancy -104.49"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7572.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.0%, Trades 303, AvgW/L 857.95/537.36"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 4361,
+          "short_signals": 0,
+          "total_signals": 4361
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The supertrend\u2011ADX combo is highly lagging; a 16\u2011period ATR and 3.5 multiplier may miss rapid trend shifts, and the ADX >30 filter can eliminate many profitable moves while still allowing false signals. 2. The exit rule (direction change or ADX<15) is too rigid, often closing before the trend fully develops. 3. The 2x/4x ATR stop\u2011loss/take\u2011profit may be too wide in low\u2011volatility markets, leading to large drawdowns, and too tight in high\u2011volatility periods, cutting gains. 4. No position\u2011sizing or volatility\u2011adjusted scaling is applied, so risk per trade is uniform and may not reflect current market conditions.\n[Backup plan] If returns are negative, drop the ADX filter and rely solely on supertrend direction, or lower the multiplier to 2.5 to capture earlier moves; alternatively, switch to a shorter ATR period (10) for a more responsive stop. If Sharpe is mediocre, tighten the stop to 1.5x ATR and adjust TP to 3x ATR, or add a trailing ATR stop to lock in profits. As a fallback, replace the supertrend with a simple EMA crossover (e.g., 20/50) combined with ADX >25, and use a volatility\u2011scaled position size to improve risk\u2011reward profile."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

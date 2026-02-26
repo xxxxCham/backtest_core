@@ -170,20 +170,22 @@ class StrategyBase(ABC):
         params = params or {}
 
         prefix_map = {
-            "bollinger": "bb_",
-            "atr": "atr_",
-            "rsi": "rsi_",
-            "ema": "ema_",
-            "macd": "macd_",
+            "bollinger": ["bb_", "bollinger_"],
+            "atr": ["atr_"],
+            "rsi": ["rsi_"],
+            "ema": ["ema_"],
+            "macd": ["macd_"],
         }
 
-        prefix = prefix_map.get(indicator_name, f"{indicator_name}_")
+        prefixes = prefix_map.get(indicator_name, [f"{indicator_name}_"])
         indicator_params: Dict[str, Any] = {}
 
         for key, value in params.items():
-            if key.startswith(prefix):
-                param_name = key[len(prefix):]
-                indicator_params[param_name] = value
+            for prefix in prefixes:
+                if key.startswith(prefix):
+                    param_name = key[len(prefix):]
+                    indicator_params[param_name] = value
+                    break
 
         if indicator_name == "bollinger" and "std" in indicator_params:
             indicator_params.setdefault("std_dev", indicator_params.pop("std"))

@@ -1,0 +1,520 @@
+{
+  "session_id": "20260223_113018_fiche_strategie_v1_id_vol_amplitude_brea",
+  "objective": "FICHE_STRATEGIE v1\nid: vol_amplitude_breakout\narchetype: vol_amplitude_breakout\nfamily: volatility\ntimeframe: 1h\nside: both\nindicators:\n- amplitude_hunter(period=40)\n- donchian(period=25)\n- atr(period=14)\nentry:\n- long: amplitude_hunter.score > 0.6 and close > donchian.upper\n- short: amplitude_hunter.score > 0.6 and close < donchian.lower\nexit:\n- condition: amplitude_hunter.score < 0.5 or cross_any(close, donchian.middle)\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 5.0\ndescription: ATR stop-loss (1.75x) and take-profit (5.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": 1.2686782609894183,
+  "total_iterations": 7,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "High amplitude_hunter scores flag periods of expanding price ranges; when price breaches the Donchian upper or lower band during such a high\u2011amplitude phase it signals a true breakout rather than a random excursion, and ATR\u2011based stop\u2011loss and take\u2011profit capture the volatility\u2011scaled risk/reward profile.",
+      "change_type": "accept",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.2686782609894183,
+      "return_pct": 52.0130649181499,
+      "trades": 60,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +52.0%, PF 1.36, Expectancy 86.69"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 39.8%, Vol 91.1%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.269, Sortino 2.531, Calmar 5.510"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 60, AvgW/L 1036.56/353.50"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: cl\u00e9 string `ah['score']` sur indicateur ndarray. Utiliser directement l'array.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 41,
+          "short_signals": 29,
+          "total_signals": 70
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on a single amplitude threshold and Donchian breakout, which may generate many false breakouts during sideways or low\u2011volatility periods; the exit rule is also simplistic, potentially leaving positions too long or closing prematurely. ATR\u2011based SL/TP may be too rigid for highly volatile markets like 2ZUSDC, leading to frequent stop\u2011outs or missed gains. The 1h timeframe may not capture the full amplitude cycle, and the amplitude_hunter score threshold (0.6/0.5) is arbitrary and not adaptive to changing market regimes.\n[Backup plan] If performance is negative, first tighten the amplitude filter (e.g., >0.7) and add a trend filter such as a 50\u2011period SMA to ensure the breakout aligns with the overall direction. For low Sharpe, increase the TP multiplier to 6\u20117 or reduce the SL multiplier to 1.25 to improve risk\u2011reward. Alternatively, replace the Donchian band with a breakout of a recent high/low or use a volatility\u2011adjusted Bollinger Band to capture more robust breakouts. Finally, consider a multi\u2011timeframe confirmation (e.g., 4h amplitude high) to reduce noise."
+        },
+        "decision": {
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Amplitude hunter detects large price swings; when the current score exceeds 0.6 and price breaks the Donchian envelope, a strong trend is likely to continue. Using ATR to set stop\u2011loss and take\u2011profit adapts to volatility, limiting risk while allowing the breakout to run.",
+      "change_type": "params",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.2686782609894183,
+      "return_pct": 52.0130649181499,
+      "trades": 60,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +52.0%, PF 1.36, Expectancy 86.69"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 39.8%, Vol 91.1%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.269, Sortino 2.531, Calmar 5.510"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 60, AvgW/L 1036.56/353.50"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "accept",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 41,
+          "short_signals": 29,
+          "total_signals": 70
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses: 1) A single amplitude score >0.6 may miss valid breakouts or trigger in weak moves; 2) Donchian breakout alone is prone to whipsaws, especially on 1h data; 3) Using the same score threshold for both sides ignores asymmetry in bullish vs bearish swings; 4) Exit on score <0.5 or middle cross can cut profits early or let losses run; 5) ATR\u2011based SL/TP may be too rigid in highly volatile or range\u2011bound periods.\n[Backup plan] If the backtest shows negative return, lower the amplitude threshold to ~0.5 and add a trend filter (e.g., 50\u2011period EMA slope >0) to confirm direction. If Sharpe is mediocre, tighten the exit by requiring cross of the Donchian middle plus a 0.5 ATR trailing stop, and reduce TP multiplier to 3.0 while keeping SL at 1.5. If the strategy still fails, switch to a volatility\u2011breakout model that triggers on the 20\u2011period high/low and uses a volatility\u2011scaled entry size, or incorporate a momentum filter such as a 10\u2011period RSI crossing above 70/30 for long/short entries.}"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Supertrend reliably identifies the prevailing trend and, when combined with RSI to filter out extreme overbought or oversold conditions, limits entries to moments when price is both moving in a clear direction and not already exhausted, thereby improving risk\u2011adjusted returns while ATR\u2011based sizing keeps exposure proportional to market volatility.",
+      "change_type": "params",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 1.2686782609894183,
+      "return_pct": 52.0130649181499,
+      "trades": 60,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +52.0%, PF 1.36, Expectancy 86.69"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 39.8%, Vol 91.1%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.269, Sortino 2.531, Calmar 5.510"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 60, AvgW/L 1036.56/353.50"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "logic",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 41,
+          "short_signals": 29,
+          "total_signals": 70
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include a rigid amplitude score threshold that may miss valid moves, reliance on Donchian bands which can generate many whipsaws in sideways markets, and an exit rule that triggers only on a score drop or middle band cross, potentially leaving positions too long or too short; the ATR stop/TP ratios may not adapt to changing volatility regimes. If the strategy performs poorly, I would first add a trend filter (e.g., a 50\u2011period EMA or Supertrend) to only take breakouts in the prevailing direction and tighten the score threshold to 0.7. If Sharpe is mediocre, I would reduce the ATR stop to 1.5\u00d7, cut the TP to 3\u00d7, shorten the amplitude_hunter period to 30, and lower the Donchian period to 20 to capture tighter moves. As an alternative, I would try a volatility\u2011breakout approach that uses ATR\u2011based bands with a momentum filter (RSI or MACD) and a trailing stop to lock in profits while limiting drawdowns."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 2
+          },
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "EMA crossovers capture trend direction while the RSI filter excludes entries during extreme momentum conditions; an ATR-based volatility filter ensures that trades are taken only when market volatility is sufficient, reducing false signals in low\u2011volatility periods.",
+      "change_type": "params",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.576692241340259,
+      "return_pct": 8.490524306117205,
+      "trades": 63,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +8.5%, PF 1.06, Expectancy 13.48"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 55.8%, Vol 120.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.577, Sortino 1.382, Calmar 0.454"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.7%, Trades 63, AvgW/L 750.29/329.23"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "params",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "local_patch",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "final_valid": true,
+          "source": "params_patch",
+          "final_kind": "python"
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 41,
+          "short_signals": 29,
+          "total_signals": 70
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies heavily on a fixed amplitude_hunter score threshold and Donchian channel extremes, which can generate many false entries in choppy markets and ignores overall trend direction. It also uses a static ATR\u2011based stop/TP that may be too tight in low volatility or too loose in high volatility, leading to sub\u2011optimal risk\u2011reward. Lack of position sizing, slippage, or dynamic filters (e.g., EMA, RSI) makes it vulnerable to overfitting and regime shifts.\n[Backup plan] If the backtest shows negative returns, first try adding a trend filter (e.g., 20\u2011period EMA > 50\u2011period EMA for longs, opposite for shorts) and raising the amplitude_hunter threshold to 0.7 to reduce noise. For low Sharpe, adjust the stop/TP multipliers to 1.5/4.5 or implement a trailing ATR stop, and consider tightening the exit condition to cross of close with Donchian middle plus a 1\u2011period RSI filter. If the strategy still fails, switch to a volatility\u2011breakout design that trades when price exceeds a multiple of recent ATR, combined with a momentum filter such as RSI > 70/30, to capture stronger moves while avoiding whipsaws."
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Increasing the amplitude_hunter score threshold and exiting when the score falls below a lower level reduces entries during weak or choppy volatility, thereby cutting the large drawdowns while still capturing strong breakout moves amplified by the Donchian channel.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Large amplitude bursts identified by amplitude_hunter are more likely to sustain when the price also breaches the Donchian envelope and the ADX confirms a strong trend; this combination reduces false breakouts in ranging markets and captures high-probability moves.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.015118111844559757,
+      "return_pct": -9.643736403948152,
+      "trades": 69,
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -9.6%, PF 0.95, Expectancy -13.98"
+        },
+        "risk": {
+          "grade": "D",
+          "detail": "MaxDD 42.2%, Vol 65.8%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.015, Sortino 0.026, Calmar -0.581"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.5%, Trades 69, AvgW/L 922.77/369.94"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 44,
+          "short_signals": 71,
+          "total_signals": 115
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include over\u2011reliance on a single amplitude score, lack of trend confirmation in the entry (ADX is mentioned but not used), and a rigid 1.75\u00d7ATR stop that may be too tight in a highly volatile pair, leading to whipsaws. The 5\u00d7ATR take\u2011profit is aggressive and could lock in small gains before the move fully materialises, especially on 1\u2011hour data. Slippage and low liquidity in 2ZUSDC could erode returns, and the strategy may over\u2011fit to a short backtest window.\n[Backup plan] If results are negative, first add an ADX filter to the entry (e.g., require adx>25) and tighten the amplitude threshold to >0.7, then switch to a trailing ATR stop (1.5\u00d7). For low Sharpe, reduce the TP to 3\u00d7ATR, tighten the stop to 1.25\u00d7ATR, and add a short EMA filter to confirm trend direction. If the current approach still fails, pivot to a volatility\u2011breakout strategy using Bollinger\u2011Band upper/lower envelopes with a 20\u2011period moving\u2011average filter and a momentum indicator (RSI or CCI) to confirm breakout strength."
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 3
+          }
+        }
+      }
+    },
+    {
+      "iteration": 7,
+      "hypothesis": "Amplitude hunter confirms a large price swing, the Donchian breakout ensures the price has moved beyond the recent range, and RSI filters out entries when the market is overbought or oversold, thereby tightening the entry to stronger trend moves and improving win rate while keeping a similar profit\u2011factor.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.43082424990657325,
+      "return_pct": -43.340532725554105,
+      "trades": 88,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -43.3%, PF 0.83, Expectancy -49.25"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 76.2%, Vol 112.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.431, Sortino -0.583, Calmar -1.041"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.5%, Trades 88, AvgW/L 811.76/410.32"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "validation_error_retry": "[IND001] Usage invalide: indicators['amplitude_hunter']['score'] \u2014 'amplitude_hunter' retourne un ndarray, pas un dict.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 55,
+          "short_signals": 112,
+          "total_signals": 167
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Weaknesses: 1) Amplitude_hunter alone may generate many false breakouts; 2) Donchian breakout is a lagging indicator and can trigger on pullbacks; 3) No explicit trend filter (e.g., moving averages or RSI) may let the strategy trade sideways; 4) Fixed ATR\u2011based SL/TP may not adapt to changing volatility, causing premature exits or missed gains.\n[Backup plan] If negative return: raise the amplitude_hunter threshold to >0.75 and add a short\u2011term EMA filter (price > EMA12 for longs, < EMA12 for shorts). If Sharpe is low: lower the TP multiplier to 3.5, raise the SL to 2.0\u00d7ATR for tighter risk, and tighten the exit to include a cross below Donchian.middle or RSI <45/55. Alternative: switch to a volatility\u2011breakout scheme that uses a 20\u2011period ATR breakout with a 2\u2011period trend confirmation (e.g., 50\u2011period SMA)."
+        }
+      }
+    }
+  ]
+}

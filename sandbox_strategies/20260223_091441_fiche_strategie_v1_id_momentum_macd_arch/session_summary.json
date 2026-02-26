@@ -1,0 +1,418 @@
+{
+  "session_id": "20260223_091441_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=11, slow_period=35, signal_period=10)\n- rsi(period=14)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 30 and rsi < 70\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 1.25\ntp_atr_mult: 4.0\ndescription: ATR stop-loss (1.25x) and take-profit (4.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": 0.5318708002226245,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "MACD cross signals capture trend initiations while RSI filtering removes weak or overextended moves; ATR\u2011based sizing adapts to volatility ensuring risk is proportional to market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "MACD cross signals capture momentum shifts while an RSI mid\u2011range filter (30\u201370) avoids entries in overbought/oversold extremes, and ATR\u2011based sizing adapts risk to current volatility, producing cleaner trades in a 1h ACTUSDC chart.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi_short_upper'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi_short_upper'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_091441_fiche_strategie_v1_id_momentum_macd_arch\\strategy.py\", line 128, in generate_signals\n    & (rsi < params[\"rsi_short_upper\"])\nKeyError: 'rsi_short_upper'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may suffer from frequent whipsaws due to the short\u2011term MACD settings (11/35/10) and the relatively wide RSI filter (30\u201370). Exiting on any histogram sign change can close trades prematurely, while the static ATR multipliers (1.25/4.0) might be too aggressive or too conservative for ACTUSDC\u2019s volatility profile. The asymmetry in RSI limits for long (70) vs. short (60) could bias outcomes. Finally, a single\u2011time\u2011frame approach ignores broader trend context, increasing the chance of false signals.\n[Backup plan] If the backtest shows a negative return, tighten the entry by requiring a positive MACD histogram (e.g., histogram >0) and raise the RSI lower bound to 40 or 50, effectively filtering out weak momentum. If Sharpe remains low, adjust the ATR risk parameters: raise the stop to 1.5\u00d7ATR and lower the TP to 2.5\u00d7ATR, and test a longer MACD period (e.g., 12/26/9) to reduce noise. If results still fail, switch to a trend\u2011filtering scheme: add a 50\u2011period EMA or a 20\u2011period ADX >20 to confirm direction, or experiment with a dual\u2011time\u2011frame MACD confirmation on the 4\u2011hour chart before entering on the 1\u2011hour."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "MACD cross signals are amplified by a strong trend filter (ADX > 25) and an intermediate RSI level, reducing whipsaw entries while still capturing momentum moves; ATR-based risk limits adapt to volatility.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.5318708002226245,
+      "return_pct": 34.842132407108544,
+      "trades": 124,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +34.8%, PF 1.12, Expectancy 28.10"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 40.0%, Vol 67.6%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.532, Sortino 1.112, Calmar 0.710"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 28.2%, Trades 124, AvgW/L 951.81/335.16"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 54,
+          "short_signals": 88,
+          "total_signals": 142
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using MACD cross as a momentum trigger, filtered by a strong trend indicated by ADX > 25 and a mid-range RSI (>50 for longs, <50 for shorts) reduces noise from weak or oscillating markets, thereby increasing win rate while ATR-based risk control maintains acceptable drawdown.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "MACD cross signals a shift in momentum while RSI filters entries to avoid overbought or oversold extremes; ATR-based stop and take profit dynamically adjust to market volatility, providing a consistent risk\u2011reward ratio.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'rsi_overbought_short'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'rsi_overbought_short'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260223_091441_fiche_strategie_v1_id_momentum_macd_arch\\strategy.py\", line 95, in generate_signals\n    short_mask = cross_down & (rsi > params[\"rsi_oversold\"]) & (rsi < params[\"rsi_overbought_short\"])\nKeyError: 'rsi_overbought_short'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The MACD cross rule generates many whipsaws in sideways markets; RSI limits (30\u201170 for longs, 30\u201160 for shorts) are too wide, letting in weak signals. 2. A tight ATR stop (1.25\u00d7) may clip gains on volatile spikes while the 4\u00d7 TP is often not reached, causing low win\u2011rate. 3. No trend filter means the strategy trades against the prevailing direction, increasing slippage and commissions. 4. The exit logic (histogram sign change or extreme RSI) can trigger too early if the histogram fluctuates around zero.\n[Backup plan] If returns turn negative, first add a directional filter: require price above its 50\u2011period EMA for longs and below for shorts, or use a 1\u2011hour moving average slope. Tighten RSI bounds to 40\u201160 for longs and 40\u201160 for shorts to capture stronger momentum. If Sharpe is mediocre, adjust risk parameters to stop 1.5\u00d7ATR and TP 3\u00d7ATR to improve risk\u2011reward balance. As a fallback, replace the MACD with a faster 12/26/9 EMA\u2011based momentum or switch to a volatility\u2011breakout scheme using Bollinger Bands to capture trend\u2011driven moves."
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "MACD cross signals a momentum shift; confirming the price is above a short\u2011term EMA ensures the shift is in the prevailing trend, while a mid\u2011range RSI (>50 for longs, <50 for shorts) filters out entries near extremes. This combination should generate more reliable entries while keeping volatility exposure in check with ATR\u2011based stops and targets.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 1
+          }
+        }
+      }
+    }
+  ]
+}

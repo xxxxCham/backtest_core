@@ -1,0 +1,266 @@
+{
+  "session_id": "20260220_230248_fiche_strategie_v1_id_momentum_macd_arch",
+  "objective": "FICHE_STRATEGIE v1\nid: momentum_macd\narchetype: momentum_macd\nfamily: momentum\ntimeframe: 1h\nside: both\nindicators:\n- macd(fast_period=14, slow_period=33, signal_period=11)\n- rsi(period=15)\n- atr(period=14)\nentry:\n- long: cross_up(macd.macd, macd.signal) and rsi > 45 and rsi < 75\n- short: cross_down(macd.macd, macd.signal) and rsi > 30 and rsi < 60\nexit:\n- condition: sign_change(macd.histogram) or rsi > 80 or rsi < 20\nrisk:\nstop_atr_mult: 1.75\ntp_atr_mult: 2.5\ndescription: ATR stop-loss (1.75x) and take-profit (2.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "success",
+  "best_sharpe": -Infinity,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "low_win_rate",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.7154503041906874,
+      "return_pct": 10.017204991241996,
+      "trades": 37,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +10.0%, PF 1.11, Expectancy 27.07"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 28.9%, Vol 63.7%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.715, Sortino 0.720, Calmar 1.585"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 29.7%, Trades 37, AvgW/L 893.02/339.29"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_missing_required",
+            "parameter_spec_invalid_type",
+            "parameter_spec_non_numeric_bounds",
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 58: invalid syntax",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `.iloc[i]` interdit (acc\u00e8s index\u00e9). Seul `signals.iloc[:warmup]` est autoris\u00e9.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 25,
+          "short_signals": 17,
+          "total_signals": 42
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses momentum indicators MACD, RSI and ATR to enter long or short positions. The use of stop loss at 1.75x and take profit at 2.5x is based on ATR, confirming that the strategy seeks high reward with low risk. Additionally, fallback contract has been proposed if the output from LLM model isn't exploitable.\n[Backup plan] If results are poor (negative return), a potential change could be adjusting the stop-loss and take profit parameters to find better risk management or incorporating other indicators. If results are mediocre (low Sharpe), further parameter adjustments, such as adjusting fast/slow period MACD or using different types of moving averages like EMA instead of simple MA can be considered for improvement in performance."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "A hypothesis that explains the strategy's edge goes here.",
+      "change_type": "both",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "AttributeError: 'BuilderGeneratedStrategy' object has no attribute '_calculate_rsi'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "AttributeError: 'BuilderGeneratedStrategy' object has no attribute '_calculate_rsi'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_230248_fiche_strategie_v1_id_momentum_macd_arch\\strategy.py\", line 79, in generate_signals\n    rsi = df.apply(self._calculate_rsi, axis=1)  # Fill in the logic here to compute RSI from 'df' data.\nAttributeError: 'BuilderGeneratedStrategy' object has no attribute '_calculate_rsi'",
+          "runtime_fix_validation_error": "[SIG001] Boucle `for i in range(...)` interdite dans generate_signals. Utiliser une logique vectoris\u00e9e.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Iteration 2/10 is ongoing, while waiting for results I've identified potential weaknesses of the strategy. It may face difficulties during high volatility periods or when market conditions change. In case of poor returns (negative return), I would try adjusting stop-loss and take-profit parameters to improve risk management. If returns remain low (Sharpe<1) despite good risk management, I'd consider trying other indicators for momentum or adjusting the time frame. Finally, in case this strategy fails, an alternative approach could be looking at a different set of technical indicators.\n[Backup plan] If results are poor (negative return), first step would be to adjust stop-loss and take-profit parameters to improve risk management by lowering/raising these values based on the observed performance. If returns remain low (Sharpe<1) despite good risk management, I'd consider trying other indicators for momentum or adjusting the time frame."
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The combination of RSI, Bollinger Bands and ATR helps to improve the trading strategy's performance by reducing false signals in ranging markets while also capturing trend moves when they occur.",
+      "change_type": "logic",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.0667561813364688,
+      "return_pct": 22.204562290518115,
+      "trades": 161,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +22.2%, PF 1.09, Expectancy 13.79"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 30.2%, Vol 91.8%"
+        },
+        "efficiency": {
+          "grade": "B",
+          "detail": "Sharpe 1.067, Sortino 1.216, Calmar 4.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 34.8%, Trades 161, AvgW/L 486.89/238.53"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ValueError' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ValueError' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5268, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4709, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4686, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260220_230248_fiche_strategie_v1_id_momentum_macd_arch\\strategy.py\", line 79, in generate_signals\n    raise ValueError(\"Invalid input data or parameters\")\nNameError: name 'ValueError' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: indicators['rsi'].iloc n'est pas support\u00e9. Utiliser indexation numpy (`arr[i]`).",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 1
+          }
+        }
+      }
+    }
+  ]
+}

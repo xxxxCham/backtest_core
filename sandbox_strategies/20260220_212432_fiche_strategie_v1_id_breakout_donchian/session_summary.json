@@ -1,0 +1,412 @@
+{
+  "session_id": "20260220_212432_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=45)\n- adx(period=10)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 30\n- short: close < donchian.lower and adx.adx > 30\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 25\nrisk:\nstop_atr_mult: 2.25\ntp_atr_mult: 3.0\ndescription: ATR stop-loss (2.25x) and take-profit (3.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Fallback contractuel: proposition g\u00e9n\u00e9r\u00e9e automatiquement pour maintenir la progression quand la sortie LLM n'est pas exploitable.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": false,
+          "issues": [
+            "parameter_spec_item_not_dict"
+          ],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": false,
+          "issues_after_retry": [
+            "parameter_spec_item_not_dict"
+          ],
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback"
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Using Bollinger Bands and Donchian Channels with ADX helps to identify potential breakout points in the market.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.34544809899038675,
+      "return_pct": 9.181740564776883,
+      "trades": 99,
+      "score_card": {
+        "profitability": {
+          "grade": "B",
+          "detail": "Return +9.2%, PF 1.02, Expectancy 9.27"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 60.4%, Vol 62.6%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.345, Sortino 0.268, Calmar 0.031"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 32.3%, Trades 99, AvgW/L 1314.87/614.30"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 59: unexpected indent",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 56,
+          "short_signals": 52,
+          "total_signals": 108
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] This strategy uses Bollinger Bands, Donchian Channels and ADX to identify potential breakout points in the market. The entry rule involves closing prices crossing over the middle band of both Donchian channels while the ADX is above 30. An ATR stop-loss (2.25x) and take-profit (3.0x) are applied during backtests. However, this strategy may be vulnerable to false signals due to noise in the market data or high transaction costs resulting from frequent trading. If results are poor, we could consider adjusting the period of Donchian channels for better performance. Alternatively, implementing a filter rule based on other indicators like RSI might improve accuracy and reduce whipsaws.\n[Backup plan] 1) Lowering the period value for Donchian Channels to 30 from 45 may result in less noise in trading signals. This adjustment can be done by changing the line"
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "",
+      "change_type": "",
+      "diagnostic_category": "",
+      "error": "ValueError: invalid literal for int() with base 10: '1.0'",
+      "decision": "",
+      "sharpe": null,
+      "return_pct": null,
+      "trades": null,
+      "score_card": null,
+      "is_fallback": false,
+      "phase_feedback": null
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Using Donchian bands and ADX along with Bollinger Bands as volatility indicators to identify breakout opportunities while filtering for trending market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8161907856619998,
+      "return_pct": -67.124863218375,
+      "trades": 182,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -67.1%, PF 0.92, Expectancy -36.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 99.9%, Vol 2041.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.816, Sortino 6.867, Calmar -0.212"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.7%, Trades 182, AvgW/L 1121.83/680.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "params",
+            "to": "logic",
+            "reason": "no_stable_base_code"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 1
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 124,
+          "short_signals": 132,
+          "total_signals": 256
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy is using Donchian bands, ADX and ATR to identify breakout opportunities. The entry long condition uses the close price greater than the upper band of the donchian channel and the exit conditions use cross_any(close,donchian.middle) OR adx.adx<25. This strategy has a stop-loss based on atr_multiplier (2.25x) and take profit based on atr_multiplier (3.0x). The constraints include no lookahead and only registry indicators.\n[Backup plan] 1. Potential weaknesses could be that the strategy might not perform well in choppy or trending markets, as it relies heavily on identifying a clear trend. 2. If results are poor (negative return), adjusting the stop loss based on atr_multiplier to reduce the risk or using different volatility indicators such as standard deviation can be tried. 3. If Sharpe ratio is low, increasing period of Donchian bands, ADX and ATR for better accuracy at the cost of more trades may be considered. 4. Alternative approach could include trying a mean reversion strategy using Bollinger Bands and RSI indicators if this one fails."
+        },
+        "decision": {
+          "accept_overridden": true
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "The combination of ATR based stop loss/take profit, Bollinger band and RSI helps to reduce the number of false signals in ranging markets improving overall profitability.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.8161907856619998,
+      "return_pct": -67.124863218375,
+      "trades": 182,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -67.1%, PF 0.92, Expectancy -36.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 99.9%, Vol 2041.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.816, Sortino 6.867, Calmar -0.212"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.7%, Trades 182, AvgW/L 1121.83/680.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "issues": [],
+          "error_code": "JSON001",
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 2,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 73: cannot assign to function call here. Maybe you meant '==' instead of '='?",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 124,
+          "short_signals": 132,
+          "total_signals": 256
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy uses Bollinger Bands, ATR stop loss/take profit and Donchian channel to filter ranging markets. It is backtested over 4654 bars with high sharpe ratio in the first iteration but has shown poor results subsequently. Potential weaknesses of this strategy include sensitivity to range bound markets and lack of adaptability for different market conditions. In case of negative returns, changing the period for Bollinger Bands or ATR stop/take profit might help improve performance.\n[Backup plan] 1) Increase trading frequency with tighter stops and take profits in ranging markets - increasing risk but potentially higher return 2) Test on a wider variety of assets to see if strategy generalizes well 3) Reduce sensitivity by using different Bollinger Band parameters or introducing additional filters for market conditions. 4) Explore other indicators not currently utilized, such as MACD or RSI"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "This strategy is focused on Bollinger Bands and ATR for trend identification with a mean reversion exit condition to improve profitability in various market conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.8161907856619998,
+      "return_pct": -67.124863218375,
+      "trades": 182,
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -67.1%, PF 0.92, Expectancy -36.88"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 99.9%, Vol 2041.0%"
+        },
+        "efficiency": {
+          "grade": "C",
+          "detail": "Sharpe 0.816, Sortino 6.867, Calmar -0.212"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.7%, Trades 182, AvgW/L 1121.83/680.61"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SANDBOX001] Import interdit en sandbox: 'backtrader'.",
+          "validation_error_retry": "Indicateur(s) inconnu(s) via indicators d\u00e9tect\u00e9(s): ['donchian_upper', \"np.nan_to_num(indicators['bollinger']['lower'])\"]. Utiliser uniquement les noms du registre. Corrections possibles: donchian_upper -> indicators['donchian']['upper'].",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 124,
+          "short_signals": 132,
+          "total_signals": 256
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 2,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}

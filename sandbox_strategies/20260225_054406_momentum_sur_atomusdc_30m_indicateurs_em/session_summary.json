@@ -1,0 +1,891 @@
+{
+  "session_id": "20260225_054406_momentum_sur_atomusdc_30m_indicateurs_em",
+  "objective": "Momentum sur ATOMUSDC 30m. Indicateurs : EMA + MFI + Vortex. Entr\u00e9es : Croisement haussier de l'EMA (20 p\u00e9riodes) sous l'MFI (14 p\u00e9riodes) confirm\u00e9 par un croisement haussier du Vortex (22,3) et un vote majoritaire des signaux sur 3 p\u00e9riodes, avec gating par volatilit\u00e9 implicite inf\u00e9rieure \u00e0 20%. Sorties : Reversals de tendance confirm\u00e9s par un rejet de la moyenne mobile \u00e0 20 p\u00e9riodes et un volume minimal sur la derni\u00e8re bougie. Risk management : SL bas\u00e9 sur l'ATR ajust\u00e9 dynamiquement en fonction du contexte de march\u00e9 et TP \u00e0 1.5x le risque initial, avec un SL adaptatif pour g\u00e9rer la volatilit\u00e9.",
+  "status": "failed",
+  "best_sharpe": -Infinity,
+  "best_score": -Infinity,
+  "total_iterations": 4,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA, MFI, and Vortex aims to capture momentum shifts confirmed by directional changes and volume, while gating by implied volatility reduces noise and whipsaws.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.8266960994977465,
+      "return_pct": -56.98046563765216,
+      "max_drawdown_pct": -80.39228842747565,
+      "profit_factor": 0.634643970749307,
+      "win_rate_pct": 40.15151515151515,
+      "trades": 132,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -23.147490785936903,
+          "return": -33.0,
+          "profit_factor": -16.70198990860311,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5454545454545447
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 45.39228842747565
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -57.0%, PF 0.63, Expectancy -43.17"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 80.4%, Vol 107.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.827, Sortino -0.867, Calmar -1.099"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.2%, Trades 132, AvgW/L 186.75/197.42"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: `vortex['adx']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 104: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 82,
+          "short_signals": 62,
+          "total_signals": 144
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three oscillators increases complexity and potential for false positives. The volume filter is vague and may be ineffective; 'lower than average' is not a strong signal. The implied volatility gate is good, but 20% might be too restrictive, missing opportunities. Overfitting to ATOMUSDC's specific characteristics is a significant risk.\n[Backup plan] Poor results: Simplify to just EMA and MFI with a stricter MFI oversold/overbought filter. Mediocre results: Optimize EMA and Vortex periods via walk-forward analysis, and relax the implied volatility gate to 25%. Alternative approach: Implement a simpler breakout strategy based on price exceeding a recent high/low, combined with volume confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 45.39228842747565,
+          "components": {
+            "sharpe": -23.147490785936903,
+            "return": -33.0,
+            "profit_factor": -16.70198990860311,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5454545454545447
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Vortex bullish confirmation with EMA/MFI momentum divergence and volatility filtering should improve signal quality and reduce false entries, while volume filtering at exit prevents whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_054406_momentum_sur_atomusdc_30m_indicateurs_em\\strategy.py\", line 132, in generate_signals\n    ema > mfi\nValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_fix_retry_error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple concurring indicators increases complexity and potential for signal dilution; the 'majority vote' logic seems arbitrary and prone to overfitting. Volume filtering at exit is good, but OBV change might be too sensitive, triggering premature exits. The ATR-based dynamic SL is a positive, but the TP/SL ratio could be too aggressive, leading to frequent stops.\n[Backup plan] If negative return, simplify entry by removing the Vortex confirmation and focusing solely on EMA/MFI divergence with volatility gating. For mediocre Sharpe, optimize EMA/MFI periods and TP/SL ratio. If consistently failing, switch to a mean reversion strategy based on Bollinger Bands and volume confirmation, targeting short-term corrections within the uptrend."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining MFI momentum with Vortex signal and EMA crossover aims to capture trend reversals with confirmation, while ADX filters out whipsaws during periods of low trend strength.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -215.5886164787086,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.5836944277178795,
+      "win_rate_pct": 23.466666666666665,
+      "trades": 750,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -19.031111875754082,
+          "trades_confidence": 10.0,
+          "win_rate": -3.460000000000001
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -215.6%, PF 0.58, Expectancy -28.75"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 11497.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 750, AvgW/L 171.75/90.22"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `adx ...` alors que `adx` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: adx['adx']).",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 105: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 425,
+          "short_signals": 422,
+          "total_signals": 847
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple concurring indicators increases complexity and potential for false positives. The ADX filter, while intended to reduce whipsaws, might also filter out legitimate, short-term momentum opportunities. The MFI condition (<30) is overly restrictive and could miss profitable entries. Exit conditions are also rigid and may prematurely close winning trades.\n[Backup plan] If negative return, loosen the MFI entry condition (e.g., MFI < 40) and remove the ADX filter entirely. For mediocre Sharpe, optimize EMA and Vortex parameters using walk-forward analysis. If consistently failing, switch to a simpler, price-action based momentum strategy focusing solely on EMA crossovers and volume confirmation, abandoning the MFI and Vortex indicators."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -19.031111875754082,
+            "trades_confidence": 10.0,
+            "win_rate": -3.460000000000001
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Combining MFI momentum with Vortex signal confirmation and EMA trend direction filters out whipsaws and improves signal reliability, while ADX ensures trend strength.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.004875092518430639,
+      "return_pct": -8.210448894016317,
+      "max_drawdown_pct": -34.53734408935218,
+      "profit_factor": 0.9466442808341099,
+      "win_rate_pct": 31.506849315068493,
+      "trades": 146,
+      "continuous_score": -24.346622896088938,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -0.1365025905160579,
+          "return": -9.031493783417949,
+          "profit_factor": -2.4391185904406907,
+          "trades_confidence": 10.0,
+          "win_rate": -1.047945205479452
+        },
+        "penalties": {
+          "drawdown_pressure": 9.691562726234789,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -8.2%, PF 0.95, Expectancy -5.62"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 34.5%, Vol 59.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.005, Sortino -0.015, Calmar -0.569"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.5%, Trades 146, AvgW/L 316.68/153.88"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: `vortex['positive_slope']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 97: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 101,
+          "short_signals": 111,
+          "total_signals": 212
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple oscillators creates a complex signal prone to overfitting and delayed entries/exits. The ADX gating, while intended to filter weak trends, might be too restrictive, missing profitable opportunities. The 'vote' mechanism and volume-based exits are vague and could introduce noise. The aggressive 1.5x risk/reward ratio exacerbates losses if the signal isn't highly reliable.\n[Backup plan] If negative return: Simplify to *only* EMA and Volume, focusing on trend following. If mediocre Sharpe: Reduce ADX threshold, optimize MFI/Vortex periods, and loosen the volume exit criteria. If failure: Abandon oscillator-based momentum and explore a simple breakout strategy based on price action and volatility."
+        },
+        "scoring": {
+          "continuous_score": -24.346622896088938,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -0.1365025905160579,
+            "return": -9.031493783417949,
+            "profit_factor": -2.4391185904406907,
+            "trades_confidence": 10.0,
+            "win_rate": -1.047945205479452
+          },
+          "penalties": {
+            "drawdown_pressure": 9.691562726234789,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 4,
+      "hypothesis": "Combining MFI momentum with Vortex signal confirmation and EMA trend direction filters out whipsaws and improves signal reliability, while ADX ensures trend strength.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.004875092518430639,
+      "return_pct": -8.210448894016317,
+      "max_drawdown_pct": -34.53734408935218,
+      "profit_factor": 0.9466442808341099,
+      "win_rate_pct": 31.506849315068493,
+      "trades": 146,
+      "continuous_score": -24.346622896088938,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -0.1365025905160579,
+          "return": -9.031493783417949,
+          "profit_factor": -2.4391185904406907,
+          "trades_confidence": 10.0,
+          "win_rate": -1.047945205479452
+        },
+        "penalties": {
+          "drawdown_pressure": 9.691562726234789,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -8.2%, PF 0.95, Expectancy -5.62"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 34.5%, Vol 59.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.005, Sortino -0.015, Calmar -0.569"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 31.5%, Trades 146, AvgW/L 316.68/153.88"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: `vortex['positive_slope']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 97: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 3
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 101,
+          "short_signals": 111,
+          "total_signals": 212
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple oscillators creates a complex signal prone to overfitting and delayed entries/exits. The ADX gating, while intended to filter weak trends, might be too restrictive, missing profitable opportunities. The 'vote' mechanism and volume-based exits are vague and could introduce noise. The aggressive 1.5x risk/reward ratio exacerbates losses if the signal isn't highly reliable.\n[Backup plan] If negative return: Simplify to *only* EMA and Volume, focusing on trend following. If mediocre Sharpe: Reduce ADX threshold, optimize MFI/Vortex periods, and loosen the volume exit criteria. If failure: Abandon oscillator-based momentum and explore a simple breakout strategy based on price action and volatility."
+        },
+        "scoring": {
+          "continuous_score": -24.346622896088938,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": -0.1365025905160579,
+            "return": -9.031493783417949,
+            "profit_factor": -2.4391185904406907,
+            "trades_confidence": 10.0,
+            "win_rate": -1.047945205479452
+          },
+          "penalties": {
+            "drawdown_pressure": 9.691562726234789,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining Vortex bullish confirmation with EMA/MFI momentum divergence and volatility filtering should improve signal quality and reduce false entries, while volume filtering at exit prevents whipsaws.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_054406_momentum_sur_atomusdc_30m_indicateurs_em\\strategy.py\", line 132, in generate_signals\n    ema > mfi\nValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_fix_retry_error": "ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on multiple concurring indicators increases complexity and potential for signal dilution; the 'majority vote' logic seems arbitrary and prone to overfitting. Volume filtering at exit is good, but OBV change might be too sensitive, triggering premature exits. The ATR-based dynamic SL is a positive, but the TP/SL ratio could be too aggressive, leading to frequent stops.\n[Backup plan] If negative return, simplify entry by removing the Vortex confirmation and focusing solely on EMA/MFI divergence with volatility gating. For mediocre Sharpe, optimize EMA/MFI periods and TP/SL ratio. If consistently failing, switch to a mean reversion strategy based on Bollinger Bands and volume confirmation, targeting short-term corrections within the uptrend."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA, MFI, and Vortex aims to capture momentum shifts confirmed by directional changes and volume, while gating by implied volatility reduces noise and whipsaws.",
+      "change_type": "both",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -0.8266960994977465,
+      "return_pct": -56.98046563765216,
+      "max_drawdown_pct": -80.39228842747565,
+      "profit_factor": 0.634643970749307,
+      "win_rate_pct": 40.15151515151515,
+      "trades": 132,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -23.147490785936903,
+          "return": -33.0,
+          "profit_factor": -16.70198990860311,
+          "trades_confidence": 10.0,
+          "win_rate": 1.5454545454545447
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 45.39228842747565
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -57.0%, PF 0.63, Expectancy -43.17"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 80.4%, Vol 107.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -0.827, Sortino -0.867, Calmar -1.099"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 40.2%, Trades 132, AvgW/L 186.75/197.42"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: `vortex['adx']` pour indicateur dict 'vortex'. Sous-cl\u00e9s valides: oscillator, signal, vi_minus, vi_plus.",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 104: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 82,
+          "short_signals": 62,
+          "total_signals": 144
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The reliance on three oscillators increases complexity and potential for false positives. The volume filter is vague and may be ineffective; 'lower than average' is not a strong signal. The implied volatility gate is good, but 20% might be too restrictive, missing opportunities. Overfitting to ATOMUSDC's specific characteristics is a significant risk.\n[Backup plan] Poor results: Simplify to just EMA and MFI with a stricter MFI oversold/overbought filter. Mediocre results: Optimize EMA and Vortex periods via walk-forward analysis, and relax the implied volatility gate to 25%. Alternative approach: Implement a simpler breakout strategy based on price exceeding a recent high/low, combined with volume confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 45.39228842747565,
+          "components": {
+            "sharpe": -23.147490785936903,
+            "return": -33.0,
+            "profit_factor": -16.70198990860311,
+            "trades_confidence": 10.0,
+            "win_rate": 1.5454545454545447
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "Combining MFI momentum with Vortex signal and EMA crossover aims to capture trend reversals with confirmation, while ADX filters out whipsaws during periods of low trend strength.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -215.5886164787086,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.5836944277178795,
+      "win_rate_pct": 23.466666666666665,
+      "trades": 750,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -19.031111875754082,
+          "trades_confidence": 10.0,
+          "win_rate": -3.460000000000001
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -215.6%, PF 0.58, Expectancy -28.75"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 11497.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 23.5%, Trades 750, AvgW/L 171.75/90.22"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: comparaison `adx ...` alors que `adx` est un indicator dict. Utiliser une sous-cl\u00e9 (ex: adx['adx']).",
+          "validation_error_retry": "[AST001] Erreur de syntaxe ligne 105: unexpected indent",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 2
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 425,
+          "short_signals": 422,
+          "total_signals": 847
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on multiple concurring indicators increases complexity and potential for false positives. The ADX filter, while intended to reduce whipsaws, might also filter out legitimate, short-term momentum opportunities. The MFI condition (<30) is overly restrictive and could miss profitable entries. Exit conditions are also rigid and may prematurely close winning trades.\n[Backup plan] If negative return, loosen the MFI entry condition (e.g., MFI < 40) and remove the ADX filter entirely. For mediocre Sharpe, optimize EMA and Vortex parameters using walk-forward analysis. If consistently failing, switch to a simpler, price-action based momentum strategy focusing solely on EMA crossovers and volume confirmation, abandoning the MFI and Vortex indicators."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -19.031111875754082,
+            "trades_confidence": 10.0,
+            "win_rate": -3.460000000000001
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    }
+  ]
+}

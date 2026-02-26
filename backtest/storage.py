@@ -48,6 +48,7 @@ logger = get_logger(__name__)
 
 DEFAULT_STORAGE_DIR = Path("backtest_results")
 MAX_RESULTS_TO_KEEP = 1000  # Nombre maximum de résultats à garder
+_TEMPDIR_READY = False
 
 
 # =============================================================================
@@ -58,6 +59,10 @@ def _ensure_writable_tempdir() -> None:
     """
     Assure que tempfile utilise un répertoire writable dans les environnements sandbox.
     """
+    global _TEMPDIR_READY
+    if _TEMPDIR_READY:
+        return
+
     def _set_local_temp() -> Path:
         fallback = Path.cwd() / ".tmp"
         fallback.mkdir(parents=True, exist_ok=True)
@@ -84,9 +89,6 @@ def _ensure_writable_tempdir() -> None:
     try:
         temp_root = Path(tempfile.gettempdir())
         temp_root.mkdir(parents=True, exist_ok=True)
-        repo_root = Path.cwd().resolve()
-        if repo_root not in temp_root.resolve().parents and temp_root.resolve() != repo_root:
-            temp_root = _set_local_temp()
 
         probe_dir = Path(tempfile.mkdtemp(dir=temp_root))
         nested = probe_dir / "nested_probe"
@@ -109,8 +111,7 @@ def _ensure_writable_tempdir() -> None:
     except Exception:
         tempfile.mkdtemp = _safe_mkdtemp
 
-
-_ensure_writable_tempdir()
+    _TEMPDIR_READY = True
 
 # =============================================================================
 # HELPERS
@@ -230,6 +231,8 @@ class ResultStorage:
             auto_save: Activer la sauvegarde automatique
             compress: Compresser les fichiers Parquet
         """
+        _ensure_writable_tempdir()
+
         self.storage_dir = Path(storage_dir) if storage_dir else DEFAULT_STORAGE_DIR
         self.auto_save = auto_save
         self.compress = compress
@@ -277,6 +280,18 @@ class ResultStorage:
         try:
             # 1. Sauvegarder les métadonnées
             metrics_pct = normalize_metrics(result.metrics, "pct")
+            meta_n_bars = result.meta.get("n_bars")
+            try:
+                n_bars = int(meta_n_bars) if meta_n_bars is not None else int(len(result.equity))
+            except (TypeError, ValueError):
+                n_bars = int(len(result.equity))
+
+            meta_n_trades = result.meta.get("n_trades")
+            try:
+                n_trades = int(meta_n_trades) if meta_n_trades is not None else int(len(result.trades))
+            except (TypeError, ValueError):
+                n_trades = int(len(result.trades))
+
             metadata = StoredResultMetadata(
                 run_id=run_id,
                 timestamp=datetime.now().isoformat(),
@@ -285,8 +300,8 @@ class ResultStorage:
                 timeframe=result.meta.get("timeframe", "unknown"),
                 params=result.meta.get("params", {}),
                 metrics=metrics_pct,
-                n_bars=result.meta.get("n_bars", len(result.equity)),
-                n_trades=len(result.trades),
+                n_bars=n_bars,
+                n_trades=n_trades,
                 period_start=result.meta.get("period_start", ""),
                 period_end=result.meta.get("period_end", ""),
                 duration_sec=result.meta.get("duration_sec", 0.0),

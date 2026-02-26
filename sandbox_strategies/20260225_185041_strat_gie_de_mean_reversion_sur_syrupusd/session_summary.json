@@ -1,0 +1,1326 @@
+{
+  "session_id": "20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd",
+  "objective": "Strat\u00e9gie de Mean-reversion sur SYRUPUSDC 30m. Indicateurs : CCI + STOCH_RSI + MFI + ATR. Entr\u00e9e quand le prix touche la bande extr\u00eame de CCI avec STOCH_RSI en zone de survente/surachat. Sortie quand le prix revient vers la moyenne (CCI neutre). Trailing stop \u00e0 1.2x ATR, take-profit \u00e0 2.5x ATR.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -50.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When price reaches the extreme CCI levels, the market tends to revert; coupling this with StochRSI confirming overbought or oversold conditions filters out weak extremes and increases probability of a reversal back to the CCI neutral zone.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -291.6852527197849,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8121386951226163,
+      "win_rate_pct": 36.53001464128843,
+      "trades": 1366,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -8.587945365823257,
+          "trades_confidence": 10.0,
+          "win_rate": 0.45900439238652946
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -291.7%, PF 0.81, Expectancy -21.35"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7203.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.5%, Trades 1366, AvgW/L 252.70/179.08"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on extreme CCI values may generate many false reversals, especially in trending markets; the fixed StochRSI thresholds (20/80) might miss weaker but valid moves; the 1.2x ATR trailing stop could cut profits prematurely, while the 2.5x ATR take\u2011profit may be too distant for a 30\u2011minute window. Additionally, the exit rule (CCI crossing 0) can lag, and the strategy ignores overall market trend or volatility regime shifts.\n[Backup plan] If the backtest shows negative returns, first add a trend filter (e.g., trade only when price is above a 50\u2011period SMA for longs, below for shorts) to avoid riding strong trends. If Sharpe is low, tighten the entry criteria: raise the overbought/oversold CCI levels to \u00b1120, lower the StochRSI threshold to 15/85, and reduce the ATR multiplier to 1.0 for the trailing stop. As an alternative approach, replace the CCI/RSI combo with a Bollinger\u2011Band mean\u2011reversion rule (enter when price touches the lower band and the band width is below a threshold) combined with a simple moving\u2011average cross for trend confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -8.587945365823257,
+            "trades_confidence": 10.0,
+            "win_rate": 0.45900439238652946
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Extreme CCI values combined with complementary StochRSI overbought/oversold levels capture true mean\u2011reversion impulses; tightening the exit to a CCI \u00b120 band reduces whipsaws, while ATR\u2011based sizing adapts to volatility and limits drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -209.48372597014674,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8623755829243016,
+      "win_rate_pct": 39.966130397967824,
+      "trades": 1181,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.291401923460498,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4898391193903473
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -209.5%, PF 0.86, Expectancy -17.74"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2550.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 40.0%, Trades 1181, AvgW/L 278.11/214.69"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd\\strategy.py\", line 111, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may over\u2011trade because CCI extremes appear frequently on a 30\u2011min chart, leading to many small losses that erode capital. 2. Relying solely on CCI and StochRSI ignores trend context; in strong trending periods the mean\u2011reversion logic will produce whipsaws. 3. The exit rule (crossing \u00b120) is lagging and may trigger too late, especially with high ATR\u2011based stops that could be hit before a true reversal. 4. The ATR multiplier of 1.2 for trailing stops is very tight for crypto volatility, causing premature stop\u2011outs and a negative Sharpe.\n[Backup plan] If returns stay negative, add a trend filter (e.g., require 50\u2011period EMA below price for longs) and tighten entry thresholds to CCI < -120 and StochRSI < 15 to capture deeper divergences. If Sharpe is low but positive, widen the exit band to CCI \u00b130 and increase trailing stop to 1.5\u00d7ATR to allow the trade to run. Alternatively, switch to a Bollinger\u2011Band mean\u2011reversion model with a 20\u2011period SMA and 2\u03c3 bands, using RSI < 30/ > 70 for entries and band touch for exits, which may reduce noise and improve risk\u2011reward."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.291401923460498,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4898391193903473
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "When price reaches an extreme CCI level while the StochRSI confirms overbought or oversold conditions, the market tends to revert toward the CCI mean; using ATR as a volatility filter ensures entries occur only in sufficiently liquid periods, reducing noise and improving risk-adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -294.91812665834954,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8106281471626182,
+      "win_rate_pct": 36.449963476990504,
+      "trades": 1369,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -8.65699898685174,
+          "trades_confidence": 10.0,
+          "win_rate": 0.43498904309715125
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -294.9%, PF 0.81, Expectancy -21.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3768.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.4%, Trades 1369, AvgW/L 252.99/179.01"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 2042,
+          "short_signals": 1755,
+          "total_signals": 3797
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy suffers from excessive signal density and weak trend filtering, which leads to many whipsaw trades; the CCI extremes alone may not capture true reversals. The ATR\u2011based trailing stop and TP are fixed multipliers that do not adapt to changing volatility, causing premature exits or missed profits. Moreover, the 30\u2011minute timeframe may not provide enough liquidity for a high\u2011frequency mean\u2011reversion system, inflating slippage and transaction costs.\n[Backup plan] If the backtest remains negative, introduce a trend filter (e.g., 20\u2011period SMA or MACD bullish bias) and tighten entry conditions to CCI\u202f<\u202f\u2011120 or\u202f>\u202f120 and StochRSI\u202f<\u202f15 or\u202f>\u202f85. For a low Sharpe, adjust the ATR multiplier to 1.5x for stops and 3x for TP, and test a 5\u2011period moving\u2011average of CCI to smooth noise. As a fallback, switch to a volatility\u2011breakout strategy using ATR\u2011based entry bands and a mean\u2011reversion on Bollinger Bands with a lower RSI threshold to reduce false signals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -8.65699898685174,
+            "trades_confidence": 10.0,
+            "win_rate": 0.43498904309715125
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Mean\u2011reversion signals are stronger when price extremes detected by CCI coincide with oscillator extremes from StochRSI and confirmed by volume pressure from MFI; this combination reduces entries in weak\u2011volume or trending regimes while ATR provides a volatility\u2011scaled risk framework.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -196.36050066434967,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7910967755442417,
+      "win_rate_pct": 33.24968632371393,
+      "trades": 797,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.549861689406093,
+          "trades_confidence": 10.0,
+          "win_rate": -0.5250941028858207
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -196.4%, PF 0.79, Expectancy -24.64"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 350.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.2%, Trades 797, AvgW/L 280.60/176.68"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd\\strategy.py\", line 132, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(srsi[\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy generates a high trade count with very weak or negative returns, suggesting over\u2011sensitivity to noise and a lack of trend filtering. 2. CCI extremes alone are not enough to capture true mean\u2011reversion; the StochRSI and MFI thresholds may be too tight, leading to many false entries in choppy markets. 3. The exit rule (CCI crossing -20/20) is too broad and may let positions stay open during sideways drift, diluting profits. 4. The ATR\u2011based stop/take\u2011profit may be mis\u2011scaled for a volatile crypto pair, causing premature exits or late exits.\n[Backup plan] If results stay negative, first add a simple trend filter (e.g., 50\u2011period EMA) and only trade against the trend.  If Sharpe is low, tighten the CCI entry band to \u00b1120, raise StochRSI over\u2011/under\u2011sell thresholds to 15/85, and lower MFI threshold to 25.  Consider raising the trailing stop to 1.5\u00d7ATR and TP to 3\u00d7ATR to better capture true mean\u2011reversion moves.  If the strategy still fails, switch to a Bollinger\u2011Band based mean\u2011reversion with volume confirmation or a breakout\u2011followed\u2011by\u2011pullback scheme, which may better match the pair\u2019s volatility profile."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.549861689406093,
+            "trades_confidence": 10.0,
+            "win_rate": -0.5250941028858207
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 6
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "When the CCI reaches extreme values and the StochRSI confirms overbought or oversold conditions, the price tends to revert to its mean in low\u2011volatility periods. Using ATR for dynamic stop\u2011loss and take\u2011profit ensures risk is scaled to current market conditions, improving survivability.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.015997375122955074,
+      "return_pct": -6.41634510119351,
+      "max_drawdown_pct": -32.5773312971977,
+      "profit_factor": 0.9765656970043358,
+      "win_rate_pct": 35.573122529644266,
+      "trades": 253,
+      "continuous_score": -17.89428630310091,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.4479265034427421,
+          "return": -7.057979611312861,
+          "profit_factor": -1.071282422658934,
+          "trades_confidence": 10.0,
+          "win_rate": 0.17193675889327975
+        },
+        "penalties": {
+          "drawdown_pressure": 8.384887531465136,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -6.4%, PF 0.98, Expectancy -2.54"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 32.6%, Vol 36.7%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.016, Sortino 0.027, Calmar -0.256"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.6%, Trades 253, AvgW/L 297.09/167.98"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_validation_error": "[AST001] Erreur de syntaxe ligne 132: cannot assign to function call here. Maybe you meant '==' instead of '='?",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011reliance on CCI extremes and StochRSI overbought/oversold may produce too many noisy signals, especially in a volatile crypto pair. The fixed ATR multipliers (1.2x SL, 2.5x TP) could be too tight for a 30\u2011min timeframe, causing premature exits or whipsaws. Lack of trend or volume filtering can let the system trade against a prevailing move, inflating losses. The high trade count indicates frequent entries that may be dominated by slippage and commission costs.\n[Backup plan] If results stay negative, first tighten entry filters: require CCI < -150 or > 150 and StochRSI < 15 or > 85, and add a short\u2011term EMA trend filter (price above 20\u2011EMA for longs, below for shorts). If Sharpe is low, adjust ATR multipliers to 1.5x SL and 3x TP, and extend the CCI neutral exit band to -10/10 to allow more room for mean\u2011reversion. Alternatively, shift to a breakout\u2011based strategy using Donchian channels with a 3\u2011bar confirmation, or combine the mean\u2011reversion logic with a volatility\u2011weighted position sizing to reduce exposure during high\u2011ATR periods."
+        },
+        "scoring": {
+          "continuous_score": -17.89428630310091,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.4479265034427421,
+            "return": -7.057979611312861,
+            "profit_factor": -1.071282422658934,
+            "trades_confidence": 10.0,
+            "win_rate": 0.17193675889327975
+          },
+          "penalties": {
+            "drawdown_pressure": 8.384887531465136,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "When CCI reaches extreme levels the price tends to revert, and a complementary extreme in Stoch RSI confirms the overextension. Filtering entries to periods with ATR above a minimum ensures sufficient volatility, reducing whipsaw losses in low\u2011vol markets. Exiting when CCI crosses the zero line or Stoch RSI returns to mid\u2011range captures the mean reversion before further drift, improving Sharpe and reducing drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd\\strategy.py\", line 107, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on simultaneous extreme conditions of CCI and Stoch RSI, which may be too restrictive and miss profitable moves; the ATR filter can eliminate good trades in low\u2011vol markets; the exit rule (CCI zero or Stoch RSI 50) is too blunt and may close early or late, inflating slippage; no position sizing or volatility\u2011based stop\u2011loss is used; the 30\u2011min timeframe may not capture mean\u2011reversion quickly enough.\n[Backup plan] If results stay negative, switch to a tighter ATR threshold and add a volatility\u2011adjusted stop\u2011loss (e.g., 1\u00d7 ATR) to limit losses; if Sharpe is low, tighten entry filters to CCI < -150 or > +150 and Stoch RSI < 15 or > 85, and shorten the take\u2011profit to 1.5\u00d7 ATR; alternatively, test a moving\u2011average crossover with the same filters or replace Stoch RSI with a %K line of a 14\u2011period Stoch to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 2
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 5,
+      "hypothesis": "When the CCI reaches extreme values and the StochRSI confirms overbought or oversold conditions, the price tends to revert to its mean in low\u2011volatility periods. Using ATR for dynamic stop\u2011loss and take\u2011profit ensures risk is scaled to current market conditions, improving survivability.",
+      "change_type": "logic",
+      "diagnostic_category": "needs_work",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.015997375122955074,
+      "return_pct": -6.41634510119351,
+      "max_drawdown_pct": -32.5773312971977,
+      "profit_factor": 0.9765656970043358,
+      "win_rate_pct": 35.573122529644266,
+      "trades": 253,
+      "continuous_score": -17.89428630310091,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.4479265034427421,
+          "return": -7.057979611312861,
+          "profit_factor": -1.071282422658934,
+          "trades_confidence": 10.0,
+          "win_rate": 0.17193675889327975
+        },
+        "penalties": {
+          "drawdown_pressure": 8.384887531465136,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "D",
+          "detail": "Return -6.4%, PF 0.98, Expectancy -2.54"
+        },
+        "risk": {
+          "grade": "C",
+          "detail": "MaxDD 32.6%, Vol 36.7%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.016, Sortino 0.027, Calmar -0.256"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.6%, Trades 253, AvgW/L 297.09/167.98"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_validation_error": "[AST001] Erreur de syntaxe ligne 132: cannot assign to function call here. Maybe you meant '==' instead of '='?",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy over\u2011reliance on CCI extremes and StochRSI overbought/oversold may produce too many noisy signals, especially in a volatile crypto pair. The fixed ATR multipliers (1.2x SL, 2.5x TP) could be too tight for a 30\u2011min timeframe, causing premature exits or whipsaws. Lack of trend or volume filtering can let the system trade against a prevailing move, inflating losses. The high trade count indicates frequent entries that may be dominated by slippage and commission costs.\n[Backup plan] If results stay negative, first tighten entry filters: require CCI < -150 or > 150 and StochRSI < 15 or > 85, and add a short\u2011term EMA trend filter (price above 20\u2011EMA for longs, below for shorts). If Sharpe is low, adjust ATR multipliers to 1.5x SL and 3x TP, and extend the CCI neutral exit band to -10/10 to allow more room for mean\u2011reversion. Alternatively, shift to a breakout\u2011based strategy using Donchian channels with a 3\u2011bar confirmation, or combine the mean\u2011reversion logic with a volatility\u2011weighted position sizing to reduce exposure during high\u2011ATR periods."
+        },
+        "scoring": {
+          "continuous_score": -17.89428630310091,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.4479265034427421,
+            "return": -7.057979611312861,
+            "profit_factor": -1.071282422658934,
+            "trades_confidence": 10.0,
+            "win_rate": 0.17193675889327975
+          },
+          "penalties": {
+            "drawdown_pressure": 8.384887531465136,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "When CCI reaches extreme levels the price tends to revert, and a complementary extreme in Stoch RSI confirms the overextension. Filtering entries to periods with ATR above a minimum ensures sufficient volatility, reducing whipsaw losses in low\u2011vol markets. Exiting when CCI crosses the zero line or Stoch RSI returns to mid\u2011range captures the mean reversion before further drift, improving Sharpe and reducing drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd\\strategy.py\", line 107, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy relies on simultaneous extreme conditions of CCI and Stoch RSI, which may be too restrictive and miss profitable moves; the ATR filter can eliminate good trades in low\u2011vol markets; the exit rule (CCI zero or Stoch RSI 50) is too blunt and may close early or late, inflating slippage; no position sizing or volatility\u2011based stop\u2011loss is used; the 30\u2011min timeframe may not capture mean\u2011reversion quickly enough.\n[Backup plan] If results stay negative, switch to a tighter ATR threshold and add a volatility\u2011adjusted stop\u2011loss (e.g., 1\u00d7 ATR) to limit losses; if Sharpe is low, tighten entry filters to CCI < -150 or > +150 and Stoch RSI < 15 or > 85, and shorten the take\u2011profit to 1.5\u00d7 ATR; alternatively, test a moving\u2011average crossover with the same filters or replace Stoch RSI with a %K line of a 14\u2011period Stoch to reduce noise."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "When price reaches the extreme CCI levels, the market tends to revert; coupling this with StochRSI confirming overbought or oversold conditions filters out weak extremes and increases probability of a reversal back to the CCI neutral zone.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -291.6852527197849,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8121386951226163,
+      "win_rate_pct": 36.53001464128843,
+      "trades": 1366,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -8.587945365823257,
+          "trades_confidence": 10.0,
+          "win_rate": 0.45900439238652946
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -291.7%, PF 0.81, Expectancy -21.35"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7203.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.5%, Trades 1366, AvgW/L 252.70/179.08"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "IndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4793, in _guarded_generate_signals\n    raise IndexError(\nIndexError: too many indices for array: array is 0-dimensional, but 1 were indexed. FIX: a boolean mask used for indexing has the wrong length. df has 13328 rows. Every boolean mask MUST also have exactly 13328 elements. Common cause: np.diff() returns n-1 elements, or array[window:] returns n-window elements. Use np.insert(np.diff(x), 0, 0.0) or np.zeros(n) with conditional fill instead of slicing.",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy\u2019s heavy reliance on extreme CCI values may generate many false reversals, especially in trending markets; the fixed StochRSI thresholds (20/80) might miss weaker but valid moves; the 1.2x ATR trailing stop could cut profits prematurely, while the 2.5x ATR take\u2011profit may be too distant for a 30\u2011minute window. Additionally, the exit rule (CCI crossing 0) can lag, and the strategy ignores overall market trend or volatility regime shifts.\n[Backup plan] If the backtest shows negative returns, first add a trend filter (e.g., trade only when price is above a 50\u2011period SMA for longs, below for shorts) to avoid riding strong trends. If Sharpe is low, tighten the entry criteria: raise the overbought/oversold CCI levels to \u00b1120, lower the StochRSI threshold to 15/85, and reduce the ATR multiplier to 1.0 for the trailing stop. As an alternative approach, replace the CCI/RSI combo with a Bollinger\u2011Band mean\u2011reversion rule (enter when price touches the lower band and the band width is below a threshold) combined with a simple moving\u2011average cross for trend confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -8.587945365823257,
+            "trades_confidence": 10.0,
+            "win_rate": 0.45900439238652946
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Extreme CCI values combined with complementary StochRSI overbought/oversold levels capture true mean\u2011reversion impulses; tightening the exit to a CCI \u00b120 band reduces whipsaws, while ATR\u2011based sizing adapts to volatility and limits drawdown.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -209.48372597014674,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8623755829243016,
+      "win_rate_pct": 39.966130397967824,
+      "trades": 1181,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -6.291401923460498,
+          "trades_confidence": 10.0,
+          "win_rate": 1.4898391193903473
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -209.5%, PF 0.86, Expectancy -17.74"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 2550.7%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 40.0%, Trades 1181, AvgW/L 278.11/214.69"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd\\strategy.py\", line 111, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(indicators['stoch_rsi'][\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may over\u2011trade because CCI extremes appear frequently on a 30\u2011min chart, leading to many small losses that erode capital. 2. Relying solely on CCI and StochRSI ignores trend context; in strong trending periods the mean\u2011reversion logic will produce whipsaws. 3. The exit rule (crossing \u00b120) is lagging and may trigger too late, especially with high ATR\u2011based stops that could be hit before a true reversal. 4. The ATR multiplier of 1.2 for trailing stops is very tight for crypto volatility, causing premature stop\u2011outs and a negative Sharpe.\n[Backup plan] If returns stay negative, add a trend filter (e.g., require 50\u2011period EMA below price for longs) and tighten entry thresholds to CCI < -120 and StochRSI < 15 to capture deeper divergences. If Sharpe is low but positive, widen the exit band to CCI \u00b130 and increase trailing stop to 1.5\u00d7ATR to allow the trade to run. Alternatively, switch to a Bollinger\u2011Band mean\u2011reversion model with a 20\u2011period SMA and 2\u03c3 bands, using RSI < 30/ > 70 for entries and band touch for exits, which may reduce noise and improve risk\u2011reward."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -6.291401923460498,
+            "trades_confidence": 10.0,
+            "win_rate": 1.4898391193903473
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "When price reaches an extreme CCI level while the StochRSI confirms overbought or oversold conditions, the market tends to revert toward the CCI mean; using ATR as a volatility filter ensures entries occur only in sufficiently liquid periods, reducing noise and improving risk-adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -294.91812665834954,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8106281471626182,
+      "win_rate_pct": 36.449963476990504,
+      "trades": 1369,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -8.65699898685174,
+          "trades_confidence": 10.0,
+          "win_rate": 0.43498904309715125
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -294.9%, PF 0.81, Expectancy -21.54"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 3768.0%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 36.4%, Trades 1369, AvgW/L 252.99/179.01"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 2042,
+          "short_signals": 1755,
+          "total_signals": 3797
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy suffers from excessive signal density and weak trend filtering, which leads to many whipsaw trades; the CCI extremes alone may not capture true reversals. The ATR\u2011based trailing stop and TP are fixed multipliers that do not adapt to changing volatility, causing premature exits or missed profits. Moreover, the 30\u2011minute timeframe may not provide enough liquidity for a high\u2011frequency mean\u2011reversion system, inflating slippage and transaction costs.\n[Backup plan] If the backtest remains negative, introduce a trend filter (e.g., 20\u2011period SMA or MACD bullish bias) and tighten entry conditions to CCI\u202f<\u202f\u2011120 or\u202f>\u202f120 and StochRSI\u202f<\u202f15 or\u202f>\u202f85. For a low Sharpe, adjust the ATR multiplier to 1.5x for stops and 3x for TP, and test a 5\u2011period moving\u2011average of CCI to smooth noise. As a fallback, switch to a volatility\u2011breakout strategy using ATR\u2011based entry bands and a mean\u2011reversion on Bollinger Bands with a lower RSI threshold to reduce false signals."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -8.65699898685174,
+            "trades_confidence": 10.0,
+            "win_rate": 0.43498904309715125
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "Mean\u2011reversion signals are stronger when price extremes detected by CCI coincide with oscillator extremes from StochRSI and confirmed by volume pressure from MFI; this combination reduces entries in weak\u2011volume or trending regimes while ATR provides a volatility\u2011scaled risk framework.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -196.36050066434967,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.7910967755442417,
+      "win_rate_pct": 33.24968632371393,
+      "trades": 797,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.549861689406093,
+          "trades_confidence": 10.0,
+          "win_rate": -0.5250941028858207
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -196.4%, PF 0.79, Expectancy -24.64"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 350.4%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 33.2%, Trades 797, AvgW/L 280.60/176.68"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'stochastic'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'stochastic'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_185041_strat_gie_de_mean_reversion_sur_syrupusd\\strategy.py\", line 132, in generate_signals\n    indicators['stochastic']['stoch_k'] = np.nan_to_num(srsi[\"k\"])\nKeyError: 'stochastic'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy generates a high trade count with very weak or negative returns, suggesting over\u2011sensitivity to noise and a lack of trend filtering. 2. CCI extremes alone are not enough to capture true mean\u2011reversion; the StochRSI and MFI thresholds may be too tight, leading to many false entries in choppy markets. 3. The exit rule (CCI crossing -20/20) is too broad and may let positions stay open during sideways drift, diluting profits. 4. The ATR\u2011based stop/take\u2011profit may be mis\u2011scaled for a volatile crypto pair, causing premature exits or late exits.\n[Backup plan] If results stay negative, first add a simple trend filter (e.g., 50\u2011period EMA) and only trade against the trend.  If Sharpe is low, tighten the CCI entry band to \u00b1120, raise StochRSI over\u2011/under\u2011sell thresholds to 15/85, and lower MFI threshold to 25.  Consider raising the trailing stop to 1.5\u00d7ATR and TP to 3\u00d7ATR to better capture true mean\u2011reversion moves.  If the strategy still fails, switch to a Bollinger\u2011Band based mean\u2011reversion with volume confirmation or a breakout\u2011followed\u2011by\u2011pullback scheme, which may better match the pair\u2019s volatility profile."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.549861689406093,
+            "trades_confidence": 10.0,
+            "win_rate": -0.5250941028858207
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

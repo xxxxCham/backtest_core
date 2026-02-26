@@ -1,0 +1,1354 @@
+{
+  "session_id": "20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic",
+  "objective": "Strat\u00e9gie breakout sur RAYUSDC 15m. Indicateurs : EMA + AROON + VOLUME_OSCILLATOR + ATR. Entr\u00e9es : crossover EMA avec AROON haussier + volume sup\u00e9rieur \u00e0 la moyenne mobile sur 20 p\u00e9riodes. Sorties : perte de momentum sur 5 p\u00e9riodes avec AROON descendant. Risk management : SL \u00e0 1.5x ATR, TP \u00e0 2x ATR avec ajustement dynamique selon volatilit\u00e9 r\u00e9cente. Mode_microstructure : filtre sur les heures de forte liquidit\u00e9 (09h-11h et-17h). Mode_risk_rotation : rotation entre SL/TP serr\u00e9s (volatilit\u00e9 faible) et larges (volatilit\u00e9 \u00e9lev\u00e9e). Hypoth\u00e8se testable : les ruptures avec forte volume et liquidit\u00e9 horaire ont 60% de r\u00e9ussite dans un contexte de tendance forte.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -50.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA crossover with AROON momentum and volume confirmation filters out false breakouts while leveraging high-volume periods during peak liquidity hours to increase probability of sustained trend continuation.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -122.6166115109391,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8335821430989934,
+      "win_rate_pct": 46.10552763819096,
+      "trades": 796,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -7.607673458331733,
+          "trades_confidence": 10.0,
+          "win_rate": 3.331658291457287
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -122.6%, PF 0.83, Expectancy -15.40"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 689.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.1%, Trades 796, AvgW/L 167.35/171.75"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] \u00c9criture df['hour'] non autoris\u00e9e. Colonnes autoris\u00e9es: bb_stop_long, bb_stop_short, bb_tp_long, bb_tp_short, sl_level, tp_level.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 73, in generate_signals\n    ema.crossover(20)\nNameError: name 'ema' is not defined",
+          "runtime_fix_retry_error": "AttributeError: 'numpy.ndarray' object has no attribute 'crossover'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include over-reliance on EMA crossovers which can generate whipsaws, lack of explicit trend filter beyond AROON, and potential look-ahead bias in volume and ATR calculations. The liquidity filter may exclude profitable trades during trending periods, and the exit mechanism lacks dynamic volatility adjustment. Risk management assumes symmetric volatility, which may not hold in ranging markets.\n[Backup plan] If results are poor, I'd test a combined EMA + RSI filter with dynamic SL/TP scaling. For mediocre Sharpe, I'd optimize ATR periods (10-25) and tighten volume filter to 25-period MA. Alternative: switch to mean-reversion filter with Bollinger Bands + ATR for range-trading periods, or implement a trend strength indicator like ADX to avoid false breakouts during consolidation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -7.607673458331733,
+            "trades_confidence": 10.0,
+            "win_rate": 3.331658291457287
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA crossover with AROON momentum and volume confirmation filters out weak breakouts while using ATR for dynamic risk management ensures consistent position sizing and reduces drawdown from over-leveraged trades in volatile regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1171.627668840038,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6953181988460073,
+      "win_rate_pct": 41.760117016089715,
+      "trades": 4102,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.928310909896808,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0280351048269143
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1171.6%, PF 0.70, Expectancy -28.56"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7528.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.8%, Trades 4102, AvgW/L 156.09/160.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 7457,
+          "short_signals": 7824,
+          "total_signals": 15281
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover alone may generate frequent whipsaws; AROON filtering might lag trend changes, and volume confirmation could be noisy. The fixed 1.5x/2x ATR risk management may not adapt well to changing volatility regimes, and the liquidity filter might exclude too many valid setups. The hypothesis assumes strong trend context, which may not hold consistently.\n[Backup plan] If results are poor, switch to a MACD + AROON combo with dynamic entry filters and tighten the volume threshold. If Sharpe is low, reduce ATR multipliers and increase the AROON lookback period. As an alternative, try a mean-reversion filter with volatility breakout detection using Bollinger Bands and RSI for confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.928310909896808,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0280351048269143
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The combination of EMA crossover with AROON trend confirmation and volume filter captures strong breakout moves while filtering out noise. AROON's momentum change provides clear exit signals, and ATR-based risk management ensures proper position sizing and volatility-adjusted stops/TPs. The hourly liquidity filter further improves signal quality by targeting high-volume trading periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1171.627668840038,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6953181988460073,
+      "win_rate_pct": 41.760117016089715,
+      "trades": 4102,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.928310909896808,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0280351048269143
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1171.6%, PF 0.70, Expectancy -28.56"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7528.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.8%, Trades 4102, AvgW/L 156.09/160.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 7457,
+          "short_signals": 7824,
+          "total_signals": 15281
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + AROON for trend confirmation may generate whipsaws in ranging markets. The volume filter and liquidity hours are good, but the exit mechanism (AROON crossover) is too simplistic and may exit too early. ATR-based risk management is solid, but the 1.5x/2x rules may be too rigid without dynamic scaling.\n[Backup plan] If results are poor, switch to a MACD + AROON combo with a more robust entry filter (e.g., RSI > 50). If Sharpe is low, reduce ATR multipliers and add a trailing stop. If the strategy fails, test a mean-reversion approach with Bollinger Bands + volume filter as an alternative."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.928310909896808,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0280351048269143
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "The combination of EMA trend filter with AROON momentum confirmation and volume surge helps identify high-probability breakout moves during strong trending phases, while the ATR-based risk management ensures proper position sizing and dynamic stop-loss/take-profit levels that adapt to changing volatility conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `vol_sma[..., ...]` sur indicateur 1D."
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 81, in generate_signals\n    (df['close'] > ema(21)) &\nNameError: name 'ema' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover alone may generate whipsaws in ranging markets; AROON exit logic is ambiguous (both conditions lead to exit), and the volume filter may be too lenient. The 1.5x/2x ATR SL/TP scaling is aggressive without dynamic volatility adjustment, and the liquidity filter may exclude too many trades. The hypothesis assumes strong trends, which may not persist.\n[Backup plan] If results are poor, switch to a RSI-based momentum filter instead of AROON, tighten entry filters with a higher volume threshold, and use fixed SL/TP ratios (e.g., 1.5x ATR) without dynamic adjustments. If Sharpe is low, reduce position sizing, increase the EMA period to 50, or add a volatility breakout filter (e.g., price > 2x ATR). As an alternative, consider a mean-reversion approach using Bollinger Bands with volume confirmation, or a momentum filter with MACD + volume surge during high-liquidity hours."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA trend filter with AROON momentum and volume confirmation creates a robust breakout signal that avoids false breakouts in ranging markets, while the ATR-based risk management ensures position sizing adapts to volatility and the hourly liquidity filter increases probability of successful entries during high-activity periods",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'timestamp'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'timestamp'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 91, in generate_signals\n    hour = df[\"timestamp\"].dt.hour.values\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\frame.py\", line 4102, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    raise KeyError(key) from err\nKeyError: 'timestamp'",
+          "runtime_fix_retry_error": "ValueError: operands could not be broadcast together with shapes (41964,) (41965,) ",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + AROON + volume filter may overfit to specific market regimes, and the hourly liquidity filter could limit trade frequency excessively. The exit rule based on AROON momentum might be too sensitive, causing premature exits. Risk management is sound but assumes volatility clustering that may not hold in all market conditions.\n[Backup plan] If results are poor, simplify to EMA + ATR breakout with fixed SL/TP and remove volume filter. If Sharpe is low, widen TP/SL to 3x ATR and reduce liquidity filter to 10h-12h. As alternative, test a mean-reversion filter using RSI or Bollinger Bands instead of breakout logic."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining EMA crossover with AROON momentum and volume confirmation filters out low-quality breakouts while ATR-based risk management ensures consistent reward-to-risk ratios across varying volatility regimes",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -1604.4305845707806,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.5546404769226071,
+      "win_rate_pct": 27.57234726688103,
+      "trades": 4976,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -20.359292483537963,
+          "trades_confidence": 10.0,
+          "win_rate": -2.22829581993569
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1604.4%, PF 0.55, Expectancy -32.24"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1521.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.6%, Trades 4976, AvgW/L 145.64/99.96"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 81, in generate_signals\n    ema['close'] > ema['open']\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: cl\u00e9 string `ema['close']` sur indicateur ndarray. Utiliser directement l'array.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + AROON momentum may generate whipsaws in ranging markets; volume filter could be too rigid or lagging. The exit mechanism using AROON crossovers is ambiguous and may cause early exits. The 1.5x ATR SL might be too tight for RAY's volatility, and the microstructure filter may eliminate too many valid setups.\n[Backup plan] If results are poor, reduce entry filter strictness by removing EMA crossover or using a longer EMA period. If Sharpe is low, increase TP/SL multipliers to 2.5x ATR and widen the volume filter threshold. As an alternative, switch to a mean-reversion filter with Bollinger Bands and RSI for entry, while keeping ATR-based exits."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -20.359292483537963,
+            "trades_confidence": 10.0,
+            "win_rate": -2.22829581993569
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 4,
+      "hypothesis": "The combination of EMA trend filter with AROON momentum confirmation and volume surge helps identify high-probability breakout moves during strong trending phases, while the ATR-based risk management ensures proper position sizing and dynamic stop-loss/take-profit levels that adapt to changing volatility conditions.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] Usage invalide: indexation multi-dim `vol_sma[..., ...]` sur indicateur 1D."
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 81, in generate_signals\n    (df['close'] > ema(21)) &\nNameError: name 'ema' is not defined",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover alone may generate whipsaws in ranging markets; AROON exit logic is ambiguous (both conditions lead to exit), and the volume filter may be too lenient. The 1.5x/2x ATR SL/TP scaling is aggressive without dynamic volatility adjustment, and the liquidity filter may exclude too many trades. The hypothesis assumes strong trends, which may not persist.\n[Backup plan] If results are poor, switch to a RSI-based momentum filter instead of AROON, tighten entry filters with a higher volume threshold, and use fixed SL/TP ratios (e.g., 1.5x ATR) without dynamic adjustments. If Sharpe is low, reduce position sizing, increase the EMA period to 50, or add a volatility breakout filter (e.g., price > 2x ATR). As an alternative, consider a mean-reversion approach using Bollinger Bands with volume confirmation, or a momentum filter with MACD + volume surge during high-liquidity hours."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "Combining EMA trend filter with AROON momentum and volume confirmation creates a robust breakout signal that avoids false breakouts in ranging markets, while the ATR-based risk management ensures position sizing adapts to volatility and the hourly liquidity filter increases probability of successful entries during high-activity periods",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "max_drawdown_pct": 0.0,
+      "profit_factor": 0,
+      "win_rate_pct": 0.0,
+      "trades": 0,
+      "continuous_score": -50.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": 0.0,
+          "return": 0.0,
+          "profit_factor": -24.0,
+          "trades_confidence": 0.0,
+          "win_rate": -6.0
+        },
+        "penalties": {
+          "drawdown_pressure": 0.0,
+          "drawdown_excess": 0.0,
+          "insufficient_trades": 8.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 0.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'timestamp'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'timestamp'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 91, in generate_signals\n    hour = df[\"timestamp\"].dt.hour.values\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\frame.py\", line 4102, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"C:\\Program Files\\Python312\\Lib\\site-packages\\pandas\\core\\indexes\\base.py\", line 3812, in get_loc\n    raise KeyError(key) from err\nKeyError: 'timestamp'",
+          "runtime_fix_retry_error": "ValueError: operands could not be broadcast together with shapes (41964,) (41965,) ",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + AROON + volume filter may overfit to specific market regimes, and the hourly liquidity filter could limit trade frequency excessively. The exit rule based on AROON momentum might be too sensitive, causing premature exits. Risk management is sound but assumes volatility clustering that may not hold in all market conditions.\n[Backup plan] If results are poor, simplify to EMA + ATR breakout with fixed SL/TP and remove volume filter. If Sharpe is low, widen TP/SL to 3x ATR and reduce liquidity filter to 10h-12h. As alternative, test a mean-reversion filter using RSI or Bollinger Bands instead of breakout logic."
+        },
+        "scoring": {
+          "continuous_score": -50.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": -24.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      },
+      "rank": 2
+    },
+    {
+      "iteration": 1,
+      "hypothesis": "Combining EMA crossover with AROON momentum and volume confirmation filters out false breakouts while leveraging high-volume periods during peak liquidity hours to increase probability of sustained trend continuation.",
+      "change_type": "both",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -122.6166115109391,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.8335821430989934,
+      "win_rate_pct": 46.10552763819096,
+      "trades": 796,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -7.607673458331733,
+          "trades_confidence": 10.0,
+          "win_rate": 3.331658291457287
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -122.6%, PF 0.83, Expectancy -15.40"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 689.5%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 46.1%, Trades 796, AvgW/L 167.35/171.75"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[IND001] \u00c9criture df['hour'] non autoris\u00e9e. Colonnes autoris\u00e9es: bb_stop_long, bb_stop_short, bb_tp_long, bb_tp_short, sl_level, tp_level.",
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 73, in generate_signals\n    ema.crossover(20)\nNameError: name 'ema' is not defined",
+          "runtime_fix_retry_error": "AttributeError: 'numpy.ndarray' object has no attribute 'crossover'",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's weaknesses include over-reliance on EMA crossovers which can generate whipsaws, lack of explicit trend filter beyond AROON, and potential look-ahead bias in volume and ATR calculations. The liquidity filter may exclude profitable trades during trending periods, and the exit mechanism lacks dynamic volatility adjustment. Risk management assumes symmetric volatility, which may not hold in ranging markets.\n[Backup plan] If results are poor, I'd test a combined EMA + RSI filter with dynamic SL/TP scaling. For mediocre Sharpe, I'd optimize ATR periods (10-25) and tighten volume filter to 25-period MA. Alternative: switch to mean-reversion filter with Bollinger Bands + ATR for range-trading periods, or implement a trend strength indicator like ADX to avoid false breakouts during consolidation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -7.607673458331733,
+            "trades_confidence": 10.0,
+            "win_rate": 3.331658291457287
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 3
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining EMA crossover with AROON momentum and volume confirmation filters out weak breakouts while using ATR for dynamic risk management ensures consistent position sizing and reduces drawdown from over-leveraged trades in volatile regimes.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1171.627668840038,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6953181988460073,
+      "win_rate_pct": 41.760117016089715,
+      "trades": 4102,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.928310909896808,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0280351048269143
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1171.6%, PF 0.70, Expectancy -28.56"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7528.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.8%, Trades 4102, AvgW/L 156.09/160.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 7457,
+          "short_signals": 7824,
+          "total_signals": 15281
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover alone may generate frequent whipsaws; AROON filtering might lag trend changes, and volume confirmation could be noisy. The fixed 1.5x/2x ATR risk management may not adapt well to changing volatility regimes, and the liquidity filter might exclude too many valid setups. The hypothesis assumes strong trend context, which may not hold consistently.\n[Backup plan] If results are poor, switch to a MACD + AROON combo with dynamic entry filters and tighten the volume threshold. If Sharpe is low, reduce ATR multipliers and increase the AROON lookback period. As an alternative, try a mean-reversion filter with volatility breakout detection using Bollinger Bands and RSI for confirmation."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.928310909896808,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0280351048269143
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 4
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "The combination of EMA crossover with AROON trend confirmation and volume filter captures strong breakout moves while filtering out noise. AROON's momentum change provides clear exit signals, and ATR-based risk management ensures proper position sizing and volatility-adjusted stops/TPs. The hourly liquidity filter further improves signal quality by targeting high-volume trading periods.",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -20.0,
+      "return_pct": -1171.627668840038,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.6953181988460073,
+      "win_rate_pct": 41.760117016089715,
+      "trades": 4102,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -13.928310909896808,
+          "trades_confidence": 10.0,
+          "win_rate": 2.0280351048269143
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1171.6%, PF 0.70, Expectancy -28.56"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 7528.1%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.8%, Trades 4102, AvgW/L 156.09/160.96"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 7457,
+          "short_signals": 7824,
+          "total_signals": 15281
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + AROON for trend confirmation may generate whipsaws in ranging markets. The volume filter and liquidity hours are good, but the exit mechanism (AROON crossover) is too simplistic and may exit too early. ATR-based risk management is solid, but the 1.5x/2x rules may be too rigid without dynamic scaling.\n[Backup plan] If results are poor, switch to a MACD + AROON combo with a more robust entry filter (e.g., RSI > 50). If Sharpe is low, reduce ATR multipliers and add a trailing stop. If the strategy fails, test a mean-reversion approach with Bollinger Bands + volume filter as an alternative."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -13.928310909896808,
+            "trades_confidence": 10.0,
+            "win_rate": 2.0280351048269143
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "stop_overridden": true
+        }
+      },
+      "rank": 5
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "Combining EMA crossover with AROON momentum and volume confirmation filters out low-quality breakouts while ATR-based risk management ensures consistent reward-to-risk ratios across varying volatility regimes",
+      "change_type": "logic",
+      "diagnostic_category": "ruined",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -20.0,
+      "return_pct": -1604.4305845707806,
+      "max_drawdown_pct": -100.0,
+      "profit_factor": 0.5546404769226071,
+      "win_rate_pct": 27.57234726688103,
+      "trades": 4976,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -20.359292483537963,
+          "trades_confidence": 10.0,
+          "win_rate": -2.22829581993569
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 80.0
+        },
+        "drawdown_excess_pct": 65.0
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -1604.4%, PF 0.55, Expectancy -32.24"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 100.0%, Vol 1521.2%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -20.000, Sortino -20.000, Calmar -20.000"
+        },
+        "signal_quality": {
+          "grade": "D",
+          "detail": "WR 27.6%, Trades 4976, AvgW/L 145.64/99.96"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[SIG001] `for i in range(...)` interdit dans la logique Builder.",
+          "logic_retry_used": true,
+          "source": "deterministic_fallback"
+        },
+        "precheck": {
+          "ok": false,
+          "error": "NameError: name 'ema' is not defined",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "NameError: name 'ema' is not defined",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_113121_strat_gie_breakout_sur_rayusdc_15m_indic\\strategy.py\", line 81, in generate_signals\n    ema['close'] > ema['open']\nNameError: name 'ema' is not defined",
+          "runtime_fix_validation_error": "[IND001] Usage invalide: cl\u00e9 string `ema['close']` sur indicateur ndarray. Utiliser directement l'array.",
+          "runtime_fix_fallback_deterministic_used": true,
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy's reliance on EMA crossover + AROON momentum may generate whipsaws in ranging markets; volume filter could be too rigid or lagging. The exit mechanism using AROON crossovers is ambiguous and may cause early exits. The 1.5x ATR SL might be too tight for RAY's volatility, and the microstructure filter may eliminate too many valid setups.\n[Backup plan] If results are poor, reduce entry filter strictness by removing EMA crossover or using a longer EMA period. If Sharpe is low, increase TP/SL multipliers to 2.5x ATR and widen the volume filter threshold. As an alternative, switch to a mean-reversion filter with Bollinger Bands and RSI for entry, while keeping ATR-based exits."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 65.0,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -20.359292483537963,
+            "trades_confidence": 10.0,
+            "win_rate": -2.22829581993569
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 80.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 6
+    }
+  ]
+}

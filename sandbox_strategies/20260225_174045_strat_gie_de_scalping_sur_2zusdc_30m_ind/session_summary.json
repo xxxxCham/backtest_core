@@ -1,0 +1,805 @@
+{
+  "session_id": "20260225_174045_strat_gie_de_scalping_sur_2zusdc_30m_ind",
+  "objective": "Strat\u00e9gie de Scalping sur 2ZUSDC 30m. Indicateurs : EMA + RSI + VWAP + ATR. Scalp quand EMA croise en zone extr\u00eame avec RSI align\u00e9. Sortie rapide : take-profit serr\u00e9 (1-1.5x ATR), stop-loss serr\u00e9 (0.5-1x ATR). Trailing stop \u00e0 1.5x ATR, take-profit \u00e0 2.4x ATR.",
+  "status": "failed",
+  "best_sharpe": 0.0,
+  "best_score": -26.0,
+  "total_iterations": 6,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "When price moves beyond the EMA while RSI is already in extreme territory and price is above VWAP, the market is likely to continue in that direction for a short burst; using ATR to set tight stops and TP captures the quick move while limiting exposure.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -4.287327686550109,
+      "return_pct": -71.62093409774126,
+      "max_drawdown_pct": -82.47816734979789,
+      "profit_factor": 0.7644720080536705,
+      "win_rate_pct": 41.03343465045592,
+      "trades": 329,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.76699391754649,
+          "trades_confidence": 10.0,
+          "win_rate": 1.8100303951367769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 47.478167349797886
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -71.6%, PF 0.76, Expectancy -21.77"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 82.5%, Vol 52.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -4.287, Sortino -5.356, Calmar -1.175"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.0%, Trades 329, AvgW/L 172.20/156.75"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_174045_strat_gie_de_scalping_sur_2zusdc_30m_ind\\strategy.py\", line 107, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The EMA\u2011RSI\u2011VWAP combo may trigger too many false alarms in choppy 30\u2011min crypto data; tight ATR stops can get hit by normal noise. 2. The exit rule (crossing EMA) is lagging and may miss the short\u2011burst move the strategy aims to capture. 3. The fixed ATR multipliers for TP/SL may not adapt to changing volatility, leading to poor risk\u2011reward balance.\n[Backup plan] If performance is negative, try widening the ATR SL to 1x and raising the TP to 3x ATR, or add a higher\u2011timeframe trend filter (e.g., 4\u2011hour VWAP). If Sharpe is low, experiment with a 20\u2011period EMA instead of 9\u2011period and tighten the RSI extreme to 80/20 to reduce noise. As an alternative, switch to a breakout\u2011based scalping that uses Bollinger\u2011band squeezes and volume spikes, keeping ATR\u2011based stops but adjusting the entry to the band edge rather than EMA cross."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 47.478167349797886,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.76699391754649,
+            "trades_confidence": 10.0,
+            "win_rate": 1.8100303951367769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining an EMA trend filter with RSI extreme conditions and VWAP direction limits entries to moments when price momentum is aligned with a clear trend; ATR-based risk management scales stops and targets to current volatility, reducing overtrading and large drawdowns.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "EMA cross signals momentum shifts; aligning with extreme RSI confirms overbought/oversold conditions, while VWAP ensures trades stay in the prevailing market direction. ATR-based risk limits adapt to volatility, tightening stops in calm periods and widening them when volatility spikes, which improves risk\u2011reward consistency for short 30\u2011minute scalps.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 4,
+      "hypothesis": "A 30\u2011minute EMA cross combined with RSI extremes isolates short\u2011term trend reversals; ATR\u2011based sizing and exits adapt to current volatility, keeping risk tight while allowing quick profit capture.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 5,
+      "hypothesis": "EMA cross with RSI extreme alignment and VWAP anchoring captures short\u2011term momentum bursts while filtering noise; ATR\u2011based risk limits adapt to volatility, keeping risk per trade consistent.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": null,
+      "return_pct": null,
+      "max_drawdown_pct": null,
+      "profit_factor": null,
+      "win_rate_pct": null,
+      "trades": null,
+      "continuous_score": null,
+      "score_breakdown": null,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 1.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0,
+          "backtest_skipped": true
+        },
+        "scoring": {
+          "continuous_score": -26.0,
+          "drawdown_excess_pct": 0.0,
+          "components": {
+            "sharpe": 0.0,
+            "return": 0.0,
+            "profit_factor": 0.0,
+            "trades_confidence": 0.0,
+            "win_rate": -6.0
+          },
+          "penalties": {
+            "drawdown_pressure": 0.0,
+            "drawdown_excess": 0.0,
+            "insufficient_trades": 8.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      }
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The EMA provides a short\u2011term trend direction, RSI confirms extreme momentum levels, and VWAP acts as an intraday support/resistance anchor; together they generate high\u2011probability scalp entries while ATR\u2011based sizing adapts to volatility, limiting drawdown and preserving edge.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -3.837016971958706,
+      "return_pct": -63.61454816514146,
+      "max_drawdown_pct": -77.56541127720368,
+      "profit_factor": 0.7828530641876321,
+      "win_rate_pct": 35.36231884057971,
+      "trades": 345,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.926717065708246,
+          "trades_confidence": 10.0,
+          "win_rate": 0.10869565217391325
+        },
+        "penalties": {
+          "drawdown_pressure": 38.37694085146912,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 42.56541127720368
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -63.6%, PF 0.78, Expectancy -18.44"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 77.6%, Vol 47.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -3.837, Sortino -5.410, Calmar -1.211"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.4%, Trades 345, AvgW/L 187.98/131.37"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 179,
+          "short_signals": 455,
+          "total_signals": 634
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) Over\u2011sensitive to EMA/RSI extremes can trigger in choppy 30m markets, leading to many whipsaws; 2) VWAP is a daily anchor, not ideal for 30m scalping; 3) Tight ATR\u2011based TP/SL may clip profits before trend solidifies; 4) Trailing stop at 1.5x ATR may be too close, causing premature exits.\n[Backup plan] If results are negative, tighten entry by adding a volume spike filter or require RSI > 80 (or <20 for shorts) and a 5\u2011bar VWAP slope confirmation. If Sharpe is low, increase ATR TP to 2x, adjust SL to 0.75x, extend EMA to 50\u2011period, and lower RSI extreme to 65/35 to reduce noise. As an alternative, switch to a Bollinger\u2011Band mean\u2011reversion scalp with a 20\u2011period SMA and 2\u03c3 bands, using ATR for sizing and a 1.5x ATR trailing stop."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 42.56541127720368,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.926717065708246,
+            "trades_confidence": 10.0,
+            "win_rate": 0.10869565217391325
+          },
+          "penalties": {
+            "drawdown_pressure": 38.37694085146912,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 2
+    }
+  ],
+  "leaderboard": [
+    {
+      "iteration": 1,
+      "hypothesis": "When price moves beyond the EMA while RSI is already in extreme territory and price is above VWAP, the market is likely to continue in that direction for a short burst; using ATR to set tight stops and TP captures the quick move while limiting exposure.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "continue",
+      "sharpe": -4.287327686550109,
+      "return_pct": -71.62093409774126,
+      "max_drawdown_pct": -82.47816734979789,
+      "profit_factor": 0.7644720080536705,
+      "win_rate_pct": 41.03343465045592,
+      "trades": 329,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -10.76699391754649,
+          "trades_confidence": 10.0,
+          "win_rate": 1.8100303951367769
+        },
+        "penalties": {
+          "drawdown_pressure": 40.0,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 47.478167349797886
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -71.6%, PF 0.76, Expectancy -21.77"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 82.5%, Vol 52.9%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -4.287, Sortino -5.356, Calmar -1.175"
+        },
+        "signal_quality": {
+          "grade": "B",
+          "detail": "WR 41.0%, Trades 329, AvgW/L 172.20/156.75"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": false,
+          "error": "KeyError: 'atr'",
+          "long_signals": 0,
+          "short_signals": 0,
+          "total_signals": 0
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5372, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4813, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4790, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260225_174045_strat_gie_de_scalping_sur_2zusdc_30m_ind\\strategy.py\", line 107, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The EMA\u2011RSI\u2011VWAP combo may trigger too many false alarms in choppy 30\u2011min crypto data; tight ATR stops can get hit by normal noise. 2. The exit rule (crossing EMA) is lagging and may miss the short\u2011burst move the strategy aims to capture. 3. The fixed ATR multipliers for TP/SL may not adapt to changing volatility, leading to poor risk\u2011reward balance.\n[Backup plan] If performance is negative, try widening the ATR SL to 1x and raising the TP to 3x ATR, or add a higher\u2011timeframe trend filter (e.g., 4\u2011hour VWAP). If Sharpe is low, experiment with a 20\u2011period EMA instead of 9\u2011period and tighten the RSI extreme to 80/20 to reduce noise. As an alternative, switch to a breakout\u2011based scalping that uses Bollinger\u2011band squeezes and volume spikes, keeping ATR\u2011based stops but adjusting the entry to the band edge rather than EMA cross."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 47.478167349797886,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -10.76699391754649,
+            "trades_confidence": 10.0,
+            "win_rate": 1.8100303951367769
+          },
+          "penalties": {
+            "drawdown_pressure": 40.0,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        }
+      },
+      "rank": 1
+    },
+    {
+      "iteration": 6,
+      "hypothesis": "The EMA provides a short\u2011term trend direction, RSI confirms extreme momentum levels, and VWAP acts as an intraday support/resistance anchor; together they generate high\u2011probability scalp entries while ATR\u2011based sizing adapts to volatility, limiting drawdown and preserving edge.",
+      "change_type": "logic",
+      "diagnostic_category": "high_drawdown",
+      "error": null,
+      "decision": "stop",
+      "sharpe": -3.837016971958706,
+      "return_pct": -63.61454816514146,
+      "max_drawdown_pct": -77.56541127720368,
+      "profit_factor": 0.7828530641876321,
+      "win_rate_pct": 35.36231884057971,
+      "trades": 345,
+      "continuous_score": -100.0,
+      "score_breakdown": {
+        "components": {
+          "sharpe": -42.0,
+          "return": -33.0,
+          "profit_factor": -9.926717065708246,
+          "trades_confidence": 10.0,
+          "win_rate": 0.10869565217391325
+        },
+        "penalties": {
+          "drawdown_pressure": 38.37694085146912,
+          "drawdown_excess": 20.0,
+          "insufficient_trades": 0.0,
+          "non_positive_return": 12.0,
+          "ruined": 0.0
+        },
+        "drawdown_excess_pct": 42.56541127720368
+      },
+      "score_card": {
+        "profitability": {
+          "grade": "F",
+          "detail": "Return -63.6%, PF 0.78, Expectancy -18.44"
+        },
+        "risk": {
+          "grade": "F",
+          "detail": "MaxDD 77.6%, Vol 47.6%"
+        },
+        "efficiency": {
+          "grade": "F",
+          "detail": "Sharpe -3.837, Sortino -5.410, Calmar -1.211"
+        },
+        "signal_quality": {
+          "grade": "C",
+          "detail": "WR 35.4%, Trades 345, AvgW/L 187.98/131.37"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true,
+          "change_type_overridden": {
+            "from": "both",
+            "to": "logic",
+            "reason": "diagnostic_policy"
+          }
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 179,
+          "short_signals": 455,
+          "total_signals": 634
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1) Over\u2011sensitive to EMA/RSI extremes can trigger in choppy 30m markets, leading to many whipsaws; 2) VWAP is a daily anchor, not ideal for 30m scalping; 3) Tight ATR\u2011based TP/SL may clip profits before trend solidifies; 4) Trailing stop at 1.5x ATR may be too close, causing premature exits.\n[Backup plan] If results are negative, tighten entry by adding a volume spike filter or require RSI > 80 (or <20 for shorts) and a 5\u2011bar VWAP slope confirmation. If Sharpe is low, increase ATR TP to 2x, adjust SL to 0.75x, extend EMA to 50\u2011period, and lower RSI extreme to 65/35 to reduce noise. As an alternative, switch to a Bollinger\u2011Band mean\u2011reversion scalp with a 20\u2011period SMA and 2\u03c3 bands, using ATR for sizing and a 1.5x ATR trailing stop."
+        },
+        "scoring": {
+          "continuous_score": -100.0,
+          "drawdown_excess_pct": 42.56541127720368,
+          "components": {
+            "sharpe": -42.0,
+            "return": -33.0,
+            "profit_factor": -9.926717065708246,
+            "trades_confidence": 10.0,
+            "win_rate": 0.10869565217391325
+          },
+          "penalties": {
+            "drawdown_pressure": 38.37694085146912,
+            "drawdown_excess": 20.0,
+            "insufficient_trades": 0.0,
+            "non_positive_return": 12.0,
+            "ruined": 0.0
+          }
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 6,
+            "required_positive": 1,
+            "observed_positive": 0,
+            "llm_positive": 0,
+            "fallback_positive": 0
+          }
+        }
+      },
+      "rank": 2
+    }
+  ]
+}

@@ -22,7 +22,10 @@ Skip-if: Logique backend du builder (voir agents/strategy_builder.py)
 
 from __future__ import annotations
 
+import csv
+import io
 import logging
+import random
 import time
 import traceback
 import re
@@ -56,7 +59,6 @@ from agents.strategy_builder import (
     get_next_parametric_objective,
     mark_catalog_objective_explored,
     recommend_market_context,
-    reset_catalog_exploration,
     sanitize_objective_text,
 )
 from agents.thought_stream import STREAM_FILE
@@ -73,6 +75,7 @@ def render_iteration_card(
     decision = getattr(iteration, "decision", "")
     error = getattr(iteration, "error", None)
     diag = getattr(iteration, "diagnostic_detail", {}) or {}
+    phase_feedback = getattr(iteration, "phase_feedback", {}) or {}
 
     # Icône selon résultat
     if error:
@@ -126,9 +129,16 @@ def render_iteration_card(
         bt = getattr(iteration, "backtest_result", None)
         if bt and hasattr(bt, "metrics"):
             metrics = bt.metrics
+            score_info = diag.get("continuous_score")
+            if score_info is None:
+                score_info = (
+                    (phase_feedback.get("scoring", {}) if phase_feedback else {}).get(
+                        "continuous_score"
+                    )
+                )
 
             # Ligne 1: métriques principales
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
                 st.metric("Sharpe", f"{metrics.get('sharpe_ratio', 0):.3f}")
             with col2:
@@ -137,6 +147,11 @@ def render_iteration_card(
                 st.metric("Max DD", f"{metrics.get('max_drawdown_pct', 0):.2f}%")
             with col4:
                 st.metric("Trades", str(metrics.get("total_trades", 0)))
+            with col5:
+                if score_info is None:
+                    st.metric("Score", "n/a")
+                else:
+                    st.metric("Score", f"{float(score_info):.2f}")
 
             # Ligne 2: métriques secondaires
             c1, c2, c3, c4 = st.columns(4)
@@ -172,7 +187,6 @@ def render_iteration_card(
             st.markdown(f"**📊 Analyse:** {analysis[:600]}")
 
         # Feedback structuré de phase (diagnostic d'orchestration)
-        phase_feedback = getattr(iteration, "phase_feedback", {}) or {}
         if phase_feedback:
             with st.expander("🧭 Feedback d'orchestration", expanded=False):
                 pfb = phase_feedback.get("proposal", {}) or {}
@@ -239,6 +253,16 @@ def render_iteration_card(
                             f"`{bfb.get('runtime_fix_validation_error')}`"
                         )
 
+                sfb = phase_feedback.get("scoring", {}) or {}
+                if sfb:
+                    st.markdown("**Scoring continu**")
+                    score = sfb.get("continuous_score")
+                    dd_excess = sfb.get("drawdown_excess_pct")
+                    if score is not None:
+                        st.markdown(f"- score: `{float(score):.2f}`")
+                    if dd_excess is not None:
+                        st.markdown(f"- drawdown excess: `{float(dd_excess):.2f}%`")
+
                 if dfb:
                     st.markdown("**Decision policy**")
                     if dfb.get("stop_overridden"):
@@ -257,6 +281,7 @@ def render_session_summary(session: Any) -> None:
     """Affiche le résumé final de la session builder."""
     status = getattr(session, "status", "unknown")
     best_sharpe = getattr(session, "best_sharpe", float("-inf"))
+    best_score = getattr(session, "best_score", float("-inf"))
     n_iters = len(getattr(session, "iterations", []))
 
     # Statut global
@@ -269,7 +294,11 @@ def render_session_summary(session: Any) -> None:
     icon, label = status_map.get(status, ("❓", status))
 
     st.markdown(f"### {icon} {label}")
-    st.markdown(f"**Itérations:** {n_iters} | **Meilleur Sharpe:** {best_sharpe:.3f}")
+    score_txt = "n/a" if best_score == float("-inf") else f"{best_score:.2f}"
+    st.markdown(
+        f"**Itérations:** {n_iters} | **Meilleur Sharpe:** {best_sharpe:.3f} | "
+        f"**Meilleur Score:** {score_txt}"
+    )
 
     # Synthèse orchestration: réalignements et overrides
     total_realign = 0
@@ -552,6 +581,143 @@ def _dedupe_keep_order(values: List[str], *, upper: bool = False) -> List[str]:
     return out
 
 
+def _is_builder_supported_timeframe(raw_tf: str) -> bool:
+    """Filtre des TF supportés en mode Builder (rejette les TF mensuels)."""
+    tf = str(raw_tf or "").strip()
+    if not tf:
+        return False
+    m = re.fullmatch(r"(\d+)([mhdwM])", tf)
+    if not m:
+        return False
+    amount = int(m.group(1))
+    unit = m.group(2)
+    if amount <= 0:
+        return False
+    if unit == "M":
+        return False
+    return True
+
+
+def _sanitize_builder_timeframes(
+    timeframes: List[str],
+    *,
+    fallback: str = "1h",
+) -> List[str]:
+    """Normalise la liste de TF pour le Builder en retirant les entrées non supportées."""
+    cleaned = [
+        str(tf or "").strip()
+        for tf in (timeframes or [])
+        if _is_builder_supported_timeframe(str(tf or "").strip())
+    ]
+    cleaned = _dedupe_keep_order(cleaned, upper=False)
+    if cleaned:
+        return cleaned
+    return [fallback] if _is_builder_supported_timeframe(fallback) else ["1h"]
+
+
+def _get_builder_compatible_indicators(df: Any) -> List[str]:
+    """Retourne les indicateurs calculables avec les colonnes réellement présentes."""
+    try:
+        from indicators.registry import get_indicator, list_indicators
+    except Exception:
+        return ["ema", "rsi", "atr"]
+
+    all_indicators = [str(x or "").strip().lower() for x in list_indicators()]
+    all_indicators = [x for x in all_indicators if x]
+    if not all_indicators:
+        return ["ema", "rsi", "atr"]
+
+    # Si df indisponible, partir sur OHLCV standard.
+    raw_cols = getattr(df, "columns", None)
+    if raw_cols is None:
+        raw_cols = []
+    df_cols = {
+        str(col or "").strip().lower()
+        for col in list(raw_cols)
+        if str(col or "").strip()
+    }
+    if not df_cols:
+        df_cols = {"open", "high", "low", "close", "volume"}
+
+    # Indicateurs à colonne externe optionnelle/non-OHLCV.
+    # fear_greed exige une colonne dédiée "fear_greed" et échoue sinon.
+    custom_column_requirements = {
+        "fear_greed": "fear_greed",
+    }
+
+    compatible: List[str] = []
+    for name in all_indicators:
+        info = get_indicator(name)
+        required = tuple(getattr(info, "required_columns", ()) or ())
+        if any(str(col).lower() not in df_cols for col in required):
+            continue
+        extra_col = custom_column_requirements.get(name)
+        if extra_col and extra_col not in df_cols:
+            continue
+        compatible.append(name)
+
+    if compatible:
+        return compatible
+    return ["ema", "rsi", "atr"]
+
+
+def _stable_random_pick(session_key: str, candidates: List[str], fallback: str) -> str:
+    """Retourne un choix aléatoire stable sur la session Streamlit."""
+    normalized = [str(v or "").strip() for v in candidates if str(v or "").strip()]
+    if not normalized:
+        return fallback
+
+    cached = str(st.session_state.get(session_key, "") or "").strip()
+    if cached in normalized:
+        return cached
+
+    picked = random.choice(normalized)
+    st.session_state[session_key] = picked
+    return picked
+
+
+def _pick_non_recent_market(
+    symbols: List[str],
+    timeframes: List[str],
+    recent_markets: List[Tuple[str, str]],
+) -> Tuple[str, str]:
+    """Choisit un couple marché de fallback en évitant d'abord les plus récents."""
+    clean_symbols = [str(s or "").strip().upper() for s in symbols if str(s or "").strip()]
+    clean_tfs = [str(tf or "").strip() for tf in timeframes if str(tf or "").strip()]
+    if not clean_symbols:
+        clean_symbols = ["BTCUSDC"]
+    if not clean_tfs:
+        clean_tfs = ["1h"]
+
+    all_pairs = [(s, tf) for s in clean_symbols for tf in clean_tfs]
+    if len(all_pairs) == 1:
+        return all_pairs[0]
+
+    recent_set = {
+        (str(s or "").strip().upper(), str(tf or "").strip())
+        for s, tf in (recent_markets or [])
+        if str(s or "").strip() and str(tf or "").strip()
+    }
+    candidate_pairs = [pair for pair in all_pairs if pair not in recent_set]
+    pool = candidate_pairs if candidate_pairs else all_pairs
+
+    # Diversifier explicitement les TF pour éviter les longs blocs mono-timeframe.
+    tf_usage = st.session_state.setdefault("_builder_tf_usage", {})
+    for tf in clean_tfs:
+        tf_usage.setdefault(tf, 0)
+    min_tf_usage = min(tf_usage.get(tf, 0) for _, tf in pool)
+    tf_pool = [
+        tf for tf in clean_tfs
+        if tf_usage.get(tf, 0) == min_tf_usage and any(pair_tf == tf for _, pair_tf in pool)
+    ]
+    chosen_tf = random.choice(tf_pool) if tf_pool else random.choice(clean_tfs)
+
+    tf_pairs = [pair for pair in pool if pair[1] == chosen_tf]
+    chosen_pair = random.choice(tf_pairs) if tf_pairs else random.choice(pool)
+    tf_usage[chosen_pair[1]] = int(tf_usage.get(chosen_pair[1], 0)) + 1
+    return chosen_pair
+
+
 def _builder_market_candidates(
     state: Any,
     *,
@@ -559,8 +725,25 @@ def _builder_market_candidates(
     current_timeframe: str,
 ) -> Tuple[List[str], List[str]]:
     """Construit l'univers symbol/timeframe proposé au LLM."""
-    selected_symbols = list(getattr(state, "symbols", []) or [])
-    selected_timeframes = list(getattr(state, "timeframes", []) or [])
+    auto_market_pick = bool(getattr(state, "builder_auto_market_pick", False))
+
+    # En mode auto market pick, ignorer les valeurs bootstrap cachées (1 seul token/TF)
+    # et ne conserver que les sélections explicitement faites dans les multiselects UI.
+    if auto_market_pick:
+        selected_symbols = [
+            str(s or "").strip().upper()
+            for s in (st.session_state.get("symbols_select", []) or [])
+            if str(s or "").strip()
+        ]
+        selected_timeframes = [
+            str(tf or "").strip()
+            for tf in (st.session_state.get("timeframes_select", []) or [])
+            if str(tf or "").strip()
+        ]
+    else:
+        selected_symbols = list(getattr(state, "symbols", []) or [])
+        selected_timeframes = list(getattr(state, "timeframes", []) or [])
+
     available_symbols = list(getattr(state, "available_tokens", []) or [])
     available_timeframes = list(getattr(state, "available_timeframes", []) or [])
 
@@ -569,10 +752,40 @@ def _builder_market_candidates(
         [*selected_symbols, current_symbol, *available_symbols],
         upper=True,
     )
-    timeframes = _dedupe_keep_order(
-        [*selected_timeframes, current_timeframe, *available_timeframes],
+    if selected_timeframes:
+        # Source de vérité: quand l'utilisateur a sélectionné des TF,
+        # ne pas réinjecter un current_timeframe externe potentiellement obsolète.
+        tf_candidates = [str(tf or "").strip() for tf in selected_timeframes if str(tf or "").strip()]
+        if current_timeframe and current_timeframe in tf_candidates:
+            tf_candidates = [current_timeframe, *[tf for tf in tf_candidates if tf != current_timeframe]]
+    else:
+        tf_candidates = [current_timeframe, *available_timeframes]
+
+    timeframes = _dedupe_keep_order(tf_candidates, upper=False)
+    timeframes = _sanitize_builder_timeframes(timeframes, fallback=current_timeframe or "1h")
+
+    # Anti-biais: on garde des ancres utiles (marché courant + sélection utilisateur),
+    # puis on complète aléatoirement pour éviter l'effet "premiers éléments de liste".
+    symbol_anchors = _dedupe_keep_order(
+        [current_symbol, *selected_symbols],
+        upper=True,
+    )
+    symbol_anchors = [s for s in symbol_anchors if s in symbols][:6]
+    symbol_pool = [s for s in symbols if s not in symbol_anchors]
+    random.shuffle(symbol_pool)
+    symbols = [*symbol_anchors, *symbol_pool]
+
+    timeframe_anchors = _dedupe_keep_order(
+        [current_timeframe, *selected_timeframes],
         upper=False,
     )
+    timeframe_anchors = [
+        tf for tf in timeframe_anchors
+        if tf in timeframes and _is_builder_supported_timeframe(tf)
+    ][:4]
+    timeframe_pool = [tf for tf in timeframes if tf not in timeframe_anchors]
+    random.shuffle(timeframe_pool)
+    timeframes = [*timeframe_anchors, *timeframe_pool]
 
     # Limiter la taille du prompt LLM.
     return symbols[:24], timeframes[:12]
@@ -698,6 +911,7 @@ def _run_single_builder_session(
     df: Any,
     session_label: str = "",
     skip_llm_prepare: bool = False,
+    show_config_caption: bool = True,
 ) -> Any:
     """Exécute une session builder unique et affiche les résultats.
 
@@ -710,13 +924,14 @@ def _run_single_builder_session(
     if session_label:
         st.markdown(f"### {session_label}")
     st.markdown(f"**Objectif:** {objective}")
-    st.caption(
-        f"Modèle: `{model}` | Max itérations: {max_iterations} | "
-        f"Sharpe cible: {target_sharpe} | Capital: ${capital:,.0f} | "
-        f"Marché: {symbol} {timeframe} | "
-        f"Données: {len(df):,} barres | "
-        f"Frais: {fees_bps}bps + {slippage_bps}bps slip"
-    )
+    if show_config_caption:
+        st.caption(
+            f"Modèle: `{model}` | Max itérations: {max_iterations} | "
+            f"Sharpe cible: {target_sharpe} | Capital: ${capital:,.0f} | "
+            f"Marché: {symbol} {timeframe} | "
+            f"Données: {len(df):,} barres | "
+            f"Frais: {fees_bps}bps + {slippage_bps}bps slip"
+        )
 
     # Préchargement du modèle Ollama en VRAM
     runtime_model = model
@@ -786,6 +1001,9 @@ def _run_single_builder_session(
         llm_config=llm_config,
         stream_callback=_on_llm_stream,
     )
+    compatible_indicators = _get_builder_compatible_indicators(df)
+    if compatible_indicators:
+        builder.available_indicators = compatible_indicators
 
     progress_bar = st.progress(0.0, text="Initialisation...")
     iterations_container = st.container()
@@ -859,24 +1077,45 @@ def _render_autonomous_recap(history: List[Dict[str, Any]]) -> None:
     if not history:
         return
 
+    def _fmt_float(value: Any, pattern: str, default: str = "n/a") -> str:
+        try:
+            if value is None:
+                return default
+            return pattern.format(float(value))
+        except Exception:
+            return default
+
+    def _fmt_int(value: Any, default: str = "n/a") -> str:
+        try:
+            if value is None:
+                return default
+            return str(int(value))
+        except Exception:
+            return default
+
     st.markdown("---")
     st.markdown("## 📊 Récapitulatif des sessions autonomes")
 
-    header = "| # | Source | Objectif (résumé) | Statut | Sharpe | Return | Trades | Durée |"
-    separator = "|---|---|---|---|---|---|---|---|"
+    header = "| # | Source | Objectif (résumé) | Statut | Score | Sharpe | Return | Max DD | Trades | Durée |"
+    separator = "|---|---|---|---|---|---|---|---|---|---|"
     rows = [header, separator]
+    export_rows: List[Dict[str, Any]] = []
 
     for i, h in enumerate(history, 1):
-        obj_short = h.get("objective", "")[:60]
-        if len(h.get("objective", "")) > 60:
+        objective_raw = str(h.get("objective", "") or "")
+        objective_one_line = " ".join(objective_raw.split())
+        obj_short = objective_one_line[:100]
+        if len(objective_one_line) > 100:
             obj_short += "…"
-        source = h.get("parametric_variant_id", "") or h.get("catalog_id", "") or "-"
-        if len(source) > 28:
-            source = source[:28] + "…"
+
+        # Important: conserver le nom de source complet (pas de troncature).
+        source = str(h.get("parametric_variant_id", "") or h.get("catalog_id", "") or "-")
         status = h.get("status", "?")
         sharpe = h.get("best_sharpe", 0)
-        ret = h.get("best_return", 0)
-        trades = h.get("best_trades", 0)
+        score = h.get("best_score")
+        ret = h.get("best_return")
+        max_dd = h.get("best_max_dd")
+        trades = h.get("best_trades")
         duration = h.get("duration", 0)
 
         status_icon = {"success": "🏆", "max_iterations": "⏱️", "failed": "❌"}.get(
@@ -884,17 +1123,50 @@ def _render_autonomous_recap(history: List[Dict[str, Any]]) -> None:
         )
         rows.append(
             f"| {i} | {source} | {obj_short} | {status_icon} {status} | "
-            f"{sharpe:.3f} | {ret:+.2f}% | {trades} | {duration:.0f}s |"
+            f"{_fmt_float(score, '{:.2f}')} | {_fmt_float(sharpe, '{:.3f}')} | "
+            f"{_fmt_float(ret, '{:+.2f}%')} | {_fmt_float(max_dd, '{:.2f}%')} | "
+            f"{_fmt_int(trades)} | {duration:.0f}s |"
+        )
+        export_rows.append(
+            {
+                "session_num": h.get("session_num"),
+                "status": status,
+                "best_score": score,
+                "best_sharpe": sharpe,
+                "best_return_pct": ret,
+                "best_max_drawdown_pct": max_dd,
+                "best_trades": trades,
+                "duration_s": duration,
+                "symbol": h.get("symbol"),
+                "timeframe": h.get("timeframe"),
+                "objective": objective_one_line,
+                "source": source,
+                "session_id": h.get("session_id"),
+            }
         )
 
     st.markdown("\n".join(rows))
 
     # Meilleur global
     if history:
-        best = max(history, key=lambda h: h.get("best_sharpe", float("-inf")))
+        best = max(history, key=lambda h: float(h.get("best_score", float("-inf")) or float("-inf")))
         st.success(
-            f"**Meilleure session :** Sharpe {best.get('best_sharpe', 0):.3f} — "
+            f"**Meilleure session :** Score {_fmt_float(best.get('best_score'), '{:.2f}')} "
+            f"(Sharpe {_fmt_float(best.get('best_sharpe'), '{:.3f}')}) — "
             f"{best.get('objective', '')[:80]}"
+        )
+
+    if export_rows:
+        csv_buf = io.StringIO()
+        writer = csv.DictWriter(csv_buf, fieldnames=list(export_rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(export_rows)
+        st.download_button(
+            "⬇️ Export leaderboard CSV",
+            data=csv_buf.getvalue(),
+            file_name="builder_autonomous_leaderboard.csv",
+            mime="text/csv",
+            key=f"builder_autonomous_leaderboard_export_{len(export_rows)}",
         )
 
     # Couverture catalogue
@@ -966,7 +1238,10 @@ def render_builder_view(
 
     # Contexte de marché — si rien n'est sélectionné, on pioche parmi les tokens disponibles
     available_tokens = list(getattr(state, "available_tokens", []) or [])
-    available_tfs = list(getattr(state, "available_timeframes", []) or [])
+    available_tfs = _sanitize_builder_timeframes(
+        list(getattr(state, "available_timeframes", []) or []),
+        fallback="1h",
+    )
 
     _raw_symbol = (
         getattr(state, "symbol", None)
@@ -979,9 +1254,28 @@ def render_builder_view(
         or ""
     )
 
-    # Fallback intelligent quand rien n'est sélectionné
-    symbol = str(_raw_symbol) if _raw_symbol else (available_tokens[0] if available_tokens else "BTCUSDC")
-    timeframe = str(_raw_timeframe) if _raw_timeframe else "1h"
+    # Fallback intelligent quand rien n'est sélectionné.
+    # Évite le biais "premier élément de liste" en utilisant un bootstrap aléatoire stable de session.
+    symbol = (
+        str(_raw_symbol).strip().upper()
+        if _raw_symbol
+        else _stable_random_pick("_builder_startup_symbol", available_tokens, "BTCUSDC").upper()
+    )
+    timeframe = (
+        str(_raw_timeframe).strip()
+        if _raw_timeframe
+        else _stable_random_pick(
+            "_builder_startup_timeframe",
+            available_tfs,
+            "1h",
+        )
+    )
+    if not _is_builder_supported_timeframe(timeframe):
+        timeframe = _stable_random_pick(
+            "_builder_startup_timeframe",
+            available_tfs,
+            "1h",
+        )
 
     # ── DIAG: Mode auto-sélection marché ──
     logger.info(
@@ -991,12 +1285,57 @@ def render_builder_view(
         timeframe,
     )
 
-    # Listes complètes pour le mode autonome (diversification multi-market)
-    user_symbols = list(getattr(state, "symbols", []) or [])
-    user_timeframes = list(getattr(state, "timeframes", []) or [])
-    # Si l'utilisateur n'a rien sélectionné, utiliser les top tokens disponibles
-    all_symbols = user_symbols if user_symbols else (available_tokens[:20] if available_tokens else [symbol])
-    all_timeframes = user_timeframes if user_timeframes else ([tf for tf in available_tfs if tf != "3m"] or [timeframe])
+    # Listes complètes pour le mode autonome (diversification multi-market).
+    # En auto market pick, on ne traite comme "user_*" que les sélections explicites UI.
+    if auto_market_pick:
+        user_symbols = [
+            str(s or "").strip().upper()
+            for s in (st.session_state.get("symbols_select", []) or [])
+            if str(s or "").strip()
+        ]
+        user_symbols = [s for s in user_symbols if s in available_tokens]
+        user_timeframes = [
+            str(tf or "").strip()
+            for tf in (st.session_state.get("timeframes_select", []) or [])
+            if str(tf or "").strip()
+        ]
+        user_timeframes = [tf for tf in user_timeframes if tf in available_tfs]
+    else:
+        user_symbols = list(getattr(state, "symbols", []) or [])
+        user_timeframes = list(getattr(state, "timeframes", []) or [])
+
+    # ── ROTATION DIVERSIFIÉE : éviter de toujours tester les mêmes tokens ──
+    if not user_symbols and available_tokens:
+        # Shuffle pour diversifier (évite biais alphabétique)
+        shuffled_tokens = available_tokens.copy()
+        random.shuffle(shuffled_tokens)
+
+        # Tracker des marchés récemment testés (pour éviter répétitions)
+        if "builder_tested_markets" not in st.session_state:
+            st.session_state["builder_tested_markets"] = []
+
+        tested_markets = st.session_state["builder_tested_markets"]
+        recently_tested_tokens = {m["symbol"] for m in tested_markets[-20:]}  # 20 derniers
+
+        # Priorité aux tokens NON récemment testés
+        untested_tokens = [t for t in shuffled_tokens if t not in recently_tested_tokens]
+        if untested_tokens:
+            all_symbols = untested_tokens[:20]  # Top 20 non testés
+        else:
+            # Tous testés récemment → re-shuffle complet
+            all_symbols = shuffled_tokens[:20]
+
+        logger.info(
+            "🔄 Rotation tokens: %d disponibles, %d récemment testés, %d sélectionnés pour ce run",
+            len(available_tokens),
+            len(recently_tested_tokens),
+            len(all_symbols),
+        )
+    else:
+        all_symbols = user_symbols if user_symbols else [symbol]
+
+    all_timeframes_raw = user_timeframes if user_timeframes else (available_tfs or [timeframe])
+    all_timeframes = _sanitize_builder_timeframes(all_timeframes_raw, fallback=timeframe or "1h")
 
     # ── DIAG: Univers de sélection ──
     logger.info(
@@ -1050,20 +1389,46 @@ def render_builder_view(
             except Exception:
                 pass
         if df is None:
-            # Charger le premier token disponible comme point de départ
-            for _try_sym in all_symbols[:3]:
-                for _try_tf in all_timeframes[:2]:
-                    try:
-                        from data.loader import load_ohlcv
-                        df = load_ohlcv(_try_sym, _try_tf)
-                        if df is not None and len(df) > 0:
-                            symbol = _try_sym
-                            timeframe = _try_tf
-                            break
-                    except Exception:
-                        continue
-                if df is not None:
-                    break
+            # Précharge initiale: éviter tout biais "3 premiers tokens/2 premiers TF".
+            probe_symbols = list(all_symbols)
+            probe_timeframes = list(all_timeframes)
+            if auto_market_pick:
+                probe_symbols = _dedupe_keep_order(
+                    [*probe_symbols, *available_tokens],
+                    upper=True,
+                )
+                # Respect strict des TF utilisateur si explicitement fournis.
+                if not user_timeframes:
+                    probe_timeframes = _sanitize_builder_timeframes(
+                        _dedupe_keep_order(
+                            [*probe_timeframes, *available_tfs],
+                            upper=False,
+                        ),
+                        fallback=timeframe or "1h",
+                    )
+
+            probe_pairs = [(s, tf) for s in probe_symbols for tf in probe_timeframes]
+            if len(probe_pairs) > 1:
+                random.shuffle(probe_pairs)
+            max_probe_pairs = min(len(probe_pairs), 24)
+
+            logger.info(
+                "🔍 [DIAG] Startup data probe: trying %d/%d pairs (randomized order)",
+                max_probe_pairs,
+                len(probe_pairs),
+            )
+
+            for _try_sym, _try_tf in probe_pairs[:max_probe_pairs]:
+                try:
+                    from data.loader import load_ohlcv
+
+                    df = load_ohlcv(_try_sym, _try_tf)
+                    if df is not None and len(df) > 0:
+                        symbol = _try_sym
+                        timeframe = _try_tf
+                        break
+                except Exception:
+                    continue
         if df is None or len(df) == 0:
             with status_container:
                 show_status("error", "Aucune donnée OHLCV disponible pour démarrer le mode autonome.")
@@ -1217,7 +1582,7 @@ def render_builder_view(
         else f"{symbol} {timeframe}"
     )
     st.caption(
-        f"Modèle: `{model}` | Max itérations/session: {max_iterations} | "
+        f"Configuration autonome | Max itérations/session: {max_iterations} | "
         f"Sharpe cible: {target_sharpe} | Capital: ${capital:,.0f} | "
         f"Marchés: {_market_display} | "
         f"Pause entre runs: {auto_pause}s | "
@@ -1268,6 +1633,8 @@ def render_builder_view(
     if auto_market_pick:
         llm_client_for_market = create_llm_client(llm_config_shared)
 
+    objective_indicators = _get_builder_compatible_indicators(df)
+
     # Historique des sessions autonomes
     if "builder_autonomous_history" not in st.session_state:
         st.session_state["builder_autonomous_history"] = []
@@ -1315,34 +1682,40 @@ def render_builder_view(
             else:
                 st.info("📐 Catalogue paramétrique vide — fallback templates")
                 catalog_result = get_next_catalog_objective(
-                    symbol=all_symbols, timeframe=all_timeframes,
+                    symbol=None if auto_market_pick else all_symbols,
+                    timeframe=None if auto_market_pick else all_timeframes,
                 )
                 if catalog_result is not None:
                     objective, current_catalog_id = catalog_result
                 else:
                     objective = generate_random_objective(
-                        symbol=all_symbols, timeframe=all_timeframes,
+                        symbol=("{symbol}" if auto_market_pick else all_symbols),
+                        timeframe=("{timeframe}" if auto_market_pick else all_timeframes),
+                        available_indicators=objective_indicators,
                     )
         elif use_llm_objectives and llm_client_for_obj is not None:
             with st.spinner("🧠 Génération de l'objectif par LLM..."):
                 objective = generate_llm_objective(
                     llm_client_for_obj,
-                    symbol=all_symbols,
-                    timeframe=all_timeframes,
+                    symbol=None if auto_market_pick else all_symbols,
+                    timeframe=None if auto_market_pick else all_timeframes,
+                    available_indicators=objective_indicators,
                     recent_markets=_recent_markets or None,
                 )
         else:
             # Catalogue systématique en priorité, fallback random
             catalog_result = get_next_catalog_objective(
-                symbol=all_symbols, timeframe=all_timeframes,
+                symbol=None if auto_market_pick else all_symbols,
+                timeframe=None if auto_market_pick else all_timeframes,
             )
             if catalog_result is not None:
                 objective, current_catalog_id = catalog_result
             else:
                 st.info("📚 Catalogue épuisé — passage en mode aléatoire")
                 objective = generate_random_objective(
-                    symbol=all_symbols,
-                    timeframe=all_timeframes,
+                    symbol=("{symbol}" if auto_market_pick else all_symbols),
+                    timeframe=("{timeframe}" if auto_market_pick else all_timeframes),
+                    available_indicators=objective_indicators,
                 )
         objective = sanitize_objective_text(objective)
         if current_parametric_meta:
@@ -1355,7 +1728,30 @@ def render_builder_view(
 
         session_symbol = symbol
         session_timeframe = timeframe
+        if auto_market_pick:
+            session_symbol, session_timeframe = _pick_non_recent_market(
+                all_symbols,
+                all_timeframes,
+                _recent_markets,
+            )
+        default_session_symbol = session_symbol
+        default_session_timeframe = session_timeframe
         session_df = df
+        if auto_market_pick:
+            session_df, pre_load_error, pre_data_source = _load_builder_market_data(
+                state=state,
+                symbol=default_session_symbol,
+                timeframe=default_session_timeframe,
+                fallback_df=df,
+            )
+            if pre_load_error:
+                logger.warning(
+                    "🔍 [DIAG] Default session market preload failed for %s %s: %s (source=%s)",
+                    default_session_symbol,
+                    default_session_timeframe,
+                    pre_load_error,
+                    pre_data_source,
+                )
         market_pick: Dict[str, Any] = {}
         if auto_market_pick and llm_client_for_market is not None:
             with st.spinner("🧭 Sélection automatique du marché (token/TF)…"):
@@ -1363,18 +1759,48 @@ def render_builder_view(
                     state=state,
                     objective=objective,
                     llm_client=llm_client_for_market,
-                    default_symbol=symbol,
-                    default_timeframe=timeframe,
-                    fallback_df=df,
+                    default_symbol=default_session_symbol,
+                    default_timeframe=default_session_timeframe,
+                    fallback_df=session_df,
                     recent_markets=_recent_markets or None,
                 )
             confidence = float(market_pick.get("confidence", 0.0) or 0.0)
             source = str(market_pick.get("source", "") or "")
             data_source = str(market_pick.get("data_source", "") or "")
-            st.caption(
-                f"🧭 Session #{session_num}: {session_symbol} {session_timeframe} "
-                f"(source={source}, data={data_source}, conf={confidence:.2f})"
+            reason = str(market_pick.get("reason", "") or "")
+
+            # Détection override UI
+            is_override = (
+                default_session_symbol and default_session_timeframe and
+                (
+                    session_symbol != default_session_symbol
+                    or session_timeframe != default_session_timeframe
+                )
             )
+
+            if is_override:
+                # UI warning pour override explicite
+                st.warning(
+                    f"🔄 **Override LLM** : {default_session_symbol} {default_session_timeframe} → {session_symbol} {session_timeframe}\n\n"
+                    f"**Raison:** {reason}\n\n"
+                    f"*Source: {source} | Confidence: {confidence:.2f}*"
+                )
+                # Log structuré override
+                logger.info(
+                    "Market selection: source=llm_override, original=%s %s, final=%s %s, reason=%s, confidence=%.2f",
+                    default_session_symbol,
+                    default_session_timeframe,
+                    session_symbol,
+                    session_timeframe,
+                    reason,
+                    confidence,
+                )
+            else:
+                st.caption(
+                    f"🧭 Session #{session_num}: {session_symbol} {session_timeframe} "
+                    f"(source={source}, data={data_source}, conf={confidence:.2f})"
+                )
+
             # ── DIAG: Sélection finale ──
             logger.info(
                 "🔍 [DIAG] Session #%d → Marché sélectionné: %s %s | "
@@ -1430,6 +1856,7 @@ def render_builder_view(
                 df=session_df,
                 session_label=f"🔄 Session autonome #{session_num}",
                 skip_llm_prepare=True,
+                show_config_caption=False,
             )
             duration = time.perf_counter() - t0
 
@@ -1438,6 +1865,9 @@ def render_builder_view(
             best_metrics = {}
             if session.best_iteration and session.best_iteration.backtest_result:
                 best_metrics = session.best_iteration.backtest_result.metrics
+            best_score = getattr(session, "best_score", float("-inf"))
+            if best_score == float("-inf"):
+                best_score = None
 
             history.append({
                 "session_num": session_num,
@@ -1453,8 +1883,11 @@ def render_builder_view(
                 "parametric_fingerprint": current_parametric_meta.get("fingerprint", ""),
                 "status": session.status,
                 "best_sharpe": session.best_sharpe,
-                "best_return": best_metrics.get("total_return_pct", 0),
-                "best_trades": best_metrics.get("total_trades", 0),
+                "best_score": best_score,
+                "best_return": best_metrics.get("total_return_pct"),
+                "best_max_dd": best_metrics.get("max_drawdown_pct"),
+                "best_pf": best_metrics.get("profit_factor"),
+                "best_trades": best_metrics.get("total_trades"),
                 "n_iterations": len(session.iterations),
                 "duration": duration,
                 "session_id": session.session_id,
@@ -1488,9 +1921,12 @@ def render_builder_view(
                 "parametric_builder_text": current_parametric_meta.get("builder_text", ""),
                 "parametric_fingerprint": current_parametric_meta.get("fingerprint", ""),
                 "status": "error",
-                "best_sharpe": 0,
-                "best_return": 0,
-                "best_trades": 0,
+                "best_sharpe": None,
+                "best_score": None,
+                "best_return": None,
+                "best_max_dd": None,
+                "best_pf": None,
+                "best_trades": None,
                 "n_iterations": 0,
                 "duration": duration,
                 "session_id": "",

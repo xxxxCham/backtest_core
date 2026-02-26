@@ -1,0 +1,104 @@
+{
+  "session_id": "20260221_004312_fiche_strategie_v1_id_trend_supertrend_a",
+  "objective": "FICHE_STRATEGIE v1\nid: trend_supertrend\narchetype: trend_supertrend\nfamily: trend\ntimeframe: 1h\nside: both\nindicators:\n- supertrend(atr_period=12, multiplier=2.5)\n- adx(period=18)\n- atr(period=14)\nentry:\n- long: supertrend.direction == 1 and adx.adx > 30\n- short: supertrend.direction == -1 and adx.adx > 30\nexit:\n- condition: direction_change(supertrend.direction) or adx.adx < 25\nrisk:\nstop_atr_mult: 1.5\ntp_atr_mult: 3.0\ndescription: ATR trailing stop (1.5x) and take-profit (3.0x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "success",
+  "best_sharpe": -Infinity,
+  "total_iterations": 1,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A combination of supertrend, adx and atr provides a robust trend following strategy with risk management.",
+      "change_type": "both",
+      "diagnostic_category": "target_reached",
+      "error": null,
+      "decision": "accept",
+      "sharpe": 1.625771666544351,
+      "return_pct": 27.57241018362529,
+      "trades": 25,
+      "score_card": {
+        "profitability": {
+          "grade": "A",
+          "detail": "Return +27.6%, PF 1.56, Expectancy 110.29"
+        },
+        "risk": {
+          "grade": "B",
+          "detail": "MaxDD 19.4%, Vol 60.5%"
+        },
+        "efficiency": {
+          "grade": "A",
+          "detail": "Sharpe 1.626, Sortino 1.624, Calmar 11.248"
+        },
+        "signal_quality": {
+          "grade": "A",
+          "detail": "WR 52.0%, Trades 25, AvgW/L 590.07/409.47"
+        }
+      },
+      "is_fallback": true,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "text",
+          "realign_attempts": 1,
+          "realign_success": true,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true,
+          "validation_error": "[AST001] Erreur de syntaxe ligne 96: invalid syntax",
+          "logic_retry_used": true,
+          "validation_error_retry": "[SANDBOX001] Import/appel dangereux d\u00e9tect\u00e9: 'eval('",
+          "fallback_deterministic_used": true,
+          "source": "deterministic_fallback",
+          "fallback_variant": 0
+        },
+        "precheck": {
+          "ok": true,
+          "long_signals": 14,
+          "short_signals": 14,
+          "total_signals": 28
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+from typing import Any, Dict, List
+
+import numpy as np
+import pandas as pd
+
+from utils.parameters import ParameterSpec
+from strategies.base import StrategyBase
+
+
+class BuilderGeneratedStrategy(StrategyBase):
+    def __init__(self):
+        super().__init__(name='momentum_0gusdc_1h_revised')
+
+    @property
+    def required_indicators(self) -> List[str]:
+        return ['ema', 'bollinger', 'volume_oscillator', 'atr']
+
+    @property
+    def default_params(self) -> Dict[str, Any]:
+        return {'bollinger_period': 20,
+         'bollinger_std_dev': 2,
+         'ema_fast': 50,
+         'ema_slow': 200,
+         'leverage': 1,
+         'stop_atr_mult': 1.5,
+         'tp_atr_mult': 2.25,
+         'volume_oscillator_fast': 12,
+         'volume_oscillator_slow': 26,
+         'warmup': 50}
+
+    @property
+    def parameter_specs(self) -> Dict[str, ParameterSpec]:
+        return {
+            'ema_fast': ParameterSpec(
+                name='ema_fast',
+                min_val=10,
+                max_val=100,
+                default=50,
+                param_type='int',
+                step=1,
+            ),
+            'ema_slow': ParameterSpec(
+                name='ema_slow',
+                min_val=100,
+                max_val=300,
+                default=200,
+                param_type='int',
+                step=1,
+            ),
+            'bollinger_period': ParameterSpec(
+                name='bollinger_period',
+                min_val=10,
+                max_val=50,
+                default=20,
+                param_type='int',
+                step=1,
+            ),
+            'volume_oscillator_fast': ParameterSpec(
+                name='volume_oscillator_fast',
+                min_val=5,
+                max_val=30,
+                default=12,
+                param_type='int',
+                step=1,
+            ),
+            'volume_oscillator_slow': ParameterSpec(
+                name='volume_oscillator_slow',
+                min_val=20,
+                max_val=60,
+                default=26,
+                param_type='int',
+                step=1,
+            ),
+            'stop_atr_mult': ParameterSpec(
+                name='stop_atr_mult',
+                min_val=0.5,
+                max_val=4.0,
+                default=1.5,
+                param_type='float',
+                step=0.1,
+            ),
+            'tp_atr_mult': ParameterSpec(
+                name='tp_atr_mult',
+                min_val=1.0,
+                max_val=6.0,
+                default=2.25,
+                param_type='float',
+                step=0.1,
+            ),
+            'leverage': ParameterSpec(
+                name='leverage',
+                min_val=1,
+                max_val=2,
+                default=1,
+                param_type='int',
+                step=1,
+            ),
+        }
+
+    def generate_signals(self, df: pd.DataFrame, indicators: Dict[str, Any], params: Dict[str, Any]) -> pd.Series:
+        signals = pd.Series(0.0, index=df.index, dtype=np.float64)
+        n = len(df)
+        warmup = int(params.get('warmup', 50))
+        long_mask = np.zeros(n, dtype=bool)
+        short_mask = np.zeros(n, dtype=bool)
+        # === LOGIQUE LLM INSÉRÉE ICI UNIQUEMENT ===
+        long_mask = np.zeros(n, dtype=bool)
+        short_mask = np.zeros(n, dtype=bool)
+        # warmup protection
+        signals.iloc[:warmup] = 0.0
+        # extract indicators
+        ema_fast = np.nan_to_num(indicators['ema'])
+        ema_slow = np.nan_to_num(indicators['ema'])
+        bb = indicators['bollinger']
+        indicators['bollinger']['upper'] = np.nan_to_num(bb["upper"])
+        indicators['bollinger']['middle'] = np.nan_to_num(bb["middle"])
+        indicators['bollinger']['lower'] = np.nan_to_num(bb["lower"])
+        volume_osc = np.nan_to_num(indicators['volume_oscillator'])
+        atr = np.nan_to_num(indicators['atr'])
+        # compute EMA arrays
+        ema_fast_vals = ema_fast
+        ema_slow_vals = ema_slow
+        # compute crossover signals
+        prev_ema_fast = np.roll(ema_fast_vals, 1)
+        prev_ema_slow = np.roll(ema_slow_vals, 1)
+        prev_ema_fast[0] = np.nan
+        prev_ema_slow[0] = np.nan
+        cross_up = (ema_fast_vals > ema_slow_vals) & (prev_ema_fast <= prev_ema_slow)
+        cross_down = (ema_fast_vals < ema_slow_vals) & (prev_ema_fast >= prev_ema_slow)
+        # compute bollinger expansion
+        prev_bb_upper = np.roll(indicators['bollinger']['upper'], 1)
+        prev_bb_lower = np.roll(indicators['bollinger']['lower'], 1)
+        prev_bb_upper[0] = np.nan
+        prev_bb_lower[0] = np.nan
+        bb_expansion = (indicators['bollinger']['upper'] - indicators['bollinger']['lower']) - (prev_bb_upper - prev_bb_lower)
+        # entry conditions
+        long_entry = cross_up & (bb_expansion > 0) & (volume_osc > 0)
+        short_entry = cross_down & (bb_expansion < 0) & (volume_osc < 0)
+        # exit conditions
+        exit_long = cross_down | (volume_osc < -0.2)
+        exit_short = cross_up | (volume_osc > 0.2)
+        # assign masks
+        long_mask = long_entry
+        short_mask = short_entry
+        # apply exit signals
+        exit_mask_long = np.zeros(n, dtype=bool)
+        exit_mask_short = np.zeros(n, dtype=bool)
+        # track positions
+        position_long = np.zeros(n, dtype=bool)
+        position_short = np.zeros(n, dtype=bool)
+        # handle exits
+        prev_exit_long = np.roll(exit_long, 1)
+        prev_exit_long[0] = False
+        prev_exit_short = np.roll(exit_short, 1)
+        prev_exit_short[0] = False
+        exit_mask_long = exit_long & position_long
+        exit_mask_short = exit_short & position_short
+        # update positions
+        position_long = np.zeros(n, dtype=bool)
+        position_short = np.zeros(n, dtype=bool)
+        # track current position
+        prev_position_long = np.roll(position_long, 1)
+        prev_position_long[0] = False
+        prev_position_short = np.roll(position_short, 1)
+        prev_position_short[0] = False
+        # update position status
+        position_long = long_mask | (prev_position_long & ~exit_mask_long)
+        position_short = short_mask | (prev_position_short & ~exit_mask_short)
+        # generate final signals
+        signals[long_mask] = 1.0
+        signals[short_mask] = -1.0
+        # apply ATR-based SL/TP logic
+        df.loc[:, "bb_stop_long"] = np.nan
+        df.loc[:, "bb_tp_long"] = np.nan
+        df.loc[:, "bb_stop_short"] = np.nan
+        df.loc[:, "bb_tp_short"] = np.nan
+        entry_long_mask = signals == 1.0
+        entry_short_mask = signals == -1.0
+        close = df["close"].values
+        stop_atr_mult = params.get("stop_atr_mult", 1.5)
+        tp_atr_mult = params.get("tp_atr_mult", 2.25)
+        df.loc[entry_long_mask, "bb_stop_long"] = close[entry_long_mask] - stop_atr_mult * atr[entry_long_mask]
+        df.loc[entry_long_mask, "bb_tp_long"] = close[entry_long_mask] + tp_atr_mult * atr[entry_long_mask]
+        df.loc[entry_short_mask, "bb_stop_short"] = close[entry_short_mask] + stop_atr_mult * atr[entry_short_mask]
+        df.loc[entry_short_mask, "bb_tp_short"] = close[entry_short_mask] - tp_atr_mult * atr[entry_short_mask]
+        signals.iloc[:warmup] = 0.0
+        return signals

@@ -2467,110 +2467,263 @@ def render_multi_sweep_ranking(
 # ============================================================================
 
 def render_walk_forward_results(summary: Any, key: str = "wfa_chart") -> None:
-    """Affiche les résultats complets d'une Walk-Forward Analysis.
+    """Affiche les résultats WFA avec frise + vues comparatives.
 
-    Sections :
-    1. Verdict + métriques clés (4 colonnes)
-    2. Graphique barres groupées Sharpe train vs test par fold
-    3. Tableau détaillé des folds
+    Compatible avec:
+    - WalkForwardSummary (objet dataclass)
+    - summary.to_dict() (dict sérialisé)
     """
-    import plotly.graph_objects as go
+    if summary is None:
+        st.warning("Aucun résultat Walk-Forward à afficher.")
+        return
 
-    if summary is None or not hasattr(summary, "folds") or not summary.folds:
+    # Normaliser payload objet -> dict
+    if isinstance(summary, dict):
+        payload = summary
+    elif hasattr(summary, "to_dict"):
+        payload = summary.to_dict()
+    else:
+        st.warning("Format WFA non supporté.")
+        return
+
+    folds_raw = payload.get("folds") if isinstance(payload, dict) else None
+    if not isinstance(folds_raw, list) or not folds_raw:
         st.warning("Aucun fold WFA à afficher.")
         return
 
-    # ── Verdict global ──────────────────────────────────────────────────
-    if summary.is_robust:
-        st.success(
-            f"✅ **Stratégie robuste** — Confiance : {summary.confidence_score:.0%}"
-        )
-    else:
-        st.warning(
-            f"⚠️ **Overfitting probable** — Confiance : {summary.confidence_score:.0%}"
-        )
+    def _safe_float(value: Any, default: float = 0.0) -> float:
+        try:
+            out = float(value)
+            if not np.isfinite(out):
+                return default
+            return out
+        except (TypeError, ValueError):
+            return default
 
-    # ── Métriques clés ──────────────────────────────────────────────────
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric(
-        "Sharpe Train (moy.)",
-        f"{summary.avg_train_sharpe:.2f}",
+    def _normalize_fold(fold: Any) -> Dict[str, Any]:
+        if isinstance(fold, dict):
+            data = dict(fold)
+        elif hasattr(fold, "to_dict"):
+            data = dict(fold.to_dict())
+        else:
+            data = {}
+
+        train_range = data.get("train_range")
+        test_range = data.get("test_range")
+
+        if not (isinstance(train_range, (list, tuple)) and len(train_range) == 2):
+            t0 = data.get("train_start")
+            t1 = data.get("train_end")
+            train_range = [t0, t1]
+        if not (isinstance(test_range, (list, tuple)) and len(test_range) == 2):
+            t0 = data.get("test_start")
+            t1 = data.get("test_end")
+            test_range = [t0, t1]
+
+        train_start = int(_safe_float(train_range[0], 0))
+        train_end = int(_safe_float(train_range[1], train_start))
+        test_start = int(_safe_float(test_range[0], 0))
+        test_end = int(_safe_float(test_range[1], test_start))
+
+        train_sharpe = _safe_float(
+            data.get("train_sharpe"),
+            _safe_float((data.get("train_metrics") or {}).get("sharpe_ratio"), 0.0),
+        )
+        test_sharpe = _safe_float(
+            data.get("test_sharpe"),
+            _safe_float((data.get("test_metrics") or {}).get("sharpe_ratio"), 0.0),
+        )
+        overfit_ratio = _safe_float(data.get("overfitting_ratio"), np.nan)
+        exec_ms = _safe_float(data.get("execution_time_ms"), 0.0)
+
+        return {
+            "fold_id": int(_safe_float(data.get("fold_id"), 0)),
+            "train_start": train_start,
+            "train_end": train_end,
+            "test_start": test_start,
+            "test_end": test_end,
+            "train_bars": max(0, train_end - train_start),
+            "test_bars": max(0, test_end - test_start),
+            "train_sharpe": train_sharpe,
+            "test_sharpe": test_sharpe,
+            "overfitting_ratio": overfit_ratio,
+            "execution_time_ms": exec_ms,
+        }
+
+    folds = [_normalize_fold(f) for f in folds_raw]
+    folds = sorted(folds, key=lambda x: x["fold_id"])
+
+    # ── Verdict + Config ────────────────────────────────────────────────
+    is_robust = bool(payload.get("is_robust", False))
+    confidence = _safe_float(payload.get("confidence_score"), 0.0)
+    if is_robust:
+        st.success(f"✅ **Stratégie robuste** — Confiance : {confidence:.0%}")
+    else:
+        st.warning(f"⚠️ **Overfitting probable** — Confiance : {confidence:.0%}")
+
+    cfg = payload.get("config", {}) if isinstance(payload, dict) else {}
+    mode_label = "expanding" if bool(cfg.get("expanding", False)) else "rolling"
+    st.caption(
+        f"Configuration WFA: {int(_safe_float(cfg.get('n_folds'), len(folds)))} folds | "
+        f"train_ratio={_safe_float(cfg.get('train_ratio'), 0.7):.0%} | mode={mode_label}"
     )
+
+    # ── Métriques globales ──────────────────────────────────────────────
+    avg_train = _safe_float(payload.get("avg_train_sharpe"), 0.0)
+    avg_test = _safe_float(payload.get("avg_test_sharpe"), 0.0)
+    degradation = _safe_float(payload.get("degradation_pct"), 0.0)
+    stability = _safe_float(payload.get("test_stability_std"), 0.0)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Sharpe Train (moy.)", f"{avg_train:.2f}")
     c2.metric(
         "Sharpe Test (moy.)",
-        f"{summary.avg_test_sharpe:.2f}",
-        delta=f"{summary.avg_test_sharpe - summary.avg_train_sharpe:+.2f}",
+        f"{avg_test:.2f}",
+        delta=f"{avg_test - avg_train:+.2f}",
         delta_color="normal",
     )
     c3.metric(
         "Dégradation",
-        f"{summary.degradation_pct:.0f}%",
-        delta=f"{-summary.degradation_pct:.0f}%",
+        f"{degradation:.0f}%",
+        delta=f"{-degradation:.0f}%",
         delta_color="inverse",
     )
-    c4.metric(
-        "Stabilité Test (σ)",
-        f"{summary.test_stability_std:.3f}",
+    c4.metric("Stabilité Test (σ)", f"{stability:.3f}")
+
+    # ── Frise (timeline folds train/test) ───────────────────────────────
+    fold_labels = [f"Fold {f['fold_id']}" for f in folds]
+    train_starts = [f["train_start"] for f in folds]
+    train_lengths = [f["train_bars"] for f in folds]
+    test_starts = [f["test_start"] for f in folds]
+    test_lengths = [f["test_bars"] for f in folds]
+
+    fig_timeline = go.Figure()
+    fig_timeline.add_trace(
+        go.Bar(
+            name="Train",
+            y=fold_labels,
+            x=train_lengths,
+            base=train_starts,
+            orientation="h",
+            marker_color="#3b82f6",
+            opacity=0.9,
+            hovertemplate=(
+                "Fold: %{y}<br>"
+                "Train start: %{base}<br>"
+                "Train bars: %{x}<extra></extra>"
+            ),
+        )
     )
+    fig_timeline.add_trace(
+        go.Bar(
+            name="Test (OOS)",
+            y=fold_labels,
+            x=test_lengths,
+            base=test_starts,
+            orientation="h",
+            marker_color="#ef4444",
+            opacity=0.9,
+            hovertemplate=(
+                "Fold: %{y}<br>"
+                "Test start: %{base}<br>"
+                "Test bars: %{x}<extra></extra>"
+            ),
+        )
+    )
+    fig_timeline.update_layout(
+        title="Frise Walk-Forward — fenêtres Train/Test par fold (indices barres)",
+        barmode="overlay",
+        xaxis_title="Index barre",
+        yaxis_title="Fold",
+        template="plotly_dark",
+        height=max(320, 140 + 45 * len(folds)),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    st.plotly_chart(fig_timeline, use_container_width=True, key=f"{key}_timeline")
 
-    # ── Graphique barres ────────────────────────────────────────────────
-    fold_ids = [f"Fold {f.fold_id}" for f in summary.folds]
-    train_sharpes = []
-    test_sharpes = []
-    for f in summary.folds:
-        ts = (f.train_metrics or {}).get("sharpe_ratio", 0)
-        te = (f.test_metrics or {}).get("sharpe_ratio", 0)
-        train_sharpes.append(ts)
-        test_sharpes.append(te)
+    # ── Sharpe train vs test par fold ───────────────────────────────────
+    train_sharpes = [f["train_sharpe"] for f in folds]
+    test_sharpes = [f["test_sharpe"] for f in folds]
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        name="Train",
-        x=fold_ids,
-        y=train_sharpes,
-        marker_color="#636EFA",
-        text=[f"{v:.2f}" for v in train_sharpes],
-        textposition="auto",
-    ))
-    fig.add_trace(go.Bar(
-        name="Test (OOS)",
-        x=fold_ids,
-        y=test_sharpes,
-        marker_color="#EF553B",
-        text=[f"{v:.2f}" for v in test_sharpes],
-        textposition="auto",
-    ))
-    fig.update_layout(
+    fig_sharpe = go.Figure()
+    fig_sharpe.add_trace(
+        go.Bar(
+            name="Train",
+            x=fold_labels,
+            y=train_sharpes,
+            marker_color="#636EFA",
+            text=[f"{v:.2f}" for v in train_sharpes],
+            textposition="auto",
+        )
+    )
+    fig_sharpe.add_trace(
+        go.Bar(
+            name="Test (OOS)",
+            x=fold_labels,
+            y=test_sharpes,
+            marker_color="#EF553B",
+            text=[f"{v:.2f}" for v in test_sharpes],
+            textposition="auto",
+        )
+    )
+    fig_sharpe.update_layout(
         title="Sharpe Ratio — Train vs Test par fold",
         barmode="group",
         yaxis_title="Sharpe Ratio",
         template="plotly_dark",
-        height=350,
+        height=360,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
-    st.plotly_chart(fig, use_container_width=True, key=f"{key}_bars")
+    st.plotly_chart(fig_sharpe, use_container_width=True, key=f"{key}_bars")
+
+    # ── Ratio overfitting par fold ──────────────────────────────────────
+    overfit_ratios = [f["overfitting_ratio"] for f in folds]
+    fig_ratio = go.Figure()
+    fig_ratio.add_trace(
+        go.Scatter(
+            x=fold_labels,
+            y=overfit_ratios,
+            mode="lines+markers",
+            name="Overfitting ratio",
+            line=dict(color="#f59e0b", width=2),
+            marker=dict(size=8),
+        )
+    )
+    fig_ratio.add_hline(y=1.0, line_dash="dot", line_color="#22c55e")
+    fig_ratio.add_hline(y=2.0, line_dash="dash", line_color="#ef4444")
+    fig_ratio.update_layout(
+        title="Overfitting Ratio par fold (train_sharpe / test_sharpe)",
+        yaxis_title="Ratio",
+        template="plotly_dark",
+        height=320,
+    )
+    st.plotly_chart(fig_ratio, use_container_width=True, key=f"{key}_ratio")
 
     # ── Tableau détaillé ────────────────────────────────────────────────
     rows = []
-    for f in summary.folds:
-        train_m = f.train_metrics or {}
-        test_m = f.test_metrics or {}
-        rows.append({
-            "Fold": f.fold_id,
-            "Train [start:end]": f"{f.train_start}:{f.train_end}",
-            "Test  [start:end]": f"{f.test_start}:{f.test_end}",
-            "Sharpe Train": round(train_m.get("sharpe_ratio", 0), 3),
-            "Sharpe Test": round(test_m.get("sharpe_ratio", 0), 3),
-            "Overfitting Ratio": round(f.overfitting_ratio, 2),
-            "Temps (ms)": round(f.execution_time_ms, 0),
-        })
+    for f in folds:
+        rows.append(
+            {
+                "Fold": f["fold_id"],
+                "Train [start:end]": f"{f['train_start']}:{f['train_end']}",
+                "Test [start:end]": f"{f['test_start']}:{f['test_end']}",
+                "Train bars": f["train_bars"],
+                "Test bars": f["test_bars"],
+                "Sharpe Train": round(f["train_sharpe"], 3),
+                "Sharpe Test": round(f["test_sharpe"], 3),
+                "Overfitting Ratio": (
+                    round(f["overfitting_ratio"], 3)
+                    if np.isfinite(f["overfitting_ratio"])
+                    else np.nan
+                ),
+                "Temps (ms)": round(f["execution_time_ms"], 0),
+            }
+        )
 
-    import pandas as _pd
-    st.dataframe(_pd.DataFrame(rows), use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
-    # ── Résumé textuel ──────────────────────────────────────────────────
     with st.expander("📋 Détails techniques WFA"):
-        st.json(summary.to_dict())
+        st.json(payload)
 
 
 # ============================================================================

@@ -1,0 +1,219 @@
+{
+  "session_id": "20260219_132113_fiche_strategie_v1_id_breakout_donchian",
+  "objective": "FICHE_STRATEGIE v1\nid: breakout_donchian_adx\narchetype: breakout_donchian_adx\nfamily: breakout\ntimeframe: 1h\nside: both\nindicators:\n- donchian(period=25)\n- adx(period=14)\n- atr(period=14)\nentry:\n- long: close > donchian.upper and adx.adx > 35\n- short: close < donchian.lower and adx.adx > 35\nexit:\n- condition: cross_any(close, donchian.middle) or adx.adx < 15\nrisk:\nstop_atr_mult: 1.25\ntp_atr_mult: 4.5\ndescription: ATR stop-loss (1.25x) and take-profit (4.5x)\nconstraints:\n- no_lookahead: true\n- only_registry_indicators: true",
+  "status": "failed",
+  "best_sharpe": -5.0,
+  "total_iterations": 3,
+  "available_indicators": [
+    "bollinger",
+    "atr",
+    "rsi",
+    "ema",
+    "sma",
+    "macd",
+    "adx",
+    "stochastic",
+    "vwap",
+    "donchian",
+    "cci",
+    "keltner",
+    "mfi",
+    "williams_r",
+    "momentum",
+    "obv",
+    "roc",
+    "aroon",
+    "supertrend",
+    "fear_greed",
+    "fibonacci_levels",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+    "amplitude_hunter",
+    "stoch_rsi"
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "hypothesis": "A price breakout above or below the Donchian channel signals a new trend; using ADX > 35 filters out weak trends, ensuring entries occur only when trend strength is high, while ATR-based SL/TP adapts to market volatility for robust risk control.",
+      "change_type": "accept",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] Potential weaknesses include a high ADX threshold (35) that may miss many tradable trends, reliance on a single Donchian period that could lag or be too sensitive, and an exit rule that may close positions prematurely when the price merely oscillates around the middle line. The 1\u2011hour timeframe can add noise, and the ATR\u2011based SL/TP may not adapt quickly to rapid volatility changes, leading to either too tight stops or overly generous take\u2011profits.\n[Backup plan] If the strategy is unprofitable, lower the ADX filter to ~20\u201325 or add a secondary trend filter (e.g., 50\u2011EMA cross) to capture weaker but persistent trends. For a low Sharpe, tighten the stop (1.0\u00d7 ATR) and reduce the TP (3\u00d7 ATR) or use a trailing ATR stop to lock in gains. If the concept still fails, switch to a volatility\u2011breakout model using Bollinger Band upper/lower with a 20\u2011period SMA trend filter, and exit on a 2\u2011period EMA crossover or a fixed risk\u2011reward ratio of 1:2."
+        }
+      }
+    },
+    {
+      "iteration": 2,
+      "hypothesis": "Combining a Donchian breakout with an EMA trend filter ensures entries only occur when price is above a long\u2011term trend line, while the ADX filter confirms sufficient trend strength, reducing false breakouts in ranging markets and improving risk\u2011adjusted returns.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "continue",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "backtest": {
+          "runtime_error": "KeyError: 'atr'",
+          "runtime_traceback_tail": "Traceback (most recent call last):\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 5159, in run\n    bt_result = self._run_backtest(\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4649, in _run_backtest\n    result = engine.run(\n  File \"D:\\backtest_core\\backtest\\engine.py\", line 268, in run\n    signals = strategy.generate_signals(df, indicators, final_params)\n  File \"D:\\backtest_core\\agents\\strategy_builder.py\", line 4626, in _guarded_generate_signals\n    raw = original_generate_signals(df_local, indicators_local, params_local)\n  File \"D:\\backtest_core\\sandbox_strategies\\20260219_132113_fiche_strategie_v1_id_breakout_donchian\\strategy.py\", line 80, in generate_signals\n    atr = np.nan_to_num(indicators['atr'])\nKeyError: 'atr'",
+          "runtime_fix_applied": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] 1. The strategy may over\u2011filter in low\u2011volatility periods, yielding few trades and a low win rate. 2. The ADX threshold of 35 is very strict; most 1\u2011hour crypto data never reaches it, causing missed opportunities. 3. Relying solely on the Donchian upper/lower for entries ignores intrabar price dynamics and can trigger late signals. 4. The stop/TP multiples are fixed; they don\u2019t adapt to changing volatility, potentially clipping gains or exposing to large losses. 5. No position sizing or risk\u2011management beyond a single ATR multiplier may be insufficient for highly volatile assets.\n[Backup plan] If returns are negative, lower the ADX entry threshold to 20\u201325 and add a short\u2011term EMA filter (e.g., 20\u2011period) to confirm trend direction.  If Sharpe is mediocre, tighten the stop multiplier to 1.0, increase TP to 5.0, and shorten the Donchian period to 20 to capture more frequent breakouts.  Alternatively, replace the Donchian breakout with a volatility\u2011based breakout (e.g., 1\u2011hour ATR breakout) and use a trailing ATR stop to lock in profits while allowing for larger moves.  Finally, test a multi\u2011timeframe filter (e.g., 4\u2011hour trend confirmation) to reduce whipsaws in the 1\u2011hour chart."
+        },
+        "stagnation": {
+          "identical_metrics": true
+        }
+      }
+    },
+    {
+      "iteration": 3,
+      "hypothesis": "A Donchian breakout is more reliable when the price is already above a short\u2011term trend line; using the EMA as a trend filter allows the strategy to capture genuine breakouts while filtering out noise in ranging markets.",
+      "change_type": "logic",
+      "diagnostic_category": "no_trades",
+      "error": null,
+      "decision": "stop",
+      "sharpe": 0.0,
+      "return_pct": 0.0,
+      "trades": 0,
+      "score_card": {
+        "profitability": {
+          "grade": "C",
+          "detail": "Return +0.0%, PF 0.00, Expectancy 0.00"
+        },
+        "risk": {
+          "grade": "A",
+          "detail": "MaxDD 0.0%, Vol 0.0%"
+        },
+        "efficiency": {
+          "grade": "D",
+          "detail": "Sharpe 0.000, Sortino 0.000, Calmar 0.000"
+        },
+        "signal_quality": {
+          "grade": "F",
+          "detail": "WR 0.0%, Trades 0, AvgW/L 0.00/0.00"
+        }
+      },
+      "is_fallback": false,
+      "phase_feedback": {
+        "proposal": {
+          "phase": "proposal",
+          "initial_kind": "json",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "issues": [],
+          "final_kind": "json",
+          "final_valid": true
+        },
+        "code": {
+          "phase": "code",
+          "initial_kind": "python",
+          "realign_attempts": 0,
+          "realign_success": false,
+          "safe_path_mode": "off",
+          "final_kind": "python",
+          "final_valid": true
+        },
+        "pre_reflection": {
+          "text": "[Pre-reflection] The strategy may suffer from too high a filter (ADX>35) cutting out most opportunities and a long Donchian period (25) that lags on 1\u2011hour data, leading to few trades and weak risk\u2011reward. The exit logic is simple and may let profits run too long or cuts too early. The 1.25\u00d7 ATR stop and 4.5\u00d7 TP could be mismatched to the market\u2019s volatility profile, causing frequent stop\u2011outs or missed gains. Additionally, the lack of a trend filter (EMA) in the current version limits its ability to distinguish genuine breakouts from false ones.\n[Backup plan] If the run shows a negative return, drop the ADX filter or lower it to ~20 and add an EMA(20) trend check to keep only upward or downward momentum trades. If Sharpe is low, tighten the stop to 1\u00d7 ATR, reduce TP to 3\u00d7 ATR, or introduce a trailing ATR stop to lock in gains. Alternatively, switch to a shorter Donchian (12\u2011period) and combine with a 50\u2011period EMA to capture quicker breakouts. As a fallback, test a volatility\u2011based breakout (ATR breakout with 1\u00d7 ATR band) with a 1\u2011hour timeframe and a 2\u00d7 ATR take\u2011profit to see if a simpler scheme yields better risk\u2011reward.}"
+        },
+        "stagnation": {
+          "identical_metrics": true
+        },
+        "decision": {
+          "positive_progress_gate": {
+            "iteration": 3,
+            "required_positive": 1,
+            "observed_positive": 0
+          }
+        }
+      }
+    }
+  ]
+}
