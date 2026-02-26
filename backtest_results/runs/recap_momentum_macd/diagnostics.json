@@ -1,0 +1,491 @@
+{
+  "run_name": "recap_momentum_macd",
+  "strategy": "momentum_macd",
+  "data": "D:\\.my_soft\\gestionnaire_telechargement_multi-timeframe\\processed\\parquet\\BTCUSDC_1h.parquet",
+  "symbol": "BTCUSDC",
+  "timeframe": "1h",
+  "windows": {
+    "global_start": "2018-12-15 03:00:00+00:00",
+    "global_end": "2026-01-31 22:00:00+00:00",
+    "train_start": "2018-12-15 03:00:00+00:00",
+    "train_end": "2023-12-13 07:00:00+00:00",
+    "test_start": "2023-12-13 08:00:00+00:00",
+    "test_end": "2026-01-31 22:00:00+00:00"
+  },
+  "settings": {
+    "capital": 10000.0,
+    "fees_bps": 10,
+    "slippage_bps": null,
+    "metric": "sharpe",
+    "granularity": 0.8,
+    "max_combinations": 1200,
+    "parallel": 4,
+    "top": 25,
+    "filter_profile": "balanced",
+    "min_trades": 30,
+    "max_drawdown": 40.0,
+    "require_positive_train": true,
+    "input_min_trades": 30,
+    "input_max_drawdown": 40.0,
+    "input_require_positive_train": true,
+    "walk_forward": true,
+    "wf_mode": "both",
+    "wf_folds": 6,
+    "wf_train_ratio": 0.75,
+    "wf_embargo_pct": 0.02,
+    "wf_min_train_bars": 500,
+    "wf_min_test_bars": 200,
+    "require_wf_robust": false,
+    "refine": true,
+    "refine_top_candidates": 5,
+    "refine_granularity": 0.35,
+    "refine_max_combinations": 320,
+    "refine_range_ratio": 0.25,
+    "report_top": 10
+  },
+  "selected_params": {
+    "macd_fast_period": 5.0,
+    "macd_slow_period": 10.0,
+    "macd_signal_period": 5.0,
+    "bollinger_period": 10.0,
+    "bollinger_std_dev": 1.0,
+    "atr_period": 30.0,
+    "stop_atr_mult": 0.5,
+    "tp_atr_mult": 5.0,
+    "leverage": 1
+  },
+  "selected_source": "coarse",
+  "metrics": {
+    "baseline_train": {
+      "total_pnl": -12167.836163366592,
+      "total_return_pct": -121.67836163366592,
+      "sharpe_ratio": 0.19834886737407684,
+      "max_drawdown_pct": -100.0,
+      "max_drawdown": -100.0,
+      "total_trades": 469,
+      "win_rate": 50.74626865671642,
+      "win_rate_pct": 50.74626865671642,
+      "profit_factor": 0.7979276513077928,
+      "data_coverage_pct": 99.85186230248307
+    },
+    "best_train_candidate": {
+      "total_pnl": 1133.402896882446,
+      "total_return_pct": 11.334028968824459,
+      "sharpe_ratio": 0.20604108145883515,
+      "max_drawdown_pct": -30.367222738005722,
+      "max_drawdown": -30.367222738005722,
+      "total_trades": 512,
+      "win_rate": 21.875,
+      "win_rate_pct": 21.875,
+      "profit_factor": 1.0340442280316695,
+      "data_coverage_pct": 99.85608552631578
+    },
+    "best_train_coarse_candidate": {
+      "total_pnl": 1133.402896882446,
+      "total_return_pct": 11.334028968824459,
+      "sharpe_ratio": 0.20604108145883515,
+      "max_drawdown_pct": -30.367222738005722,
+      "max_drawdown": -30.367222738005722,
+      "total_trades": 512,
+      "win_rate": 21.875,
+      "win_rate_pct": 21.875,
+      "profit_factor": 1.0340442280316695,
+      "data_coverage_pct": 99.85608552631578
+    },
+    "best_train_refine_candidate": null,
+    "best_test_oos": {
+      "total_pnl": -3966.0034850541488,
+      "total_return_pct": -39.660034850541486,
+      "sharpe_ratio": -1.2864224484383757,
+      "max_drawdown_pct": -43.980529090009654,
+      "max_drawdown": -43.980529090009654,
+      "total_trades": 234,
+      "win_rate": 19.230769230769234,
+      "win_rate_pct": 19.230769230769234,
+      "profit_factor": 0.6831983715517105,
+      "data_coverage_pct": 100.0
+    },
+    "best_full_window": {
+      "total_pnl": -2436.211048152034,
+      "total_return_pct": -24.36211048152034,
+      "sharpe_ratio": -0.14989599964253028,
+      "max_drawdown_pct": -54.79240365276413,
+      "max_drawdown": -54.79240365276413,
+      "total_trades": 725,
+      "win_rate": 21.379310344827587,
+      "win_rate_pct": 21.379310344827587,
+      "profit_factor": 0.9456563708557894,
+      "data_coverage_pct": 99.92163009404389
+    }
+  },
+  "validation": {
+    "walk_forward": {
+      "enabled": true,
+      "mode": "both",
+      "config": {
+        "n_folds": 6,
+        "train_ratio": 0.75,
+        "embargo_pct": 0.02,
+        "min_train_bars": 500,
+        "min_test_bars": 200
+      },
+      "results": {
+        "rolling": {
+          "config": {
+            "n_folds": 6,
+            "train_ratio": 0.75,
+            "embargo_pct": 0.02,
+            "expanding": false
+          },
+          "n_valid_folds": 6,
+          "avg_train_sharpe": -2.9635,
+          "avg_test_sharpe": -7.2376,
+          "avg_overfitting_ratio": 17.605,
+          "degradation_pct": 144.22,
+          "test_stability_std": 8.5979,
+          "is_robust": false,
+          "confidence_score": 0.466,
+          "total_time_ms": 294.0,
+          "folds": [
+            {
+              "fold_id": 0,
+              "train_range": [
+                0,
+                8952
+              ],
+              "test_range": [
+                10200,
+                25812
+              ],
+              "train_bars": 8952,
+              "test_bars": 15612,
+              "train_sharpe": 0.542860698670761,
+              "test_sharpe": 7.095720139104944,
+              "overfitting_ratio": 0.077,
+              "execution_time_ms": 52.1
+            },
+            {
+              "fold_id": 1,
+              "train_range": [
+                10200,
+                19152
+              ],
+              "test_range": [
+                20400,
+                36012
+              ],
+              "train_bars": 8952,
+              "test_bars": 15612,
+              "train_sharpe": 6.215402217435573,
+              "test_sharpe": 1.9135272571791506,
+              "overfitting_ratio": 3.248,
+              "execution_time_ms": 48.8
+            },
+            {
+              "fold_id": 2,
+              "train_range": [
+                20400,
+                29352
+              ],
+              "test_range": [
+                30600,
+                46212
+              ],
+              "train_bars": 8952,
+              "test_bars": 15612,
+              "train_sharpe": 5.163886919610857,
+              "test_sharpe": -9.670353220675697,
+              "overfitting_ratio": -0.534,
+              "execution_time_ms": 49.3
+            },
+            {
+              "fold_id": 3,
+              "train_range": [
+                30600,
+                39552
+              ],
+              "test_range": [
+                40800,
+                56412
+              ],
+              "train_bars": 8952,
+              "test_bars": 15612,
+              "train_sharpe": -4.544902644518299,
+              "test_sharpe": -13.98491906556242,
+              "overfitting_ratio": 0.325,
+              "execution_time_ms": 49.4
+            },
+            {
+              "fold_id": 4,
+              "train_range": [
+                40800,
+                49752
+              ],
+              "test_range": [
+                51000,
+                62448
+              ],
+              "train_bars": 8952,
+              "test_bars": 11448,
+              "train_sharpe": -10.58321152293094,
+              "test_sharpe": -14.942379703831925,
+              "overfitting_ratio": 0.708,
+              "execution_time_ms": 47.6
+            },
+            {
+              "fold_id": 5,
+              "train_range": [
+                51000,
+                59952
+              ],
+              "test_range": [
+                61200,
+                62448
+              ],
+              "train_bars": 8952,
+              "test_bars": 1248,
+              "train_sharpe": -14.575290086802724,
+              "test_sharpe": -13.836947399487011,
+              "overfitting_ratio": 1.053,
+              "execution_time_ms": 46.0
+            }
+          ],
+          "status": "ok"
+        },
+        "expanding": {
+          "config": {
+            "n_folds": 6,
+            "train_ratio": 0.75,
+            "embargo_pct": 0.02,
+            "expanding": true
+          },
+          "n_valid_folds": 6,
+          "avg_train_sharpe": 2.2082,
+          "avg_test_sharpe": -7.2376,
+          "avg_overfitting_ratio": 16.891,
+          "degradation_pct": 427.76,
+          "test_stability_std": 8.5979,
+          "is_robust": false,
+          "confidence_score": 0.586,
+          "total_time_ms": 198.4,
+          "folds": [
+            {
+              "fold_id": 0,
+              "train_range": [
+                0,
+                8952
+              ],
+              "test_range": [
+                10200,
+                25812
+              ],
+              "train_bars": 8952,
+              "test_bars": 15612,
+              "train_sharpe": 0.542860698670761,
+              "test_sharpe": 7.095720139104944,
+              "overfitting_ratio": 0.077,
+              "execution_time_ms": 6.9
+            },
+            {
+              "fold_id": 1,
+              "train_range": [
+                0,
+                19152
+              ],
+              "test_range": [
+                20400,
+                36012
+              ],
+              "train_bars": 19152,
+              "test_bars": 15612,
+              "train_sharpe": 4.800830850248187,
+              "test_sharpe": 1.9135272571791506,
+              "overfitting_ratio": 2.509,
+              "execution_time_ms": 35.5
+            },
+            {
+              "fold_id": 2,
+              "train_range": [
+                0,
+                29352
+              ],
+              "test_range": [
+                30600,
+                46212
+              ],
+              "train_bars": 29352,
+              "test_bars": 15612,
+              "train_sharpe": 4.669229529436267,
+              "test_sharpe": -9.670353220675697,
+              "overfitting_ratio": -0.483,
+              "execution_time_ms": 32.0
+            },
+            {
+              "fold_id": 3,
+              "train_range": [
+                0,
+                39552
+              ],
+              "test_range": [
+                40800,
+                56412
+              ],
+              "train_bars": 39552,
+              "test_bars": 15612,
+              "train_sharpe": 3.108665006799381,
+              "test_sharpe": -13.98491906556242,
+              "overfitting_ratio": -0.222,
+              "execution_time_ms": 37.6
+            },
+            {
+              "fold_id": 4,
+              "train_range": [
+                0,
+                49752
+              ],
+              "test_range": [
+                51000,
+                62448
+              ],
+              "train_bars": 49752,
+              "test_bars": 11448,
+              "train_sharpe": 0.8194030110402453,
+              "test_sharpe": -14.942379703831925,
+              "overfitting_ratio": -0.055,
+              "execution_time_ms": 41.4
+            },
+            {
+              "fold_id": 5,
+              "train_range": [
+                0,
+                59952
+              ],
+              "test_range": [
+                61200,
+                62448
+              ],
+              "train_bars": 59952,
+              "test_bars": 1248,
+              "train_sharpe": -0.6918393966201148,
+              "test_sharpe": -13.836947399487011,
+              "overfitting_ratio": 0.05,
+              "execution_time_ms": 43.5
+            }
+          ],
+          "status": "ok"
+        }
+      }
+    },
+    "refinement": {
+      "enabled": true,
+      "status": "ok",
+      "metric": "sharpe",
+      "granularity": 0.35,
+      "range_ratio": 0.25,
+      "max_combinations_per_seed": 320,
+      "top_candidates_seeded": 4,
+      "n_unique_evaluated": 0,
+      "search_space_estimate": {
+        "total_combinations": 73728,
+        "per_param_counts": {
+          "macd_fast_period": 4,
+          "macd_slow_period": 4,
+          "macd_signal_period": 3,
+          "bollinger_period": 3,
+          "bollinger_std_dev": 4,
+          "atr_period": 4,
+          "stop_atr_mult": 4,
+          "tp_atr_mult": 4,
+          "leverage": 2
+        },
+        "warnings": [
+          "Limite dépassée: 73,728 > 320"
+        ],
+        "has_overflow": true,
+        "is_continuous": false
+      },
+      "per_seed_stats": [
+        {
+          "seed_rank": 1,
+          "seed_params": {
+            "macd_fast_period": 5.0,
+            "macd_slow_period": 10.0,
+            "macd_signal_period": 5.0,
+            "bollinger_period": 10.0,
+            "bollinger_std_dev": 1.0,
+            "atr_period": 30.0,
+            "stop_atr_mult": 0.5,
+            "tp_atr_mult": 5.0,
+            "leverage": 1
+          },
+          "n_combinations": 0,
+          "status": "skipped",
+          "reason": "Trop de combinaisons (73,728). Augmentez la granularité ou réduisez les paramètres. Limite: 320"
+        },
+        {
+          "seed_rank": 2,
+          "seed_params": {
+            "macd_fast_period": 5.0,
+            "macd_slow_period": 10.0,
+            "macd_signal_period": 5.0,
+            "bollinger_period": 10.0,
+            "bollinger_std_dev": 3.0,
+            "atr_period": 30.0,
+            "stop_atr_mult": 0.5,
+            "tp_atr_mult": 5.0,
+            "leverage": 1
+          },
+          "n_combinations": 0,
+          "status": "skipped",
+          "reason": "Trop de combinaisons (73,728). Augmentez la granularité ou réduisez les paramètres. Limite: 320"
+        },
+        {
+          "seed_rank": 3,
+          "seed_params": {
+            "macd_fast_period": 5.0,
+            "macd_slow_period": 10.0,
+            "macd_signal_period": 5.0,
+            "bollinger_period": 30.0,
+            "bollinger_std_dev": 1.0,
+            "atr_period": 30.0,
+            "stop_atr_mult": 0.5,
+            "tp_atr_mult": 5.0,
+            "leverage": 1
+          },
+          "n_combinations": 0,
+          "status": "skipped",
+          "reason": "Trop de combinaisons (73,728). Augmentez la granularité ou réduisez les paramètres. Limite: 320"
+        },
+        {
+          "seed_rank": 4,
+          "seed_params": {
+            "macd_fast_period": 5.0,
+            "macd_slow_period": 10.0,
+            "macd_signal_period": 5.0,
+            "bollinger_period": 30.0,
+            "bollinger_std_dev": 3.0,
+            "atr_period": 30.0,
+            "stop_atr_mult": 0.5,
+            "tp_atr_mult": 5.0,
+            "leverage": 1
+          },
+          "n_combinations": 0,
+          "status": "skipped",
+          "reason": "Trop de combinaisons (73,728). Augmentez la granularité ou réduisez les paramètres. Limite: 320"
+        }
+      ],
+      "best_candidate": null,
+      "results_top": []
+    }
+  },
+  "artifacts": {
+    "train_baseline": "runs\\cycle_recap_20260223\\recap_momentum_macd_train_baseline.json",
+    "train_sweep": "runs\\cycle_recap_20260223\\recap_momentum_macd_train_sweep.json",
+    "train_refine": "runs\\cycle_recap_20260223\\recap_momentum_macd_train_refine.json",
+    "test_best": "runs\\cycle_recap_20260223\\recap_momentum_macd_test_best.json",
+    "full_best": "runs\\cycle_recap_20260223\\recap_momentum_macd_full_best.json",
+    "walk_forward": "runs\\cycle_recap_20260223\\recap_momentum_macd_walkforward.json",
+    "interesting_report": "runs\\cycle_recap_20260223\\recap_momentum_macd_interesting.md",
+    "summary": "runs\\cycle_recap_20260223\\recap_momentum_macd_summary.json"
+  }
+}
