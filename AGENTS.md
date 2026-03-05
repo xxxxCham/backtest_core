@@ -1431,3 +1431,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : La section LLM est plus compacte et plus lisible sans perte de fonctionnalités.
 - Problèmes détectés : Aucun blocage détecté sur ce patch.
 - Améliorations proposées : Ajouter un résumé compact des options actives (ex: `∞ itérations | WF ON | Unload ON`) juste sous l’expander pour une lecture immédiate.
+
+- Date : 06/03/2026
+- Objectif : Ajouter un résumé compact de l’état des options LLM pour lecture immédiate après compaction.
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Résumé d’état ajouté** — après l’expander `⚙️ Options d'optimisation LLM`, ajout d’une ligne synthétique affichant `itérations`, `Walk-Forward`, `Unload GPU` ; **2. Logique conservée** — réutilisation des mêmes variables existantes (`llm_unlimited_iterations`, `llm_max_iterations`, `llm_use_walk_forward`, `llm_unload_during_backtest`) sans changement comportemental ; **3. Lisibilité renforcée** — l’utilisateur peut vérifier les paramètres actifs sans ouvrir l’expander.
+- Vérifications effectuées : `python -m py_compile ui/sidebar.py` (OK) ; `get_errors` sur `ui/sidebar.py` (OK).
+- Résultat : La section LLM reste compacte tout en devenant plus informative au premier regard.
+- Problèmes détectés : Aucun blocage détecté sur ce patch.
+- Améliorations proposées : Ajouter une coloration légère du résumé (`WF OFF`/`Unload OFF`) pour accentuer les états sensibles.

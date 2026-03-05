@@ -2586,6 +2586,17 @@ def render_sidebar() -> SidebarState:
                     ),
                 )
 
+            llm_opt_summary = []
+            if llm_unlimited_iterations:
+                llm_opt_summary.append("∞ itérations")
+            else:
+                llm_opt_summary.append(f"{llm_max_iterations} itérations")
+            llm_opt_summary.append("WF ON" if llm_use_walk_forward else "WF OFF")
+            llm_opt_summary.append(
+                "Unload ON" if llm_unload_during_backtest else "Unload OFF"
+            )
+            st.sidebar.caption(" | ".join(llm_opt_summary))
+
             st.sidebar.markdown("---")
             with st.sidebar.expander("Comparaison multi-strategies", expanded=False):
                 llm_compare_enabled = st.checkbox(
