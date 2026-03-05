@@ -1429,9 +1429,7 @@ def render_sidebar() -> SidebarState:
         st.session_state.is_running = False
 
     if "default_preset_applied" not in st.session_state:
-        cpu_count = os.cpu_count() or 1
-        optimal_workers = min(cpu_count, 64)  # ✅ max 64 pour gros CPU
-        st.session_state["grid_n_workers"] = optimal_workers
+        st.session_state["ui_n_workers"] = 32
         st.session_state["grid_worker_threads"] = 1
         st.session_state["gpu_n_workers"] = 1
         st.session_state["gpu_worker_threads"] = 1
@@ -1471,7 +1469,8 @@ def render_sidebar() -> SidebarState:
     if default_workers_cpu is None:
         default_workers_cpu = _env_int("BACKTEST_WORKERS_CPU_OPTIMIZED", None)
     if default_workers_cpu is None:
-        default_workers_cpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 40)
+        default_workers_cpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 32)
+    default_workers_cpu = max(1, min(default_workers_cpu, 32))
     default_llm_unload = _env_bool("UNLOAD_LLM_DURING_BACKTEST", True)
     default_worker_threads = _env_int("BACKTEST_WORKER_THREADS", 1)
 
@@ -1540,8 +1539,8 @@ def render_sidebar() -> SidebarState:
             n_workers = st.sidebar.slider(
                 "Workers parallèles (CPU)",
                 min_value=1,
-                max_value=64,  # ✅ Augmenté pour gros CPU
-                value=8,
+                max_value=32,
+                value=32,
                 help="Nombre de trials évalués en parallèle",
             )
 
@@ -1552,14 +1551,14 @@ def render_sidebar() -> SidebarState:
             max_combos = unlimited_max_combos
             st.sidebar.caption("Limite de combinaisons: illimitée")
 
-            grid_workers_default = max(1, min(default_workers_cpu, 64))  # ✅ max 64
+            grid_workers_default = max(1, min(default_workers_cpu, 32))
             if "grid_n_workers" not in st.session_state:
                 st.session_state["grid_n_workers"] = grid_workers_default
             else:
                 try:
                     st.session_state["grid_n_workers"] = max(
                         1,
-                        min(int(st.session_state["grid_n_workers"]), 64),  # ✅ max 64
+                        min(int(st.session_state["grid_n_workers"]), 32),
                     )
                 except (TypeError, ValueError):
                     st.session_state["grid_n_workers"] = grid_workers_default
@@ -1576,15 +1575,10 @@ def render_sidebar() -> SidebarState:
                 except (TypeError, ValueError):
                     st.session_state["grid_worker_threads"] = grid_threads_default
 
-            col_preset_1, col_preset_2 = st.sidebar.columns(2)
+            col_preset_1, _col_unused = st.sidebar.columns(2)
             with col_preset_1:
                 if st.button("Preset 32 cœurs", key="preset_32_cores"):
                     st.session_state["grid_n_workers"] = 32
-                    st.session_state["grid_worker_threads"] = 1
-                    st.rerun()
-            with col_preset_2:
-                if st.button("Preset 64 cœurs", key="preset_64_cores"):
-                    st.session_state["grid_n_workers"] = 64
                     st.session_state["grid_worker_threads"] = 1
                     st.rerun()
 
@@ -1595,7 +1589,7 @@ def render_sidebar() -> SidebarState:
             n_workers = st.sidebar.slider(
                 "Workers parallèles (CPU)",
                 min_value=1,
-                max_value=64,  # ✅ Augmenté pour supporter les gros CPU (Threadripper, EPYC)
+                max_value=32,
                 help="24-32 recommandé pour 9950X. Données pré-chargées = initialisation rapide",
                 key="grid_n_workers",
             )
@@ -1979,13 +1973,13 @@ def render_sidebar() -> SidebarState:
         max_combos = unlimited_max_combos
         st.sidebar.caption("Limite de combinaisons LLM: illimitée")
 
-        llm_workers_default = max(1, min(default_workers_cpu, 64))  # ✅ max 64
+        llm_workers_default = max(1, min(default_workers_cpu, 32))
         n_workers = st.sidebar.slider(
             "Workers parallèles (CPU)",
             min_value=1,
-            max_value=64,  # ✅ Augmenté pour gros CPU
+            max_value=32,
             value=llm_workers_default,
-            help="Nombre de backtests exécutés en parallèle (40 recommandé)",
+            help="Nombre de backtests exécutés en parallèle (32 maximum)",
             key="llm_n_workers",
         )
 
