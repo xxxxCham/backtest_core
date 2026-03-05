@@ -1461,6 +1461,32 @@ def render_sidebar() -> SidebarState:
 
     st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
 
+    if optimization_mode in {"Grille de Paramètres", "🤖 Optimisation LLM"}:
+        st.sidebar.markdown("---")
+        st.sidebar.caption("**⚙️ Exécution**")
+
+        if "ui_n_workers" not in st.session_state:
+            st.session_state["ui_n_workers"] = default_workers_cpu
+        else:
+            try:
+                st.session_state["ui_n_workers"] = max(
+                    1,
+                    min(int(st.session_state["ui_n_workers"]), 32),
+                )
+            except (TypeError, ValueError):
+                st.session_state["ui_n_workers"] = default_workers_cpu
+
+        n_workers = st.sidebar.slider(
+            "Workers parallèles (CPU)",
+            min_value=1,
+            max_value=32,
+            value=int(st.session_state["ui_n_workers"]),
+            key="ui_n_workers",
+            help="Réglage global CPU partagé entre Grille, Optuna et LLM.",
+        )
+        st.session_state["grid_n_workers"] = n_workers
+        st.session_state["llm_n_workers"] = n_workers
+
     action_slot = st.sidebar.container()
 
     # default_max_combos non utilisé - supprimé pour éviter warning
@@ -1486,7 +1512,6 @@ def render_sidebar() -> SidebarState:
     optuna_early_stop = 0  # 0 = désactivé par défaut
 
     if optimization_mode == "Grille de Paramètres":
-        st.sidebar.markdown("---")
         st.sidebar.subheader("⚙️ Méthode d'exploration")
 
         use_optuna = st.sidebar.checkbox(
@@ -1536,32 +1561,12 @@ def render_sidebar() -> SidebarState:
                 help="Arrêt après N trials sans amélioration. 0 = désactivé (recommandé pour explorer complètement)",
             )
 
-            n_workers = st.sidebar.slider(
-                "Workers parallèles (CPU)",
-                min_value=1,
-                max_value=32,
-                value=32,
-                help="Nombre de trials évalués en parallèle",
-            )
-
             st.sidebar.caption(f"⚡ {optuna_n_trials} trials × {n_workers} workers")
         else:
             st.sidebar.caption("🔢 **Mode Grille** - Exploration exhaustive")
 
             max_combos = unlimited_max_combos
             st.sidebar.caption("Limite de combinaisons: illimitée")
-
-            grid_workers_default = max(1, min(default_workers_cpu, 32))
-            if "grid_n_workers" not in st.session_state:
-                st.session_state["grid_n_workers"] = grid_workers_default
-            else:
-                try:
-                    st.session_state["grid_n_workers"] = max(
-                        1,
-                        min(int(st.session_state["grid_n_workers"]), 32),
-                    )
-                except (TypeError, ValueError):
-                    st.session_state["grid_n_workers"] = grid_workers_default
 
             grid_threads_default = max(1, min(default_worker_threads, 16))  # ✅ max 16 (pas besoin de plus)
             if "grid_worker_threads" not in st.session_state:
@@ -1574,25 +1579,6 @@ def render_sidebar() -> SidebarState:
                     )
                 except (TypeError, ValueError):
                     st.session_state["grid_worker_threads"] = grid_threads_default
-
-            col_preset_1, _col_unused = st.sidebar.columns(2)
-            with col_preset_1:
-                if st.button("Preset 32 cœurs", key="preset_32_cores"):
-                    st.session_state["grid_n_workers"] = 32
-                    st.session_state["grid_worker_threads"] = 1
-                    st.rerun()
-
-            # Initialisation session_state si nécessaire
-            if "grid_n_workers" not in st.session_state:
-                st.session_state["grid_n_workers"] = 32
-
-            n_workers = st.sidebar.slider(
-                "Workers parallèles (CPU)",
-                min_value=1,
-                max_value=32,
-                help="24-32 recommandé pour 9950X. Données pré-chargées = initialisation rapide",
-                key="grid_n_workers",
-            )
 
             # Initialisation session_state si nécessaire
             if "grid_worker_threads" not in st.session_state:
@@ -1964,7 +1950,6 @@ def render_sidebar() -> SidebarState:
                         st.sidebar.caption(f"• {s}")
 
     elif optimization_mode == "🤖 Optimisation LLM":
-        st.sidebar.markdown("---")
         st.sidebar.subheader("🧠 Configuration LLM")
 
         st.sidebar.markdown("---")
@@ -1972,16 +1957,6 @@ def render_sidebar() -> SidebarState:
 
         max_combos = unlimited_max_combos
         st.sidebar.caption("Limite de combinaisons LLM: illimitée")
-
-        llm_workers_default = max(1, min(default_workers_cpu, 32))
-        n_workers = st.sidebar.slider(
-            "Workers parallèles (CPU)",
-            min_value=1,
-            max_value=32,
-            value=llm_workers_default,
-            help="Nombre de backtests exécutés en parallèle (32 maximum)",
-            key="llm_n_workers",
-        )
 
         st.sidebar.caption(
             f"🔧 Parallélisation: jusqu'à {n_workers} backtests simultanés"

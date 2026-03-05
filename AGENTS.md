@@ -1377,3 +1377,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : Le réglage workers CPU est désormais cohérent avec la contrainte demandée : 32 par défaut et 32 maximum, dans tous les modes concernés.
 - Problèmes détectés : Aucun blocage détecté sur ce correctif.
 - Améliorations proposées : Déplacer ce réglage dans une section commune “Exécution” (moins visible côté Optuna) lors d’une itération UI dédiée.
+
+- Date : 05/03/2026
+- Objectif : Repositionner le réglage workers CPU dans une section commune Exécution et supprimer les doublons Optuna/LLM.
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Section commune ajoutée** — création d’un bloc `⚙️ Exécution` affiché en modes Grille/LLM avec un slider unique `Workers parallèles (CPU)` ; **2. Source de vérité unifiée** — utilisation de `ui_n_workers` comme clé unique, puis synchronisation vers `grid_n_workers` et `llm_n_workers` pour compatibilité ; **3. Dédoublonnage UI** — suppression des sliders workers locaux dans Optuna et dans le bloc LLM ; **4. Lisibilité améliorée** — conservation des options spécifiques (threads worker) en mode Grille, sans remettre un second contrôle workers.
+- Vérifications effectuées : `python -m py_compile ui/sidebar.py` (OK) ; `rg -n "ui_n_workers|grid_n_workers|llm_n_workers|Workers parallèles \(CPU\)" ui/sidebar.py` (OK, un seul slider visible, clés synchronisées).
+- Résultat : Le réglage workers est désormais moins intrusif, centralisé dans une section commune, tout en conservant la contrainte 32 par défaut / 32 max et la compatibilité avec les chemins existants.
+- Problèmes détectés : Aucun blocage détecté sur ce correctif.
+- Améliorations proposées : Ajouter un micro-indicateur dans la section Exécution (`appliqué à: Grille, Optuna, LLM`) pour expliciter la portée globale du réglage.
