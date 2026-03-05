@@ -1852,7 +1852,7 @@ def render_sidebar() -> SidebarState:
         )
 
         if is_ollama_available():
-            st.sidebar.success("✅ Ollama connecté")
+            st.sidebar.caption("🟢 Ollama connecté")
         else:
             st.sidebar.warning("⚠️ Ollama non détecté")
             if st.sidebar.button("🚀 Démarrer Ollama", key="builder_start_ollama"):
@@ -1998,7 +1998,7 @@ def render_sidebar() -> SidebarState:
 
             if "Ollama" in llm_provider:
                 if is_ollama_available():
-                    st.sidebar.success("✅ Ollama connecté")
+                    st.sidebar.caption("🟢 Ollama connecté")
                 else:
                     st.sidebar.warning("⚠️ Ollama non détecté")
                     if st.sidebar.button("🚀 Démarrer Ollama"):
@@ -2710,11 +2710,8 @@ def render_sidebar() -> SidebarState:
     # ======================== GPU ACCELERATION ========================
     st.sidebar.markdown("---")
     _sidebar_section("⚡ Accélération GPU")
-    st.sidebar.info(
-        "Mode CPU-only: GPU désactivé.\n\n"
-        "• Numba JIT + cache RAM utilisés\n"
-        "• VRAM libérée pour autres usages"
-    )
+    st.sidebar.caption("Mode CPU-only: GPU désactivé.")
+    st.sidebar.caption("• Numba JIT + cache RAM utilisés • VRAM libérée pour autres usages")
     os.environ["BACKTEST_USE_GPU"] = "0"
     os.environ["BACKTEST_GPU_QUEUE_ENABLED"] = "0"
 
@@ -3420,8 +3417,8 @@ def render_sidebar() -> SidebarState:
                 st.rerun()
 
         if pending:
-            st.warning(
-                "⚠️ Modifications non appliquées (seront appliquées au lancement/chargement)"
+            st.caption(
+                "⚠️ Modifications non appliquées (application au lancement/chargement)"
             )
         else:
             st.caption("✅ Configuration prête.")

@@ -1265,7 +1265,7 @@ def render_saved_runs_panel(
         ]
 
     if not runs:
-        st.sidebar.info("No saved runs.")
+        st.sidebar.caption("No saved runs.")
         return
 
     run_ids = [r.run_id for r in runs]

@@ -1440,3 +1440,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : La section LLM reste compacte tout en devenant plus informative au premier regard.
 - Problèmes détectés : Aucun blocage détecté sur ce patch.
 - Améliorations proposées : Ajouter une coloration légère du résumé (`WF OFF`/`Unload OFF`) pour accentuer les états sensibles.
+
+- Date : 06/03/2026
+- Objectif : Réduire la dominance visuelle des encarts secondaires signalés en sidebar (`No saved runs`, pending changes, Ollama connecté, mode CPU-only GPU).
+- Fichiers modifiés : ui/sidebar.py, ui/helpers.py, AGENTS.md.
+- Actions réalisées : **1. États non critiques allégés** — conversion des encarts `✅ Ollama connecté` (Builder + LLM) de `success` vers `caption` discrète ; **2. Message pending adouci** — conversion du warning `Modifications non appliquées...` en `caption` ; **3. Bloc GPU simplifié** — remplacement de la carte `info` multi-lignes par deux captions compactes ; **4. Saved runs vide allégé** — `No saved runs.` passe de `info` à `caption` dans `render_saved_runs_panel`.
+- Vérifications effectuées : `python -m py_compile ui/sidebar.py ui/helpers.py` (OK) ; `get_errors` sur `ui/sidebar.py` et `ui/helpers.py` (OK).
+- Résultat : Les messages de détail n’écrasent plus visuellement la sidebar ; la hiérarchie redevient centrée sur les contrôles principaux.
+- Problèmes détectés : Aucun blocage fonctionnel détecté après ce nettoyage visuel.
+- Améliorations proposées : Introduire un mode “compact UI” global (toggle) pour réduire encore la hauteur de la sidebar sur petits écrans.
