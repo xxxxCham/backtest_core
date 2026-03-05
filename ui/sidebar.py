@@ -1474,7 +1474,7 @@ def render_sidebar() -> SidebarState:
     max_combos = unlimited_max_combos
     n_workers = default_workers_cpu
 
-    st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
+    st.sidebar.caption(f"ℹ️ Mode actif: {optimization_mode}")
 
     if optimization_mode in {"Grille de Paramètres", "🤖 Optimisation LLM"}:
         st.sidebar.markdown("---")
@@ -1954,7 +1954,7 @@ def render_sidebar() -> SidebarState:
         _sidebar_section("🧠 Configuration LLM")
 
         max_combos = unlimited_max_combos
-        st.sidebar.caption("Limite de combinaisons LLM: illimitée")
+        st.sidebar.caption("∞ Combinaisons LLM (non limitées)")
 
         st.sidebar.caption(
             f"🔧 Parallélisation: jusqu'à {n_workers} backtests simultanés"
@@ -3366,7 +3366,7 @@ def render_sidebar() -> SidebarState:
 
     with action_slot:
         st.markdown("---")
-        st.caption("Actions")
+        _sidebar_section("▶ Actions")
 
         col_load, col_run = st.columns(2)
         with col_load:

@@ -1413,3 +1413,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : La navigation sidebar est plus explicite au premier coup d’œil et l’arborescence des sections évite les doublons visuels.
 - Problèmes détectés : Aucun blocage détecté sur cette itération.
 - Améliorations proposées : Ajouter des ancres cliquables (si UX Streamlit le permet) pour sauter directement vers Données/Stratégies/Paramètres dans la sidebar.
+
+- Date : 06/03/2026
+- Objectif : Améliorer la lisibilité immédiate de la sidebar à partir du rendu observé (mode actif + bloc actions + bruit texte LLM).
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Mode actif simplifié** — retrait du gras sur le label `Mode actif` pour éviter l’effet visuel compact/écrasé avec emoji ; **2. LLM plus concis** — remplacement de `Limite de combinaisons LLM: illimitée` par `∞ Combinaisons LLM (non limitées)` ; **3. Bloc actions harmonisé** — `Actions` passe en section `_sidebar_section("▶ Actions")` pour cohérence de hiérarchie.
+- Vérifications effectuées : `python -m py_compile ui/sidebar.py` (OK) ; `git status --short ui/sidebar.py` (OK, changement ciblé).
+- Résultat : La sidebar gagne en lisibilité et cohérence de sections sans impact fonctionnel.
+- Problèmes détectés : Aucun blocage détecté sur ce patch.
+- Améliorations proposées : Uniformiser les captions informatives LLM en un seul encart synthétique (provider, worker, mode agents) pour réduire encore la densité verticale.
