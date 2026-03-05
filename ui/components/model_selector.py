@@ -1,28 +1,25 @@
 """
 Module-ID: ui.components.model_selector
 
-Purpose: Sélecteur modèles LLM - query Ollama, fallback list, recommendations par rôle.
+Purpose: Selecteur modeles LLM - query Ollama, fallback list, recommendations par role.
+         Affichage riche avec details (VRAM, taille, categorie, backup path).
 
 Role in pipeline: configuration
 
-Key components: get_available_models_for_ui(), FALLBACK_LLM_MODELS, role-based recommendations
+Key components: get_available_models_for_ui(), render_model_selector(), get_model_details()
 
 Inputs: Ollama endpoint (optionnel), role (Analyst/Strategist/Critic/Validator)
 
-Outputs: Model list [str] ordenée (recommandés en premier), fallback si Ollama down
+Outputs: Model list [str], model details [dict], rendered selector widget
 
-Dependencies: agents.ollama_manager (optionnel), log
-
-Conventions: Fallback list actualisée (Dec 2025); Ollama préféré; timeout 2s.
-
-Read-if: Modification fallback list ou role mappings.
-
-Skip-if: Vous appelez get_available_models_for_ui().
+Dependencies: agents.ollama_manager (optionnel), utils.model_loader, httpx
 """
 
 from __future__ import annotations
 
-from typing import Iterable, List, Sequence
+import subprocess
+import time
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 try:
     from agents.ollama_manager import list_ollama_models
@@ -30,42 +27,41 @@ except ImportError:
     def list_ollama_models() -> List[str]:
         return []
 from utils.log import get_logger
-from utils.model_loader import get_model_info_for_ui, get_ollama_model_names
+from utils.model_loader import get_model_info_for_ui, get_ollama_model_names, load_models_json
 
 logger = get_logger(__name__)
 
-# Liste de modèles recommandés utilisée comme fallback
+# ---------------------------------------------------------------------------
+# Constantes
+# ---------------------------------------------------------------------------
+
 FALLBACK_LLM_MODELS: List[str] = [
-    # Modèles recommandés pour trading (Dec 2025)
-    "deepseek-r1:70b",              # 34 GB - Le plus puissant
-    "deepseek-r1:32b",              # 19 GB - Excellent rapport qualité/prix
-    "qwq:32b",                      # 23 GB - Très bon pour raisonnement
-    "qwen2.5:32b",                  # 19 GB - Alternative solide
-    "mistral:22b",                  # 13 GB - Équilibré
-    "gemma3:27b",                   # 17 GB - Bon pour analyse
-    "deepseek-r1-distill:14b",      # 9 GB - Équilibré
-    "gemma3:12b",                   # 8 GB - Rapide
-    "deepseek-r1:8b",               # 5 GB - Builder rapide
-    "mistral:7b-instruct",          # 4 GB - Ultra rapide
-    "llama3.2",                     # 2 GB - Léger
-    "phi3",                         # 2 GB - Léger alternatif
+    "deepseek-r1:70b",
+    "deepseek-r1:32b",
+    "qwq:32b",
+    "qwen2.5:32b",
+    "mistral:22b",
+    "gemma3:27b",
+    "deepseek-r1-distill:14b",
+    "gemma3:12b",
+    "deepseek-r1:8b",
+    "mistral:7b-instruct",
+    "qwen3-coder:30b",
+    "nemotron-3-nano:30b",
 ]
 
-# Modèles recommandés pour différentes tâches
 RECOMMENDED_FOR_ANALYSIS = ["deepseek-r1:32b", "qwq:32b", "qwen2.5:32b"]
 RECOMMENDED_FOR_STRATEGY = ["deepseek-r1:70b", "deepseek-r1:32b", "qwq:32b"]
 RECOMMENDED_FOR_CRITICISM = ["mistral:22b", "gemma3:27b", "qwen2.5:32b"]
-RECOMMENDED_FOR_FAST = ["deepseek-r1:8b", "mistral:7b-instruct", "llama3.2"]
+RECOMMENDED_FOR_FAST = ["deepseek-r1:8b", "mistral:7b-instruct", "gemma3:12b"]
 
-# Configuration optimale par rôle (basée sur benchmarks Dec 2025)
 OPTIMAL_CONFIG_BY_ROLE = {
-    "analyst": ["qwen2.5:14b"],
+    "analyst": ["qwen2.5:32b"],
     "strategist": ["gemma3:27b"],
-    "critic": ["llama3.3-70b-optimized"],
-    "validator": ["llama3.3-70b-optimized"],
+    "critic": ["llama3.3:70b-instruct-q4_K_M"],
+    "validator": ["llama3.3:70b-instruct-q4_K_M"],
 }
 
-# Fallback si le modèle optimal n'est pas installé
 OPTIMAL_CONFIG_FALLBACK = {
     "analyst": ["deepseek-r1:8b", "gemma3:12b"],
     "strategist": ["gemma3:27b", "mistral:22b"],
@@ -73,28 +69,175 @@ OPTIMAL_CONFIG_FALLBACK = {
     "validator": ["deepseek-r1:32b", "qwq:32b"],
 }
 
+# Mapping categorie affichee -> use_case dans models.json
+_CATEGORY_LABELS = {
+    "Tous": None,
+    "Raisonnement": "reasoning",
+    "General": "general",
+    "Finance": "reasoning_finance",
+    "Code": "coding",
+    "Instruction": "instruction",
+    "Multimodal": "multimodal",
+    "Securite": "safety",
+}
+
+# ---------------------------------------------------------------------------
+# Cache GPU info (ne change pas pendant une session)
+# ---------------------------------------------------------------------------
+
+_gpu_cache: Optional[List[Dict]] = None
+_gpu_cache_ts: float = 0.0
+
+
+def _get_gpu_info() -> List[Dict]:
+    """Retourne les GPUs avec leur VRAM totale et libre (cache 60s)."""
+    global _gpu_cache, _gpu_cache_ts
+    if _gpu_cache is not None and (time.time() - _gpu_cache_ts) < 60:
+        return _gpu_cache
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total,memory.free",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5,
+        )
+        gpus = []
+        for line in result.stdout.strip().splitlines():
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) >= 3:
+                gpus.append({
+                    "name": parts[0],
+                    "vram_total_mb": int(parts[1]),
+                    "vram_free_mb": int(parts[2]),
+                })
+        _gpu_cache = gpus
+        _gpu_cache_ts = time.time()
+        return gpus
+    except Exception:
+        _gpu_cache = []
+        _gpu_cache_ts = time.time()
+        return []
+
+
+def _get_total_vram_gb() -> float:
+    """VRAM totale combinee de tous les GPUs en GB."""
+    gpus = _get_gpu_info()
+    return sum(g["vram_total_mb"] for g in gpus) / 1024
+
+
+# ---------------------------------------------------------------------------
+# Cache Ollama model details
+# ---------------------------------------------------------------------------
+
+_ollama_details_cache: Optional[Dict[str, Dict]] = None
+_ollama_details_ts: float = 0.0
+
+
+def _fetch_ollama_details() -> Dict[str, Dict]:
+    """Charge les details de tous les modeles Ollama (cache 30s)."""
+    global _ollama_details_cache, _ollama_details_ts
+    if _ollama_details_cache is not None and (time.time() - _ollama_details_ts) < 30:
+        return _ollama_details_cache
+    try:
+        import httpx
+        resp = httpx.get("http://127.0.0.1:11434/api/tags", timeout=3)
+        data = resp.json()
+        result = {}
+        for m in data.get("models", []):
+            name = m["name"]
+            if name.endswith(":latest"):
+                name = name[:-7]
+            details = m.get("details", {})
+            result[name] = {
+                "size_bytes": m.get("size", 0),
+                "size_gb": round(m.get("size", 0) / (1024**3), 1),
+                "parameters": details.get("parameter_size", "?"),
+                "quantization": details.get("quantization_level", "?"),
+                "family": details.get("family", "?"),
+                "format": details.get("format", "?"),
+            }
+        _ollama_details_cache = result
+        _ollama_details_ts = time.time()
+        return result
+    except Exception:
+        _ollama_details_cache = {}
+        _ollama_details_ts = time.time()
+        return {}
+
+
+def _estimate_vram_gb(size_gb: float) -> float:
+    """Estime la VRAM necessaire (taille disque + ~12% overhead KV cache)."""
+    return round(size_gb * 1.12, 1)
+
+
+# ---------------------------------------------------------------------------
+# Enrichissement des infos modele
+# ---------------------------------------------------------------------------
+
+def get_model_details(model_name: str) -> Dict:
+    """
+    Retourne des informations detaillees sur un modele.
+
+    Fusionne: Ollama API + models.json + estimation VRAM.
+
+    Returns:
+        Dict avec: name, size_gb, vram_gb, parameters, quantization,
+                   family, use_case, description, backup_path, fits_gpu
+    """
+    ollama_data = _fetch_ollama_details().get(model_name, {})
+
+    # Chercher dans models.json
+    json_data = {}
+    try:
+        models_json = load_models_json()
+        for m in models_json.get("ollama_models", []):
+            ollama_nm = m.get("ollama_name", "")
+            if ollama_nm.endswith(":latest"):
+                ollama_nm = ollama_nm[:-7]
+            if ollama_nm == model_name:
+                json_data = m
+                break
+    except Exception:
+        pass
+
+    size_gb = ollama_data.get("size_gb") or json_data.get("size_gb") or "?"
+    vram_gb = _estimate_vram_gb(size_gb) if isinstance(size_gb, (int, float)) else "?"
+    total_vram = _get_total_vram_gb()
+
+    if isinstance(vram_gb, (int, float)) and total_vram > 0:
+        fits_gpu = vram_gb <= total_vram
+    else:
+        fits_gpu = None
+
+    return {
+        "name": model_name,
+        "size_gb": size_gb,
+        "vram_gb": vram_gb,
+        "parameters": ollama_data.get("parameters") or json_data.get("parameters", "?"),
+        "quantization": ollama_data.get("quantization") or json_data.get("quantization", "?"),
+        "family": ollama_data.get("family", "?"),
+        "use_case": json_data.get("use_case", "general"),
+        "description": json_data.get("description", ""),
+        "backup_path": json_data.get("backup_path", ""),
+        "context_length": json_data.get("context_length", 0),
+        "fits_gpu": fits_gpu,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Fonctions publiques (inchangees pour compatibilite)
+# ---------------------------------------------------------------------------
 
 def _sort_with_preferred(
     models: Iterable[str], preferred_order: Sequence[str]
 ) -> List[str]:
-    """
-    Trie les modèles en mettant ceux de preferred_order en premier.
-
-    Args:
-        models: Liste des modèles à trier
-        preferred_order: Ordre préféré
-
-    Returns:
-        Liste triée de modèles
-    """
     preferred_index = {name: i for i, name in enumerate(preferred_order)}
 
-    def sort_key(name: str) -> tuple[int, int | str]:
+    def sort_key(name: str) -> Tuple[int, ...]:
         if name in preferred_index:
-            return 0, preferred_index[name]
-        return 1, name
+            return (0, preferred_index[name])
+        return (1, 0)
 
-    unique = sorted(set(models), key=sort_key)
+    unique = sorted(set(models), key=lambda n: (*sort_key(n), n))
     return unique
 
 
@@ -116,26 +259,7 @@ def get_available_models_for_ui(
     preferred_order: Sequence[str] | None = None,
     fallback: Sequence[str] | None = None,
 ) -> List[str]:
-    """
-    Retourne la liste des modèles LLM à proposer dans l'UI.
-
-    - Si Ollama répond, on fusionne les modèles installés avec models.json.
-    - Si Ollama est inaccessible, on utilise models.json si dispo.
-    - Sinon, fallback sur une liste minimale.
-
-    Args:
-        preferred_order: Ordre conseillé pour le tri (facultatif).
-        fallback: Fallback explicite (sinon FALLBACK_LLM_MODELS).
-
-    Returns:
-        list[str]: Noms de modèles Ollama (installés + bibliothèque).
-
-    Example:
-        >>> models = get_available_models_for_ui(
-        ...     preferred_order=RECOMMENDED_FOR_STRATEGY
-        ... )
-        >>> st.selectbox("Modèle", models)
-    """
+    """Retourne la liste dedupliquee des modeles LLM pour l'UI."""
     installed = [_normalize_model_name(n) for n in list_ollama_models() if n]
     library_models = _get_library_models()
     available = sorted(set(installed) | set(library_models))
@@ -143,77 +267,20 @@ def get_available_models_for_ui(
     if available:
         if preferred_order:
             return _sort_with_preferred(available, preferred_order)
-        # Par défaut: tri alphabétique des modèles installés + bibliothèque
         return available
 
-    # Ollama inaccessible ou aucun modèle retourné: fallback
     models = list(fallback or FALLBACK_LLM_MODELS)
-    logger.warning(
-        "⚠️ Ollama ne renvoie aucun modèle, utilisation du fallback UI: %s",
-        models[:3]
-    )
+    logger.warning("Ollama ne renvoie aucun modele, fallback UI: %s", models[:3])
     return models
 
 
 def get_model_info(model_name: str) -> dict:
-    """
-    Retourne des informations sur un modèle.
-
-    Priorité: models.json > hardcoded fallback
-
-    Args:
-        model_name: Nom du modèle
-
-    Returns:
-        dict: Informations du modèle (size, description, etc.)
-    """
-    # 1. Chercher dans models.json d'abord
-    try:
-        info = get_model_info_for_ui(model_name)
-        if info and info.get("size_gb") != "?":
-            return {
-                "name": info.get("name", model_name),
-                "size_gb": info["size_gb"],
-                "description": info.get("description", ""),
-            }
-    except Exception as exc:  # noqa: BLE001
-        logger.debug("Erreur lecture models.json pour %s: %s", model_name, exc)
-
-    # 2. Fallback hardcodé pour compatibilité
-    model_sizes = {
-        "deepseek-r1:70b": 34,
-        "deepseek-r1:32b": 19,
-        "qwq:32b": 23,
-        "qwen2.5:32b": 19,
-        "mistral:22b": 13,
-        "gemma3:27b": 17,
-        "deepseek-r1-distill:14b": 9,
-        "gemma3:12b": 8,
-        "deepseek-r1:8b": 5,
-        "mistral:7b-instruct": 4,
-        "llama3.2": 2,
-        "phi3": 2,
-    }
-
-    model_descriptions = {
-        "deepseek-r1:70b": "Le plus puissant - Excellent pour stratégies complexes",
-        "deepseek-r1:32b": "Optimal - Meilleur rapport qualité/prix",
-        "qwq:32b": "Excellent raisonnement - Idéal pour analyse",
-        "qwen2.5:32b": "Alternative solide - Polyvalent",
-        "mistral:22b": "Équilibré - Bon pour critique",
-        "gemma3:27b": "Bon pour analyse - Rapide",
-        "deepseek-r1-distill:14b": "Équilibré - Compact",
-        "gemma3:12b": "Rapide - Léger",
-        "deepseek-r1:8b": "Ultra rapide - Tests rapides",
-        "mistral:7b-instruct": "Ultra rapide - Très léger",
-        "llama3.2": "Léger - Pour tests",
-        "phi3": "Léger - Pour tests",
-    }
-
+    """Compatibilite: retourne {name, size_gb, description}."""
+    details = get_model_details(model_name)
     return {
-        "name": model_name,
-        "size_gb": model_sizes.get(model_name, "?"),
-        "description": model_descriptions.get(model_name, "Modèle LLM"),
+        "name": details["name"],
+        "size_gb": details["size_gb"],
+        "description": details["description"] or "Modele LLM",
     }
 
 
@@ -221,92 +288,198 @@ def get_optimal_config_for_role(
     role: str,
     available_models: List[str],
 ) -> List[str]:
-    """
-    Retourne la configuration optimale pour un rôle donné.
-
-    Si le modèle optimal n'est pas installé, utilise le fallback.
-
-    Args:
-        role: Rôle de l'agent (analyst, strategist, critic, validator)
-        available_models: Liste des modèles disponibles
-
-    Returns:
-        Liste des modèles optimaux pour ce rôle (filtrés par disponibilité)
-
-    Example:
-        >>> optimal = get_optimal_config_for_role("critic", installed_models)
-        >>> # Returns: ["llama3.3-70b-optimized"] if installed, else fallback
-    """
-    # Modèle optimal primaire
     optimal_primary = OPTIMAL_CONFIG_BY_ROLE.get(role, [])
-
-    # Vérifier si le modèle optimal est disponible
     available_set = set(available_models)
     optimal_available = [m for m in optimal_primary if m in available_set]
-
     if optimal_available:
         return optimal_available
 
-    # Fallback si le modèle optimal n'est pas installé
     fallback_options = OPTIMAL_CONFIG_FALLBACK.get(role, [])
     fallback_available = [m for m in fallback_options if m in available_set]
-
     if fallback_available:
-        return fallback_available[:1]  # Premier fallback disponible
+        return fallback_available[:1]
 
-    # Dernier recours: premiers modèles disponibles
     return available_models[:1] if available_models else []
 
 
+# ---------------------------------------------------------------------------
+# Rendu Streamlit enrichi
+# ---------------------------------------------------------------------------
+
+def _vram_badge(fits_gpu: Optional[bool]) -> str:
+    if fits_gpu is True:
+        return "🟢"
+    elif fits_gpu is False:
+        return "🔴"
+    return "⚪"
+
+
+def _format_model_option(name: str, details: Dict) -> str:
+    """Formate le nom affiche dans le selectbox avec taille et badge GPU."""
+    size = details.get("size_gb", "?")
+    params = details.get("parameters", "?")
+    badge = _vram_badge(details.get("fits_gpu"))
+    size_str = f"{size}G" if isinstance(size, (int, float)) else "?"
+    return f"{badge} {name}  [{params} / {size_str}]"
+
+
 def render_model_selector(
-    label: str = "Modèle LLM",
+    label: str = "Modele LLM",
     key: str = "llm_model",
     preferred_order: Sequence[str] | None = None,
     help_text: str | None = None,
+    show_details: bool = True,
+    show_filter: bool = False,
+    compact: bool = False,
 ) -> str:
     """
-    Rendu d'un sélecteur de modèle Streamlit avec informations.
+    Selecteur de modele Streamlit avec affichage riche.
 
     Args:
         label: Label du selectbox
-        key: Clé du state Streamlit
-        preferred_order: Ordre préféré des modèles
+        key: Cle du state Streamlit
+        preferred_order: Ordre prefere des modeles
         help_text: Texte d'aide optionnel
+        show_details: Afficher la fiche detaillee sous le selecteur
+        show_filter: Afficher le filtre par categorie
+        compact: Mode compact (sidebar) - reduit les infos
 
     Returns:
-        str: Nom du modèle sélectionné
-
-    Example:
-        >>> import streamlit as st
-        >>> model = render_model_selector(
-        ...     label="Modèle Analyst",
-        ...     key="analyst_model",
-        ...     preferred_order=RECOMMENDED_FOR_ANALYSIS
-        ... )
+        str: Nom du modele selectionne (nom Ollama exact)
     """
     import streamlit as st
 
     models = get_available_models_for_ui(preferred_order=preferred_order)
 
+    # Filtre par categorie
+    if show_filter and not compact:
+        filter_key = f"{key}_category_filter"
+        category = st.radio(
+            "Categorie",
+            list(_CATEGORY_LABELS.keys()),
+            horizontal=True,
+            key=filter_key,
+            label_visibility="collapsed",
+        )
+        use_case_filter = _CATEGORY_LABELS.get(category)
+        if use_case_filter:
+            filtered = []
+            for m in models:
+                d = get_model_details(m)
+                if d["use_case"] == use_case_filter:
+                    filtered.append(m)
+            if filtered:
+                models = filtered
+
+    # Pre-charger les details pour le format_func
+    details_map = {m: get_model_details(m) for m in models}
+
     if not help_text:
-        help_text = "Sélectionnez un modèle LLM Ollama pour l'optimisation"
+        help_text = "Selectionnez un modele LLM Ollama"
 
     selected = st.selectbox(
         label,
         models,
         key=key,
         help=help_text,
+        format_func=lambda name: _format_model_option(name, details_map.get(name, {})),
     )
 
-    # Afficher les infos du modèle sélectionné
-    if selected:
-        info = get_model_info(selected)
-        size = info["size_gb"]
-        desc = info["description"]
-        st.caption(f"📦 ~{size} GB | {desc}")
+    # Fiche detaillee
+    if selected and show_details:
+        d = details_map.get(selected) or get_model_details(selected)
+        _render_model_card(d, compact=compact)
 
     return selected
 
+
+def _render_model_card(d: Dict, compact: bool = False) -> None:
+    """Affiche la fiche d'un modele sous le selecteur."""
+    import streamlit as st
+
+    name = d["name"]
+    size_gb = d["size_gb"]
+    vram_gb = d["vram_gb"]
+    params = d["parameters"]
+    quant = d["quantization"]
+    family = d["family"]
+    desc = d["description"]
+    backup = d.get("backup_path", "")
+    ctx = d.get("context_length", 0)
+    fits = d.get("fits_gpu")
+
+    # GPU info
+    gpus = _get_gpu_info()
+    total_vram = _get_total_vram_gb()
+
+    if compact:
+        # Mode sidebar : une ligne markdown
+        badge = _vram_badge(fits)
+        size_str = f"{size_gb}G" if isinstance(size_gb, (int, float)) else "?"
+        vram_str = f"{vram_gb}G" if isinstance(vram_gb, (int, float)) else "?"
+        st.caption(f"{badge} **{params}** {quant} | Disque {size_str} | VRAM ~{vram_str}")
+        if desc:
+            st.caption(f"_{desc}_")
+        return
+
+    # Mode complet : tableau structuree
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        lines = [
+            f"| | |",
+            f"|---|---|",
+            f"| **Parametres** | {params} |",
+            f"| **Quantization** | {quant} |",
+            f"| **Famille** | {family} |",
+        ]
+        if ctx:
+            lines.append(f"| **Contexte** | {ctx:,} tokens |")
+        st.markdown("\n".join(lines))
+
+    with col2:
+        size_str = f"{size_gb} GB" if isinstance(size_gb, (int, float)) else "?"
+        vram_str = f"{vram_gb} GB" if isinstance(vram_gb, (int, float)) else "?"
+
+        badge = _vram_badge(fits)
+        if fits is True:
+            gpu_status = f"{badge} Tient en VRAM ({total_vram:.0f} GB dispo)"
+        elif fits is False:
+            gpu_status = f"{badge} Depasse la VRAM ({total_vram:.0f} GB dispo)"
+        else:
+            gpu_status = f"{badge} GPU non detecte"
+
+        lines2 = [
+            f"| | |",
+            f"|---|---|",
+            f"| **Taille disque** | {size_str} |",
+            f"| **VRAM estimee** | ~{vram_str} |",
+            f"| **GPU** | {gpu_status} |",
+        ]
+        if backup:
+            lines2.append(f"| **Backup GGUF** | `{backup}` |")
+        st.markdown("\n".join(lines2))
+
+    if desc:
+        st.caption(f"_{desc}_")
+
+    # GPU details (expander)
+    if gpus:
+        with st.expander("Details GPU", expanded=False):
+            for i, g in enumerate(gpus):
+                total = g["vram_total_mb"] / 1024
+                free = g["vram_free_mb"] / 1024
+                used = total - free
+                pct = (used / total * 100) if total > 0 else 0
+                st.progress(
+                    min(pct / 100, 1.0),
+                    text=f"GPU {i}: {g['name']} - {used:.1f}/{total:.1f} GB ({pct:.0f}%)",
+                )
+
+
+# ---------------------------------------------------------------------------
+# Exports
+# ---------------------------------------------------------------------------
 
 __all__ = [
     "FALLBACK_LLM_MODELS",
@@ -318,6 +491,7 @@ __all__ = [
     "OPTIMAL_CONFIG_FALLBACK",
     "get_available_models_for_ui",
     "get_model_info",
+    "get_model_details",
     "get_optimal_config_for_role",
     "render_model_selector",
 ]

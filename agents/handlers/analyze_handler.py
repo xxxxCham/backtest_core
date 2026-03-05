@@ -37,7 +37,13 @@ def handle_analyze(orch: "Orchestrator") -> None:
     t0 = time.time()
     result = orch.analyst.execute(orch.context)
     dt = int((time.time() - t0) * 1000)
-    orch._log_event("agent_execute_end", role="analyst", success=result.success, latency_ms=dt)
+    orch._log_event(
+        "agent_execute_end",
+        role="analyst",
+        model=orch.llm_client.config.model,
+        success=result.success,
+        latency_ms=dt,
+    )
 
     if orch._handle_llm_failure(result, "analyst"):
         return

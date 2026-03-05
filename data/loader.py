@@ -22,6 +22,7 @@ Skip-if: Vous appelez load_ohlcv(filename).
 
 import json
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -182,6 +183,29 @@ def detect_gaps(
 
 # Extensions supportées
 SUPPORTED_EXTENSIONS = (".parquet", ".feather", ".csv", ".json")
+SUPPORTED_EXTENSION_SET = {ext.lower() for ext in SUPPORTED_EXTENSIONS}
+
+# Dossiers à exclure du scan de données (cache/artefacts locaux)
+IGNORED_SCAN_DIRS = {
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".tmp",
+    ".tmp_pytest_codex",
+    ".tmp_pytest_codex_run",
+    "pytest_temp",
+    ".git",
+    ".venv",
+    ".venv_old",
+}
+
+# Nom de fichier accepté:
+#   SYMBOL_TIMEFRAME.ext
+#   SYMBOL_TIMEFRAME_<suffix>.ext
+#   SYMBOL-TIMEFRAME-suffix.ext (support partiel via séparateur après timeframe)
+DATA_FILE_STEM_RE = re.compile(
+    r"^(?P<symbol>[A-Za-z0-9][A-Za-z0-9.\-]*)_(?P<timeframe>\d+[mhdwM])(?:$|[_-].*)"
+)
 
 # Répertoire de données par défaut
 DEFAULT_DATA_DIR = Path(__file__).parent / "sample_data"
@@ -204,6 +228,33 @@ def _dedupe_paths(paths: List[Path]) -> List[Path]:
         seen.add(key)
         out.append(path)
     return out
+
+
+def _extract_symbol_timeframe_from_stem(stem: str) -> Optional[Tuple[str, str]]:
+    """Extrait (SYMBOL, timeframe) depuis un nom de fichier sans extension."""
+    match = DATA_FILE_STEM_RE.match(stem)
+    if not match:
+        return None
+
+    symbol = match.group("symbol").upper()
+    timeframe = match.group("timeframe")
+    if not is_valid_timeframe(timeframe):
+        return None
+    return symbol, timeframe
+
+
+def _iter_supported_files(root: Path):
+    """Parcourt récursivement les fichiers supportés en excluant les dossiers de cache."""
+    if not root.exists() or not root.is_dir():
+        return
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in IGNORED_SCAN_DIRS]
+        current = Path(dirpath)
+        for name in filenames:
+            suffix = Path(name).suffix.lower()
+            if suffix in SUPPORTED_EXTENSION_SET:
+                yield current / name
 
 
 def _build_legacy_windows_data_dirs() -> List[Path]:
@@ -229,14 +280,12 @@ def _build_legacy_windows_data_dirs() -> List[Path]:
 
 
 def _path_has_supported_data(path: Path) -> bool:
-    """Vérifie rapidement si un dossier contient au moins un fichier data supporté."""
+    """Vérifie si un dossier contient au moins un fichier OHLCV détectable."""
     if not path.exists() or not path.is_dir():
         return False
 
-    for ext in SUPPORTED_EXTENSIONS:
-        if next(path.glob(f"*{ext}"), None) is not None:
-            return True
-        if next(path.rglob(f"*{ext}"), None) is not None:
+    for file_path in _iter_supported_files(path):
+        if _extract_symbol_timeframe_from_stem(file_path.stem) is not None:
             return True
 
     return False
@@ -257,26 +306,34 @@ def _get_data_dir() -> Path:
     env_dir = os.environ.get("BACKTEST_DATA_DIR")
     if env_dir:
         env_path = Path(env_dir)
-        if env_path.exists():
+        if _path_has_supported_data(env_path):
             return env_path
+        if env_path.exists():
+            logger.warning(
+                f"BACKTEST_DATA_DIR existe mais ne contient pas de fichiers OHLCV valides: {env_path}"
+            )
 
     # Variable TRADX_DATA_ROOT (compatibilité)
     tradx_dir = os.environ.get("TRADX_DATA_ROOT")
     if tradx_dir:
         tradx_path = Path(tradx_dir)
-        if tradx_path.exists():
+        if _path_has_supported_data(tradx_path):
             return tradx_path
+        if tradx_path.exists():
+            logger.warning(
+                f"TRADX_DATA_ROOT existe mais ne contient pas de fichiers OHLCV valides: {tradx_path}"
+            )
 
     # Gestionnaire multi-timeframe (données processed)
-    if GESTIONNAIRE_DATA_DIR and GESTIONNAIRE_DATA_DIR.exists():
+    if GESTIONNAIRE_DATA_DIR and _path_has_supported_data(GESTIONNAIRE_DATA_DIR):
         return GESTIONNAIRE_DATA_DIR
 
     # Gestionnaire multi-timeframe (données raw en fallback)
-    if GESTIONNAIRE_RAW_DIR and GESTIONNAIRE_RAW_DIR.exists():
+    if GESTIONNAIRE_RAW_DIR and _path_has_supported_data(GESTIONNAIRE_RAW_DIR):
         return GESTIONNAIRE_RAW_DIR
 
     # Chemin ThreadX_big (données principales)
-    if THREADX_DATA_DIR and THREADX_DATA_DIR.exists():
+    if THREADX_DATA_DIR and _path_has_supported_data(THREADX_DATA_DIR):
         return THREADX_DATA_DIR
 
     # Auto-détection: prioriser les banques externes, puis fallback projet.
@@ -305,11 +362,7 @@ def _get_data_dir() -> Path:
 def _scan_data_files_for_dir(data_dir: str) -> Tuple[Path, ...]:
     """Scanne les fichiers de données disponibles."""
     root = Path(data_dir)
-    files: List[Path] = []
-
-    for ext in SUPPORTED_EXTENSIONS:
-        files.extend(root.glob(f"*{ext}"))
-        files.extend(root.glob(f"**/*{ext}"))  # Récursif
+    files = list(_iter_supported_files(root))
 
     return tuple(sorted(set(files)))
 
@@ -331,15 +384,12 @@ def discover_available_data() -> Tuple[List[str], List[str]]:
     timeframes = set()
 
     for file_path in _scan_data_files():
-        # Format attendu: SYMBOL_TIMEFRAME.ext (ex: BTCUSDT_1m.parquet)
-        parts = file_path.stem.split("_", 1)
-        if len(parts) == 2:
-            symbol, tf = parts
-            # Valider que le timeframe est dans un format attendu
-            # Format valide: <nombre><unité> où unité = m|h|d|w|M
-            if is_valid_timeframe(tf):
-                tokens.add(symbol.upper())
-                timeframes.add(tf)
+        parsed = _extract_symbol_timeframe_from_stem(file_path.stem)
+        if parsed is None:
+            continue
+        symbol, tf = parsed
+        tokens.add(symbol)
+        timeframes.add(tf)
 
     # Tri des timeframes par ordre logique
     def tf_sort_key(tf: str) -> Tuple[int, int]:
@@ -370,7 +420,6 @@ def is_valid_timeframe(tf: str) -> bool:
         return False
 
     # Validation supplémentaire : rejeter patterns problématiques
-    import re
     problematic_patterns = [
         r".*\.meta$",    # Fichiers .meta
         r".*\.data$",    # Fichiers .data
@@ -422,8 +471,11 @@ def _find_data_file(symbol: str, timeframe: str) -> Optional[Path]:
     symbol = symbol.upper()
 
     for file_path in _scan_data_files():
-        parts = file_path.stem.split("_", 1)
-        if len(parts) == 2 and parts[0].upper() == symbol and parts[1] == timeframe:
+        parsed = _extract_symbol_timeframe_from_stem(file_path.stem)
+        if parsed is None:
+            continue
+        parsed_symbol, parsed_tf = parsed
+        if parsed_symbol == symbol and parsed_tf == timeframe:
             return file_path
 
     return None
@@ -644,9 +696,12 @@ def get_available_timeframes(symbol: str) -> List[str]:
     timeframes = set()
 
     for file_path in _scan_data_files():
-        parts = file_path.stem.split("_", 1)
-        if len(parts) == 2 and parts[0].upper() == symbol:
-            timeframes.add(parts[1])
+        parsed = _extract_symbol_timeframe_from_stem(file_path.stem)
+        if parsed is None:
+            continue
+        parsed_symbol, parsed_tf = parsed
+        if parsed_symbol == symbol:
+            timeframes.add(parsed_tf)
 
     return sorted(timeframes)
 

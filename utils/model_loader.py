@@ -336,33 +336,22 @@ def get_model_full_path(model_id: str) -> Optional[Path]:
 
 def get_ollama_model_names() -> List[str]:
     """
-    Retourne la liste des noms de modèles Ollama (pour compatibilité avec Ollama).
+    Retourne la liste des noms de modèles Ollama depuis models.json.
+
+    Utilise le champ ``ollama_name`` pour correspondre exactement aux noms
+    retournés par ``ollama list``, évitant les doublons dans l'UI.
 
     Returns:
-        List[str]: Liste des noms Ollama (model_name:tag, latest -> model_name)
-
-    Example:
-        >>> names = get_ollama_model_names()
-        >>> print(names)
-        ['llama3.1:8b', 'llama3.3-70b-optimized', 'mistral:7b-instruct', ...]
+        List[str]: Noms Ollama normalisés (sans suffixe ``:latest``).
     """
     models = get_all_ollama_models()
     names = []
     for model in models:
-        model_name = model.get("model_name")
-        tag = model.get("tag")
-        if model_name and tag:
-            if tag == "latest":
-                names.append(model_name)
-            else:
-                names.append(f"{model_name}:{tag}")
-            continue
-        if model_name:
-            names.append(model_name)
-            continue
-        model_id = model.get("id")
-        if model_id:
-            names.append(model_id)
+        ollama_name = model.get("ollama_name", "")
+        if ollama_name:
+            if ollama_name.endswith(":latest"):
+                ollama_name = ollama_name[: -len(":latest")]
+            names.append(ollama_name)
     return names
 
 

@@ -455,23 +455,51 @@ def _resolve_requested_model(requested_model: str, installed_models: List[str]) 
     )
 
 
+def _is_model_loaded_in_ollama_ps(
+    *,
+    model: str,
+    ollama_host: str,
+    timeout: float = 6.0,
+) -> tuple[bool, str]:
+    """Vérifie via /api/ps si un modèle est déjà chargé en mémoire."""
+    try:
+        resp = httpx.get(f"{ollama_host}/api/ps", timeout=timeout)
+        if resp.status_code != 200:
+            return False, f"/api/ps status={resp.status_code}"
+        payload = resp.json() if resp.content else {}
+        models = payload.get("models", []) or []
+        loaded_names = [
+            str(item.get("name", "") or "").strip()
+            for item in models
+            if str(item.get("name", "") or "").strip()
+        ]
+        for loaded in loaded_names:
+            if _model_matches(loaded, model):
+                return True, f"modèle déjà chargé (`{loaded}`)"
+        if loaded_names:
+            return False, f"modèles actifs: {', '.join(loaded_names[:3])}"
+        return False, "aucun modèle actif"
+    except Exception as exc:
+        return False, f"/api/ps inaccessible: {exc}"
+
+
 def _warmup_ollama_model(
     *,
     model: str,
     ollama_host: str,
     keep_alive_minutes: int,
-    timeout: float = 120.0,
-) -> bool:
+    timeout: float = 300.0,
+) -> tuple[bool, str]:
     """Précharge un modèle Ollama en VRAM via un prompt court.
 
     Envoie un prompt minimal à /api/generate pour forcer le chargement
     du modèle en mémoire GPU avant les vrais appels LLM.
 
     Returns:
-        True si le modèle a été chargé avec succès.
+        (succès, détail).
     """
+    keep_alive = f"{max(1, int(keep_alive_minutes))}m"
     try:
-        keep_alive = f"{max(1, int(keep_alive_minutes))}m"
         resp = httpx.post(
             f"{ollama_host}/api/generate",
             json={
@@ -482,9 +510,62 @@ def _warmup_ollama_model(
             },
             timeout=timeout,
         )
-        return resp.status_code == 200
-    except Exception:
-        return False
+        if resp.status_code == 200:
+            done_reason = ""
+            try:
+                payload = resp.json() if resp.content else {}
+                done_reason = str(payload.get("done_reason", "") or "").strip()
+            except Exception:
+                done_reason = ""
+            detail = "warmup /api/generate status=200"
+            if done_reason:
+                detail += f", done_reason={done_reason}"
+            return True, detail
+
+        body = (resp.text or "").strip().replace("\n", " ")
+        if len(body) > 300:
+            body = body[:300] + "..."
+        loaded, loaded_detail = _is_model_loaded_in_ollama_ps(
+            model=model,
+            ollama_host=ollama_host,
+        )
+        if loaded:
+            return (
+                True,
+                f"warmup status={resp.status_code} mais {loaded_detail}",
+            )
+        return (
+            False,
+            f"warmup status={resp.status_code}, body={body or '<vide>'}, ps={loaded_detail}",
+        )
+    except httpx.TimeoutException:
+        loaded, loaded_detail = _is_model_loaded_in_ollama_ps(
+            model=model,
+            ollama_host=ollama_host,
+        )
+        if loaded:
+            return (
+                True,
+                f"timeout warmup ({int(timeout)}s) mais {loaded_detail}",
+            )
+        return (
+            False,
+            f"timeout warmup ({int(timeout)}s), ps={loaded_detail}",
+        )
+    except Exception as exc:
+        loaded, loaded_detail = _is_model_loaded_in_ollama_ps(
+            model=model,
+            ollama_host=ollama_host,
+        )
+        if loaded:
+            return (
+                True,
+                f"erreur warmup ({exc}) mais {loaded_detail}",
+            )
+        return (
+            False,
+            f"erreur warmup ({exc}), ps={loaded_detail}",
+        )
 
 
 def _unload_ollama_model(*, model: str, ollama_host: str, timeout: float = 20.0) -> bool:
@@ -540,14 +621,16 @@ def _prepare_builder_llm(
             msg = f"{resolve_note} {msg}"
         return True, msg, resolved_model
 
-    if _warmup_ollama_model(
+    warmup_ok, warmup_detail = _warmup_ollama_model(
         model=resolved_model,
         ollama_host=ollama_host,
         keep_alive_minutes=keep_alive_minutes,
-    ):
+    )
+    if warmup_ok:
         msg = (
             f"Modèle `{resolved_model}` chargé en mémoire "
-            f"({keep_alive_minutes} min keep-alive)."
+            f"({keep_alive_minutes} min keep-alive). "
+            f"[{warmup_detail}]"
         )
         if resolve_note:
             msg = f"{resolve_note} {msg}"
@@ -559,7 +642,10 @@ def _prepare_builder_llm(
 
     return (
         False,
-        f"Impossible de précharger `{resolved_model}` sur {ollama_host}.",
+        (
+            f"Impossible de précharger `{resolved_model}` sur {ollama_host}. "
+            f"Détail: {warmup_detail}"
+        ),
         resolved_model,
     )
 

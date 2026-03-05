@@ -747,7 +747,13 @@ class Orchestrator:
         t0 = time.time()
         result = self.analyst.execute(self.context)
         dt = int((time.time() - t0) * 1000)
-        self._log_event("agent_execute_end", role="analyst", success=result.success, latency_ms=dt)
+        self._log_event(
+            "agent_execute_end",
+            role="analyst",
+            model=self.llm_client.config.model,
+            success=result.success,
+            latency_ms=dt,
+        )
 
         if self._handle_llm_failure(result, "analyst"):
             return
@@ -798,7 +804,13 @@ class Orchestrator:
         t0 = time.time()
         result = self.strategist.execute(self.context)
         dt = int((time.time() - t0) * 1000)
-        self._log_event("agent_execute_end", role="strategist", success=result.success, latency_ms=dt)
+        self._log_event(
+            "agent_execute_end",
+            role="strategist",
+            model=self.llm_client.config.model,
+            success=result.success,
+            latency_ms=dt,
+        )
 
         if self._handle_llm_failure(result, "strategist"):
             return
@@ -1032,7 +1044,13 @@ class Orchestrator:
         t0 = time.time()
         result = self.critic.execute(self.context)
         dt = int((time.time() - t0) * 1000)
-        self._log_event("agent_execute_end", role="critic", success=result.success, latency_ms=dt)
+        self._log_event(
+            "agent_execute_end",
+            role="critic",
+            model=self.llm_client.config.model,
+            success=result.success,
+            latency_ms=dt,
+        )
 
         if self._handle_llm_failure(result, "critic"):
             return
@@ -1078,7 +1096,13 @@ class Orchestrator:
         t0 = time.time()
         result = self.validator.execute(self.context)
         dt = int((time.time() - t0) * 1000)
-        self._log_event("agent_execute_end", role="validator", success=result.success, latency_ms=dt)
+        self._log_event(
+            "agent_execute_end",
+            role="validator",
+            model=self.llm_client.config.model,
+            success=result.success,
+            latency_ms=dt,
+        )
 
         if self._handle_llm_failure(result, "validator"):
             return

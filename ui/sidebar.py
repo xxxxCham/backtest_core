@@ -1846,27 +1846,17 @@ def render_sidebar() -> SidebarState:
             )
 
         # Modèle LLM
-        try:
-            available_models = get_available_models_for_ui()
-        except Exception:
-            available_models = [
-                "deepseek-r1:32b", "qwq:32b", "qwen2.5:32b",
-                "deepseek-r1:14b", "deepseek-r1:8b", "mistral:7b-instruct",
-            ]
+        from ui.components.model_selector import render_model_selector
 
-        default_model = st.session_state.get("builder_model", "deepseek-r1:32b")
-        if default_model not in available_models and available_models:
-            default_model = available_models[0]
-        model_idx = available_models.index(default_model) if default_model in available_models else 0
-
-        builder_model = st.sidebar.selectbox(
-            "🤖 Modèle LLM",
-            available_models,
-            index=model_idx,
-            key="builder_model_select",
-            help="Modèle pour générer et analyser les stratégies. "
-                 "Les modèles >14B produisent du code de meilleure qualité.",
-        )
+        with st.sidebar:
+            builder_model = render_model_selector(
+                label="Modele LLM",
+                key="builder_model_select",
+                help_text="Modele pour generer et analyser les strategies. "
+                          "Les modeles >14B produisent du code de meilleure qualite.",
+                show_details=True,
+                compact=True,
+            )
         st.session_state["builder_model"] = builder_model
 
         st.sidebar.caption("**🔌 Chargement du modèle**")
@@ -2519,21 +2509,17 @@ def render_sidebar() -> SidebarState:
                         llm_model = "deepseek-r1:8b"
 
                 else:
-                    available_models = get_available_models_for_ui(
-                        preferred_order=RECOMMENDED_FOR_STRATEGY
-                    )
+                    from ui.components.model_selector import render_model_selector
 
-                    llm_model = st.sidebar.selectbox(
-                        "Modèle Ollama",
-                        available_models,
-                        help="Modèles installés localement via Ollama",
-                    )
-
-                    if llm_model:
-                        model_info = get_model_info(llm_model)
-                        size = model_info["size_gb"]
-                        desc = model_info["description"]
-                        st.sidebar.caption(f"📦 ~{size} GB | {desc}")
+                    with st.sidebar:
+                        llm_model = render_model_selector(
+                            label="Modele Ollama",
+                            key="llm_model_select",
+                            preferred_order=RECOMMENDED_FOR_STRATEGY,
+                            help_text="Modeles installes localement via Ollama",
+                            show_details=True,
+                            compact=True,
+                        )
 
                 ollama_host = st.sidebar.text_input(
                     "URL Ollama",

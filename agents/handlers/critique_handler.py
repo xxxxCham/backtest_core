@@ -45,7 +45,13 @@ def handle_critique(orch: "Orchestrator") -> None:
     t0 = time.time()
     result = orch.critic.execute(orch.context)
     dt = int((time.time() - t0) * 1000)
-    orch._log_event("agent_execute_end", role="critic", success=result.success, latency_ms=dt)
+    orch._log_event(
+        "agent_execute_end",
+        role="critic",
+        model=orch.llm_client.config.model,
+        success=result.success,
+        latency_ms=dt,
+    )
 
     if orch._handle_llm_failure(result, "critic"):
         return

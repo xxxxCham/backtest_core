@@ -1084,6 +1084,33 @@ Actions:
             else 0
         )
 
+        def _log_orchestration_event(event_type: str, **payload: Any) -> None:
+            if not self.orchestration_logger:
+                return
+            entry = {
+                "event_type": event_type,
+                "timestamp": datetime.now().isoformat(),
+                "session_id": getattr(self.orchestration_logger, "session_id", None),
+                "iteration": session.current_iteration,
+                "role": "autonomous_strategist",
+                **payload,
+            }
+            try:
+                if hasattr(self.orchestration_logger, "log"):
+                    self.orchestration_logger.log(event_type, entry)
+                elif hasattr(self.orchestration_logger, "add_event"):
+                    self.orchestration_logger.add_event(event_type, entry)
+                elif hasattr(self.orchestration_logger, "append"):
+                    self.orchestration_logger.append(entry)
+            except Exception:
+                # Le tracking ne doit jamais interrompre l'optimisation.
+                pass
+
+        _log_orchestration_event(
+            "agent_execute_start",
+            model=model_name,
+        )
+
         logger.info(
             f"LLM_CALL_START optim_id={optim_id} iteration={session.current_iteration} "
             f"model={model_name} temperature=0.5 "
@@ -1113,6 +1140,13 @@ Actions:
         )
 
         if not response.content:
+            _log_orchestration_event(
+                "agent_execute_end",
+                model=model_name,
+                success=False,
+                latency_ms=int(latency * 1000),
+                error="empty_response",
+            )
             logger.error("❌ LLM n'a pas répondu (response.content vide)")
             return IterationDecision(
                 action="stop",
@@ -1122,6 +1156,13 @@ Actions:
 
         data = response.parse_json()
         if data is None:
+            _log_orchestration_event(
+                "agent_execute_end",
+                model=model_name,
+                success=False,
+                latency_ms=int(latency * 1000),
+                error="parse_json_failed",
+            )
             logger.error(
                 f"❌ Échec parsing JSON de la réponse LLM. "
                 f"Réponse brute (100 premiers chars): {response.content[:100]}"
@@ -1179,6 +1220,13 @@ Actions:
 
         # Validation sweep: ranges obligatoire si action == "sweep"
         if action == "sweep" and not ranges:
+            _log_orchestration_event(
+                "agent_execute_end",
+                model=model_name,
+                success=False,
+                latency_ms=int(latency * 1000),
+                error="sweep_ranges_missing",
+            )
             logger.warning(
                 f"LLM_INVALID_DECISION optim_id={optim_id} iteration={session.current_iteration} "
                 f"action_original=sweep action_forced=stop reason=ranges_empty_or_missing"
@@ -1188,6 +1236,13 @@ Actions:
                 confidence=0.0,
                 reasoning="LLM chose 'sweep' but provided no ranges. Stopping.",
             )
+
+        _log_orchestration_event(
+            "agent_execute_end",
+            model=model_name,
+            success=True,
+            latency_ms=int(latency * 1000),
+        )
 
         return IterationDecision(
             action=action,

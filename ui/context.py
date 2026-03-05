@@ -114,6 +114,7 @@ get_model_info = None
 
 render_mini_monitor = None
 render_deep_trace_viewer = None
+render_llm_model_stats_panel = None
 
 LiveOrchestrationViewer = None
 render_full_orchestration_viewer = None
@@ -168,7 +169,10 @@ try:
         get_optimal_config_for_role,
     )
     from ui.components.monitor import render_mini_monitor  # noqa: F401
-    from ui.deep_trace_viewer import render_deep_trace_viewer  # noqa: F401
+    from ui.deep_trace_viewer import (  # noqa: F401
+        render_deep_trace_viewer,
+        render_llm_model_stats_panel,
+    )
     from ui.model_presets import (  # noqa: F401
         BUILTIN_PRESETS,
         apply_preset_to_config,

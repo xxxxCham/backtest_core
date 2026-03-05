@@ -66,6 +66,243 @@ def _format_percent(value: Any, precision: int = 2) -> Optional[str]:
     return f"{parsed:.{precision}%}"
 
 
+def _safe_quantile(values: pd.Series, quantile: float) -> float:
+    """Calcule un quantile en ignorant les valeurs non numeriques."""
+    numeric = pd.to_numeric(values, errors="coerce").dropna()
+    if numeric.empty:
+        return float("nan")
+    return float(numeric.quantile(quantile))
+
+
+def _safe_mean_ms(values: pd.Series) -> float:
+    """Calcule une moyenne de latence en ms de facon robuste."""
+    numeric = pd.to_numeric(values, errors="coerce").dropna()
+    if numeric.empty:
+        return float("nan")
+    return float(numeric.mean())
+
+
+def _to_bool(value: Any) -> bool:
+    """Convertit un flag success heterogene en bool."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "ok", "yes", "success"}
+    return False
+
+
+def _extract_llm_call_rows(logger: OrchestrationLogger) -> List[Dict[str, Any]]:
+    """
+    Extrait les appels LLM a partir des evenements AGENT_EXECUTE_*.
+
+    Les modeles sont resolves depuis AGENT_EXECUTE_END.details.model ou, si absent,
+    via le dernier AGENT_EXECUTE_START correspondant (iteration + role).
+    """
+    rows: List[Dict[str, Any]] = []
+    start_models: Dict[tuple[int, str], List[str]] = {}
+
+    for log in logger.logs:
+        if log.action_type not in (
+            OrchestrationActionType.AGENT_EXECUTE_START,
+            OrchestrationActionType.AGENT_EXECUTE_END,
+        ):
+            continue
+
+        details = log.details if isinstance(log.details, dict) else {}
+        role = str(log.agent or details.get("role") or "unknown").strip() or "unknown"
+        iteration = int(log.iteration or 0)
+        key = (iteration, role)
+
+        if log.action_type == OrchestrationActionType.AGENT_EXECUTE_START:
+            start_model = str(details.get("model") or "").strip()
+            if start_model:
+                start_models.setdefault(key, []).append(start_model)
+            continue
+
+        # AGENT_EXECUTE_END
+        model = str(details.get("model") or "").strip()
+        if not model:
+            queued = start_models.get(key) or []
+            if queued:
+                model = queued.pop(0)
+        if not model:
+            model = "unknown"
+
+        latency_raw = details.get("latency_ms")
+        latency_ms = float("nan")
+        try:
+            if latency_raw is not None:
+                latency_ms = float(latency_raw)
+        except (TypeError, ValueError):
+            latency_ms = float("nan")
+
+        if "success" in details:
+            success = _to_bool(details.get("success"))
+        else:
+            success = log.status != OrchestrationStatus.FAILED
+
+        rows.append(
+            {
+                "timestamp": log.timestamp,
+                "iteration": iteration,
+                "role": role,
+                "model": model,
+                "success": bool(success),
+                "latency_ms": latency_ms,
+            }
+        )
+
+    return rows
+
+
+def render_llm_model_stats_panel(
+    logger: OrchestrationLogger,
+    widget_ns: str = "llm_model_stats",
+) -> None:
+    """
+    Affiche un panneau detaille des stats modeles LLM:
+    - taux de succes
+    - latence d'inference (moyenne, p95)
+    - detail par modele, role et iteration
+    """
+    st.markdown("### Stats modeles LLM")
+
+    rows = _extract_llm_call_rows(logger)
+    if not rows:
+        st.info(
+            "Aucun appel LLM exploitable dans cette session "
+            "(evenements AGENT_EXECUTE_END absents)."
+        )
+        return
+
+    df_calls = pd.DataFrame(rows)
+    df_calls["success"] = df_calls["success"].astype(bool)
+    df_calls["latency_ms"] = pd.to_numeric(df_calls["latency_ms"], errors="coerce")
+    df_calls["iteration"] = pd.to_numeric(df_calls["iteration"], errors="coerce").fillna(0).astype(int)
+
+    roles = sorted([r for r in df_calls["role"].dropna().unique().tolist() if r])
+    models = sorted([m for m in df_calls["model"].dropna().unique().tolist() if m])
+
+    col_filters_1, col_filters_2 = st.columns(2)
+    with col_filters_1:
+        selected_roles = st.multiselect(
+            "Roles",
+            options=roles,
+            default=roles,
+            key=f"{widget_ns}_roles",
+        )
+    with col_filters_2:
+        selected_models = st.multiselect(
+            "Modeles",
+            options=models,
+            default=models,
+            key=f"{widget_ns}_models",
+        )
+
+    filtered = df_calls.copy()
+    if selected_roles:
+        filtered = filtered[filtered["role"].isin(selected_roles)]
+    if selected_models:
+        filtered = filtered[filtered["model"].isin(selected_models)]
+
+    if filtered.empty:
+        st.warning("Aucune ligne ne correspond aux filtres selectionnes.")
+        return
+
+    total_calls = int(len(filtered))
+    success_calls = int(filtered["success"].sum())
+    success_rate = (success_calls / total_calls) if total_calls else 0.0
+    avg_latency = _safe_mean_ms(filtered["latency_ms"])
+    p95_latency = _safe_quantile(filtered["latency_ms"], 0.95)
+    models_count = int(filtered["model"].nunique())
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.metric("Appels", total_calls)
+    with col2:
+        st.metric("Succes", success_calls)
+    with col3:
+        st.metric("Taux succes", f"{success_rate:.1%}")
+    with col4:
+        st.metric("Latence moy.", "N/A" if math.isnan(avg_latency) else f"{avg_latency:.0f}ms")
+    with col5:
+        p95_text = "N/A" if math.isnan(p95_latency) else f"{p95_latency:.0f}ms"
+        st.metric("P95", p95_text, delta=f"{models_count} modeles")
+
+    st.markdown("#### Resume par modele")
+    per_model = (
+        filtered.groupby("model", dropna=False)
+        .agg(
+            appels=("success", "size"),
+            succes=("success", "sum"),
+            taux_succes=("success", "mean"),
+            latence_moy_ms=("latency_ms", _safe_mean_ms),
+            p50_ms=("latency_ms", lambda s: _safe_quantile(s, 0.50)),
+            p95_ms=("latency_ms", lambda s: _safe_quantile(s, 0.95)),
+            iterations=("iteration", "nunique"),
+            roles=("role", lambda x: ", ".join(sorted(set(str(v) for v in x if str(v).strip())))),
+        )
+        .reset_index()
+        .sort_values(by=["appels", "model"], ascending=[False, True])
+    )
+    per_model["taux_succes"] = per_model["taux_succes"].map(lambda v: f"{v:.1%}")
+    for col in ("latence_moy_ms", "p50_ms", "p95_ms"):
+        per_model[col] = per_model[col].map(
+            lambda v: "N/A" if pd.isna(v) else f"{float(v):.0f}"
+        )
+    st.dataframe(per_model, width="stretch", hide_index=True)
+
+    st.markdown("#### Evolution par iteration")
+    iter_curve = (
+        filtered.groupby("iteration", as_index=False)
+        .agg(
+            latence_moy_ms=("latency_ms", _safe_mean_ms),
+            taux_succes=("success", "mean"),
+            appels=("success", "size"),
+        )
+        .sort_values("iteration")
+    )
+    iter_curve["taux_succes"] = iter_curve["taux_succes"] * 100.0
+
+    chart_col_1, chart_col_2 = st.columns(2)
+    with chart_col_1:
+        st.caption("Latence moyenne (ms) par iteration")
+        st.line_chart(
+            iter_curve.set_index("iteration")[["latence_moy_ms"]],
+            use_container_width=True,
+        )
+    with chart_col_2:
+        st.caption("Taux de succes (%) par iteration")
+        st.line_chart(
+            iter_curve.set_index("iteration")[["taux_succes"]],
+            use_container_width=True,
+        )
+
+    st.markdown("#### Detail role x modele")
+    role_model = (
+        filtered.groupby(["role", "model"], dropna=False)
+        .agg(
+            appels=("success", "size"),
+            succes=("success", "sum"),
+            taux_succes=("success", "mean"),
+            latence_moy_ms=("latency_ms", _safe_mean_ms),
+            p95_ms=("latency_ms", lambda s: _safe_quantile(s, 0.95)),
+            premiere_iteration=("iteration", "min"),
+            derniere_iteration=("iteration", "max"),
+        )
+        .reset_index()
+        .sort_values(by=["appels", "role", "model"], ascending=[False, True, True])
+    )
+    role_model["taux_succes"] = role_model["taux_succes"].map(lambda v: f"{v:.1%}")
+    for col in ("latence_moy_ms", "p95_ms"):
+        role_model[col] = role_model[col].map(
+            lambda v: "N/A" if pd.isna(v) else f"{float(v):.0f}"
+        )
+    st.dataframe(role_model, width="stretch", hide_index=True)
+
+
 def _get_event_emoji(action_type: OrchestrationActionType) -> str:
     """Retourne l'emoji approprié pour un type d'événement."""
     emoji_map = {
@@ -803,7 +1040,8 @@ def render_deep_trace_viewer(logger: Optional[OrchestrationLogger] = None):
     filters = render_filters_sidebar(logger)
 
     # Onglets principaux
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "Stats modeles LLM",
         "📋 Timeline",
         "🤖 Inspecteur LLM",
         "💡 Propositions",
@@ -813,24 +1051,31 @@ def render_deep_trace_viewer(logger: Optional[OrchestrationLogger] = None):
     ])
 
     with tab1:
-        render_timeline_panel(logger, filters)
+        render_llm_model_stats_panel(
+            logger=logger,
+            widget_ns=f"deep_trace_stats_{logger.session_id}",
+        )
 
     with tab2:
-        render_llm_inspector_panel(logger)
+        render_timeline_panel(logger, filters)
 
     with tab3:
-        render_proposals_panel(logger)
+        render_llm_inspector_panel(logger)
 
     with tab4:
-        render_state_machine_panel(logger)
+        render_proposals_panel(logger)
 
     with tab5:
-        render_metrics_panel(logger)
+        render_state_machine_panel(logger)
 
     with tab6:
+        render_metrics_panel(logger)
+
+    with tab7:
         render_export_panel(logger, filters)
 
 
 __all__ = [
     "render_deep_trace_viewer",
+    "render_llm_model_stats_panel",
 ]

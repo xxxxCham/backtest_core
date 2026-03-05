@@ -77,21 +77,36 @@ REM ETAPE 4: Configuration de l'environnement optimal
 REM ============================================================================
 echo [4/5] Configuration de l'environnement optimal...
 
-set NUMBA_NUM_THREADS=32
-set NUMBA_THREADING_LAYER=omp
-set OMP_NUM_THREADS=32
-set MKL_NUM_THREADS=1
-set NUMEXPR_MAX_THREADS=32
-set BACKTEST_USE_GPU=0
+set "NUMBA_NUM_THREADS=32"
+set "NUMBA_THREADING_LAYER=omp"
+set "NUMBA_CACHE_DIR=%CD%\.numba_cache"
+set "OMP_NUM_THREADS=32"
+set "MKL_NUM_THREADS=32"
+set "OPENBLAS_NUM_THREADS=32"
+set "NUMEXPR_MAX_THREADS=32"
+set "BACKTEST_USE_GPU=0"
 
 if not defined BACKTEST_DATA_DIR (
-    set BACKTEST_DATA_DIR=D:\my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet
+    if exist "D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet" (
+        set "BACKTEST_DATA_DIR=D:\.my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet"
+    ) else if exist "D:\my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet" (
+        set "BACKTEST_DATA_DIR=D:\my_soft\gestionnaire_telechargement_multi-timeframe\processed\parquet"
+    )
 )
 
 echo       [OK] NUMBA_NUM_THREADS=32
+echo       [OK] NUMBA_THREADING_LAYER=omp
+echo       [OK] OMP_NUM_THREADS=32
+echo       [OK] MKL_NUM_THREADS=32
+echo       [OK] OPENBLAS_NUM_THREADS=32
 echo       [OK] NUMEXPR_MAX_THREADS=32
 echo       [OK] Threading: OpenMP
 echo       [OK] GPU desactive
+if defined BACKTEST_DATA_DIR (
+    echo       [OK] BACKTEST_DATA_DIR=%BACKTEST_DATA_DIR%
+) else (
+    echo       [INFO] BACKTEST_DATA_DIR non force (auto-detection loader)
+)
 echo.
 
 REM ============================================================================

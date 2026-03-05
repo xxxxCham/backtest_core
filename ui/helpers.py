@@ -1522,7 +1522,7 @@ def build_indicator_overlays(
             atr_period = int(params.get("atr_period", 14))
             atr_percentile = float(params.get("atr_percentile", 30))
 
-            bb_upper, bb_mid, bb_lower = calculate_indicator(
+            bb_result = calculate_indicator(
                 "bollinger",
                 df,
                 {"period": bb_period, "std_dev": bb_std},
@@ -1534,9 +1534,9 @@ def build_indicator_overlays(
             )
             atr_series = pd.Series(atr_values, index=df.index)
             overlays["bollinger"] = {
-                "upper": pd.Series(bb_upper, index=df.index),
-                "lower": pd.Series(bb_lower, index=df.index),
-                "mid": pd.Series(bb_mid, index=df.index),
+                "upper": pd.Series(bb_result["upper"], index=df.index),
+                "lower": pd.Series(bb_result["lower"], index=df.index),
+                "mid": pd.Series(bb_result["middle"], index=df.index),
                 "entry_z": entry_z,
             }
             overlays["atr"] = {
@@ -1553,7 +1553,7 @@ def build_indicator_overlays(
             atr_period = int(params.get("atr_period", 14))
             atr_percentile = float(params.get("atr_percentile", 30))
 
-            bb_upper, bb_mid, bb_lower = calculate_indicator(
+            bb_result = calculate_indicator(
                 "bollinger",
                 df,
                 {"period": bb_period, "std_dev": bb_std},
@@ -1563,9 +1563,9 @@ def build_indicator_overlays(
                 df,
                 {"period": atr_period},
             )
-            upper = pd.Series(bb_upper, index=df.index)
-            lower = pd.Series(bb_lower, index=df.index)
-            mid = pd.Series(bb_mid, index=df.index)
+            upper = pd.Series(bb_result["upper"], index=df.index)
+            lower = pd.Series(bb_result["lower"], index=df.index)
+            mid = pd.Series(bb_result["middle"], index=df.index)
             entry_line = lower + entry_level * (upper - lower)
             atr_series = pd.Series(atr_values, index=df.index)
             overlays["bollinger"] = {
@@ -1590,7 +1590,7 @@ def build_indicator_overlays(
             atr_period = int(params.get("atr_period", 14))
             atr_percentile = float(params.get("atr_percentile", 30))
 
-            bb_upper, bb_mid, bb_lower = calculate_indicator(
+            bb_result = calculate_indicator(
                 "bollinger",
                 df,
                 {"period": bb_period, "std_dev": bb_std},
@@ -1600,9 +1600,9 @@ def build_indicator_overlays(
                 df,
                 {"period": atr_period},
             )
-            upper = pd.Series(bb_upper, index=df.index)
-            lower = pd.Series(bb_lower, index=df.index)
-            mid = pd.Series(bb_mid, index=df.index)
+            upper = pd.Series(bb_result["upper"], index=df.index)
+            lower = pd.Series(bb_result["lower"], index=df.index)
+            mid = pd.Series(bb_result["middle"], index=df.index)
             entry_line = lower + entry_level * (upper - lower)
             atr_series = pd.Series(atr_values, index=df.index)
             overlays["bollinger"] = {
@@ -1631,7 +1631,7 @@ def build_indicator_overlays(
             fast_period = int(params.get("fast_period", 12))
             slow_period = int(params.get("slow_period", 26))
             signal_period = int(params.get("signal_period", 9))
-            macd_line, signal_line, hist = calculate_indicator(
+            macd_result = calculate_indicator(
                 "macd",
                 df,
                 {
@@ -1641,9 +1641,9 @@ def build_indicator_overlays(
                 },
             )
             overlays["macd"] = {
-                "macd": pd.Series(macd_line, index=df.index),
-                "signal": pd.Series(signal_line, index=df.index),
-                "hist": pd.Series(hist, index=df.index),
+                "macd": pd.Series(macd_result["macd"], index=df.index),
+                "signal": pd.Series(macd_result["signal"], index=df.index),
+                "hist": pd.Series(macd_result["histogram"], index=df.index),
             }
 
         elif strategy_key == "rsi_reversal":

@@ -1937,7 +1937,40 @@ def render_ohlcv_with_trades_and_indicators(
             hovermode=DEFAULT_LAYOUT_CONFIG["hovermode"],
         )
         fig.update_xaxes(showgrid=False)
-        fig.update_yaxes(gridcolor=DEFAULT_GRID_COLOR)
+        fig.update_yaxes(gridcolor=DEFAULT_GRID_COLOR, row=1, col=1)
+
+        # Configuration spécifique pour les oscillateurs (row 2)
+        # Déterminer la plage appropriée selon les indicateurs actifs
+        if has_rsi or has_stochastic:
+            # RSI et Stochastic sont normalisés entre 0-100
+            fig.update_yaxes(
+                gridcolor=DEFAULT_GRID_COLOR,
+                range=[-5, 105],  # Légère marge pour visibilité
+                row=2,
+                col=1
+            )
+        elif has_macd:
+            # MACD nécessite une échelle auto mais centrée sur 0
+            fig.update_yaxes(
+                gridcolor=DEFAULT_GRID_COLOR,
+                zeroline=True,
+                zerolinecolor="rgba(255,255,255,0.3)",
+                zerolinewidth=1,
+                row=2,
+                col=1
+            )
+        elif has_atr:
+            # ATR est toujours positif, auto-scale depuis 0
+            fig.update_yaxes(
+                gridcolor=DEFAULT_GRID_COLOR,
+                rangemode="tozero",
+                row=2,
+                col=1
+            )
+        else:
+            # Par défaut, auto-scale normal
+            fig.update_yaxes(gridcolor=DEFAULT_GRID_COLOR, row=2, col=1)
+
         _apply_axis_interaction(fig)
 
         # Wrapper avec resampler si grand dataset

@@ -31,7 +31,11 @@ def handle_validate(orch: "Orchestrator") -> None:
     result = orch.validator.execute(orch.context)
     dt = int((time.time() - t0) * 1000)
     orch._log_event(
-        "agent_execute_end", role="validator", success=result.success, latency_ms=dt
+        "agent_execute_end",
+        role="validator",
+        model=orch.llm_client.config.model,
+        success=result.success,
+        latency_ms=dt,
     )
 
     if orch._handle_llm_failure(result, "validator"):
