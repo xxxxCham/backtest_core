@@ -1422,3 +1422,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : La sidebar gagne en lisibilité et cohérence de sections sans impact fonctionnel.
 - Problèmes détectés : Aucun blocage détecté sur ce patch.
 - Améliorations proposées : Uniformiser les captions informatives LLM en un seul encart synthétique (provider, worker, mode agents) pour réduire encore la densité verticale.
+
+- Date : 06/03/2026
+- Objectif : Réduire la densité verticale de la zone LLM dans la sidebar en regroupant les options secondaires.
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Regroupement options LLM** — déplacement de `Itérations illimitées`, `Max itérations`, `Walk-Forward`, `Décharger LLM` dans un expander unique `⚙️ Options d'optimisation LLM` ; **2. Préservation logique** — conservation des mêmes clés session (`llm_unlimited_iterations`, `llm_use_walk_forward`) et du même comportement métier ; **3. Lisibilité améliorée** — réduction du bruit visuel hors expander dans la section LLM.
+- Vérifications effectuées : `python -m py_compile ui/sidebar.py` (OK) ; `get_errors` sur `ui/sidebar.py` (OK).
+- Résultat : La section LLM est plus compacte et plus lisible sans perte de fonctionnalités.
+- Problèmes détectés : Aucun blocage détecté sur ce patch.
+- Améliorations proposées : Ajouter un résumé compact des options actives (ex: `∞ itérations | WF ON | Unload ON`) juste sous l’expander pour une lecture immédiate.

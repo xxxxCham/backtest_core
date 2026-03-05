@@ -2522,70 +2522,69 @@ def render_sidebar() -> SidebarState:
                     st.sidebar.warning("⚠️ Clé API requise")
 
             st.sidebar.markdown("---")
-            st.sidebar.caption("**Options d'optimisation**")
-
-            llm_unlimited_iterations = st.sidebar.checkbox(
-                "Itérations illimitées",
-                value=True,
-                key="llm_unlimited_iterations",
-                help="Lance l'optimisation sans limite d'itérations (arrêt manuel requis)",
-            )
-
-            if llm_unlimited_iterations:
-                llm_max_iterations = 0
-                st.sidebar.caption("∞ itérations (arrêt manuel)")
-            else:
-                llm_max_iterations = st.sidebar.slider(
-                    "Max itérations",
-                    min_value=3,
-                    max_value=50,
-                    value=10,
-                    help="Nombre max de cycles d'amélioration",
+            with st.sidebar.expander("⚙️ Options d'optimisation LLM", expanded=False):
+                llm_unlimited_iterations = st.checkbox(
+                    "Itérations illimitées",
+                    value=True,
+                    key="llm_unlimited_iterations",
+                    help="Lance l'optimisation sans limite d'itérations (arrêt manuel requis)",
                 )
 
-            walk_forward_enabled = True
-            walk_forward_reason = ""
-
-            df_cached = st.session_state.get("ohlcv_df")
-            if df_cached is not None and not df_cached.empty:
-                data_duration_days = (df_cached.index[-1] - df_cached.index[0]).days
-                data_duration_months = data_duration_days / 30.44
-
-                if data_duration_months < 6:
-                    walk_forward_enabled = False
-                    walk_forward_reason = (
-                        "⚠️ Walk-Forward désactivé "
-                        f"(durée: {data_duration_months:.1f} mois < 6 mois requis)"
-                    )
+                if llm_unlimited_iterations:
+                    llm_max_iterations = 0
+                    st.caption("∞ itérations (arrêt manuel)")
                 else:
-                    walk_forward_reason = (
-                        f"✅ Walk-Forward disponible (durée: {data_duration_months:.1f} mois)"
+                    llm_max_iterations = st.slider(
+                        "Max itérations",
+                        min_value=3,
+                        max_value=50,
+                        value=10,
+                        help="Nombre max de cycles d'amélioration",
                     )
 
-            if walk_forward_reason:
-                if walk_forward_enabled:
-                    st.sidebar.caption(walk_forward_reason)
-                else:
-                    st.sidebar.warning(walk_forward_reason)
+                walk_forward_enabled = True
+                walk_forward_reason = ""
 
-            llm_use_walk_forward = st.sidebar.checkbox(
-                "Walk-Forward Validation",
-                value=walk_forward_enabled,
-                disabled=not walk_forward_enabled,
-                help=(
-                    "Anti-overfitting: valide sur données hors-échantillon "
-                    "(nécessite >6 mois de données)"
-                ),
-            )
+                df_cached = st.session_state.get("ohlcv_df")
+                if df_cached is not None and not df_cached.empty:
+                    data_duration_days = (df_cached.index[-1] - df_cached.index[0]).days
+                    data_duration_months = data_duration_days / 30.44
 
-            llm_unload_during_backtest = st.sidebar.checkbox(
-                "Décharger LLM du GPU",
-                value=default_llm_unload,
-                help=(
-                    "Libère la VRAM pendant les backtests pour améliorer les performances. "
-                    "Peut être désactivé en mode CPU-only."
-                ),
-            )
+                    if data_duration_months < 6:
+                        walk_forward_enabled = False
+                        walk_forward_reason = (
+                            "⚠️ Walk-Forward désactivé "
+                            f"(durée: {data_duration_months:.1f} mois < 6 mois requis)"
+                        )
+                    else:
+                        walk_forward_reason = (
+                            f"✅ Walk-Forward disponible (durée: {data_duration_months:.1f} mois)"
+                        )
+
+                if walk_forward_reason:
+                    if walk_forward_enabled:
+                        st.caption(walk_forward_reason)
+                    else:
+                        st.warning(walk_forward_reason)
+
+                llm_use_walk_forward = st.checkbox(
+                    "Walk-Forward Validation",
+                    value=walk_forward_enabled,
+                    disabled=not walk_forward_enabled,
+                    help=(
+                        "Anti-overfitting: valide sur données hors-échantillon "
+                        "(nécessite >6 mois de données)"
+                    ),
+                )
+
+                llm_unload_during_backtest = st.checkbox(
+                    "Décharger LLM du GPU",
+                    value=default_llm_unload,
+                    help=(
+                        "Libère la VRAM pendant les backtests pour améliorer les performances. "
+                        "Peut être désactivé en mode CPU-only."
+                    ),
+                )
 
             st.sidebar.markdown("---")
             with st.sidebar.expander("Comparaison multi-strategies", expanded=False):
