@@ -1404,3 +1404,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : Le crash sidebar est supprimé et l’UI se recharge sans exception dès l’ouverture.
 - Problèmes détectés : Aucun blocage supplémentaire observé après hotfix.
 - Améliorations proposées : Ajouter un test UI de non-régression sur l’ordre d’initialisation de `render_sidebar()` pour éviter les références de variables avant affectation.
+
+- Date : 05/03/2026
+- Objectif : Clarifier la lecture de la sidebar sans modifier le comportement métier (navigation rapide + suppression d’un titre redondant en mode LLM).
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Ligne de repères ajoutée** — insertion d’une caption “Parcours: Données → Stratégies → Mode → Exécution → Paramètres → Presets” sous le titre de configuration pour orienter la lecture ; **2. Redondance retirée en LLM** — suppression du sous-titre `⚙️ Paramètres d'exécution` dans le bloc LLM (le bloc `⚙️ Exécution` commun couvre déjà ce niveau) ; **3. Portée contrôlée** — aucun changement de logique de calcul ou de clés session, uniquement du guidage visuel.
+- Vérifications effectuées : `python -m py_compile ui/sidebar.py` (OK) ; contrôle des changements via `git status --short ui/sidebar.py` (OK).
+- Résultat : La navigation sidebar est plus explicite au premier coup d’œil et l’arborescence des sections évite les doublons visuels.
+- Problèmes détectés : Aucun blocage détecté sur cette itération.
+- Améliorations proposées : Ajouter des ancres cliquables (si UX Streamlit le permet) pour sauter directement vers Données/Stratégies/Paramètres dans la sidebar.

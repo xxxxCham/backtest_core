@@ -624,6 +624,7 @@ def render_sidebar() -> SidebarState:
     _inject_sidebar_styles()
     st.sidebar.markdown('<div class="bc-sidebar-title">⚙️ Configuration</div>', unsafe_allow_html=True)
     st.sidebar.caption("Réglages centralisés du backtest, sweep et builder.")
+    st.sidebar.caption("Parcours: Données → Stratégies → Mode → Exécution → Paramètres → Presets")
 
     with st.sidebar.expander("🔧 Debug", expanded=False):
         debug_enabled = st.checkbox(
@@ -1951,9 +1952,6 @@ def render_sidebar() -> SidebarState:
 
     elif optimization_mode == "🤖 Optimisation LLM":
         _sidebar_section("🧠 Configuration LLM")
-
-        st.sidebar.markdown("---")
-        st.sidebar.caption("**⚙️ Paramètres d'exécution**")
 
         max_combos = unlimited_max_combos
         st.sidebar.caption("Limite de combinaisons LLM: illimitée")
