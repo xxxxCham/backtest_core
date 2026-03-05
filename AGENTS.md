@@ -1386,3 +1386,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : Le réglage workers est désormais moins intrusif, centralisé dans une section commune, tout en conservant la contrainte 32 par défaut / 32 max et la compatibilité avec les chemins existants.
 - Problèmes détectés : Aucun blocage détecté sur ce correctif.
 - Améliorations proposées : Ajouter un micro-indicateur dans la section Exécution (`appliqué à: Grille, Optuna, LLM`) pour expliciter la portée globale du réglage.
+
+- Date : 05/03/2026
+- Objectif : Harmoniser la hiérarchie visuelle des sections sidebar (modes Grille/LLM/Builder) avec un style unique.
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Uniformisation des en-têtes** — remplacement des `st.sidebar.subheader(...)` hétérogènes par `_sidebar_section(...)` pour `🧭 Méthode d'exploration`, `🧠 Configuration LLM`, `🏗️ Strategy Builder` ; **2. Section Exécution alignée** — conversion du titre `⚙️ Exécution` en section visuelle cohérente avec le reste de la sidebar ; **3. Nettoyage léger** — maintien des séparateurs existants sans changer la logique métier ni les clés de session.
+- Vérifications effectuées : `get_errors` sur `ui/sidebar.py` (OK, aucune erreur).
+- Résultat : La sidebar est plus lisible et cohérente visuellement, avec une hiérarchie de sections uniforme entre les modes.
+- Problèmes détectés : Les validations shell `py_compile` sont perturbées par le comportement interactif du lanceur batch dans le terminal partagé ; contourné via validation statique `get_errors`.
+- Améliorations proposées : Ajouter une mini barre “Navigation rapide” en tête de sidebar (ancres visuelles Données/Stratégies/Mode/Paramètres) pour réduire encore la charge cognitive.

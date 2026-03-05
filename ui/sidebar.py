@@ -1463,7 +1463,7 @@ def render_sidebar() -> SidebarState:
 
     if optimization_mode in {"Grille de Paramètres", "🤖 Optimisation LLM"}:
         st.sidebar.markdown("---")
-        st.sidebar.caption("**⚙️ Exécution**")
+        _sidebar_section("⚙️ Exécution")
 
         if "ui_n_workers" not in st.session_state:
             st.session_state["ui_n_workers"] = default_workers_cpu
@@ -1512,7 +1512,7 @@ def render_sidebar() -> SidebarState:
     optuna_early_stop = 0  # 0 = désactivé par défaut
 
     if optimization_mode == "Grille de Paramètres":
-        st.sidebar.subheader("⚙️ Méthode d'exploration")
+        _sidebar_section("🧭 Méthode d'exploration")
 
         use_optuna = st.sidebar.checkbox(
             "Utiliser Optuna (Bayésien) ⚡",
@@ -1639,7 +1639,7 @@ def render_sidebar() -> SidebarState:
 
     if optimization_mode == "🏗️ Strategy Builder":
         st.sidebar.markdown("---")
-        st.sidebar.subheader("🔧 Strategy Builder")
+        _sidebar_section("🏗️ Strategy Builder")
 
         # ── Mode autonome 24/24 ──
         builder_autonomous = st.sidebar.toggle(
@@ -1950,7 +1950,7 @@ def render_sidebar() -> SidebarState:
                         st.sidebar.caption(f"• {s}")
 
     elif optimization_mode == "🤖 Optimisation LLM":
-        st.sidebar.subheader("🧠 Configuration LLM")
+        _sidebar_section("🧠 Configuration LLM")
 
         st.sidebar.markdown("---")
         st.sidebar.caption("**⚙️ Paramètres d'exécution**")
