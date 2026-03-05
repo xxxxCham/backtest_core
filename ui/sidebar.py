@@ -1459,6 +1459,20 @@ def render_sidebar() -> SidebarState:
 
     optimization_mode = st.session_state.optimization_mode
 
+    # Defaults partagés (doivent être initialisés avant tout usage UI)
+    unlimited_max_combos = 1_000_000_000_000
+    default_workers_cpu = _env_int("BACKTEST_MAX_WORKERS", None)
+    if default_workers_cpu is None:
+        default_workers_cpu = _env_int("BACKTEST_WORKERS_CPU_OPTIMIZED", None)
+    if default_workers_cpu is None:
+        default_workers_cpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 32)
+    default_workers_cpu = max(1, min(default_workers_cpu, 32))
+    default_llm_unload = _env_bool("UNLOAD_LLM_DURING_BACKTEST", True)
+    default_worker_threads = _env_int("BACKTEST_WORKER_THREADS", 1)
+
+    max_combos = unlimited_max_combos
+    n_workers = default_workers_cpu
+
     st.sidebar.caption(f"ℹ️ Mode actif: **{optimization_mode}**")
 
     if optimization_mode in {"Grille de Paramètres", "🤖 Optimisation LLM"}:
@@ -1488,20 +1502,6 @@ def render_sidebar() -> SidebarState:
         st.session_state["llm_n_workers"] = n_workers
 
     action_slot = st.sidebar.container()
-
-    # default_max_combos non utilisé - supprimé pour éviter warning
-    unlimited_max_combos = 1_000_000_000_000
-    default_workers_cpu = _env_int("BACKTEST_MAX_WORKERS", None)
-    if default_workers_cpu is None:
-        default_workers_cpu = _env_int("BACKTEST_WORKERS_CPU_OPTIMIZED", None)
-    if default_workers_cpu is None:
-        default_workers_cpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 32)
-    default_workers_cpu = max(1, min(default_workers_cpu, 32))
-    default_llm_unload = _env_bool("UNLOAD_LLM_DURING_BACKTEST", True)
-    default_worker_threads = _env_int("BACKTEST_WORKER_THREADS", 1)
-
-    max_combos = unlimited_max_combos
-    n_workers = default_workers_cpu
 
     # Configuration Optuna (intégrée dans Grille de Paramètres)
     use_optuna = False

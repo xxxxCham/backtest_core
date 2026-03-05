@@ -1395,3 +1395,12 @@ uns/<session>/trace.jsonl) pour suivi longitudinal des modeles.
 - Résultat : La sidebar est plus lisible et cohérente visuellement, avec une hiérarchie de sections uniforme entre les modes.
 - Problèmes détectés : Les validations shell `py_compile` sont perturbées par le comportement interactif du lanceur batch dans le terminal partagé ; contourné via validation statique `get_errors`.
 - Améliorations proposées : Ajouter une mini barre “Navigation rapide” en tête de sidebar (ancres visuelles Données/Stratégies/Mode/Paramètres) pour réduire encore la charge cognitive.
+
+- Date : 05/03/2026
+- Objectif : Corriger la régression sidebar `UnboundLocalError: default_workers_cpu` introduite lors de la centralisation du contrôle workers.
+- Fichiers modifiés : ui/sidebar.py, AGENTS.md.
+- Actions réalisées : **1. Initialisation remontée** — déplacement de l’initialisation `default_workers_cpu`/`default_worker_threads`/`default_llm_unload` avant le bloc UI `⚙️ Exécution` qui consomme ces valeurs ; **2. Ordre logique stabilisé** — suppression du bloc d’initialisation dupliqué plus bas pour éviter une réaffectation tardive de `n_workers` ; **3. Comportement préservé** — conservation de la contrainte workers `32` max/default et de la synchronisation `ui_n_workers -> grid_n_workers/llm_n_workers`.
+- Vérifications effectuées : `get_errors` sur `ui/sidebar.py` (OK) ; `python -m py_compile ui/sidebar.py` (OK).
+- Résultat : Le crash sidebar est supprimé et l’UI se recharge sans exception dès l’ouverture.
+- Problèmes détectés : Aucun blocage supplémentaire observé après hotfix.
+- Améliorations proposées : Ajouter un test UI de non-régression sur l’ordre d’initialisation de `render_sidebar()` pour éviter les références de variables avant affectation.
