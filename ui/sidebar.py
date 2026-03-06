@@ -1481,103 +1481,13 @@ def render_sidebar() -> SidebarState:
 
     action_slot = st.sidebar.container()
 
-    # Configuration Optuna (intégrée dans Grille de Paramètres)
-    use_optuna = False
-    optuna_n_trials = 100
-    optuna_sampler = "tpe"
-    optuna_pruning = True
-    optuna_metric = "sharpe_ratio"
-    optuna_early_stop = 0  # 0 = désactivé par défaut
-
-    if optimization_mode == "Grille de Paramètres":
-        _sidebar_section("🧭 Méthode d'exploration")
-
-        use_optuna = st.sidebar.checkbox(
-            "Utiliser Optuna (Bayésien) ⚡",
-            value=False,
-            help="Optuna explore intelligemment l'espace des paramètres (10-100x plus rapide que la grille exhaustive)",
-        )
-
-        if use_optuna:
-            st.sidebar.caption("🎯 **Mode Bayésien** - Exploration intelligente")
-
-            optuna_n_trials = st.sidebar.number_input(
-                "Nombre de trials",
-                min_value=10,
-                max_value=10000,
-                value=200,
-                step=10,
-                help="Nombre d'essais bayésiens (100-500 recommandé)",
-            )
-
-            optuna_sampler = st.sidebar.selectbox(
-                "Algorithme",
-                ["tpe", "cmaes", "random"],
-                index=0,
-                help="TPE: Rapide et efficace | CMA-ES: Pour espaces continus | Random: Baseline",
-            )
-
-            optuna_metric = st.sidebar.selectbox(
-                "Métrique à optimiser",
-                ["sharpe_ratio", "sortino_ratio", "total_return_pct", "profit_factor", "calmar_ratio"],
-                index=0,
-                help="Métrique principale pour l'optimisation",
-            )
-
-            optuna_pruning = st.sidebar.checkbox(
-                "Pruning (arrêt précoce) ✂️",
-                value=True,
-                help="Abandonne les trials peu prometteurs pour accélérer",
-            )
-
-            # Early stop: 0 = désactivé, sinon patience en nombre de trials
-            optuna_early_stop = st.sidebar.slider(
-                "Early stop patience (0=désactivé)",
-                min_value=0,
-                max_value=max(200, optuna_n_trials),
-                value=0,  # Désactivé par défaut pour ne pas interrompre prématurément
-                help="Arrêt après N trials sans amélioration. 0 = désactivé (recommandé pour explorer complètement)",
-            )
-
-            st.sidebar.caption(f"⚡ {optuna_n_trials} trials × {n_workers} workers")
-        else:
-            st.sidebar.caption("🔢 **Mode Grille** - Exploration exhaustive")
-
-            max_combos = unlimited_max_combos
-            st.sidebar.caption("Limite de combinaisons: illimitée")
-
-            grid_threads_default = max(1, min(default_worker_threads, 16))  # ✅ max 16 (pas besoin de plus)
-            if "grid_worker_threads" not in st.session_state:
-                st.session_state["grid_worker_threads"] = grid_threads_default
-            else:
-                try:
-                    st.session_state["grid_worker_threads"] = max(
-                        1,
-                        min(int(st.session_state["grid_worker_threads"]), 16),  # ✅ max 16
-                    )
-                except (TypeError, ValueError):
-                    st.session_state["grid_worker_threads"] = grid_threads_default
-
-            # Initialisation session_state si nécessaire
-            if "grid_worker_threads" not in st.session_state:
-                st.session_state["grid_worker_threads"] = 1
-
-            worker_threads = st.sidebar.slider(
-                "Threads par worker (CPU/BLAS)",
-                min_value=1,
-                max_value=16,
-                step=1,
-                key="grid_worker_threads",
-                help=(
-                    "Nombre de threads CPU par process. "
-                    "Total ≈ workers × threads. "
-                    "Recommandé: 1 si beaucoup de workers."
-                ),
-            )
-
-            st.sidebar.caption(
-                f"Total théorique: ~{n_workers * worker_threads} threads (workers × threads)"
-            )
+    # Bridge session_state ← exec_tabs (Grille de Paramètres / Optuna)
+    use_optuna = st.session_state.get("exec_grid_use_optuna", False)
+    optuna_n_trials = st.session_state.get("exec_grid_n_trials", 100)
+    optuna_sampler = st.session_state.get("exec_grid_sampler", "tpe")
+    optuna_pruning = st.session_state.get("exec_grid_pruning", True)
+    optuna_metric = st.session_state.get("exec_grid_metric", "sharpe_ratio")
+    optuna_early_stop = st.session_state.get("exec_grid_early_stop", 0)
     llm_config = None
     llm_max_iterations = 10
     llm_use_walk_forward = True
