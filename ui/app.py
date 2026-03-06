@@ -44,6 +44,7 @@ import streamlit as st  # noqa: E402
 from ui.context import BACKEND_AVAILABLE, IMPORT_ERROR, LLM_AVAILABLE  # noqa: E402
 from ui.log_taps import install_best_pnl_tracker  # noqa: E402
 from ui.main import render_controls, render_main, render_setup_previews  # noqa: E402
+from ui.exec_tabs import render_exec_tabs  # noqa: E402
 from ui.results import render_results  # noqa: E402
 from ui.sidebar import render_sidebar  # noqa: E402
 from utils.observability import init_logging  # noqa: E402
@@ -110,6 +111,7 @@ def main() -> None:
         st.stop()
 
     render_setup_previews(sidebar_state)
+    render_exec_tabs(sidebar_state)
     render_main(sidebar_state, run_button, status_container)
     render_results(sidebar_state, best_pnl_tracker)
     render_footer()

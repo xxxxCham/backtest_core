@@ -33,8 +33,6 @@ import pandas as pd
 import streamlit as st
 
 from ui.constants import (
-    MODE_BUTTON_CSS,
-    MODE_OPTIONS,
     build_strategy_options,
     get_strategy_description,
     get_strategy_ui_indicators,
@@ -1437,27 +1435,6 @@ def render_sidebar() -> SidebarState:
         os.environ["BACKTEST_WORKER_THREADS"] = "1"
         st.session_state["default_preset_applied"] = True
 
-    st.sidebar.markdown(MODE_BUTTON_CSS, unsafe_allow_html=True)
-
-    for mode_name, icon, description in MODE_OPTIONS:
-        button_key = f"mode_btn_{mode_name}"
-        is_active = st.session_state.optimization_mode == mode_name
-
-        col1, col2 = st.sidebar.columns([1, 10])
-        with col1:
-            st.write(icon)
-        with col2:
-            if st.button(
-                mode_name,
-                key=button_key,
-                help=description,
-                width="stretch",
-                type="primary" if is_active else "secondary",
-                disabled=st.session_state.is_running,
-            ):
-                st.session_state.optimization_mode = mode_name
-                st.rerun()
-
     optimization_mode = st.session_state.optimization_mode
 
     # Defaults partagés (doivent être initialisés avant tout usage UI)
@@ -1474,7 +1451,7 @@ def render_sidebar() -> SidebarState:
     max_combos = unlimited_max_combos
     n_workers = default_workers_cpu
 
-    st.sidebar.caption(f"ℹ️ Mode actif: {optimization_mode}")
+    st.sidebar.caption(f"📌 Mode : **{optimization_mode}**")
 
     if optimization_mode in {"Grille de Paramètres", "🤖 Optimisation LLM"}:
         st.sidebar.markdown("---")
