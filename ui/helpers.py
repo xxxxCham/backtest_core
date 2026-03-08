@@ -52,21 +52,39 @@ from ui.context import (
 from utils.observability import generate_run_id, get_obs_logger
 
 
-def compute_period_days(start_ts: pd.Timestamp, end_ts: pd.Timestamp) -> int:
+def _coerce_period_timestamp(value: Any) -> Optional[pd.Timestamp]:
+    """Normalise une valeur de date/heure en Timestamp UTC comparable."""
+    if value is None:
+        return None
+    try:
+        ts = pd.to_datetime(value, errors="coerce", utc=True)
+    except Exception:
+        return None
+    if pd.isna(ts):
+        return None
+    return pd.Timestamp(ts)
+
+
+def compute_period_days(start_ts: Any, end_ts: Any) -> int:
     """
     Calcule le nombre de jours entre deux timestamps.
 
     Args:
-        start_ts: Timestamp de début
-        end_ts: Timestamp de fin
+        start_ts: Timestamp/date/string de début
+        end_ts: Timestamp/date/string de fin
 
     Returns:
         Nombre de jours (entier)
     """
-    if pd.isna(start_ts) or pd.isna(end_ts):
+    start_norm = _coerce_period_timestamp(start_ts)
+    end_norm = _coerce_period_timestamp(end_ts)
+    if start_norm is None or end_norm is None:
         return 0
-    delta = end_ts - start_ts
-    return max(1, int(delta.total_seconds() / 86400))
+    delta = end_norm - start_norm
+    delta_seconds = float(delta.total_seconds())
+    if not math.isfinite(delta_seconds) or delta_seconds < 0:
+        return 0
+    return max(1, int(delta_seconds / 86400))
 
 
 def compute_period_days_from_df(df: pd.DataFrame) -> int:
@@ -84,8 +102,45 @@ def compute_period_days_from_df(df: pd.DataFrame) -> int:
     return compute_period_days(df.index[0], df.index[-1])
 
 
+def coerce_metric_float(value: Any, default: float = 0.0) -> float:
+    """Convertit une métrique potentiellement sérialisée en float exploitable."""
+    if value is None:
+        return default
+    if hasattr(value, "item"):
+        try:
+            value = value.item()
+        except Exception:
+            pass
+
+    if isinstance(value, (int, float, Decimal)):
+        number = float(value)
+        return number if math.isfinite(number) else default
+
+    if isinstance(value, str):
+        cleaned = (
+            value.strip()
+            .replace("$", "")
+            .replace("%", "")
+            .replace(" ", "")
+            .replace(",", "")
+        )
+        if not cleaned:
+            return default
+        try:
+            number = float(cleaned)
+        except ValueError:
+            return default
+        return number if math.isfinite(number) else default
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    return number if math.isfinite(number) else default
+
+
 def format_pnl_with_daily(
-    pnl: float,
+    pnl: Any,
     period_days: int,
     show_plus: bool = False,
     escape_markdown: bool = False,
@@ -101,14 +156,15 @@ def format_pnl_with_daily(
     Returns:
         Chaîne formatée "PnL (PnL/jour/day)"
     """
+    pnl_value = coerce_metric_float(pnl, default=0.0)
     if period_days <= 0:
-        prefix = "+" if show_plus and pnl > 0 else ""
-        result = f"{prefix}${pnl:,.2f}"
+        prefix = "+" if show_plus and pnl_value > 0 else ""
+        result = f"{prefix}${pnl_value:,.2f}"
         return result.replace("$", "\\$") if escape_markdown else result
 
-    pnl_per_day = pnl / period_days
-    prefix = "+" if show_plus and pnl > 0 else ""
-    result = f"{prefix}${pnl:,.2f} ({prefix}${pnl_per_day:,.2f}/jour)"
+    pnl_per_day = pnl_value / period_days
+    prefix = "+" if show_plus and pnl_value > 0 else ""
+    result = f"{prefix}${pnl_value:,.2f} ({prefix}${pnl_per_day:,.2f}/jour)"
     return result.replace("$", "\\$") if escape_markdown else result
 
 
@@ -934,7 +990,26 @@ def safe_load_data(
 
         start_fmt = df.index[0].strftime("%Y-%m-%d %H:%M")
         end_fmt = df.index[-1].strftime("%Y-%m-%d %H:%M")
-        quality_msg = f"NaN: {nan_pct:.1f}%" if nan_pct > 0 else "✓ Propre"
+        quality_report = {}
+        try:
+            quality_report = dict(df.attrs.get("dataset_quality") or {})
+        except Exception:
+            quality_report = {}
+
+        if quality_report:
+            coverage_pct = float(quality_report.get("coverage_pct", 100.0) or 100.0)
+            trim_bars = int(quality_report.get("launch_trim_bars", 0) or 0)
+            gap_count = int(quality_report.get("gap_count", 0) or 0)
+            quality_bits = [f"couverture {coverage_pct:.1f}%"]
+            if trim_bars > 0:
+                quality_bits.append(f"trim lancement {trim_bars}")
+            if gap_count > 0:
+                quality_bits.append(f"{gap_count} gap(s)")
+            if nan_pct > 0:
+                quality_bits.append(f"NaN {nan_pct:.1f}%")
+            quality_msg = " | ".join(quality_bits)
+        else:
+            quality_msg = f"NaN: {nan_pct:.1f}%" if nan_pct > 0 else "✓ Propre"
         return df, f"✅ {len(df)} barres ({start_fmt} → {end_fmt}) - {quality_msg}"
 
     except FileNotFoundError:
@@ -1161,9 +1236,68 @@ def _find_saved_run_meta(storage: Any, run_id: str) -> Optional[Any]:
 
 def _build_saved_run_label(meta: Any) -> str:
     period = _format_run_period(meta.period_start, meta.period_end)
+    extra = getattr(meta, "extra_metadata", {}) or {}
+    badges = []
+    mode = getattr(meta, "mode", "") or extra.get("origin")
+    if mode:
+        badges.append(str(mode))
+    if extra.get("ui_partial_run"):
+        completed = extra.get("ui_completed_runs")
+        planned = extra.get("ui_planned_runs")
+        if isinstance(completed, (int, float)) and isinstance(planned, (int, float)) and planned > 0:
+            badges.append(f"partial {int(completed)}/{int(planned)}")
+        else:
+            badges.append("partial")
+    builder_iteration = extra.get("builder_iteration")
+    if builder_iteration is not None:
+        badges.append(f"iter {builder_iteration}")
+    builder_session_id = extra.get("builder_session_id")
+    badge_prefix = f"[{' | '.join(badges)}] " if badges else ""
+    session_suffix = f" | session {builder_session_id}" if builder_session_id else ""
     return (
-        f"{meta.strategy} | {meta.symbol}/{meta.timeframe} | {period} | {meta.run_id}"
+        f"{badge_prefix}{meta.strategy} | {meta.symbol}/{meta.timeframe} | {period} | "
+        f"{meta.run_id}{session_suffix}"
     )
+
+
+def mark_result_as_partial(
+    result: Optional[Any],
+    *,
+    reason: str,
+    completed_runs: int,
+    planned_runs: int,
+) -> Optional[Any]:
+    """Marque un RunResult UI comme partiel/interrompu sans casser sa structure."""
+    if result is None or not isinstance(getattr(result, "meta", None), dict):
+        return result
+
+    completed = max(0, int(completed_runs))
+    planned = max(0, int(planned_runs))
+    completion_pct = (completed / planned) * 100.0 if planned > 0 else 0.0
+
+    result.meta["ui_partial_run"] = True
+    result.meta["ui_partial_reason"] = reason
+    result.meta["ui_completed_runs"] = completed
+    result.meta["ui_planned_runs"] = planned
+    result.meta["ui_completion_pct"] = completion_pct
+    return result
+
+
+def get_partial_result_notice(result: Optional[Any]) -> Optional[str]:
+    """Retourne un message UI si le résultat provient d'une optimisation interrompue."""
+    if result is None or not isinstance(getattr(result, "meta", None), dict):
+        return None
+    if not result.meta.get("ui_partial_run", False):
+        return None
+
+    completed = result.meta.get("ui_completed_runs")
+    planned = result.meta.get("ui_planned_runs")
+    if isinstance(completed, (int, float)) and isinstance(planned, (int, float)) and planned > 0:
+        return (
+            "Résultat partiel issu d'une optimisation interrompue "
+            f"({int(completed)}/{int(planned)} tests)."
+        )
+    return "Résultat partiel issu d'une optimisation interrompue."
 
 
 def _save_result_to_storage(storage: Any, result: Optional[Any]) -> Tuple[bool, str]:
@@ -1184,6 +1318,10 @@ def _maybe_auto_save_run(result: Optional[Any]) -> None:
     if result is None:
         return
     if not st.session_state.get("auto_save_final_run", False):
+        return
+    partial_notice = get_partial_result_notice(result)
+    if partial_notice is not None:
+        st.session_state["saved_runs_status"] = "Auto-save skipped: interrupted partial result."
         return
     if result.meta.get("loaded_from_storage"):
         return
@@ -1315,7 +1453,7 @@ def safe_run_backtest(
     timeframe: str,
     run_id: Optional[str] = None,
     silent_mode: bool = False,
-    fast_metrics: bool = True,  # ⚡ Performance: mode rapide par défaut
+    fast_metrics: bool = False,
 ) -> Tuple[Optional[Any], str]:
     run_id = run_id or generate_run_id(
         strategy=strategy,

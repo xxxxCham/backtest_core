@@ -45,6 +45,10 @@ from performance.parallel import (
     SweepResult,
     benchmark_parallel_configs,
     generate_param_grid,
+    get_recommended_chunk_size,
+    get_recommended_joblib_batch_size,
+    get_recommended_max_in_flight,
+    get_recommended_worker_count,
     parallel_sweep,
 )
 from performance.profiler import (
@@ -65,6 +69,10 @@ __all__ = [
     "parallel_sweep",
     "generate_param_grid",
     "benchmark_parallel_configs",
+    "get_recommended_worker_count",
+    "get_recommended_chunk_size",
+    "get_recommended_max_in_flight",
+    "get_recommended_joblib_batch_size",
     # Monitor
     "PerformanceMonitor",
     "ResourceTracker",

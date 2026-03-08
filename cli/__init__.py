@@ -31,6 +31,7 @@ from .commands import (
     cmd_builder,
     cmd_catalog,
     cmd_check_gpu,
+    cmd_cross_token,
     cmd_cycle,
     cmd_export,
     cmd_grid_backtest,
@@ -1118,6 +1119,126 @@ Exemples:
         help="Échouer le cycle si aucune vue walk-forward n'est robuste"
     )
 
+    # === CROSS-TOKEN ===
+    cross_token_parser = subparsers.add_parser(
+        "cross-token",
+        parents=[common_parser],
+        help="Valider des stratégies Builder sur un panier multi-token",
+        description=(
+            "Recharge les sessions Builder (success/max_iterations), rejoue la meilleure "
+            "itération sur un panier de tokens liquides du même timeframe, puis isole les survivants."
+        ),
+    )
+    cross_token_parser.add_argument(
+        "--sandbox-root",
+        type=str,
+        default="sandbox_strategies",
+        help="Racine des sessions Builder (défaut: sandbox_strategies)",
+    )
+    cross_token_parser.add_argument(
+        "--status",
+        action="append",
+        help="Statuts Builder à inclure (répéter ou séparer par virgules, défaut: success,max_iterations)",
+    )
+    cross_token_parser.add_argument(
+        "--session-id",
+        action="append",
+        help="Restreindre à des session_id précises (répéter ou séparer par virgules)",
+    )
+    cross_token_parser.add_argument(
+        "--strategy-id",
+        action="append",
+        help="Restreindre aux familles canoniques (ex: trend_supertrend)",
+    )
+    cross_token_parser.add_argument(
+        "--timeframe-filter",
+        action="append",
+        help="Restreindre à certains timeframes (ex: 1h,4h,1d)",
+    )
+    cross_token_parser.add_argument(
+        "--tokens",
+        action="append",
+        help="Panier de tokens de validation (défaut: panier liquide interne)",
+    )
+    cross_token_parser.add_argument(
+        "--min-basket-size",
+        type=int,
+        default=3,
+        help="Minimum de tokens disponibles pour évaluer un candidat (défaut: 3)",
+    )
+    cross_token_parser.add_argument(
+        "--min-robust-count",
+        type=int,
+        default=2,
+        help="Minimum absolu de tokens robustes pour retenir un survivant (défaut: 2)",
+    )
+    cross_token_parser.add_argument(
+        "--min-robust-ratio",
+        type=float,
+        default=0.25,
+        help="Seuil proportionnel de survie robuste (défaut: 0.25 = 25%%)",
+    )
+    cross_token_parser.add_argument(
+        "--capital",
+        type=float,
+        default=10000.0,
+        help="Capital initial pour la validation (défaut: 10000)",
+    )
+    cross_token_parser.add_argument(
+        "--fees-bps",
+        type=int,
+        default=10,
+        help="Frais en basis points (défaut: 10)",
+    )
+    cross_token_parser.add_argument(
+        "--slippage-bps",
+        type=float,
+        help="Slippage en basis points (défaut: config)",
+    )
+    cross_token_parser.add_argument(
+        "--top",
+        type=int,
+        default=20,
+        help="Nombre de survivants à afficher (défaut: 20)",
+    )
+    cross_token_parser.add_argument(
+        "--max-candidates",
+        type=int,
+        help="Limiter le nombre de candidats évalués",
+    )
+    cross_token_parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=50,
+        help="Taille de lot par sous-processus (défaut: 50, 0 = process unique)",
+    )
+    cross_token_parser.add_argument(
+        "-o", "--output",
+        type=str,
+        help="Fichier JSON de sortie (défaut: runs/cross_token_<timestamp>.json)",
+    )
+    cross_token_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Afficher le résumé final au format JSON",
+    )
+    cross_token_parser.add_argument(
+        "--promote",
+        action="store_true",
+        help="Promouvoir les survivants intéressants vers le Strategy Catalog",
+    )
+    cross_token_parser.add_argument(
+        "--catalog-category",
+        type=str,
+        default="p2_cross_token_survivors",
+        help="Catégorie de promotion dans le catalog (défaut: p2_cross_token_survivors)",
+    )
+    cross_token_parser.add_argument(
+        "--catalog-tag",
+        action="append",
+        help="Tags supplémentaires à ajouter aux survivants promus",
+    )
+
     # === BUILDER ===
     builder_parser = subparsers.add_parser(
         "builder",
@@ -1261,6 +1382,7 @@ def main(args: Optional[list] = None) -> int:
         "grid": cmd_grid_backtest,
         "analyze": cmd_analyze,
         "cycle": cmd_cycle,
+        "cross-token": cmd_cross_token,
         "builder": cmd_builder,
         "catalog": cmd_catalog,
     }

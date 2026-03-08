@@ -570,6 +570,10 @@ def render_main(
     run_button: bool,
     status_container: Any,
 ) -> None:
+    # Guard against stale lock states after an upstream interruption (sidebar/import errors).
+    if st.session_state.get("is_running", False) and not run_button:
+        st.session_state.is_running = False
+
     result = st.session_state.get("last_run_result")
     winner_params = st.session_state.get("last_winner_params")
     winner_metrics = st.session_state.get("last_winner_metrics")

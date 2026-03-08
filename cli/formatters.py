@@ -136,7 +136,12 @@ def print_metric(label: str, value: float, color: Optional[str] = None, suffix: 
 # FORMATAGE TABLEAUX
 # =============================================================================
 
-def format_table(headers: List[str], rows: List[List[str]], indent: int = 2) -> str:
+def format_table(
+    headers: List[str],
+    rows: List[List[str]],
+    indent: int = 2,
+    padding: int = 2,
+) -> str:
     """
     Formate une table en texte aligné.
 
@@ -144,6 +149,7 @@ def format_table(headers: List[str], rows: List[List[str]], indent: int = 2) -> 
         headers: Liste des en-têtes de colonnes
         rows: Liste des lignes (chaque ligne est une liste de cellules)
         indent: Nombre d'espaces d'indentation
+        padding: Nombre d'espaces entre les colonnes
 
     Returns:
         Table formatée en string
@@ -159,16 +165,17 @@ def format_table(headers: List[str], rows: List[List[str]], indent: int = 2) -> 
                 widths[i] = max(widths[i], len(str(cell)))
 
     prefix = " " * indent
+    column_sep = " " * max(1, int(padding))
     lines = []
 
     # Header
-    header_line = "  ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
+    header_line = column_sep.join(h.ljust(widths[i]) for i, h in enumerate(headers))
     lines.append(f"{prefix}{Colors.BOLD}{header_line}{Colors.RESET}")
-    lines.append(prefix + "  ".join("-" * w for w in widths))
+    lines.append(prefix + column_sep.join("-" * w for w in widths))
 
     # Rows
     for row in rows:
-        row_line = "  ".join(str(cell).ljust(widths[i]) for i, cell in enumerate(row))
+        row_line = column_sep.join(str(cell).ljust(widths[i]) for i, cell in enumerate(row))
         lines.append(f"{prefix}{row_line}")
 
     return "\n".join(lines)

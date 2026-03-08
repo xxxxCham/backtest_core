@@ -77,7 +77,7 @@ def warmup_numba(silent: bool = True) -> Tuple[bool, float]:
 
     try:
         # Import du simulateur fast (déclenche import Numba)
-        from backtest.simulator_fast import simulate_trades_fast
+        from backtest.simulator_fast import calculate_equity_fast, simulate_trades_fast
 
         # Générer des données synthétiques minimales (50 barres = rapide mais suffisant)
         n = 50
@@ -112,11 +112,12 @@ def warmup_numba(silent: bool = True) -> Tuple[bool, float]:
 
         # Exécuter un backtest rapide pour compiler Numba
         # Mode classique
-        _ = simulate_trades_fast(
+        trades = simulate_trades_fast(
             df=df,
             signals=signals,
             params=params
         )
+        _ = calculate_equity_fast(df=df, trades_df=trades, initial_capital=params["initial_capital"])
 
         # Mode bb_pos si disponible (colonnes optionnelles)
         try:
@@ -131,10 +132,15 @@ def warmup_numba(silent: bool = True) -> Tuple[bool, float]:
             params_bbpos['sl_level'] = -0.5
             params_bbpos['tp_level'] = 1.0
 
-            _ = simulate_trades_fast(
+            trades_bbpos = simulate_trades_fast(
                 df=df_bbpos,
                 signals=signals,
                 params=params_bbpos
+            )
+            _ = calculate_equity_fast(
+                df=df_bbpos,
+                trades_df=trades_bbpos,
+                initial_capital=params_bbpos["initial_capital"],
             )
         except Exception:
             pass  # Mode bb_pos optionnel

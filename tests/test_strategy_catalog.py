@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from catalog.strategy_catalog import (
     build_entry_id,
     compute_params_hash,
@@ -7,6 +9,9 @@ from catalog.strategy_catalog import (
     move_entries,
     read_catalog,
     upsert_entry,
+    upsert_from_builder_session,
+    upsert_from_cross_token_result,
+    upsert_from_saved_run,
     write_catalog,
 )
 
@@ -44,3 +49,154 @@ def test_upsert_and_filters(tmp_path):
     assert moved == 1
     entries = list_entries(path=path, categories=["p3_watchlist"])
     assert len(entries) == 1
+
+
+def test_upsert_from_saved_run_promotes_to_catalog(tmp_path):
+    path = tmp_path / "strategy_catalog.json"
+    saved_run = {
+        "artifact_type": "saved_run",
+        "schema": "native_saved_run",
+        "run_id": "run_001",
+        "path": "run_001",
+        "mode": "backtest",
+        "status": "ok",
+        "strategy": "ema_cross",
+        "symbol": "BTCUSDC",
+        "timeframe": "1h",
+        "loadable": True,
+        "params": {"fast_period": 10, "slow_period": 30},
+        "metrics": {
+            "total_return_pct": 12.5,
+            "sharpe_ratio": 1.7,
+            "profit_factor": 1.2,
+            "total_trades": 42,
+        },
+        "extra_metadata": {
+            "origin": "builder",
+            "builder_session_id": "sess-123",
+            "builder_iteration": 4,
+        },
+    }
+
+    entry = upsert_from_saved_run(saved_run, path=path)
+
+    assert entry["category"] == "p3_watchlist"
+    assert entry["status"] == "active"
+    assert entry["params_hash"] != "none"
+    assert "promoted_run" in entry["tags"]
+    assert "replay_candidate" in entry["tags"]
+    assert entry["meta"]["source_run_id"] == "run_001"
+    assert entry["meta"]["builder_session_id"] == "sess-123"
+    assert entry["meta"]["builder_iteration"] == 4
+
+
+def test_upsert_from_saved_run_rejects_partial_status(tmp_path):
+    path = tmp_path / "strategy_catalog.json"
+    saved_run = {
+        "run_id": "run_partial",
+        "strategy": "ema_cross",
+        "symbol": "BTCUSDC",
+        "timeframe": "1h",
+        "status": "partial",
+        "params": {"fast_period": 10},
+    }
+
+    try:
+        upsert_from_saved_run(saved_run, path=path)
+    except ValueError as exc:
+        assert "Incomplete run cannot be promoted" in str(exc)
+    else:
+        raise AssertionError("partial run should not be promoted")
+
+
+def test_upsert_from_saved_run_preserves_higher_existing_category(tmp_path):
+    path = tmp_path / "strategy_catalog.json"
+    saved_run = {
+        "run_id": "run_002",
+        "strategy": "ema_cross",
+        "symbol": "BTCUSDC",
+        "timeframe": "1h",
+        "status": "ok",
+        "params": {"fast_period": 10, "slow_period": 30},
+    }
+
+    entry = upsert_from_saved_run(saved_run, target_category="p3_watchlist", path=path)
+    moved = move_entries([entry["id"]], "p4_paper_candidate", path=path)
+    assert moved == 1
+
+    updated = upsert_from_saved_run(saved_run, target_category="p3_watchlist", path=path)
+    assert updated["category"] == "p4_paper_candidate"
+
+
+def test_upsert_from_builder_session_falls_back_to_session_hash(tmp_path):
+    path = tmp_path / "strategy_catalog.json"
+    metrics = {
+        "sharpe_ratio": 1.5,
+        "total_return_pct": 9.0,
+        "total_trades": 36,
+        "profit_factor": 1.15,
+        "max_drawdown_pct": -12.0,
+    }
+    best_result = SimpleNamespace(metrics=metrics, meta={})
+    best_iteration = SimpleNamespace(backtest_result=best_result)
+    session = SimpleNamespace(
+        session_id="session-abc",
+        symbol="BTCUSDC",
+        timeframe="1h",
+        status="max_iterations",
+        best_iteration=best_iteration,
+        target_sharpe=1.0,
+        objective="Replay candidate",
+        best_sharpe=1.5,
+        iterations=[best_iteration],
+    )
+
+    entry = upsert_from_builder_session(session, path=path)
+
+    assert entry["params_hash"] != "none"
+    assert entry["id"].endswith(entry["params_hash"])
+
+
+def test_upsert_from_cross_token_result_promotes_survivor(tmp_path):
+    path = tmp_path / "strategy_catalog.json"
+    result = {
+        "session_id": "sess-cross-001",
+        "status": "success",
+        "timeframe": "1h",
+        "strategy_id": "trend_supertrend",
+        "source_symbol": "AAVEUSDC",
+        "best_iteration": 3,
+        "strategy_path": "sandbox_strategies/sess-cross-001/strategy_v3.py",
+        "source_params": {"supertrend_period": 20, "adx_period": 16},
+        "source_metrics": {
+            "total_return_pct": 228.5,
+            "sharpe_ratio": 1.07,
+            "total_trades": 214,
+        },
+        "tested": 12,
+        "robust_count": 4,
+        "robust_ratio": 4 / 12,
+        "alive_count": 9,
+        "alive_ratio": 9 / 12,
+        "avg_return": 1078.11,
+        "token_results": [
+            {"token": "SOLUSDC", "alive": True, "robust": True, "return_pct": 120.0},
+            {"token": "LINKUSDC", "alive": True, "robust": True, "return_pct": 90.0},
+            {"token": "AVAXUSDC", "alive": True, "robust": True, "return_pct": 80.0},
+            {"token": "HBARUSDC", "alive": True, "robust": True, "return_pct": 70.0},
+        ],
+    }
+
+    entry = upsert_from_cross_token_result(result, path=path)
+
+    assert entry["category"] == "p2_cross_token_survivors"
+    assert entry["status"] == "active"
+    assert "cross_token_survivor" in entry["tags"]
+    assert "canonical_strategy" in entry["tags"]
+    assert entry["strategy_name"] == "trend_supertrend"
+    assert entry["symbol"] == "AAVEUSDC"
+    assert entry["meta"]["session_id"] == "sess-cross-001"
+    assert entry["meta"]["best_iteration"] == 3
+    assert entry["meta"]["robust_tokens"] == ["SOLUSDC", "LINKUSDC", "AVAXUSDC", "HBARUSDC"]
+    assert entry["last_metrics_snapshot"]["cross_token_robust_count"] == 4
+    assert entry["last_metrics_snapshot"]["cross_token_tested"] == 12

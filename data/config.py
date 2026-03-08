@@ -159,14 +159,18 @@ class PeriodValidationResult:
 
 def _load_ohlcv_silent(symbol: str, timeframe: str) -> Optional[pd.DataFrame]:
     """Charge OHLCV sans logs (utilisé pour analyse des gaps/metadata)."""
-    from data.loader import _find_data_file, _normalize_ohlcv, _read_file
+    from data.loader import _find_data_file, load_ohlcv_file
 
     file_path = _find_data_file(symbol, timeframe)
     if file_path is None:
         return None
 
-    df = _read_file(file_path)
-    df = _normalize_ohlcv(df)
+    df, _ = load_ohlcv_file(
+        file_path,
+        symbol=symbol,
+        timeframe=timeframe,
+        enforce_quality=False,
+    )
     return df
 
 

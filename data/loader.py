@@ -23,9 +23,10 @@ Skip-if: Vous appelez load_ohlcv(filename).
 import json
 import os
 import re
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -41,6 +42,83 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 TRIM_LAUNCH_PCT = float(os.environ.get("BACKTEST_TRIM_LAUNCH_PCT", "2"))
 TRIM_LAUNCH_MIN_HOURS = int(os.environ.get("BACKTEST_TRIM_LAUNCH_MIN_HOURS", "24"))
+TRIM_LAUNCH_MAX_DAYS = int(os.environ.get("BACKTEST_TRIM_LAUNCH_MAX_DAYS", "30"))
+DATASET_QUALITY_MODE = str(os.environ.get("BACKTEST_DATASET_QUALITY_MODE", "error")).strip().lower()
+DATASET_MIN_COVERAGE_RATIO = float(os.environ.get("BACKTEST_DATASET_MIN_COVERAGE_RATIO", "0.85"))
+DATASET_MAX_LARGEST_GAP_RATIO = float(os.environ.get("BACKTEST_DATASET_MAX_LARGEST_GAP_RATIO", "0.10"))
+DATASET_MAX_ZERO_VOLUME_RATIO = float(os.environ.get("BACKTEST_DATASET_MAX_ZERO_VOLUME_RATIO", "0.05"))
+
+MIN_BARS_BY_TIMEFRAME = {
+    "1M": 24,
+    "1w": 52,
+    "1d": 180,
+    "4h": 300,
+    "1h": 500,
+    "30m": 750,
+    "15m": 1000,
+    "5m": 1500,
+    "3m": 1800,
+    "1m": 2000,
+}
+
+
+@dataclass(frozen=True)
+class DatasetQualityReport:
+    """Rapport synthétique de qualité d'un dataset prêt à l'emploi."""
+
+    symbol: str
+    timeframe: str
+    source_path: Optional[str]
+    bars_before_trim: int
+    launch_trim_bars: int
+    bars_after_filter: int
+    start_ts: Optional[str]
+    end_ts: Optional[str]
+    gap_count: int
+    missing_bars: int
+    largest_gap_bars: int
+    coverage_ratio: float
+    zero_volume_bars: int
+    zero_volume_ratio: float
+    invalid_ohlc_bars: int
+    min_required_bars: int
+    is_valid: bool
+    blocking_reasons: Tuple[str, ...] = field(default_factory=tuple)
+
+    def summary(self) -> str:
+        reasons = ", ".join(self.blocking_reasons) if self.blocking_reasons else "ok"
+        return (
+            f"{self.symbol}/{self.timeframe}: {self.bars_after_filter} barres utiles, "
+            f"trim lancement={self.launch_trim_bars}, couverture={self.coverage_ratio * 100:.1f}%, "
+            f"gaps={self.gap_count} ({self.missing_bars} barres), "
+            f"plus gros gap={self.largest_gap_bars}, volume=0={self.zero_volume_ratio * 100:.1f}% "
+            f"[{reasons}]"
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "symbol": self.symbol,
+            "timeframe": self.timeframe,
+            "source_path": self.source_path,
+            "bars_before_trim": self.bars_before_trim,
+            "launch_trim_bars": self.launch_trim_bars,
+            "bars_after_filter": self.bars_after_filter,
+            "start_ts": self.start_ts,
+            "end_ts": self.end_ts,
+            "gap_count": self.gap_count,
+            "missing_bars": self.missing_bars,
+            "largest_gap_bars": self.largest_gap_bars,
+            "coverage_ratio": self.coverage_ratio,
+            "coverage_pct": self.coverage_ratio * 100.0,
+            "zero_volume_bars": self.zero_volume_bars,
+            "zero_volume_ratio": self.zero_volume_ratio,
+            "zero_volume_pct": self.zero_volume_ratio * 100.0,
+            "invalid_ohlc_bars": self.invalid_ohlc_bars,
+            "min_required_bars": self.min_required_bars,
+            "is_valid": self.is_valid,
+            "blocking_reasons": list(self.blocking_reasons),
+            "summary": self.summary(),
+        }
 
 def _timeframe_to_timedelta(timeframe: str) -> pd.Timedelta:
     """Convertit un timeframe string ('1h', '15m', '1d') en pd.Timedelta."""
@@ -69,6 +147,57 @@ def _timeframe_to_timedelta(timeframe: str) -> pd.Timedelta:
         return pd.Timedelta(days=30 * amount)
 
     raise ValueError(f"Unité de timeframe non supportée: '{timeframe}'")
+
+
+def _minimum_bars_for_timeframe(timeframe: str) -> int:
+    """Retourne un seuil minimum de barres utiles selon le timeframe."""
+    return int(MIN_BARS_BY_TIMEFRAME.get(timeframe, 200))
+
+
+def _apply_date_window(
+    df: pd.DataFrame,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+) -> pd.DataFrame:
+    """Applique une fenêtre temporelle avec inclusion des dates pures en fin de journée."""
+    if start is not None:
+        start_ts = pd.Timestamp(start, tz="UTC")
+        df = df[df.index >= start_ts]
+
+    if end is not None:
+        end_ts = pd.Timestamp(end, tz="UTC")
+        if end_ts.hour == 0 and end_ts.minute == 0 and end_ts.second == 0:
+            end_exclusive = end_ts + pd.Timedelta(days=1)
+            df = df[df.index < end_exclusive]
+        else:
+            df = df[df.index <= end_ts]
+
+    return df
+
+
+def _count_invalid_ohlc_bars(df: pd.DataFrame) -> int:
+    """Compte les barres OHLC incohérentes."""
+    if df.empty:
+        return 0
+    invalid = (
+        (df["high"] < df["low"])
+        | (df["open"] < df["low"])
+        | (df["open"] > df["high"])
+        | (df["close"] < df["low"])
+        | (df["close"] > df["high"])
+    )
+    return int(invalid.sum())
+
+
+def _resolve_effective_quality_mode(enforce_quality: Optional[bool]) -> str:
+    """Résout le mode effectif de contrôle qualité."""
+    if enforce_quality is True:
+        return "error"
+    if enforce_quality is False:
+        return "warn"
+    if DATASET_QUALITY_MODE in {"off", "warn", "error"}:
+        return DATASET_QUALITY_MODE
+    return "error"
 
 
 def _trim_launch_period(
@@ -106,6 +235,11 @@ def _trim_launch_period(
 
     trim_count = max(floor_bars, pct_bars)
 
+    max_days = max(0, TRIM_LAUNCH_MAX_DAYS)
+    if max_days > 0:
+        cap_bars = max(1, int(pd.Timedelta(days=max_days) / bar_delta))
+        trim_count = min(trim_count, cap_bars)
+
     # Sécurité : ne jamais trimmer plus de 50 % des données
     if trim_count >= len(df) * 0.5:
         logger.warning(
@@ -119,7 +253,8 @@ def _trim_launch_period(
     logger.info(
         f"✂️  Trim post-listing: {trim_count} barres supprimées "
         f"({df.index[0]} → {trim_end_ts}, "
-        f"max({floor_bars} barres/{floor_h}h, {pct_bars} barres/{pct}%))"
+        f"max({floor_bars} barres/{floor_h}h, {pct_bars} barres/{pct}%), "
+        f"cap {max_days}j)"
     )
     return trimmed
 
@@ -180,6 +315,107 @@ def detect_gaps(
             gaps.append((timestamps[i-1], timestamps[i], nb_missing))
 
     return gaps
+
+
+def apply_dataset_quality_stage(
+    df: pd.DataFrame,
+    timeframe: str,
+    *,
+    symbol: str = "UNKNOWN",
+    source_path: Optional[Path] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    trim_launch_pct: Optional[float] = None,
+    enforce_quality: Optional[bool] = None,
+) -> Tuple[pd.DataFrame, DatasetQualityReport]:
+    """
+    Étape centrale de préparation/qualification d'un dataset avant usage.
+
+    Pipeline :
+    1. Trim post-listing
+    2. Filtrage date éventuel
+    3. Marquage des barres non-tradables
+    4. Contrôle de couverture/gaps/volume nul/cohérence OHLC
+    """
+    if not is_valid_timeframe(timeframe):
+        raise ValueError(f"Timeframe invalide pour contrôle qualité: '{timeframe}'")
+
+    mode = _resolve_effective_quality_mode(enforce_quality)
+    raw_df = df.copy()
+    raw_bars = len(raw_df)
+
+    trimmed_df = _trim_launch_period(raw_df, timeframe, trim_pct=trim_launch_pct)
+    launch_trim_bars = max(0, raw_bars - len(trimmed_df))
+
+    filtered_df = _apply_date_window(trimmed_df, start=start, end=end)
+    if filtered_df.empty:
+        raise ValueError(
+            f"Aucune donnée exploitable après contrôle qualité pour {symbol}/{timeframe} "
+            f"(trim={launch_trim_bars} barres, fenêtre={start} -> {end})"
+        )
+
+    invalid_ohlc_bars = _count_invalid_ohlc_bars(filtered_df)
+    filtered_df = _mark_data_quality(filtered_df.copy())
+
+    gaps = detect_gaps(filtered_df, timeframe, max_gap_multiplier=2.0)
+    gap_count = len(gaps)
+    missing_bars = int(sum(nb_missing for _, _, nb_missing in gaps))
+    largest_gap_bars = max((nb_missing for _, _, nb_missing in gaps), default=0)
+    expected_bars = len(filtered_df) + missing_bars
+    coverage_ratio = (len(filtered_df) / expected_bars) if expected_bars > 0 else 1.0
+    zero_volume_bars = int((filtered_df["volume"] <= 0).sum())
+    zero_volume_ratio = (zero_volume_bars / len(filtered_df)) if len(filtered_df) > 0 else 0.0
+    largest_gap_ratio = (largest_gap_bars / expected_bars) if expected_bars > 0 else 0.0
+    min_required_bars = _minimum_bars_for_timeframe(timeframe)
+
+    blocking_reasons: List[str] = []
+    if len(filtered_df) < min_required_bars:
+        blocking_reasons.append(f"not_enough_bars<{min_required_bars}")
+    if invalid_ohlc_bars > 0:
+        blocking_reasons.append(f"invalid_ohlc={invalid_ohlc_bars}")
+    if coverage_ratio < DATASET_MIN_COVERAGE_RATIO:
+        blocking_reasons.append(f"coverage<{DATASET_MIN_COVERAGE_RATIO:.2f}")
+    if largest_gap_ratio > DATASET_MAX_LARGEST_GAP_RATIO:
+        blocking_reasons.append(f"largest_gap>{DATASET_MAX_LARGEST_GAP_RATIO:.2f}")
+    if zero_volume_ratio > DATASET_MAX_ZERO_VOLUME_RATIO:
+        blocking_reasons.append(f"zero_volume>{DATASET_MAX_ZERO_VOLUME_RATIO:.2f}")
+
+    report = DatasetQualityReport(
+        symbol=str(symbol or "UNKNOWN").upper(),
+        timeframe=timeframe,
+        source_path=str(source_path) if source_path else None,
+        bars_before_trim=raw_bars,
+        launch_trim_bars=launch_trim_bars,
+        bars_after_filter=len(filtered_df),
+        start_ts=str(filtered_df.index[0]) if len(filtered_df) else None,
+        end_ts=str(filtered_df.index[-1]) if len(filtered_df) else None,
+        gap_count=gap_count,
+        missing_bars=missing_bars,
+        largest_gap_bars=largest_gap_bars,
+        coverage_ratio=coverage_ratio,
+        zero_volume_bars=zero_volume_bars,
+        zero_volume_ratio=zero_volume_ratio,
+        invalid_ohlc_bars=invalid_ohlc_bars,
+        min_required_bars=min_required_bars,
+        is_valid=not blocking_reasons,
+        blocking_reasons=tuple(blocking_reasons),
+    )
+
+    filtered_df.attrs["dataset_quality"] = report.to_dict()
+    filtered_df.attrs["dataset_quality_report"] = report
+    filtered_df.attrs["symbol"] = report.symbol
+    filtered_df.attrs["timeframe"] = timeframe
+
+    if not report.is_valid:
+        message = f"Dataset rejeté: {report.summary()}"
+        if mode == "error":
+            raise ValueError(message)
+        if mode == "warn":
+            logger.warning("⚠️ %s", message)
+    else:
+        logger.info("✅ Dataset qualifié: %s", report.summary())
+
+    return filtered_df, report
 
 # Extensions supportées
 SUPPORTED_EXTENSIONS = (".parquet", ".feather", ".csv", ".json")
@@ -481,6 +717,49 @@ def _find_data_file(symbol: str, timeframe: str) -> Optional[Path]:
     return None
 
 
+def load_ohlcv_file(
+    file_path: Path,
+    *,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+    trim_launch_pct: Optional[float] = None,
+    enforce_quality: Optional[bool] = None,
+) -> Tuple[pd.DataFrame, DatasetQualityReport]:
+    """
+    Charge un fichier OHLCV arbitraire puis applique l'étape qualité centrale.
+    """
+    resolved_path = Path(file_path)
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Fichier introuvable: {resolved_path}")
+
+    parsed = _extract_symbol_timeframe_from_stem(resolved_path.stem)
+    parsed_symbol = parsed[0] if parsed else None
+    parsed_timeframe = parsed[1] if parsed else None
+    effective_symbol = str(symbol or parsed_symbol or "UNKNOWN").upper()
+    effective_timeframe = str(timeframe or parsed_timeframe or "").strip()
+
+    if not effective_timeframe:
+        raise ValueError(
+            f"Impossible de déduire le timeframe depuis {resolved_path.name}; "
+            "fournissez-le explicitement."
+        )
+
+    df = _read_file(resolved_path)
+    df = _normalize_ohlcv(df)
+    return apply_dataset_quality_stage(
+        df,
+        effective_timeframe,
+        symbol=effective_symbol,
+        source_path=resolved_path,
+        start=start,
+        end=end,
+        trim_launch_pct=trim_launch_pct,
+        enforce_quality=enforce_quality,
+    )
+
+
 def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
     """
     Normalise un DataFrame OHLCV au format standard.
@@ -613,79 +892,22 @@ def load_ohlcv(
             f"Fichier OHLCV introuvable pour {symbol}/{timeframe} dans {data_dir}"
         )
 
-    # Lire et normaliser
-    df = _read_file(file_path)
-    df = _normalize_ohlcv(df)
+    df, report = load_ohlcv_file(
+        file_path,
+        symbol=symbol,
+        timeframe=timeframe,
+        start=start,
+        end=end,
+        trim_launch_pct=trim_launch_pct,
+    )
 
-    logger.info(f"  Période: {df.index[0]} → {df.index[-1]} ({len(df)} barres)")
-
-    # Trim post-listing (données erratiques des premiers jours d'un token)
-    df = _trim_launch_period(df, timeframe, trim_pct=trim_launch_pct)
-
-    # Détecter gaps AVANT filtrage par dates
-    gaps = detect_gaps(df, timeframe, max_gap_multiplier=2.0)
-
-    if gaps:
-        total_missing = sum(g[2] for g in gaps)
-        biggest_gap = max(gaps, key=lambda g: g[2])
-
-        # Logging sommaire (UNE FOIS, pas dans boucle)
-        logger.warning(
-            f"⚠️  {len(gaps)} gap(s) détecté(s) dans {symbol}/{timeframe} "
-            f"({total_missing} barres manquantes au total)"
-        )
-        logger.warning(
-            f"    Plus gros gap : {biggest_gap[0]} → {biggest_gap[1]} "
-            f"({biggest_gap[2]} barres)"
-        )
-
-        # Exemples (max 3)
-        for gap_start, gap_end, nb_missing in gaps[:3]:
-            logger.debug(f"    Gap : {gap_start} → {gap_end} ({nb_missing} barres)")
-
-        if len(gaps) > 3:
-            logger.debug(f"    ... et {len(gaps)-3} autres gaps")
-    else:
-        logger.debug(f"✅ Aucun gap détecté dans {symbol}/{timeframe}")
-
-    # Stocker les bornes disponibles pour message d'erreur
-    data_start = df.index[0]
-    data_end = df.index[-1]
-
-    # Filtrer par dates si spécifié
-    if start is not None:
-        start_ts = pd.Timestamp(start, tz="UTC")
-        df = df[df.index >= start_ts]
-
-    if end is not None:
-        end_ts = pd.Timestamp(end, tz="UTC")
-
-        # FIX DÉCALAGE: Si date pure (heure=00:00:00), inclure toute la journée
-        # Détecter si l'utilisateur a fourni une date sans heure
-        if end_ts.hour == 0 and end_ts.minute == 0 and end_ts.second == 0:
-            # Créer end_exclusive = end_date + 1 jour
-            end_exclusive = end_ts + pd.Timedelta(days=1)
-            df = df[df.index < end_exclusive]  # < au lieu de <=
-            logger.debug(
-                f"Date end pure détectée : {end_ts.date()} → "
-                f"filtrage jusqu'à {end_exclusive} (exclusif)"
-            )
-        else:
-            # L'utilisateur a spécifié une heure précise, garder comportement strict
-            df = df[df.index <= end_ts]
-            logger.debug(f"Date end avec heure : filtrage jusqu'à {end_ts} (inclusif)")
-
-    if df.empty:
-        raise ValueError(
-            f"Aucune donnée dans la période {start} - {end}. "
-            f"Données disponibles: {data_start.strftime('%Y-%m-%d')} → "
-            f"{data_end.strftime('%Y-%m-%d')}"
-        )
-
-    logger.info(f"  Après filtrage: {len(df)} barres")
-
-    # Marquer barres non-tradables (volume=0)
-    df = _mark_data_quality(df)
+    logger.info(
+        "  Après contrôle qualité: %s → %s (%s barres utiles, couverture %.1f%%)",
+        df.index[0],
+        df.index[-1],
+        len(df),
+        report.coverage_ratio * 100.0,
+    )
 
     return df
 
@@ -725,8 +947,12 @@ def get_data_date_range(
         return None
 
     try:
-        df = _read_file(file_path)
-        df = _normalize_ohlcv(df)
+        df, _ = load_ohlcv_file(
+            file_path,
+            symbol=symbol,
+            timeframe=timeframe,
+            enforce_quality=False,
+        )
         if df.empty:
             return None
         return (df.index[0], df.index[-1])
@@ -734,4 +960,31 @@ def get_data_date_range(
         return None
 
 
-__all__ = ["load_ohlcv", "discover_available_data", "get_available_timeframes", "get_data_date_range"]
+@lru_cache(maxsize=1024)
+def is_usable_dataset(symbol: str, timeframe: str) -> bool:
+    """Retourne True si le dataset passe l'étape qualité centrale."""
+    file_path = _find_data_file(symbol, timeframe)
+    if file_path is None:
+        return False
+    try:
+        _, report = load_ohlcv_file(
+            file_path,
+            symbol=symbol,
+            timeframe=timeframe,
+            enforce_quality=False,
+        )
+        return bool(report.is_valid)
+    except (FileNotFoundError, OSError, ValueError, KeyError, IndexError):
+        return False
+
+
+__all__ = [
+    "DatasetQualityReport",
+    "apply_dataset_quality_stage",
+    "discover_available_data",
+    "get_available_timeframes",
+    "get_data_date_range",
+    "is_usable_dataset",
+    "load_ohlcv",
+    "load_ohlcv_file",
+]

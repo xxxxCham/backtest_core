@@ -22,6 +22,7 @@ Skip-if: Vous appelez juste calculate_indicator().
 
 import os
 from dataclasses import dataclass
+from importlib import import_module
 from typing import Any, Callable, Dict, Optional, Tuple
 
 import pandas as pd
@@ -95,7 +96,7 @@ def _get_gpu_calc():
     return None
 
 
-def _should_use_gpu(calc, n_samples: int) -> bool:
+def _should_use_gpu(_calc, _n_samples: int) -> bool:
     return False
 
 
@@ -546,19 +547,20 @@ register_indicator(
 )
 
 # Late imports for indicators that self-register to avoid circular imports.
-from . import (
-    amplitude_hunter,  # noqa: F401,E402
-    fear_greed,  # noqa: F401,E402
-    fibonacci,  # noqa: F401,E402
-    ichimoku,  # noqa: F401,E402
-    onchain_smoothing,  # noqa: F401,E402
-    pi_cycle,  # noqa: F401,E402
-    pivot_points,  # noqa: F401,E402
-    psar,  # noqa: F401,E402
-    standard_deviation,  # noqa: F401,E402
-    volume_oscillator,  # noqa: F401,E402
-    vortex,  # noqa: F401,E402
-)
+for _module_name in (
+    "amplitude_hunter",
+    "fear_greed",
+    "fibonacci",
+    "ichimoku",
+    "onchain_smoothing",
+    "pi_cycle",
+    "pivot_points",
+    "psar",
+    "standard_deviation",
+    "volume_oscillator",
+    "vortex",
+):
+    import_module(f"{__package__}.{_module_name}")
 
 
 class IndicatorRegistry:

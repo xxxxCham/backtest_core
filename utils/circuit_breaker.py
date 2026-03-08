@@ -325,7 +325,7 @@ class CircuitBreaker:
             raise CircuitBreakerError(self.name)
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, _exc_tb):
         """Context manager - enregistre succès/échec."""
         if exc_type is None:
             self._handle_success()

@@ -203,7 +203,7 @@ class BacktestEngine:
             timeframe: Timeframe des données (pour ajustements)
             seed: Seed pour reproductibilité
             silent_mode: Si True, désactive les logs structurés pour améliorer les performances en grid search
-            fast_metrics: Si True, utilise calculs rapides (ignoré dans version restaurée)
+            fast_metrics: Si True, utilise les métriques rapides pour sweeps/optimisations
 
         Returns:
             RunResult avec equity, returns, trades, metrics et meta
@@ -388,6 +388,14 @@ class BacktestEngine:
                 "seed": seed,
                 "perf_counters": self.counters.summary(),
             }
+
+            dataset_quality = df.attrs.get("dataset_quality") if hasattr(df, "attrs") else None
+            if isinstance(dataset_quality, dict) and dataset_quality:
+                meta["dataset_quality"] = dataset_quality
+                metrics.setdefault("dataset_coverage_pct", dataset_quality.get("coverage_pct"))
+                metrics.setdefault("dataset_gap_count", dataset_quality.get("gap_count"))
+                metrics.setdefault("dataset_missing_bars", dataset_quality.get("missing_bars"))
+                metrics.setdefault("dataset_zero_volume_pct", dataset_quality.get("zero_volume_pct"))
 
             self.last_run_meta = meta
 

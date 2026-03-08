@@ -108,7 +108,7 @@ POTENTIAL_TOKENS = [
     "ADAUSDC",   # Cardano - Approche académique
     "DOTUSDC",   # Polkadot - Interopérabilité
     "ATOMUSDC",  # Cosmos - Hub inter-chaînes
-    "MATICUSDC", # Polygon - Layer 2 Ethereum
+    "MATICUSDC",  # Polygon - Layer 2 Ethereum
     "NEARUSDC",  # NEAR Protocol - Sharding
     "FILUSDC",   # Filecoin - Stockage décentralisé
     "APTUSDC",   # Aptos - Move VM
@@ -386,7 +386,7 @@ def _get_timeframe_fallback_period(
     }
 
 
-def _extract_llm_signature(llm_config: Optional[LLMConfig]) -> Optional[Dict[str, Any]]:
+def _extract_llm_signature(llm_config: Optional[Any]) -> Optional[Dict[str, Any]]:
     if llm_config is None:
         return None
     provider = getattr(llm_config.provider, "value", str(llm_config.provider))
@@ -493,8 +493,11 @@ def _build_config_signature(state: SidebarState) -> str:
     return json.dumps(normalized, sort_keys=True, default=str)
 
 
-def _env_int(key: str, default: int) -> int:
+def _env_int(key: str, default: Optional[int]) -> Optional[int]:
     try:
+        if default is None:
+            raw = os.getenv(key)
+            return int(raw) if raw is not None else None
         return int(os.getenv(key, str(default)))
     except (TypeError, ValueError):
         return default
@@ -575,8 +578,11 @@ def get_final_market_selection(
             ui_symbol_first = ui_symbols[0] if ui_symbols else ""
             ui_tf_first = ui_timeframes[0] if ui_timeframes else ""
 
-            if (ui_symbol_first and ui_tf_first and
-                (llm_symbol != ui_symbol_first or llm_timeframe != ui_tf_first)):
+            if (
+                ui_symbol_first
+                and ui_tf_first
+                and (llm_symbol != ui_symbol_first or llm_timeframe != ui_tf_first)
+            ):
                 reason = (
                     f"Override UI ({ui_symbol_first} {ui_tf_first} → {llm_symbol} {llm_timeframe}). "
                     f"Raison: {llm_reason}"
@@ -830,69 +836,45 @@ def render_sidebar() -> SidebarState:
 
         del st.session_state["_apply_potential_tokens"]
 
-    # Détection mode Builder avec gestion automatique token/timeframe
+    # Détection mode Builder
     _is_builder = st.session_state.get("optimization_mode") == "🏗️ Strategy Builder"
     _builder_autonomous = st.session_state.get("builder_autonomous", False)
     _builder_auto_market = st.session_state.get("builder_auto_market_pick", False)
-    _hide_market_selection = _is_builder and (_builder_autonomous or _builder_auto_market)
+    # Les sélecteurs marché restent visibles/clickables dans tous les modes.
+    symbol_options_ui = _stable_shuffled_options(
+        "_symbols_options_order_v1",
+        available_tokens,
+    )
+    col1, col2, col3 = st.sidebar.columns([3, 1, 1])
+    with col1:
+        # Initialiser si non existant (l'initialisation principale est ligne 724)
+        if "symbols_select" not in st.session_state:
+            st.session_state["symbols_select"] = default_symbols
 
-    # Layout: multiselect + boutons côte à côte (masqué si Builder autonome)
-    if not _hide_market_selection:
-        symbol_options_ui = _stable_shuffled_options(
-            "_symbols_options_order_v1",
-            available_tokens,
+        symbols = st.multiselect(
+            label="Symbole(s)",
+            options=symbol_options_ui,
+            key="symbols_select",
+            help="Sélectionnez un ou plusieurs tokens à analyser",
         )
-        col1, col2, col3 = st.sidebar.columns([3, 1, 1])
-        with col1:
-            # Initialiser si non existant (l'initialisation principale est ligne 724)
-            if "symbols_select" not in st.session_state:
-                st.session_state["symbols_select"] = default_symbols
+    with col2:
+        st.write("")  # Espacement pour aligner avec le multiselect
+        if st.button("🎯", key="select_potential_tokens", help="Sélectionner tokens à potentiel"):
+            st.session_state["_apply_potential_tokens"] = True
+            st.rerun()
+    with col3:
+        st.write("")  # Espacement pour aligner avec le multiselect
+        if st.button(
+            "🎲",
+            key="select_random_market_selection",
+            help="Sélection aléatoire de token/TF (et stratégie selon l'option 'Conserver stratégie')."
+        ):
+            st.session_state["_apply_random_market_selection"] = True
+            st.rerun()
 
-            symbols = st.multiselect(
-                label="Symbole(s)",
-                options=symbol_options_ui,
-                key="symbols_select",
-                help="Sélectionnez un ou plusieurs tokens à analyser",
-            )
-        with col2:
-            st.write("")  # Espacement pour aligner avec le multiselect
-            if st.button("🎯", key="select_potential_tokens", help="Sélectionner tokens à potentiel"):
-                st.session_state["_apply_potential_tokens"] = True
-                st.rerun()
-        with col3:
-            st.write("")  # Espacement pour aligner avec le multiselect
-            if st.button(
-                "🎲",
-                key="select_random_market_selection",
-                help="Sélection aléatoire de token/TF (et stratégie selon l'option 'Conserver stratégie')."
-            ):
-                st.session_state["_apply_random_market_selection"] = True
-                st.rerun()
-
-        random_selection_summary = st.session_state.pop("_random_market_selection_summary", "")
-        if random_selection_summary:
-            st.sidebar.caption(random_selection_summary)
-    else:
-        # Mode Builder autonome:
-        # 1) conserver d'abord les sélections utilisateur déjà présentes en session,
-        # 2) sinon fallback bootstrap 1 token pour éviter un scan massif.
-        selected_symbols = [
-            str(s or "").strip().upper()
-            for s in st.session_state.get("symbols_select", [])
-            if str(s or "").strip()
-        ]
-        selected_symbols = [s for s in selected_symbols if s in available_tokens]
-        if selected_symbols:
-            symbols = selected_symbols
-            st.sidebar.caption("🤖 **Mode autonome** : sélection tokens conservée depuis la session")
-        else:
-            bootstrap_symbol_key = "_builder_auto_bootstrap_symbol"
-            bootstrap_symbol = str(st.session_state.get(bootstrap_symbol_key, "") or "").strip().upper()
-            if not bootstrap_symbol or bootstrap_symbol not in available_tokens:
-                bootstrap_symbol = random.choice(available_tokens) if available_tokens else ""
-                st.session_state[bootstrap_symbol_key] = bootstrap_symbol
-            symbols = [bootstrap_symbol] if bootstrap_symbol else []
-            st.sidebar.caption("🤖 **Mode autonome** : marchés gérés automatiquement par le Builder")
+    random_selection_summary = st.session_state.pop("_random_market_selection_summary", "")
+    if random_selection_summary:
+        st.sidebar.caption(random_selection_summary)
 
     if not symbols and not _is_builder:
         st.sidebar.info("Sélectionnez au moins un symbole pour commencer.")
@@ -902,45 +884,33 @@ def render_sidebar() -> SidebarState:
     # Aucun timeframe sélectionné par défaut — l'utilisateur choisit
     default_timeframes: List[str] = []
 
-    if not _hide_market_selection:
-        timeframe_options_ui = _stable_shuffled_options(
-            "_timeframes_options_order_v1",
-            available_timeframes,
-        )
-        # Initialiser si non existant (l'initialisation principale est ligne 725)
-        if "timeframes_select" not in st.session_state:
-            st.session_state["timeframes_select"] = default_timeframes
+    timeframe_options_ui = _stable_shuffled_options(
+        "_timeframes_options_order_v1",
+        available_timeframes,
+    )
+    # Initialiser si non existant (l'initialisation principale est ligne 725)
+    if "timeframes_select" not in st.session_state:
+        st.session_state["timeframes_select"] = default_timeframes
 
-        timeframes = st.sidebar.multiselect(
-            "Timeframe(s)",
-            timeframe_options_ui,
-            key="timeframes_select",
-            help="Sélectionnez un ou plusieurs timeframes",
-        )
-    else:
-        # Mode Builder autonome:
-        # 1) conserver d'abord les TF sélectionnés en session,
-        # 2) sinon fallback bootstrap (1 TF).
-        selected_timeframes = [
-            str(tf or "").strip()
-            for tf in st.session_state.get("timeframes_select", [])
-            if str(tf or "").strip()
-        ]
-        selected_timeframes = [tf for tf in selected_timeframes if tf in available_timeframes]
-        if selected_timeframes:
-            timeframes = selected_timeframes
-            st.sidebar.caption("⏱️ **Mode autonome** : sélection TF conservée depuis la session")
-        else:
-            bootstrap_tf_key = "_builder_auto_bootstrap_timeframe"
-            bootstrap_tf = str(st.session_state.get(bootstrap_tf_key, "") or "").strip()
-            if not bootstrap_tf or bootstrap_tf not in available_timeframes:
-                bootstrap_tf = random.choice(available_timeframes) if available_timeframes else ""
-                st.session_state[bootstrap_tf_key] = bootstrap_tf
-            timeframes = [bootstrap_tf] if bootstrap_tf else []
+    timeframes = st.sidebar.multiselect(
+        "Timeframe(s)",
+        timeframe_options_ui,
+        key="timeframes_select",
+        help="Sélectionnez un ou plusieurs timeframes",
+    )
 
     if not timeframes and not _is_builder:
         st.sidebar.info("Sélectionnez au moins un timeframe pour commencer.")
     timeframe = timeframes[0] if timeframes else ""  # Compatibilité rétro
+
+    selected_strategy_preview = (st.session_state.get("strategies_select") or [""])[0]
+    if _is_builder:
+        llm_note = " (LLM peut override en auto-marché)" if (_builder_autonomous or _builder_auto_market) else ""
+        st.sidebar.caption(f"🎯 Sélection active : {symbol or '—'} | {timeframe or '—'}{llm_note}")
+    else:
+        st.sidebar.caption(
+            f"🎯 Sélection active : {symbol or '—'} | {timeframe or '—'} | {selected_strategy_preview or '—'}"
+        )
 
     # Info multi-sweep si plusieurs sélections (tokens/timeframes uniquement à ce stade)
     if len(symbols) > 1 or len(timeframes) > 1:
@@ -1319,10 +1289,12 @@ def render_sidebar() -> SidebarState:
                 "_strategies_options_order_v1",
                 list(strategy_options.keys()),
             )
+            # Streamlit: ne pas combiner `default` avec un widget piloté via `key`.
+            if "strategies_select" not in st.session_state:
+                st.session_state["strategies_select"] = []
             strategy_names = st.sidebar.multiselect(
                 "Stratégie(s)",
                 strategy_labels_ui,
-                default=st.session_state.get("strategies_select", []),
                 key="strategies_select",
                 help="Sélectionnez une ou plusieurs stratégies",
             )
@@ -1413,8 +1385,8 @@ def render_sidebar() -> SidebarState:
         strategy_name = ""
         strategy_key = ""
         strategy_info = None
-        available_indicators: List[str] = []
-        active_indicators: List[str] = []
+        available_indicators = []
+        active_indicators = []
 
     # (Versioned Presets moved to bottom)
 
@@ -1426,6 +1398,18 @@ def render_sidebar() -> SidebarState:
         st.session_state.run_backtest_requested = False
     if "is_running" not in st.session_state:
         st.session_state.is_running = False
+
+    if st.session_state.get("is_running", False):
+        st.sidebar.warning("⏳ Exécution en cours (UI temporairement restreinte).")
+        if st.sidebar.button(
+            "🔓 Forcer le déverrouillage UI",
+            key="force_unlock_ui",
+            help="Réinitialise les verrous d'exécution si l'interface reste bloquée.",
+        ):
+            st.session_state.is_running = False
+            st.session_state.run_backtest_requested = False
+            st.sidebar.success("UI déverrouillée.")
+            st.rerun()
 
     if "default_preset_applied" not in st.session_state:
         st.session_state["ui_n_workers"] = 32
@@ -1446,7 +1430,6 @@ def render_sidebar() -> SidebarState:
         default_workers_cpu = _env_int("BACKTEST_WORKERS_GPU_OPTIMIZED", 32)
     default_workers_cpu = max(1, min(default_workers_cpu, 32))
     default_llm_unload = _env_bool("UNLOAD_LLM_DURING_BACKTEST", True)
-    default_worker_threads = _env_int("BACKTEST_WORKER_THREADS", 1)
 
     max_combos = unlimited_max_combos
     n_workers = default_workers_cpu
@@ -1503,8 +1486,6 @@ def render_sidebar() -> SidebarState:
     llm_compare_use_preset = True
     llm_compare_generate_report = True
     llm_use_multi_agent = False
-    llm_use_multi_model = False
-    llm_limit_small_models = False
     llm_unload_during_backtest = default_llm_unload
     llm_model = None
 
@@ -1526,1073 +1507,52 @@ def render_sidebar() -> SidebarState:
     builder_use_parametric_catalog = False
 
     if optimization_mode == "🏗️ Strategy Builder":
-        st.sidebar.markdown("---")
-        _sidebar_section("🏗️ Strategy Builder")
-
-        # ── Mode autonome 24/24 ──
-        builder_autonomous = st.sidebar.toggle(
-            "🔄 Mode autonome 24/24",
-            value=st.session_state.get("builder_autonomous", False),
-            help="Génère automatiquement des objectifs variés et lance le builder en boucle continue.",
-            key="builder_autonomous_toggle",
-        )
-        st.session_state["builder_autonomous"] = builder_autonomous
-
-        builder_auto_pause = 10
-        builder_auto_use_llm = True
-
-        if builder_autonomous:
-            st.sidebar.caption("*Objectifs générés automatiquement*")
-            builder_auto_pause = st.sidebar.slider(
-                "⏱️ Pause entre runs (s)",
-                min_value=0,
-                max_value=120,
-                value=st.session_state.get("builder_auto_pause", 10),
-                key="builder_auto_pause_slider",
-                help="Délai en secondes entre chaque session autonome.",
-            )
-            st.session_state["builder_auto_pause"] = builder_auto_pause
-
-            builder_auto_use_llm = st.sidebar.toggle(
-                "🧠 Objectifs par LLM",
-                value=st.session_state.get("builder_auto_use_llm", True),
-                key="builder_auto_use_llm_toggle",
-                help="Si activé, le LLM génère des objectifs créatifs. Sinon, templates aléatoires (plus rapide).",
-            )
-            st.session_state["builder_auto_use_llm"] = builder_auto_use_llm
-
-            builder_use_parametric_catalog = st.sidebar.toggle(
-                "📐 Catalogue paramétrique",
-                value=st.session_state.get("builder_use_parametric_catalog", False),
-                key="builder_use_parametric_catalog_toggle",
-                help=(
-                    "Génère automatiquement des fiches de stratégies paramétriques "
-                    "(archetypes × param_packs) et les injecte comme objectifs. "
-                    "Prioritaire sur les templates et le LLM."
-                ),
-            )
-            st.session_state["builder_use_parametric_catalog"] = builder_use_parametric_catalog
-
-            # ── Stats catalogue paramétrique ──
-            if builder_use_parametric_catalog and _CATALOG_AVAILABLE:
-                try:
-                    pstats = get_parametric_catalog_stats()
-                    if pstats.get("generated"):
-                        p_total = pstats.get("total", 0)
-                        p_idx = pstats.get("index", 0)
-                        p_pct = pstats.get("coverage_pct", 0.0)
-                        st.sidebar.caption(
-                            f"Fiches param.: {p_idx}/{p_total} ({p_pct:.0f}%)"
-                        )
-                        st.sidebar.progress(min(p_pct / 100.0, 1.0))
-                    else:
-                        st.sidebar.caption("Fiches param.: non encore générées")
-                    if st.sidebar.button(
-                        "Reset fiches param.",
-                        key="builder_reset_parametric",
-                        help="Régénère immédiatement le catalogue paramétrique avec de nouvelles fiches aléatoires.",
-                    ):
-                        reset_parametric_catalog()
-                        # Régénérer immédiatement avec un seed aléatoire
-                        # Note: random déjà importé globalement (L28)
-                        import time
-                        new_seed = int(time.time() * 1000) % 2**31
-                        generate_parametric_catalog(seed=new_seed)
-                        st.rerun()
-                except Exception:
-                    pass
-
-            # ── Couverture catalogue (ancien système — masqué si paramétrique actif) ──
-            if _CATALOG_AVAILABLE and not builder_use_parametric_catalog:
-                try:
-                    cov = get_catalog_coverage()
-                    total = cov.get("total_objectives", 0)
-                    explored = cov.get("explored_count", 0)
-                    pct = cov.get("coverage_pct", 0.0)
-                    success_count = cov.get("success_count", 0)
-                    if total > 0:
-                        cycles = explored // total if total else 0
-                        pos_in_cycle = explored % total
-                        if cycles > 0:
-                            cycle_label = f"cycle {cycles + 1}, {pos_in_cycle}/{total}"
-                        else:
-                            cycle_label = f"{explored}/{total} ({pct:.0f}%)"
-                        st.sidebar.caption(
-                            f"Catalogue templates: {cycle_label} "
-                            f"— {success_count} positifs"
-                        )
-                        st.sidebar.progress(min((explored % total) / total, 1.0) if total else 0.0)
-                        if st.sidebar.button(
-                            "Reset exploration",
-                            key="builder_reset_catalog",
-                            help="Re-shuffle et remet la couverture a zero.",
-                        ):
-                            reset_catalog_exploration()
-                            st.rerun()
-                except Exception:
-                    pass
-
-        pending_objective_sync = st.session_state.pop(
-            "_builder_objective_input_sync", None
-        )
-        if isinstance(pending_objective_sync, str):
-            # Assignation autorisée ici: la clé widget n'est pas encore instanciée.
-            st.session_state["builder_objective_input"] = pending_objective_sync
-
-        # ── Bouton objectif aléatoire (mode manuel uniquement) ──
-        if not builder_autonomous and _CATALOG_AVAILABLE:
-            if st.sidebar.button(
-                "🎲 Objectif aléatoire",
-                key="builder_random_objective_btn",
-                help="Pré-remplit avec un objectif du catalogue. Vous pouvez le modifier avant de lancer.",
-            ):
-                _sym = (
-                    st.session_state.get("selected_symbol")
-                    or "BTCUSDC"
-                )
-                _tf = (
-                    st.session_state.get("selected_timeframe")
-                    or "1h"
-                )
-                _cat = get_next_catalog_objective(symbol=_sym, timeframe=_tf)
-                if _cat is not None:
-                    _rand_obj, _ = _cat
-                else:
-                    _rand_obj = generate_random_objective(symbol=_sym, timeframe=_tf)
-                st.session_state["builder_objective"] = _rand_obj
-                st.session_state["builder_objective_input"] = _rand_obj
-                st.rerun()
-
-        builder_objective = st.sidebar.text_area(
-            "🎯 Objectif de la stratégie",
-            value=st.session_state.get("builder_objective", ""),
-            height=100,
-            placeholder=(
-                "Ex: Trend-following BTC 1h avec EMA + RSI.\n"
-                "Mean reversion sur Bollinger bands + ATR filter.\n"
-                "Scalping MACD cross avec stop ATR serré."
-            ),
-            help="Décrivez la stratégie que l'IA doit créer. "
-                 "Soyez précis sur les indicateurs, le style, et les objectifs.",
-            key="builder_objective_input",
-            disabled=builder_autonomous,
-        )
-        st.session_state["builder_objective"] = builder_objective
-
-        # auto_market_pick ON par défaut pour que le LLM choisisse le marché
-        _market_pick_default = st.session_state.get("builder_auto_market_pick", True)
-        builder_auto_market_pick = st.sidebar.toggle(
-            "🧭 LLM choisit token/TF",
-            value=_market_pick_default,
-            key="builder_auto_market_pick_toggle",
-            help=(
-                "Avant chaque session Builder, le LLM sélectionne automatiquement "
-                "le symbole et le timeframe les plus adaptés à l'objectif, puis "
-                "charge les données correspondantes. "
-                "Activé par défaut en mode autonome 24/24."
-            ),
-        )
-        st.session_state["builder_auto_market_pick"] = builder_auto_market_pick
-
-        # ── Exemple de format (discret) ──
-        with st.sidebar.expander("💡 Exemple de format", expanded=False):
-            st.sidebar.markdown(
-                "**Structure recommandée :**\n"
-                "```\n"
-                "[Style] sur [marché] [timeframe].\n"
-                "Indicateurs : [ind1] + [ind2] + [ind3].\n"
-                "Entrées : [conditions d'entrée].\n"
-                "Sorties : [conditions de sortie].\n"
-                "Risk management : [SL/TP/sizing].\n"
-                "```\n\n"
-                "**Exemple concret :**\n"
-                "> Trend-following sur BTCUSDC 30m.\n"
-                "> Utiliser EMA(20/50) + MACD + ATR.\n"
-                "> Entrée long quand EMA rapide croise\n"
-                "> au-dessus de la lente ET MACD > signal.\n"
-                "> Stop-loss = 1.5x ATR, take-profit = 3x ATR."
-            )
-
-        # Modèle LLM
-        from ui.components.model_selector import render_model_selector
-
-        with st.sidebar:
-            builder_model = render_model_selector(
-                label="Modele LLM",
-                key="builder_model_select",
-                help_text="Modele pour generer et analyser les strategies. "
-                          "Les modeles >14B produisent du code de meilleure qualite.",
-                show_details=True,
-                compact=True,
-            )
-        st.session_state["builder_model"] = builder_model
-
-        st.sidebar.caption("**🔌 Chargement du modèle**")
-        builder_ollama_host = st.sidebar.text_input(
-            "URL Ollama (Builder)",
-            value=st.session_state.get(
+        # UI Builder déplacée dans ui.exec_tabs._render_builder_tab()
+        # Ici, on lit uniquement l'état pour alimenter SidebarState sans dupliquer les widgets.
+        builder_autonomous = bool(st.session_state.get("builder_autonomous", False))
+        builder_auto_pause = int(st.session_state.get("builder_auto_pause", 10))
+        builder_auto_use_llm = bool(st.session_state.get("builder_auto_use_llm", True))
+        builder_use_parametric_catalog = bool(st.session_state.get("builder_use_parametric_catalog", False))
+        builder_objective = str(st.session_state.get("builder_objective", ""))
+        builder_auto_market_pick = bool(st.session_state.get("builder_auto_market_pick", True))
+        builder_model = str(st.session_state.get("builder_model", "deepseek-r1:32b"))
+        builder_ollama_host = str(
+            st.session_state.get(
                 "builder_ollama_host",
                 os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434"),
-            ),
-            key="builder_ollama_host",
-            help="Endpoint Ollama utilisé par le mode Strategy Builder.",
-        )
-
-        if is_ollama_available():
-            st.sidebar.caption("🟢 Ollama connecté")
-        else:
-            st.sidebar.warning("⚠️ Ollama non détecté")
-            if st.sidebar.button("🚀 Démarrer Ollama", key="builder_start_ollama"):
-                with st.spinner("Démarrage d'Ollama..."):
-                    success, msg = ensure_ollama_running()
-                    if success:
-                        st.sidebar.success(msg)
-                        st.rerun()
-                    else:
-                        st.sidebar.error(msg)
-
-        builder_auto_start_ollama = st.sidebar.toggle(
-            "Auto-démarrer Ollama (local)",
-            value=st.session_state.get("builder_auto_start_ollama", True),
-            key="builder_auto_start_ollama",
-            help=(
-                "Si URL locale (localhost/127.0.0.1), tente de démarrer Ollama "
-                "automatiquement avant l'exécution."
-            ),
-        )
-        builder_preload_model = st.sidebar.toggle(
-            "Précharger modèle avant run",
-            value=st.session_state.get("builder_preload_model", True),
-            key="builder_preload_model",
-            help="Charge le modèle en mémoire avant les appels LLM du builder.",
-        )
-        builder_keep_alive_minutes = st.sidebar.slider(
-            "Keep-alive modèle (minutes)",
-            min_value=1,
-            max_value=120,
-            value=int(st.session_state.get("builder_keep_alive_minutes", 20)),
-            key="builder_keep_alive_minutes",
-            help="Durée de maintien en mémoire du modèle après warmup.",
-            disabled=not builder_preload_model,
-        )
-        builder_unload_after_run = st.sidebar.toggle(
-            "Décharger modèle après run",
-            value=st.session_state.get("builder_unload_after_run", False),
-            key="builder_unload_after_run",
-            help="Libère la VRAM à la fin d'une session Builder.",
-        )
-
-        st.sidebar.markdown("---")
-        st.sidebar.caption("**⚙️ Paramètres de construction**")
-
-        builder_max_iterations = st.sidebar.slider(
-            "Itérations max",
-            min_value=1,
-            max_value=30,
-            value=st.session_state.get("builder_max_iterations", 10),
-            key="builder_max_iters_slider",
-            help="Nombre maximum de tentatives pour améliorer la stratégie.",
-        )
-
-        builder_target_sharpe = st.sidebar.number_input(
-            "Sharpe cible",
-            min_value=0.0,
-            max_value=5.0,
-            value=st.session_state.get("builder_target_sharpe", 1.0),
-            step=0.1,
-            key="builder_target_sharpe_input",
-            help="Sharpe ratio minimum pour accepter automatiquement la stratégie.",
-        )
-
-        builder_capital = st.sidebar.number_input(
-            "Capital initial ($)",
-            min_value=100.0,
-            max_value=1_000_000.0,
-            value=st.session_state.get("builder_capital", 10000.0),
-            step=1000.0,
-            key="builder_capital_input",
-            format="%.0f",
-        )
-
-        # Indicateurs disponibles (info)
-        try:
-            from indicators.registry import list_indicators
-            indicators = list_indicators()
-            st.sidebar.caption(f"📐 {len(indicators)} indicateurs disponibles")
-            with st.sidebar.expander("Voir la liste", expanded=False):
-                st.sidebar.write(", ".join(sorted(indicators)))
-        except Exception:
-            pass
-
-        # Sessions précédentes
-        from pathlib import Path as _Path
-        sandbox_root = _Path(__file__).resolve().parent.parent / "sandbox_strategies"
-        if sandbox_root.exists():
-            sessions = sorted(
-                [d.name for d in sandbox_root.iterdir() if d.is_dir() and d.name != ".gitkeep"],
-                reverse=True,
             )
-            if sessions:
-                with st.sidebar.expander(f"📁 Sessions précédentes ({len(sessions)})", expanded=False):
-                    for s in sessions[:10]:
-                        st.sidebar.caption(f"• {s}")
+        )
+        builder_auto_start_ollama = bool(st.session_state.get("builder_auto_start_ollama", True))
+        builder_preload_model = bool(st.session_state.get("builder_preload_model", True))
+        builder_keep_alive_minutes = int(st.session_state.get("builder_keep_alive_minutes", 20))
+        builder_unload_after_run = bool(st.session_state.get("builder_unload_after_run", False))
+        builder_max_iterations = int(st.session_state.get("builder_max_iters_slider", 10))
+        builder_target_sharpe = float(st.session_state.get("builder_target_sharpe_input", 1.0))
+        builder_capital = float(st.session_state.get("builder_capital_input", 10000.0))
+
+        st.sidebar.caption("⚙️ Configuration Builder déplacée dans l'onglet principal Strategy Builder")
 
     elif optimization_mode == "🤖 Optimisation LLM":
-        _sidebar_section("🧠 Configuration LLM")
-
         max_combos = unlimited_max_combos
-        st.sidebar.caption("∞ Combinaisons LLM (non limitées)")
-
-        st.sidebar.caption(
-            f"🔧 Parallélisation: jusqu'à {n_workers} backtests simultanés"
-        )
-        st.sidebar.markdown("---")
-
-        if not LLM_AVAILABLE:
-            st.sidebar.error("❌ Module LLM non disponible")
-            st.sidebar.caption(f"Erreur: {LLM_IMPORT_ERROR}")
-        else:
-            llm_provider = st.sidebar.selectbox(
-                "Provider LLM",
-                ["Ollama (Local)", "OpenAI"],
-                help="Ollama = gratuit et local | OpenAI = API payante",
-            )
-
-            llm_use_multi_agent = st.sidebar.checkbox(
-                "Mode multi-agents 👥",
-                value=False,
-                key="llm_use_multi_agent",
-                help="Utiliser Analyst/Strategist/Critic/Validator",
-            )
-
-            def _extract_model_params_b(model_name: str) -> Optional[float]:
-                match = re.search(r"(\d+(?:\.\d+)?)b", model_name.lower())
-                if match:
-                    return float(match.group(1))
-                return None
-
-            def _is_model_under_limit(model_name: str, limit: float) -> bool:
-                size = _extract_model_params_b(model_name)
-                if size is None:
-                    return False
-                return size < limit
-
-            def _is_model_over_limit(model_name: str, limit: float) -> bool:
-                size = _extract_model_params_b(model_name)
-                if size is None:
-                    return False
-                return size >= limit
-
-            if "Ollama" in llm_provider:
-                if is_ollama_available():
-                    st.sidebar.caption("🟢 Ollama connecté")
-                else:
-                    st.sidebar.warning("⚠️ Ollama non détecté")
-                    if st.sidebar.button("🚀 Démarrer Ollama"):
-                        with st.spinner("Démarrage d'Ollama..."):
-                            success, msg = ensure_ollama_running()
-                            if success:
-                                st.sidebar.success(msg)
-                                st.rerun()
-                            else:
-                                st.sidebar.error(msg)
-
-                llm_use_multi_model = False
-                if llm_use_multi_agent:
-                    llm_use_multi_model = st.sidebar.checkbox(
-                        "Multi-modeles par role",
-                        value=False,
-                        key="llm_use_multi_model",
-                        help="Assigner differents modeles a chaque role d'agent",
-                    )
-
-                if llm_use_multi_model:
-                    available_models_list = list_available_models()
-                    available_model_names = [m.name for m in available_models_list]
-
-                    llm_limit_small_models = st.sidebar.checkbox(
-                        "Limiter selection aleatoire a <20B",
-                        value=True,
-                        key="llm_limit_small_models",
-                        help="Filtre la liste par taille et exclut deepseek-r1:70b",
-                    )
-                    llm_limit_large_models = st.sidebar.checkbox(
-                        "Limiter selection aleatoire a >=20B",
-                        value=False,
-                        key="llm_limit_large_models",
-                        help="Filtre la liste par taille (>=20B uniquement)",
-                    )
-
-                    effective_small_filter = llm_limit_small_models
-                    effective_large_filter = llm_limit_large_models
-                    if effective_small_filter and effective_large_filter:
-                        st.sidebar.warning(
-                            "Filtres <20B et >=20B actifs: >=20B prioritaire."
-                        )
-                        effective_small_filter = False
-
-                    excluded_models = set()
-                    if not effective_large_filter:
-                        excluded_models = {"deepseek-r1:70b"}
-                    if excluded_models:
-                        available_model_names = [
-                            m for m in available_model_names if m not in excluded_models
-                        ]
-
-                    if effective_small_filter:
-                        filtered = [
-                            m for m in available_model_names if _is_model_under_limit(m, 20)
-                        ]
-                        if filtered:
-                            available_model_names = filtered
-                        else:
-                            st.sidebar.warning(
-                                "Aucun modele <20B detecte, filtre desactive."
-                            )
-
-                    if effective_large_filter:
-                        filtered = [
-                            m for m in available_model_names if _is_model_over_limit(m, 20)
-                        ]
-                        if filtered:
-                            available_model_names = filtered
-                        else:
-                            available_model_names = []
-                            st.sidebar.warning("Aucun modele >=20B detecte.")
-                    if effective_large_filter and not available_model_names:
-                        st.sidebar.error(
-                            "Selection >=20B activee mais aucun modele compatible."
-                        )
-
-                    st.sidebar.markdown("---")
-                    st.sidebar.caption("**Configuration des modèles**")
-
-                    # ===== GESTION DES PRESETS =====
-                    from ui.model_presets import (
-                        apply_preset_to_config,
-                        delete_model_preset,
-                        get_current_config_as_dict,
-                        list_model_presets,
-                        load_model_preset,
-                        save_model_preset,
-                    )
-
-                    # Lister tous les presets
-                    all_presets = list_model_presets()
-                    preset_names = [p["name"] for p in all_presets]
-
-                    # Selectbox pour choisir un preset
-                    col1, col2 = st.sidebar.columns([3, 1])
-                    with col1:
-                        selected_preset = st.selectbox(
-                            "Charger un preset",
-                            options=["Aucun (manuel)"] + preset_names,
-                            key="selected_model_preset",
-                            help="Charge une configuration prédéfinie de modèles LLM"
-                        )
-
-                    with col2:
-                        # Bouton pour appliquer le preset
-                        if selected_preset != "Aucun (manuel)":
-                            if st.button("⚡", key="apply_preset", help="Appliquer ce preset"):
-                                preset = load_model_preset(selected_preset)
-                                apply_preset_to_config(preset, get_global_model_config())
-                                st.rerun()
-
-                    # Expander pour sauvegarder/gérer les presets
-                    with st.sidebar.expander("💾 Gérer les presets"):
-                        user_presets = [p for p in all_presets if not p.get("builtin", False)]
-
-                        # Tab pour organiser les actions
-                        action_choice = st.radio(
-                            "Action",
-                            ["➕ Créer nouveau", "✏️ Modifier existant", "🗑️ Supprimer"],
-                            key="preset_action",
-                            horizontal=True
-                        )
-
-                        if action_choice == "➕ Créer nouveau":
-                            st.markdown("**Créer un nouveau preset**")
-                            new_preset_name = st.text_input(
-                                "Nom du preset",
-                                key="new_preset_name",
-                                placeholder="Ex: Précis, Rapide, Test..."
-                            )
-                            st.caption("💡 Ajustez les modèles ci-dessous avant de sauvegarder")
-
-                            if st.button("💾 Créer", key="create_preset"):
-                                if new_preset_name.strip():
-                                    try:
-                                        current_config = get_current_config_as_dict(get_global_model_config())
-                                        save_model_preset(new_preset_name.strip(), current_config["models"])
-                                        st.success(f"✅ Preset '{new_preset_name}' créé")
-                                        st.rerun()
-                                    except ValueError as e:
-                                        st.error(f"❌ {e}")
-                                else:
-                                    st.error("Nom de preset requis")
-
-                        elif action_choice == "✏️ Modifier existant":
-                            st.markdown("**Modifier un preset existant**")
-                            if user_presets:
-                                preset_to_modify = st.selectbox(
-                                    "Preset à modifier",
-                                    options=[p["name"] for p in user_presets],
-                                    key="preset_to_modify"
-                                )
-                                st.caption("💡 Chargez le preset ci-dessus, ajustez les modèles, puis sauvegardez")
-
-                                if st.button("💾 Sauvegarder modifications", key="update_preset"):
-                                    try:
-                                        current_config = get_current_config_as_dict(get_global_model_config())
-                                        save_model_preset(preset_to_modify, current_config["models"])
-                                        st.success(f"✅ Preset '{preset_to_modify}' mis à jour")
-                                        st.rerun()
-                                    except ValueError as e:
-                                        st.error(f"❌ {e}")
-                            else:
-                                st.info("Aucun preset utilisateur à modifier")
-
-                        elif action_choice == "🗑️ Supprimer":
-                            st.markdown("**Supprimer un preset**")
-                            if user_presets:
-                                preset_to_delete = st.selectbox(
-                                    "Preset à supprimer",
-                                    options=[p["name"] for p in user_presets],
-                                    key="preset_to_delete"
-                                )
-                                st.warning(f"⚠️ Supprimer '{preset_to_delete}' définitivement ?")
-
-                                if st.button("🗑️ Confirmer suppression", key="delete_preset"):
-                                    try:
-                                        if delete_model_preset(preset_to_delete):
-                                            st.success(f"✅ Preset '{preset_to_delete}' supprimé")
-                                            st.rerun()
-                                    except ValueError as e:
-                                        st.error(f"❌ {e}")
-                            else:
-                                st.info("Aucun preset utilisateur à supprimer")
-
-                    st.sidebar.markdown("---")
-                    st.sidebar.caption("**Modeles par role d'agent**")
-                    st.sidebar.caption("Rapide | Moyen | Lent")
-
-                    # Checkbox pour pré-configuration optimale
-                    use_optimal_config = st.sidebar.checkbox(
-                        "Pré-config optimale",
-                        value=False,
-                        key="use_optimal_model_config",
-                        help=(
-                            "Active la configuration recommandée basée sur les benchmarks:\n"
-                            "• Analyst → qwen2.5:14b (rapide)\n"
-                            "• Strategist → gemma3:27b (équilibré)\n"
-                            "• Critic → llama3.3-70b-optimized (puissant)\n"
-                            "• Validator → llama3.3-70b-optimized (critique)"
-                        ),
-                    )
-
-                    if use_optimal_config:
-                        st.sidebar.info(
-                            "💡 Configuration optimale activée. "
-                            "Vous pouvez ajuster manuellement les sélections ci-dessous."
-                        )
-
-                    role_model_config = get_global_model_config()
-
-                    def model_with_badge(name: str) -> str:
-                        info = KNOWN_MODELS.get(name)
-                        if info:
-                            if info.category == ModelCategory.LIGHT:
-                                return f"[L] {name}"
-                            if info.category == ModelCategory.MEDIUM:
-                                return f"[M] {name}"
-                            return f"[H] {name}"
-                        return name
-
-                    model_options_display = [
-                        model_with_badge(m) for m in available_model_names
-                    ]
-                    name_to_display = {
-                        n: model_with_badge(n) for n in available_model_names
-                    }
-                    display_to_name = {v: k for k, v in name_to_display.items()}
-
-                    use_single_model_for_roles = st.sidebar.checkbox(
-                        "Même modèle pour tous les rôles",
-                        value=False,
-                        key="llm_single_model_for_roles",
-                        help="Applique un seul modèle à Analyst/Strategist/Critic/Validator.",
-                    )
-
-                    single_model_selection = None
-                    if use_single_model_for_roles:
-                        if model_options_display:
-                            default_model = (
-                                role_model_config.analyst.models[0]
-                                if role_model_config.analyst.models
-                                else (available_model_names[0] if available_model_names else None)
-                            )
-                            default_display = name_to_display.get(
-                                default_model, model_options_display[0]
-                            )
-                            default_index = (
-                                model_options_display.index(default_display)
-                                if default_display in model_options_display
-                                else 0
-                            )
-                            single_model_selection = st.sidebar.selectbox(
-                                "Modèle unique (tous rôles)",
-                                model_options_display,
-                                index=default_index,
-                                key="llm_single_model_for_roles_name",
-                                help="Ce modèle sera utilisé pour tous les rôles.",
-                            )
-                        else:
-                            st.sidebar.warning(
-                                "Aucun modèle disponible pour unifier les rôles."
-                            )
-
-                    st.sidebar.markdown("**Analyst** (analyse rapide)")
-
-                    if selected_preset and selected_preset != "Aucun (manuel)":
-                        # Charger le preset et utiliser ses modèles
-                        preset = load_model_preset(selected_preset)
-                        preset_models = preset["models"].get("analyst", [])
-                        analyst_default_options = [
-                            name_to_display.get(m, m)
-                            for m in preset_models
-                            if m in available_model_names
-                        ]
-                    elif use_optimal_config:
-                        # Utiliser la config optimale
-                        from ui.components.model_selector import get_optimal_config_for_role
-                        optimal_analyst = get_optimal_config_for_role("analyst", available_model_names)
-                        analyst_default_options = [
-                            name_to_display.get(m, m) for m in optimal_analyst
-                        ]
-                    else:
-                        # Comportement existant
-                        analyst_defaults = [
-                            name_to_display.get(m, m)
-                            for m in role_model_config.analyst.models
-                            if m in available_model_names
-                        ]
-                        analyst_default_options = (
-                            analyst_defaults[:3] if analyst_defaults else model_options_display[:2]
-                        )
-
-                    if not model_options_display:
-                        analyst_default_options = []
-
-                    analyst_selection = st.sidebar.multiselect(
-                        "Modeles Analyst",
-                        model_options_display,
-                        default=analyst_default_options,
-                        key="analyst_models",
-                        help="Modeles rapides recommandes pour l'analyse",
-                    )
-
-                    st.sidebar.markdown("**Strategist** (propositions)")
-
-                    if selected_preset and selected_preset != "Aucun (manuel)":
-                        # Charger le preset et utiliser ses modèles
-                        preset = load_model_preset(selected_preset)
-                        preset_models = preset["models"].get("strategist", [])
-                        strategist_default_options = [
-                            name_to_display.get(m, m)
-                            for m in preset_models
-                            if m in available_model_names
-                        ]
-                    elif use_optimal_config:
-                        # Utiliser la config optimale
-                        optimal_strategist = get_optimal_config_for_role("strategist", available_model_names)
-                        strategist_default_options = [
-                            name_to_display.get(m, m) for m in optimal_strategist
-                        ]
-                    else:
-                        # Comportement existant
-                        strategist_defaults = [
-                            name_to_display.get(m, m)
-                            for m in role_model_config.strategist.models
-                            if m in available_model_names
-                        ]
-                        strategist_default_options = (
-                            strategist_defaults[:3]
-                            if strategist_defaults
-                            else model_options_display[:2]
-                        )
-
-                    if not model_options_display:
-                        strategist_default_options = []
-
-                    strategist_selection = st.sidebar.multiselect(
-                        "Modeles Strategist",
-                        model_options_display,
-                        default=strategist_default_options,
-                        key="strategist_models",
-                        help="Modeles moyens pour la creativite",
-                    )
-
-                    st.sidebar.markdown("**Critic** (evaluation critique)")
-
-                    if selected_preset and selected_preset != "Aucun (manuel)":
-                        # Charger le preset et utiliser ses modèles
-                        preset = load_model_preset(selected_preset)
-                        preset_models = preset["models"].get("critic", [])
-                        critic_default_options = [
-                            name_to_display.get(m, m)
-                            for m in preset_models
-                            if m in available_model_names
-                        ]
-                    elif use_optimal_config:
-                        # Utiliser la config optimale
-                        optimal_critic = get_optimal_config_for_role("critic", available_model_names)
-                        critic_default_options = [
-                            name_to_display.get(m, m) for m in optimal_critic
-                        ]
-                    else:
-                        # Comportement existant
-                        critic_defaults = [
-                            name_to_display.get(m, m)
-                            for m in role_model_config.critic.models
-                            if m in available_model_names
-                        ]
-                        critic_default_options = (
-                            critic_defaults[:3] if critic_defaults else model_options_display[:2]
-                        )
-
-                    if not model_options_display:
-                        critic_default_options = []
-
-                    critic_selection = st.sidebar.multiselect(
-                        "Modeles Critic",
-                        model_options_display,
-                        default=critic_default_options,
-                        key="critic_models",
-                        help="Modeles puissants pour la reflexion",
-                    )
-
-                    st.sidebar.markdown("**Validator** (décision finale)")
-
-                    if selected_preset and selected_preset != "Aucun (manuel)":
-                        # Charger le preset et utiliser ses modèles
-                        preset = load_model_preset(selected_preset)
-                        preset_models = preset["models"].get("validator", [])
-                        validator_default_options = [
-                            name_to_display.get(m, m)
-                            for m in preset_models
-                            if m in available_model_names
-                        ]
-                    elif use_optimal_config:
-                        # Utiliser la config optimale
-                        optimal_validator = get_optimal_config_for_role("validator", available_model_names)
-                        validator_default_options = [
-                            name_to_display.get(m, m) for m in optimal_validator
-                        ]
-                    else:
-                        # Comportement existant
-                        validator_defaults = [
-                            name_to_display.get(m, m)
-                            for m in role_model_config.validator.models
-                            if m in available_model_names
-                        ]
-                        validator_default_options = (
-                            validator_defaults[:3]
-                            if validator_defaults
-                            else model_options_display[:2]
-                        )
-
-                    if not model_options_display:
-                        validator_default_options = []
-
-                    validator_selection = st.sidebar.multiselect(
-                        "Modeles Validator",
-                        model_options_display,
-                        default=validator_default_options,
-                        key="validator_models",
-                        help="Modeles puissants pour decisions finales",
-                    )
-
-                    if use_single_model_for_roles and single_model_selection:
-                        analyst_selection = [single_model_selection]
-                        strategist_selection = [single_model_selection]
-                        critic_selection = [single_model_selection]
-                        validator_selection = [single_model_selection]
-
-                    st.sidebar.markdown("---")
-                    st.sidebar.caption("Modeles lourds")
-                    heavy_after_iter = st.sidebar.number_input(
-                        "Autoriser apres iteration N",
-                        min_value=1,
-                        max_value=20,
-                        value=3,
-                        help="Les modeles lourds ne seront utilises qu'apres cette iteration",
-                    )
-
-                    def _normalize_selection(selection: List[str]) -> List[str]:
-                        names = [display_to_name.get(m, m) for m in selection]
-                        return [n for n in names if n in available_model_names]
-
-                    role_model_config.analyst.models = _normalize_selection(analyst_selection)
-                    role_model_config.strategist.models = _normalize_selection(strategist_selection)
-                    role_model_config.critic.models = _normalize_selection(critic_selection)
-                    role_model_config.validator.models = _normalize_selection(validator_selection)
-
-                    for assignment in [
-                        role_model_config.analyst,
-                        role_model_config.strategist,
-                        role_model_config.critic,
-                        role_model_config.validator,
-                    ]:
-                        assignment.allow_heavy_after_iteration = heavy_after_iter
-
-                    set_global_model_config(role_model_config)
-
-                    st.sidebar.info(
-                        "Si plusieurs modeles sont selectionnes, "
-                        "un sera choisi aleatoirement a chaque appel."
-                    )
-
-                    if role_model_config.analyst.models:
-                        llm_model = role_model_config.analyst.models[0]
-                    elif available_model_names:
-                        llm_model = available_model_names[0]
-                    elif effective_large_filter:
-                        llm_model = None
-                    else:
-                        llm_model = "deepseek-r1:8b"
-
-                else:
-                    from ui.components.model_selector import render_model_selector
-
-                    with st.sidebar:
-                        llm_model = render_model_selector(
-                            label="Modele Ollama",
-                            key="llm_model_select",
-                            preferred_order=RECOMMENDED_FOR_STRATEGY,
-                            help_text="Modeles installes localement via Ollama",
-                            show_details=True,
-                            compact=True,
-                        )
-
-                ollama_host = st.sidebar.text_input(
-                    "URL Ollama",
-                    value="http://127.0.0.1:11434",
-                    help="Adresse du serveur Ollama",
-                )
-                if llm_model:
-                    llm_config = LLMConfig(
-                        provider=LLMProvider.OLLAMA,
-                        model=llm_model,
-                        ollama_host=ollama_host,
-                    )
-                else:
-                    llm_config = None
-            else:
-                openai_key = st.sidebar.text_input(
-                    "Clé API OpenAI",
-                    type="password",
-                    help="Votre clé API OpenAI",
-                )
-                llm_model = st.sidebar.selectbox(
-                    "Modèle OpenAI",
-                    ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
-                    help="gpt-4o-mini recommandé pour coût/performance",
-                )
-                if openai_key:
-                    llm_config = LLMConfig(
-                        provider=LLMProvider.OPENAI,
-                        model=llm_model,
-                        api_key=openai_key,
-                    )
-                else:
-                    st.sidebar.warning("⚠️ Clé API requise")
-
-            st.sidebar.markdown("---")
-            with st.sidebar.expander("⚙️ Options d'optimisation LLM", expanded=False):
-                llm_unlimited_iterations = st.checkbox(
-                    "Itérations illimitées",
-                    value=True,
-                    key="llm_unlimited_iterations",
-                    help="Lance l'optimisation sans limite d'itérations (arrêt manuel requis)",
-                )
-
-                if llm_unlimited_iterations:
-                    llm_max_iterations = 0
-                    st.caption("∞ itérations (arrêt manuel)")
-                else:
-                    llm_max_iterations = st.slider(
-                        "Max itérations",
-                        min_value=3,
-                        max_value=50,
-                        value=10,
-                        help="Nombre max de cycles d'amélioration",
-                    )
-
-                walk_forward_enabled = True
-                walk_forward_reason = ""
-
-                df_cached = st.session_state.get("ohlcv_df")
-                if df_cached is not None and not df_cached.empty:
-                    data_duration_days = (df_cached.index[-1] - df_cached.index[0]).days
-                    data_duration_months = data_duration_days / 30.44
-
-                    if data_duration_months < 6:
-                        walk_forward_enabled = False
-                        walk_forward_reason = (
-                            "⚠️ Walk-Forward désactivé "
-                            f"(durée: {data_duration_months:.1f} mois < 6 mois requis)"
-                        )
-                    else:
-                        walk_forward_reason = (
-                            f"✅ Walk-Forward disponible (durée: {data_duration_months:.1f} mois)"
-                        )
-
-                if walk_forward_reason:
-                    if walk_forward_enabled:
-                        st.caption(walk_forward_reason)
-                    else:
-                        st.warning(walk_forward_reason)
-
-                llm_use_walk_forward = st.checkbox(
-                    "Walk-Forward Validation",
-                    value=walk_forward_enabled,
-                    disabled=not walk_forward_enabled,
-                    help=(
-                        "Anti-overfitting: valide sur données hors-échantillon "
-                        "(nécessite >6 mois de données)"
-                    ),
-                )
-
-                llm_unload_during_backtest = st.checkbox(
-                    "Décharger LLM du GPU",
-                    value=default_llm_unload,
-                    help=(
-                        "Libère la VRAM pendant les backtests pour améliorer les performances. "
-                        "Peut être désactivé en mode CPU-only."
-                    ),
-                )
-
-            llm_opt_summary = []
-            if llm_unlimited_iterations:
-                llm_opt_summary.append("∞ itérations")
-            else:
-                llm_opt_summary.append(f"{llm_max_iterations} itérations")
-            llm_opt_summary.append("WF ON" if llm_use_walk_forward else "WF OFF")
-            llm_opt_summary.append(
-                "Unload ON" if llm_unload_during_backtest else "Unload OFF"
-            )
-            st.sidebar.caption(" | ".join(llm_opt_summary))
-
-            st.sidebar.markdown("---")
-            with st.sidebar.expander("Comparaison multi-strategies", expanded=False):
-                llm_compare_enabled = st.checkbox(
-                    "Comparer strategies (multi-tokens/timeframes)",
-                    value=False,
-                    key="llm_compare_enabled",
-                )
-                if llm_compare_enabled:
-                    llm_compare_auto_run = st.checkbox(
-                        "Execution automatique",
-                        value=True,
-                        key="llm_compare_auto_run",
-                        help="Lance la comparaison avant l'optimisation LLM",
-                    )
-                    compare_strategy_labels = st.multiselect(
-                        "Strategies a comparer",
-                        list(strategy_options.keys()),
-                        default=[strategy_name],
-                        key="llm_compare_strategy_labels",
-                    )
-                    llm_compare_strategies = [
-                        strategy_options[label]
-                        for label in compare_strategy_labels
-                        if label in strategy_options
-                    ]
-
-                    llm_compare_tokens = st.multiselect(
-                        "Tokens",
-                        available_tokens,
-                        default=[symbol],
-                        key="llm_compare_tokens",
-                    )
-                    llm_compare_timeframes = st.multiselect(
-                        "Timeframes",
-                        available_timeframes,
-                        default=[timeframe],
-                        key="llm_compare_timeframes",
-                    )
-
-                    llm_compare_metric = st.selectbox(
-                        "Metrica principale",
-                        [
-                            "sharpe_ratio",
-                            "total_return_pct",
-                            "max_drawdown",
-                            "win_rate",
-                        ],
-                        index=0,
-                        key="llm_compare_metric",
-                    )
-                    llm_compare_aggregate = st.selectbox(
-                        "Agregation",
-                        ["median", "mean", "worst"],
-                        index=0,
-                        key="llm_compare_aggregate",
-                    )
-                    llm_compare_max_runs = st.number_input(
-                        "Max runs comparaison",
-                        min_value=1,
-                        max_value=500,
-                        value=25,
-                        step=1,
-                        key="llm_compare_max_runs",
-                    )
-                    llm_compare_use_preset = st.checkbox(
-                        "Utiliser presets si disponibles",
-                        value=True,
-                        key="llm_compare_use_preset",
-                    )
-                    llm_compare_generate_report = st.checkbox(
-                        "Generer justification LLM",
-                        value=True,
-                        key="llm_compare_generate_report",
-                    )
-
-                    if (
-                        llm_compare_strategies
-                        and llm_compare_tokens
-                        and llm_compare_timeframes
-                    ):
-                        total_runs = (
-                            len(llm_compare_strategies)
-                            * len(llm_compare_tokens)
-                            * len(llm_compare_timeframes)
-                        )
-                        st.caption(
-                            f"Estime: {total_runs} runs (cap {llm_compare_max_runs})."
-                        )
-
-                    if not llm_compare_auto_run:
-                        if "llm_compare_run_now" not in st.session_state:
-                            st.session_state["llm_compare_run_now"] = False
-                        if st.button("Lancer comparaison", key="llm_compare_run_button"):
-                            st.session_state["llm_compare_run_now"] = True
-                else:
-                    if "llm_compare_run_now" in st.session_state:
-                        st.session_state["llm_compare_run_now"] = False
-
-            if llm_use_multi_agent:
-                max_iter_label = "∞" if llm_max_iterations <= 0 else str(llm_max_iterations)
-                st.sidebar.caption(
-                    "Agents: Analyst/Strategist/Critic/Validator | "
-                    f"Max iterations: {max_iter_label}"
-                )
-            else:
-                max_iter_label = "∞" if llm_max_iterations <= 0 else str(llm_max_iterations)
-                st.sidebar.caption(
-                    f"Agent autonome | Max iterations: {max_iter_label}"
-                )
+        llm_config = st.session_state.get("exec_llm_config_obj")
+        llm_model = st.session_state.get("exec_llm_model")
+        llm_use_multi_agent = bool(st.session_state.get("exec_llm_use_multi_agent", False))
+        role_model_config = st.session_state.get("exec_llm_role_model_config")
+        llm_max_iterations = int(st.session_state.get("exec_llm_max_iterations", 10))
+        llm_use_walk_forward = bool(st.session_state.get("exec_llm_use_walk_forward", True))
+        llm_unload_during_backtest = bool(st.session_state.get("exec_llm_unload", default_llm_unload))
+        llm_compare_enabled = bool(st.session_state.get("exec_llm_compare_enabled", False))
+        llm_compare_auto_run = bool(st.session_state.get("exec_llm_compare_auto_run", True))
+        llm_compare_strategies = list(st.session_state.get("exec_llm_compare_strategies", []))
+        llm_compare_tokens = list(st.session_state.get("exec_llm_compare_tokens", []))
+        llm_compare_timeframes = list(st.session_state.get("exec_llm_compare_timeframes", []))
+        llm_compare_metric = str(st.session_state.get("exec_llm_compare_metric", "sharpe_ratio"))
+        llm_compare_aggregate = str(st.session_state.get("exec_llm_compare_aggregate", "median"))
+        llm_compare_max_runs = int(st.session_state.get("exec_llm_compare_max_runs", 25))
+        llm_compare_use_preset = bool(st.session_state.get("exec_llm_compare_use_preset", True))
+        llm_compare_generate_report = bool(st.session_state.get("exec_llm_compare_generate_report", True))
+
+        st.sidebar.caption("⚙️ Configuration LLM déplacée dans l'onglet principal Optimisation LLM")
 
     # ======================== GPU ACCELERATION ========================
     st.sidebar.markdown("---")
@@ -3009,9 +1969,9 @@ def render_sidebar() -> SidebarState:
     # Multi-sweep lists (symbols et timeframes déjà définis par multiselect)
     # strategy_keys et all_params/ranges/specs pour toutes les stratégies sélectionnées
     strategy_keys = [strategy_options[name] for name in strategy_names]
-    all_params = {}
-    all_param_ranges = {}
-    all_param_specs = {}
+    all_params: Dict[str, Dict[str, Any]] = {}
+    all_param_ranges: Dict[str, Dict[str, Any]] = {}
+    all_param_specs: Dict[str, Dict[str, Any]] = {}
 
     # Gestion multi-stratégies : afficher les widgets pour CHAQUE stratégie sélectionnée
     if len(strategy_names) > 1:
@@ -3312,8 +2272,10 @@ def render_sidebar() -> SidebarState:
 
     # === PANEL CATALOGUE DE STRATÉGIES ===
     # Afficher uniquement en mode Catalogue et hors mode Builder
-    if (_current_mode != "🏗️ Strategy Builder" and
-        st.session_state.get("strategy_selection_mode") == "🗂️ Catalogue"):
+    if (
+        _current_mode != "🏗️ Strategy Builder"
+        and st.session_state.get("strategy_selection_mode") == "🗂️ Catalogue"
+    ):
         render_strategy_catalog_panel(strategy_options)
 
     return applied_state

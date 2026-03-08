@@ -15,18 +15,113 @@ Stratégies supportées:
 - rsi_reversal
 """
 
+import logging
+import os
 import time
+from contextlib import contextmanager
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from performance.memory import get_available_ram_gb
+from performance.parallel import get_recommended_chunk_size, get_recommended_worker_count
 
 try:
-    from numba import njit, prange
+    from numba import get_num_threads, njit, prange, set_num_threads
     HAS_NUMBA = True
 except ImportError:
     HAS_NUMBA = False
     prange = range
+    get_num_threads = None
+    set_num_threads = None
+
+
+logger = logging.getLogger(__name__)
+
+NUMBA_SWEEP_PARAM_SPECS: Dict[str, Dict[str, float]] = {
+    "bollinger_best_longe_3i": {
+        "bb_period": 20.0,
+        "bb_std": 2.1,
+        "entry_level": 0.0,
+        "sl_level": -0.5,
+        "tp_level": 0.85,
+        "leverage": 1.0,
+    },
+    "bollinger_best_short_3i": {
+        "bb_period": 20.0,
+        "bb_std": 2.1,
+        "entry_level": 1.0,
+        "sl_level": 1.5,
+        "tp_level": 0.15,
+        "leverage": 1.0,
+    },
+    "bollinger": {
+        "bb_period": 20.0,
+        "bb_std": 2.0,
+        "entry_z": 2.0,
+        "leverage": 1.0,
+        "k_sl": 1.5,
+    },
+    "ema_cross": {
+        "fast_period": 12.0,
+        "slow_period": 26.0,
+        "leverage": 1.0,
+        "k_sl": 1.5,
+    },
+    "rsi_reversal": {
+        "rsi_period": 14.0,
+        "overbought": 70.0,
+        "oversold": 30.0,
+        "leverage": 1.0,
+        "k_sl": 1.5,
+    },
+    "macd_cross": {
+        "fast_period": 12.0,
+        "slow_period": 26.0,
+        "signal_period": 9.0,
+        "leverage": 1.0,
+        "k_sl": 1.5,
+    },
+}
+
+NUMBA_SWEEP_THREAD_PROFILES: Dict[str, Dict[str, float]] = {
+    "bollinger_best_longe_3i": {
+        "cost_multiplier": 1.35,
+        "to_4_threads": 220_000,
+        "to_8_threads": 550_000,
+        "to_16_threads": 3_000_000,
+    },
+    "bollinger_best_short_3i": {
+        "cost_multiplier": 1.35,
+        "to_4_threads": 220_000,
+        "to_8_threads": 550_000,
+        "to_16_threads": 3_000_000,
+    },
+    "bollinger": {
+        "cost_multiplier": 1.00,
+        "to_4_threads": 220_000,
+        "to_8_threads": 500_000,
+        "to_16_threads": 3_500_000,
+    },
+    "ema_cross": {
+        "cost_multiplier": 0.90,
+        "to_4_threads": 180_000,
+        "to_8_threads": 450_000,
+        "to_16_threads": 3_200_000,
+    },
+    "rsi_reversal": {
+        "cost_multiplier": 0.85,
+        "to_4_threads": 250_000,
+        "to_8_threads": 1_000_000,
+        "to_16_threads": 8_000_000,
+    },
+    "macd_cross": {
+        "cost_multiplier": 1.20,
+        "to_4_threads": 200_000,
+        "to_8_threads": 550_000,
+        "to_16_threads": 3_200_000,
+    },
+}
 
 # ============================================================================
 # Stratégies supportées par le sweep Numba
@@ -40,10 +135,213 @@ NUMBA_SUPPORTED_STRATEGIES = {
     'bollinger_best_short_3i',
 }
 
+NUMBA_SUPPORTED_METRICS = {
+    "sharpe",
+    "sharpe_ratio",
+    "total_pnl",
+    "total_return",
+    "total_return_pct",
+    "max_drawdown",
+    "max_drawdown_pct",
+    "win_rate",
+    "win_rate_pct",
+    "total_trades",
+    "n_trades",
+}
+
+
+def normalize_numba_strategy_key(strategy_key: str) -> str:
+    """Normalise une clé stratégie pour les heuristiques de sweep Numba."""
+    return str(strategy_key or "").lower().replace("-", "_").replace(" ", "_")
+
+
+def normalize_numba_metric_name(metric: Optional[str]) -> str:
+    """Normalise les alias de métriques vers le contrat canonique Numba."""
+    metric_key = str(metric or "sharpe_ratio").strip().lower()
+    aliases = {
+        "sharpe": "sharpe_ratio",
+        "return": "total_return_pct",
+        "total_return": "total_return_pct",
+        "pnl": "total_pnl",
+        "drawdown": "max_drawdown_pct",
+        "max_drawdown": "max_drawdown_pct",
+        "winrate": "win_rate_pct",
+        "win_rate": "win_rate_pct",
+        "trades": "total_trades",
+        "n_trades": "total_trades",
+    }
+    return aliases.get(metric_key, metric_key)
+
 
 def is_numba_supported(strategy_key: str) -> bool:
     """Vérifie si une stratégie supporte le sweep Numba."""
-    return HAS_NUMBA and strategy_key.lower() in NUMBA_SUPPORTED_STRATEGIES
+    return HAS_NUMBA and normalize_numba_strategy_key(strategy_key) in NUMBA_SUPPORTED_STRATEGIES
+
+
+def is_numba_metric_supported(metric: Optional[str]) -> bool:
+    """Vérifie si la métrique demandée est compatible avec le backend Numba."""
+    if metric is None:
+        return True
+    return normalize_numba_metric_name(metric) in NUMBA_SUPPORTED_METRICS
+
+
+def should_use_numba_backend(
+    strategy_key: str,
+    *,
+    metric: Optional[str] = "sharpe_ratio",
+    total_combos: Optional[int] = None,
+) -> bool:
+    """
+    Décide si le sweep Numba doit être utilisé par défaut.
+
+    Le but est de privilégier Numba partout où le contrat fonctionnel reste
+    compatible; un fallback classique reste possible via variables d'environnement.
+    """
+    strategy_name = normalize_numba_strategy_key(strategy_key)
+    metric_name = normalize_numba_metric_name(metric)
+
+    if not is_numba_supported(strategy_name):
+        return False
+    if not is_numba_metric_supported(metric_name):
+        return False
+
+    prefer_env = os.getenv("BACKTEST_PREFER_NUMBA_SWEEP", "1").strip().lower()
+    if prefer_env in {"0", "false", "no", "off"}:
+        return False
+
+    if total_combos is not None:
+        try:
+            min_combos = max(1, int(os.getenv("BACKTEST_NUMBA_SWEEP_MIN_COMBOS", "1")))
+        except (TypeError, ValueError):
+            min_combos = 1
+        if total_combos < min_combos:
+            return False
+
+    return True
+
+
+def numba_result_to_metrics(result: Dict[str, Any], initial_capital: float) -> Dict[str, Any]:
+    """Normalise un résultat Numba vers le format métriques attendu par les autres couches."""
+    total_pnl = float(result.get("total_pnl", 0.0))
+    max_drawdown = -abs(float(result.get("max_drawdown", 0.0)))
+    win_rate = float(result.get("win_rate", 0.0))
+    sharpe_ratio = float(result.get("sharpe_ratio", 0.0))
+    total_trades = int(result.get("total_trades", 0))
+
+    total_return_pct = 0.0
+    if initial_capital:
+        total_return_pct = total_pnl / float(initial_capital) * 100.0
+
+    return {
+        "total_pnl": total_pnl,
+        "sharpe_ratio": sharpe_ratio,
+        "max_drawdown_pct": max_drawdown,
+        "win_rate_pct": win_rate,
+        "total_trades": total_trades,
+        "total_return_pct": total_return_pct,
+    }
+
+
+def build_numba_sweep_result_item(
+    result: Dict[str, Any],
+    *,
+    initial_capital: float,
+    metric: Optional[str] = "sharpe_ratio",
+) -> Dict[str, Any]:
+    """Construit un item de sweep normalisé à partir d'un résultat brut Numba."""
+    metric_key = normalize_numba_metric_name(metric)
+    metrics = numba_result_to_metrics(result, initial_capital)
+    params = result.get("params", {}) or {}
+    return {
+        "params": params,
+        "metrics": metrics,
+        "score": metrics.get(metric_key, 0),
+    }
+
+
+def run_numba_sweep_items_if_supported(
+    *,
+    df: pd.DataFrame,
+    strategy_key: str,
+    param_grid: List[Dict[str, Any]],
+    metric: Optional[str] = "sharpe_ratio",
+    initial_capital: float = 10000.0,
+    fees_bps: float = 10.0,
+    slippage_bps: float = 5.0,
+    progress_callback: Optional[Callable[[int, int, Dict[str, Any]], None]] = None,
+    result_chunk_callback: Optional[
+        Callable[[List[Dict[str, Any]], int, int, Optional[Dict[str, Any]]], None]
+    ] = None,
+    thread_override: Optional[int] = None,
+    chunk_size_override: Optional[int] = None,
+    should_stop: Optional[Callable[[], bool]] = None,
+    _param_arrays: Optional[Dict[str, np.ndarray]] = None,
+    _ohlcv: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
+) -> Optional[List[Dict[str, Any]]]:
+    """
+    Exécute un sweep Numba si le backend est compatible et retourne des items normalisés.
+
+    Chaque item suit le contrat:
+    `{"params": {...}, "metrics": {...}, "score": ...}`.
+    """
+    strategy_name = normalize_numba_strategy_key(strategy_key)
+    metric_key = normalize_numba_metric_name(metric)
+
+    if not should_use_numba_backend(
+        strategy_name,
+        metric=metric_key,
+        total_combos=len(param_grid),
+    ):
+        return None
+
+    def normalized_chunk_callback(
+        chunk_rows: List[Dict[str, Any]],
+        completed: int,
+        total: int,
+        best_result: Optional[Dict[str, Any]],
+    ) -> None:
+        if result_chunk_callback is None:
+            return
+        chunk_items = [
+            build_numba_sweep_result_item(
+                row,
+                initial_capital=initial_capital,
+                metric=metric_key,
+            )
+            for row in chunk_rows
+        ]
+        best_item = None
+        if best_result is not None:
+            best_item = build_numba_sweep_result_item(
+                best_result,
+                initial_capital=initial_capital,
+                metric=metric_key,
+            )
+        result_chunk_callback(chunk_items, completed, total, best_item)
+
+    rows = run_numba_sweep(
+        df=df,
+        strategy_key=strategy_name,
+        param_grid=param_grid,
+        initial_capital=initial_capital,
+        fees_bps=fees_bps,
+        slippage_bps=slippage_bps,
+        progress_callback=progress_callback,
+        result_chunk_callback=normalized_chunk_callback if result_chunk_callback else None,
+        thread_override=thread_override,
+        chunk_size_override=chunk_size_override,
+        should_stop=should_stop,
+        _param_arrays=_param_arrays,
+        _ohlcv=_ohlcv,
+    )
+    return [
+        build_numba_sweep_result_item(
+            row,
+            initial_capital=initial_capital,
+            metric=metric_key,
+        )
+        for row in rows
+    ]
 
 
 if HAS_NUMBA:
@@ -557,9 +855,523 @@ def create_signal_generator(strategy_name: str):
     return generators.get(strategy_name, bollinger_generator)
 
 
+def _resolve_numba_strategy_family(strategy_lower: str) -> str:
+    """Normalise une stratégie supportée vers sa famille de sweep Numba."""
+    if strategy_lower in {"bollinger_best_longe_3i", "bollinger_best_short_3i"}:
+        return strategy_lower
+    if "bollinger" in strategy_lower:
+        return "bollinger"
+    if "ema" in strategy_lower and "cross" in strategy_lower:
+        return "ema_cross"
+    if "rsi" in strategy_lower:
+        return "rsi_reversal"
+    if "macd" in strategy_lower:
+        return "macd_cross"
+    raise ValueError(f"Stratégie '{strategy_lower}' non supportée par Numba sweep")
+
+
+def _get_numba_param_spec(strategy_lower: str) -> Dict[str, float]:
+    return NUMBA_SWEEP_PARAM_SPECS[_resolve_numba_strategy_family(strategy_lower)]
+
+
+def _get_numba_thread_profile(strategy_lower: str) -> Dict[str, float]:
+    return NUMBA_SWEEP_THREAD_PROFILES[_resolve_numba_strategy_family(strategy_lower)]
+
+
+def _estimate_numba_sweep_bytes_per_combo(strategy_lower: str) -> int:
+    """Estime la mémoire linéaire par combinaison pour un kernel spécialisé."""
+    param_arrays = len(_get_numba_param_spec(strategy_lower))
+
+    result_arrays = 5
+    return (param_arrays + result_arrays) * 8
+
+
+def _get_numba_sweep_memory_budget_gb() -> float:
+    """
+    Retourne le budget RAM autorisé pour un sweep Numba.
+
+    Défaut: utiliser le matériel disponible avec une large fenêtre DDR, plafonnée
+    à 40 GB pour éviter de saturer inutilement le système.
+    """
+    available_gb = max(1.0, get_available_ram_gb())
+
+    env_budget = os.getenv("BACKTEST_NUMBA_SWEEP_RAM_BUDGET_GB")
+    if env_budget:
+        try:
+            requested = max(0.5, float(env_budget))
+        except (TypeError, ValueError):
+            requested = min(40.0, available_gb * 0.80)
+    else:
+        requested = min(40.0, available_gb * 0.80)
+
+    return max(0.5, min(requested, available_gb * 0.90))
+
+
+def _get_numba_chunk_size(
+    strategy_lower: str,
+    total_combos: int,
+    n_bars: int,
+    chunk_size_override: Optional[int] = None,
+) -> int:
+    """
+    Détermine une taille de chunk adaptée au sweep Numba.
+
+    On borne la taille par:
+    - un plafond de calcul pour éviter des kernels monolithiques
+    - un plafond mémoire basé sur le budget DDR disponible
+    """
+    if total_combos <= 0:
+        return 0
+
+    if chunk_size_override is not None:
+        return max(1, min(int(chunk_size_override), total_combos))
+
+    bytes_per_combo = _estimate_numba_sweep_bytes_per_combo(strategy_lower)
+    budget_bytes = _get_numba_sweep_memory_budget_gb() * (1024 ** 3)
+    static_bytes = n_bars * 3 * 8
+    linear_total_bytes = static_bytes + (total_combos * bytes_per_combo)
+    if linear_total_bytes <= budget_bytes * 0.70:
+        return total_combos
+
+    headroom_bytes = max(256 * 1024 * 1024, int(budget_bytes * 0.05))
+    usable_bytes = max(1, int(budget_bytes - static_bytes - headroom_bytes))
+    memory_bound = max(1, usable_bytes // max(1, bytes_per_combo))
+
+    base_chunk = get_recommended_chunk_size(default=2048, total_tasks=total_combos)
+    max_chunk = int(os.getenv("BACKTEST_NUMBA_SWEEP_MAX_CHUNK", "1000000"))
+    min_chunk = int(os.getenv("BACKTEST_NUMBA_SWEEP_MIN_CHUNK", str(max(2048, base_chunk * 8))))
+
+    if total_combos <= min_chunk:
+        return total_combos
+
+    chunk_size = min(total_combos, memory_bound, max_chunk)
+    if chunk_size < min_chunk:
+        return max(1, min(total_combos, chunk_size))
+    return max(min_chunk, chunk_size)
+
+
+def _get_numba_thread_count(
+    strategy_lower: str,
+    chunk_size: int,
+    n_bars: int,
+    thread_override: Optional[int] = None,
+) -> int:
+    """
+    Détermine le nombre de threads Numba utile pour un chunk.
+
+    Les kernels Numba du sweep parallélisent sur les combinaisons. Sur petits
+    chunks, utiliser beaucoup de threads coûte plus qu'il ne rapporte.
+    """
+    if chunk_size <= 0:
+        return 1
+
+    if thread_override is not None:
+        return max(1, int(thread_override))
+
+    recommended = get_recommended_worker_count(max_cap=os.cpu_count() or 1)
+    profile = _get_numba_thread_profile(strategy_lower)
+    work_units = chunk_size * max(1, n_bars) * profile["cost_multiplier"]
+
+    if chunk_size < 64 or work_units < profile["to_4_threads"]:
+        return 1
+    if chunk_size < 128 or work_units < profile["to_8_threads"]:
+        return min(recommended, 4)
+    if chunk_size < 512 or work_units < profile["to_16_threads"]:
+        return min(recommended, 8)
+    if chunk_size < 2048 or work_units < profile["to_16_threads"] * 4:
+        return min(recommended, 16)
+    return max(1, recommended)
+
+
+@contextmanager
+def _numba_thread_context(thread_count: int):
+    """Applique temporairement un nombre de threads Numba."""
+    if not HAS_NUMBA or set_num_threads is None or get_num_threads is None:
+        yield 1
+        return
+
+    previous = get_num_threads()
+    applied = max(1, int(thread_count))
+    set_num_threads(applied)
+    try:
+        yield get_num_threads()
+    finally:
+        set_num_threads(previous)
+
+
+def _extract_param_array(
+    params_chunk: List[Dict[str, Any]],
+    key: str,
+    default: float,
+) -> np.ndarray:
+    return np.fromiter(
+        (float(params.get(key, default)) for params in params_chunk),
+        dtype=np.float64,
+        count=len(params_chunk),
+    )
+
+
+def extract_strategy_params(
+    strategy_key: str,
+    param_grid: List[Dict[str, Any]],
+) -> Dict[str, np.ndarray]:
+    """
+    Pré-extrait tous les paramètres d'une grille en arrays numpy.
+
+    Le hot path des gros sweeps ne doit pas reboucler sur `dict.get(...)`
+    entre chaque chunk si la grille est déjà matérialisée.
+    """
+    strategy_lower = strategy_key.lower()
+    param_spec = _get_numba_param_spec(strategy_lower)
+    return {
+        key: _extract_param_array(param_grid, key, default)
+        for key, default in param_spec.items()
+    }
+
+
+def _slice_param_arrays(
+    param_arrays: Dict[str, np.ndarray],
+    start: int,
+    end: int,
+) -> Dict[str, np.ndarray]:
+    return {key: values[start:end] for key, values in param_arrays.items()}
+
+
+def _run_numba_kernel_chunk(
+    strategy_lower: str,
+    params_chunk: List[Dict[str, Any]],
+    closes: np.ndarray,
+    highs: np.ndarray,
+    lows: np.ndarray,
+    initial_capital: float,
+    fees_bps: float,
+    slippage_bps: float,
+    param_arrays_chunk: Optional[Dict[str, np.ndarray]] = None,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Exécute un chunk de sweep sur le kernel spécialisé correspondant."""
+    param_spec = _get_numba_param_spec(strategy_lower)
+    arrays = param_arrays_chunk or {
+        key: _extract_param_array(params_chunk, key, default)
+        for key, default in param_spec.items()
+    }
+
+    if strategy_lower == "bollinger_best_longe_3i":
+        return _sweep_boll_level_long(
+            closes,
+            highs,
+            lows,
+            arrays["bb_period"],
+            arrays["bb_std"],
+            arrays["entry_level"],
+            arrays["sl_level"],
+            arrays["tp_level"],
+            arrays["leverage"],
+            initial_capital,
+            fees_bps,
+            slippage_bps,
+        )
+
+    if strategy_lower == "bollinger_best_short_3i":
+        return _sweep_boll_level_short(
+            closes,
+            highs,
+            lows,
+            arrays["bb_period"],
+            arrays["bb_std"],
+            arrays["entry_level"],
+            arrays["sl_level"],
+            arrays["tp_level"],
+            arrays["leverage"],
+            initial_capital,
+            fees_bps,
+            slippage_bps,
+        )
+
+    if "bollinger" in strategy_lower:
+        return _sweep_bollinger_full(
+            closes,
+            highs,
+            lows,
+            arrays["bb_period"],
+            arrays["bb_std"],
+            arrays["entry_z"],
+            arrays["leverage"],
+            arrays["k_sl"],
+            initial_capital,
+            fees_bps,
+            slippage_bps,
+        )
+
+    if "ema" in strategy_lower and "cross" in strategy_lower:
+        return _sweep_ema_cross_full(
+            closes,
+            highs,
+            lows,
+            arrays["fast_period"],
+            arrays["slow_period"],
+            arrays["leverage"],
+            arrays["k_sl"],
+            initial_capital,
+            fees_bps,
+            slippage_bps,
+        )
+
+    if "rsi" in strategy_lower:
+        return _sweep_rsi_reversal_full(
+            closes,
+            highs,
+            lows,
+            arrays["rsi_period"],
+            arrays["overbought"],
+            arrays["oversold"],
+            arrays["leverage"],
+            arrays["k_sl"],
+            initial_capital,
+            fees_bps,
+            slippage_bps,
+        )
+
+    if "macd" in strategy_lower:
+        return _sweep_macd_cross_full(
+            closes,
+            highs,
+            lows,
+            arrays["fast_period"],
+            arrays["slow_period"],
+            arrays["signal_period"],
+            arrays["leverage"],
+            arrays["k_sl"],
+            initial_capital,
+            fees_bps,
+            slippage_bps,
+        )
+
+    raise ValueError(f"Stratégie '{strategy_lower}' non supportée par Numba sweep")
+
+
+def _build_results_chunk(
+    params_chunk: List[Dict[str, Any]],
+    pnls: np.ndarray,
+    sharpes: np.ndarray,
+    max_dds: np.ndarray,
+    win_rates: np.ndarray,
+    n_trades: np.ndarray,
+) -> List[Dict[str, Any]]:
+    return [
+        {
+            "params": params_chunk[i],
+            "total_pnl": float(pnls[i]),
+            "sharpe_ratio": float(sharpes[i]),
+            "max_drawdown": float(max_dds[i]),
+            "win_rate": float(win_rates[i]),
+            "total_trades": int(n_trades[i]),
+        }
+        for i in range(len(params_chunk))
+    ]
+
+
+def _make_best_result_dict(
+    params_chunk: List[Dict[str, Any]],
+    pnls: np.ndarray,
+    sharpes: np.ndarray,
+    max_dds: np.ndarray,
+    win_rates: np.ndarray,
+    n_trades: np.ndarray,
+    best_idx: int,
+) -> Dict[str, Any]:
+    return {
+        "params": params_chunk[best_idx],
+        "total_pnl": float(pnls[best_idx]),
+        "sharpe_ratio": float(sharpes[best_idx]),
+        "max_drawdown": float(max_dds[best_idx]),
+        "win_rate": float(win_rates[best_idx]),
+        "total_trades": int(n_trades[best_idx]),
+    }
+
+
 # ============================================================================
 # Benchmark
 # ============================================================================
+
+
+def _build_benchmark_ohlcv(n_bars: int, seed: int = 42) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    close = 100 * np.exp(np.cumsum(rng.normal(0.0, 0.015, n_bars)))
+    return pd.DataFrame(
+        {
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "volume": rng.integers(1_000, 10_000, n_bars),
+        }
+    )
+
+
+def _build_benchmark_param_grid(strategy_key: str, n_combos: int) -> List[Dict[str, float]]:
+    strategy_lower = strategy_key.lower()
+    strategy_family = _resolve_numba_strategy_family(strategy_lower)
+    combos: List[Dict[str, float]] = []
+
+    if strategy_family == "ema_cross":
+        for fast in range(5, 81):
+            for slow in range(max(fast + 2, 20), 261, 2):
+                for leverage in (1.0, 2.0):
+                    for k_sl in (1.0, 1.5, 2.0):
+                        combos.append(
+                            {
+                                "fast_period": float(fast),
+                                "slow_period": float(slow),
+                                "leverage": leverage,
+                                "k_sl": k_sl,
+                            }
+                        )
+                        if len(combos) >= n_combos:
+                            return combos
+
+    if strategy_family == "macd_cross":
+        for fast in range(6, 41, 2):
+            for slow in range(max(fast + 4, 24), 121, 2):
+                for signal in range(5, 31, 2):
+                    for leverage in (1.0, 2.0):
+                        combos.append(
+                            {
+                                "fast_period": float(fast),
+                                "slow_period": float(slow),
+                                "signal_period": float(signal),
+                                "leverage": leverage,
+                                "k_sl": 1.5,
+                            }
+                        )
+                        if len(combos) >= n_combos:
+                            return combos
+
+    if strategy_family == "rsi_reversal":
+        for rsi_period in range(6, 40):
+            for overbought in range(60, 91, 3):
+                for oversold in range(10, 41, 3):
+                    if oversold >= overbought:
+                        continue
+                    for leverage in (1.0, 2.0):
+                        combos.append(
+                            {
+                                "rsi_period": float(rsi_period),
+                                "overbought": float(overbought),
+                                "oversold": float(oversold),
+                                "leverage": leverage,
+                                "k_sl": 1.5,
+                            }
+                        )
+                        if len(combos) >= n_combos:
+                            return combos
+
+    if strategy_family in {"bollinger", "bollinger_best_longe_3i", "bollinger_best_short_3i"}:
+        if "best_" in strategy_family:
+            for bb_period in range(10, 90, 2):
+                for bb_std in np.arange(0.8, 4.3, 0.2):
+                    for entry in np.arange(-0.3, 1.7, 0.1):
+                        combos.append(
+                            {
+                                "bb_period": float(bb_period),
+                                "bb_std": float(bb_std),
+                                "entry_level": float(entry if "long" in strategy_family else max(1.0, entry)),
+                                "sl_level": float(-0.8 if "long" in strategy_family else 1.4),
+                                "tp_level": float(0.9 if "long" in strategy_family else 0.2),
+                                "leverage": 1.0,
+                            }
+                        )
+                        if len(combos) >= n_combos:
+                            return combos
+        else:
+            for bb_period in range(10, 90, 2):
+                for bb_std in np.arange(1.0, 4.6, 0.2):
+                    for entry_z in np.arange(1.0, 3.6, 0.2):
+                        combos.append(
+                            {
+                                "bb_period": float(bb_period),
+                                "bb_std": float(bb_std),
+                                "entry_z": float(entry_z),
+                                "leverage": 1.0,
+                                "k_sl": 1.5,
+                            }
+                        )
+                        if len(combos) >= n_combos:
+                            return combos
+
+    raise ValueError(f"Impossible de générer une grille benchmark pour '{strategy_key}'")
+
+
+def benchmark_numba_strategy_profiles(
+    strategy_keys: Optional[List[str]] = None,
+    combo_sizes: Tuple[int, ...] = (128, 1024, 8192),
+    n_bars: int = 5000,
+    thread_candidates: Optional[Tuple[Optional[int], ...]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Benchmark reproductible des profils adaptatifs Numba par stratégie.
+
+    Utilisé pour fixer les seuils de threads sur CPU-only sans dépendre de l'UI.
+    """
+    if strategy_keys is None:
+        strategy_keys = ["ema_cross", "macd_cross", "rsi_reversal", "bollinger_atr"]
+    if thread_candidates is None:
+        thread_candidates = (1, 4, 8, 16, None)
+
+    rows: List[Dict[str, Any]] = []
+
+    for idx, strategy_key in enumerate(strategy_keys):
+        df = _build_benchmark_ohlcv(n_bars=n_bars, seed=42 + idx)
+        max_combos = max(combo_sizes)
+        param_grid = _build_benchmark_param_grid(strategy_key, max_combos)
+        param_arrays = extract_strategy_params(strategy_key, param_grid)
+        ohlcv = (
+            np.asarray(df["close"].values, dtype=np.float64),
+            np.asarray(df["high"].values, dtype=np.float64),
+            np.asarray(df["low"].values, dtype=np.float64),
+        )
+
+        # Warmup JIT par stratégie pour éviter de polluer la mesure.
+        run_numba_sweep(
+            df=df,
+            strategy_key=strategy_key,
+            param_grid=param_grid[:8],
+            return_arrays=True,
+            thread_override=1,
+            chunk_size_override=8,
+            _param_arrays=_slice_param_arrays(param_arrays, 0, 8),
+            _ohlcv=ohlcv,
+        )
+
+        for combo_size in combo_sizes:
+            combo_grid = param_grid[:combo_size]
+            combo_arrays = _slice_param_arrays(param_arrays, 0, combo_size)
+
+            for thread_candidate in thread_candidates:
+                start = time.perf_counter()
+                run_numba_sweep(
+                    df=df,
+                    strategy_key=strategy_key,
+                    param_grid=combo_grid,
+                    return_arrays=True,
+                    thread_override=thread_candidate,
+                    chunk_size_override=combo_size,
+                    _param_arrays=combo_arrays,
+                    _ohlcv=ohlcv,
+                )
+                elapsed = time.perf_counter() - start
+                rows.append(
+                    {
+                        "strategy": strategy_key,
+                        "combo_size": combo_size,
+                        "n_bars": n_bars,
+                        "thread_mode": "adaptive" if thread_candidate is None else str(thread_candidate),
+                        "throughput": combo_size / max(elapsed, 1e-9),
+                        "elapsed": elapsed,
+                    }
+                )
+
+    return rows
+
 
 def benchmark_sweep_numba(n_combos: int = 1000, n_bars: int = 10000):
     """Benchmark du sweep Numba vs ProcessPoolExecutor."""
@@ -1408,7 +2220,15 @@ def run_numba_sweep(
     fees_bps: float = 10.0,
     slippage_bps: float = 5.0,
     progress_callback: Optional[Callable[[int, int, Dict], None]] = None,
+    result_chunk_callback: Optional[
+        Callable[[List[Dict[str, Any]], int, int, Optional[Dict[str, Any]]], None]
+    ] = None,
     return_arrays: bool = False,
+    thread_override: Optional[int] = None,
+    chunk_size_override: Optional[int] = None,
+    should_stop: Optional[Callable[[], bool]] = None,
+    _param_arrays: Optional[Dict[str, np.ndarray]] = None,
+    _ohlcv: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None,
 ) -> "Union[List[Dict[str, Any]], Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]]":
     """
     Exécute un sweep Numba depuis l'UI.
@@ -1421,255 +2241,206 @@ def run_numba_sweep(
         fees_bps: Frais en basis points
         slippage_bps: Slippage en basis points
         progress_callback: Optionnel, (completed, total, best_result) -> None
+        result_chunk_callback: Optionnel, appelé après chaque chunk avec
+                              (chunk_results, completed, total, best_result).
         return_arrays: Si True, retourne (pnls, sharpes, max_dds, win_rates, n_trades)
                        sans construire de dicts Python (10× moins de RAM).
+        thread_override: Forcer un nombre de threads Numba (benchmark / debug).
+        chunk_size_override: Forcer une taille de chunk en combinaisons.
+        should_stop: Callback coopératif vérifié entre chunks.
+        _param_arrays: Arrays pré-extraits alignés sur `param_grid` (hot path gros sweeps).
+        _ohlcv: Tuple optionnel `(closes, highs, lows)` déjà matérialisé.
 
     Returns:
         Si return_arrays=False: Liste de résultats [{params, total_pnl, ...}, ...]
         Si return_arrays=True: Tuple (pnls, sharpes, max_dds, win_rates, n_trades) np.ndarray
     """
-    import logging
-    import sys
-    logger = logging.getLogger(__name__)
-
     if not HAS_NUMBA:
         raise ImportError("Numba non disponible")
 
     n_combos = len(param_grid)
     n_bars = len(df)
+    if n_combos == 0:
+        if return_arrays:
+            empty_f = np.array([], dtype=np.float64)
+            empty_i = np.array([], dtype=np.int64)
+            return empty_f, empty_f.copy(), empty_f.copy(), empty_f.copy(), empty_i
+        return []
 
-    # Logging et estimation mémoire
-    mem_estimate_mb = (n_combos * 5 * 8 + n_bars * 3 * 8) / (1024 * 1024)
-    logger.info(f"[NUMBA] Début sweep: {n_combos:,} combos × {n_bars:,} bars, ~{mem_estimate_mb:.1f} MB")
-    print(f"[NUMBA] Préparation données: {n_combos:,} combos × {n_bars:,} bars...", flush=True)
-
-    # Extraction données avec flush forcé pour éviter buffering
-    closes = df['close'].values.astype(np.float64)
-    highs = df['high'].values.astype(np.float64)
-    lows = df['low'].values.astype(np.float64)
-    print(f"[NUMBA] Données extraites: closes={len(closes)}, highs={len(highs)}, lows={len(lows)}", flush=True)
-
-    # Extraire paramètres selon stratégie
     strategy_lower = strategy_key.lower()
+    chunk_size = _get_numba_chunk_size(
+        strategy_lower=strategy_lower,
+        total_combos=n_combos,
+        n_bars=n_bars,
+        chunk_size_override=chunk_size_override,
+    )
+    threads = _get_numba_thread_count(
+        strategy_lower=strategy_lower,
+        chunk_size=chunk_size,
+        n_bars=n_bars,
+        thread_override=thread_override,
+    )
+    budget_gb = _get_numba_sweep_memory_budget_gb()
+    bytes_per_combo = _estimate_numba_sweep_bytes_per_combo(strategy_lower)
+    mem_estimate_mb = ((n_combos * bytes_per_combo) + (n_bars * 3 * 8)) / (1024 * 1024)
+    emit_console = progress_callback is not None or not return_arrays
+
+    logger.info(
+        "[NUMBA] Sweep %s: %s combos × %s bars | est=%.1f MB | chunk=%s | threads=%s | budget=%.1f GB",
+        strategy_lower,
+        f"{n_combos:,}",
+        f"{n_bars:,}",
+        mem_estimate_mb,
+        f"{chunk_size:,}",
+        threads,
+        budget_gb,
+    )
+    if emit_console:
+        print(
+            f"[NUMBA] Sweep {strategy_lower}: {n_combos:,} combos × {n_bars:,} bars | "
+            f"chunk={chunk_size:,} | threads={threads} | est={mem_estimate_mb:.1f} MB",
+            flush=True,
+        )
+
+    if _ohlcv is None:
+        closes = np.asarray(df["close"].values, dtype=np.float64)
+        highs = np.asarray(df["high"].values, dtype=np.float64)
+        lows = np.asarray(df["low"].values, dtype=np.float64)
+    else:
+        closes = np.asarray(_ohlcv[0], dtype=np.float64)
+        highs = np.asarray(_ohlcv[1], dtype=np.float64)
+        lows = np.asarray(_ohlcv[2], dtype=np.float64)
+
+    param_arrays = _param_arrays or extract_strategy_params(strategy_key, param_grid)
+    for key, values in param_arrays.items():
+        if len(values) != n_combos:
+            raise ValueError(
+                f"_param_arrays['{key}'] a une longueur {len(values)} != {n_combos}"
+            )
+
+    all_pnls = np.empty(n_combos, dtype=np.float64)
+    all_sharpes = np.empty(n_combos, dtype=np.float64)
+    all_max_dds = np.empty(n_combos, dtype=np.float64)
+    all_win_rates = np.empty(n_combos, dtype=np.float64)
+    all_n_trades = np.empty(n_combos, dtype=np.int64)
+    results: List[Dict[str, Any]] = []
+    best_result: Optional[Dict[str, Any]] = None
+    best_pnl = float("-inf")
+    completed = 0
 
     start_time = time.perf_counter()
+    kernel_elapsed = 0.0
+    build_elapsed = 0.0
 
-    if strategy_lower == 'bollinger_best_longe_3i':
-        # Bollinger Best Long 3i — DOIT être AVANT le check générique 'bollinger'
-        print("[NUMBA] Stratégie Bollinger Best Long 3i détectée...", flush=True)
-        bb_periods = np.array([float(p.get('bb_period', 20)) for p in param_grid], dtype=np.float64)
-        bb_stds = np.array([float(p.get('bb_std', 2.1)) for p in param_grid], dtype=np.float64)
-        entry_levels = np.array([float(p.get('entry_level', 0.0)) for p in param_grid], dtype=np.float64)
-        sl_levels = np.array([float(p.get('sl_level', -0.5)) for p in param_grid], dtype=np.float64)
-        tp_levels = np.array([float(p.get('tp_level', 0.85)) for p in param_grid], dtype=np.float64)
-        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
+    with _numba_thread_context(threads) as applied_threads:
+        logger.info("[NUMBA] Threads appliqués: %s", applied_threads)
 
-        print("[NUMBA] Lancement kernel Bollinger Best Long 3i...", flush=True)
-        sys.stdout.flush()
-        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_boll_level_long(
-            closes, highs, lows,
-            bb_periods, bb_stds, entry_levels, sl_levels, tp_levels,
-            leverages,
-            initial_capital, fees_bps, slippage_bps
-        )
-        print("[NUMBA] Kernel Bollinger Best Long 3i terminé!", flush=True)
+        for chunk_start in range(0, n_combos, chunk_size):
+            if should_stop is not None and should_stop():
+                logger.info("[NUMBA] Stop demandé après %s/%s combinaisons", completed, n_combos)
+                break
+            chunk_end = min(chunk_start + chunk_size, n_combos)
+            param_arrays_chunk = _slice_param_arrays(param_arrays, chunk_start, chunk_end)
+            needs_python_chunk = (not return_arrays) or progress_callback is not None
+            params_chunk = (
+                param_grid[chunk_start:chunk_end]
+                if needs_python_chunk
+                else []
+            )
 
-    elif strategy_lower == 'bollinger_best_short_3i':
-        # Bollinger Best Short 3i — DOIT être AVANT le check générique 'bollinger'
-        print("[NUMBA] Stratégie Bollinger Best Short 3i détectée...", flush=True)
-        bb_periods = np.array([float(p.get('bb_period', 20)) for p in param_grid], dtype=np.float64)
-        bb_stds = np.array([float(p.get('bb_std', 2.1)) for p in param_grid], dtype=np.float64)
-        entry_levels = np.array([float(p.get('entry_level', 1.0)) for p in param_grid], dtype=np.float64)
-        sl_levels = np.array([float(p.get('sl_level', 1.5)) for p in param_grid], dtype=np.float64)
-        tp_levels = np.array([float(p.get('tp_level', 0.15)) for p in param_grid], dtype=np.float64)
-        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
+            t_kernel = time.perf_counter()
+            pnls, sharpes, max_dds, win_rates, n_trades = _run_numba_kernel_chunk(
+                strategy_lower=strategy_lower,
+                params_chunk=params_chunk,
+                closes=closes,
+                highs=highs,
+                lows=lows,
+                initial_capital=initial_capital,
+                fees_bps=fees_bps,
+                slippage_bps=slippage_bps,
+                param_arrays_chunk=param_arrays_chunk,
+            )
+            kernel_elapsed += time.perf_counter() - t_kernel
 
-        print("[NUMBA] Lancement kernel Bollinger Best Short 3i...", flush=True)
-        sys.stdout.flush()
-        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_boll_level_short(
-            closes, highs, lows,
-            bb_periods, bb_stds, entry_levels, sl_levels, tp_levels,
-            leverages,
-            initial_capital, fees_bps, slippage_bps
-        )
-        print("[NUMBA] Kernel Bollinger Best Short 3i terminé!", flush=True)
+            all_pnls[chunk_start:chunk_end] = pnls
+            all_sharpes[chunk_start:chunk_end] = sharpes
+            all_max_dds[chunk_start:chunk_end] = max_dds
+            all_win_rates[chunk_start:chunk_end] = win_rates
+            all_n_trades[chunk_start:chunk_end] = n_trades
 
-    elif 'bollinger' in strategy_lower:
-        # Bollinger variants (ATR, V2, V3) — check GÉNÉRIQUE
-        print("[NUMBA] Stratégie Bollinger détectée, extraction paramètres...", flush=True)
+            local_best_idx = int(np.argmax(pnls))
+            local_best_pnl = float(pnls[local_best_idx])
+            if progress_callback is not None or result_chunk_callback is not None:
+                local_best_result = _make_best_result_dict(
+                    param_grid[chunk_start:chunk_end],
+                    pnls,
+                    sharpes,
+                    max_dds,
+                    win_rates,
+                    n_trades,
+                    local_best_idx,
+                )
+                if local_best_pnl > best_pnl or best_result is None:
+                    best_pnl = local_best_pnl
+                    best_result = local_best_result
 
-        # Optimisation: Pré-allouer arrays (plus rapide que list comprehension)
-        bb_periods = np.empty(n_combos, dtype=np.float64)
-        bb_stds = np.empty(n_combos, dtype=np.float64)
-        entry_zs = np.empty(n_combos, dtype=np.float64)
-        leverages = np.empty(n_combos, dtype=np.float64)
-        k_sls = np.empty(n_combos, dtype=np.float64)
+            completed = chunk_end
 
-        # Extraction optimisée avec feedback tous les 100K
-        for i, p in enumerate(param_grid):
-            bb_periods[i] = float(p.get('bb_period', 20))
-            bb_stds[i] = float(p.get('bb_std', 2.0))
-            entry_zs[i] = float(p.get('entry_z', 2.0))
-            leverages[i] = float(p.get('leverage', 1.0))
-            k_sls[i] = float(p.get('k_sl', 1.5))
+            if not return_arrays:
+                t_build = time.perf_counter()
+                chunk_results = _build_results_chunk(
+                    params_chunk=params_chunk,
+                    pnls=pnls,
+                    sharpes=sharpes,
+                    max_dds=max_dds,
+                    win_rates=win_rates,
+                    n_trades=n_trades,
+                )
+                results.extend(chunk_results)
+                build_elapsed += time.perf_counter() - t_build
+                if result_chunk_callback is not None:
+                    result_chunk_callback(chunk_results, completed, n_combos, best_result)
 
-            # Feedback tous les 100K combos pour éviter l'impression de freeze
-            if (i + 1) % 100000 == 0 or i == n_combos - 1:
-                pct = (i + 1) / n_combos * 100
-                print(f"  Extraction: {i+1:,}/{n_combos:,} ({pct:.1f}%)", flush=True)
+            if progress_callback and best_result is not None:
+                progress_callback(completed, n_combos, best_result)
 
-        print("[NUMBA] Paramètres extraits, lancement kernel Bollinger (JIT compile si 1ère fois)...", flush=True)
-        sys.stdout.flush()
-        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_bollinger_full(
-            closes, highs, lows,
-            bb_periods, bb_stds, entry_zs,
-            leverages, k_sls,
-            initial_capital, fees_bps, slippage_bps
-        )
-        print("[NUMBA] Kernel Bollinger terminé!", flush=True)
+            if emit_console and (completed == n_combos or completed % max(chunk_size, 100000) == 0):
+                elapsed = time.perf_counter() - start_time
+                throughput = completed / elapsed if elapsed > 0 else 0.0
+                print(
+                    f"[NUMBA] Progression: {completed:,}/{n_combos:,} "
+                    f"({completed / n_combos * 100:.1f}%) | {throughput:,.0f} bt/s",
+                    flush=True,
+                )
 
-    elif 'ema' in strategy_lower and 'cross' in strategy_lower:
-        # EMA Cross
-        print("[NUMBA] Stratégie EMA Cross détectée, extraction paramètres...", flush=True)
-        fast_periods = np.array([float(p.get('fast_period', 12)) for p in param_grid], dtype=np.float64)
-        slow_periods = np.array([float(p.get('slow_period', 26)) for p in param_grid], dtype=np.float64)
-        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
-        k_sls = np.array([float(p.get('k_sl', 1.5)) for p in param_grid], dtype=np.float64)
-
-        print("[NUMBA] Lancement kernel EMA Cross (JIT compile si 1ère fois)...", flush=True)
-        sys.stdout.flush()
-        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_ema_cross_full(
-            closes, highs, lows,
-            fast_periods, slow_periods,
-            leverages, k_sls,
-            initial_capital, fees_bps, slippage_bps
-        )
-        print("[NUMBA] Kernel EMA Cross terminé!", flush=True)
-
-    elif 'rsi' in strategy_lower:
-        # RSI Reversal
-        print("[NUMBA] Stratégie RSI Reversal détectée, extraction paramètres...", flush=True)
-        rsi_periods = np.array([float(p.get('rsi_period', 14)) for p in param_grid], dtype=np.float64)
-        overboughts = np.array([float(p.get('overbought', 70)) for p in param_grid], dtype=np.float64)
-        oversolds = np.array([float(p.get('oversold', 30)) for p in param_grid], dtype=np.float64)
-        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
-        k_sls = np.array([float(p.get('k_sl', 1.5)) for p in param_grid], dtype=np.float64)
-
-        print("[NUMBA] Lancement kernel RSI Reversal (JIT compile si 1ère fois)...", flush=True)
-        sys.stdout.flush()
-
-        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_rsi_reversal_full(
-            closes, highs, lows,
-            rsi_periods, overboughts, oversolds,
-            leverages, k_sls,
-            initial_capital, fees_bps, slippage_bps
-        )
-        print("[NUMBA] Kernel RSI Reversal terminé!", flush=True)
-
-    elif 'macd' in strategy_lower:
-        # MACD Cross
-        print("[NUMBA] Stratégie MACD Cross détectée, extraction paramètres...", flush=True)
-        fast_periods = np.array([float(p.get('fast_period', 12)) for p in param_grid], dtype=np.float64)
-        slow_periods = np.array([float(p.get('slow_period', 26)) for p in param_grid], dtype=np.float64)
-        signal_periods = np.array([float(p.get('signal_period', 9)) for p in param_grid], dtype=np.float64)
-        leverages = np.array([float(p.get('leverage', 1.0)) for p in param_grid], dtype=np.float64)
-        k_sls = np.array([float(p.get('k_sl', 1.5)) for p in param_grid], dtype=np.float64)
-
-        print("[NUMBA] Lancement kernel MACD Cross (JIT compile si 1ère fois)...", flush=True)
-        sys.stdout.flush()
-        pnls, sharpes, max_dds, win_rates, n_trades = _sweep_macd_cross_full(
-            closes, highs, lows,
-            fast_periods, slow_periods, signal_periods,
-            leverages, k_sls,
-            initial_capital, fees_bps, slippage_bps
-        )
-        print("[NUMBA] Kernel MACD Cross terminé!", flush=True)
-
-    else:
-        raise ValueError(f"Stratégie '{strategy_key}' non supportée par Numba sweep")
-
-    elapsed = time.perf_counter() - start_time
-    print(f"[NUMBA] Sweep terminé en {elapsed:.2f}s", flush=True)
-
-    # ━━━ Mode arrays bruts : retour immédiat sans construire de dicts ━━━
-    if return_arrays:
-        total_time = time.perf_counter() - start_time
-        print(f"⚡ Numba sweep ARRAYS: {n_combos:,} combos en {total_time:.2f}s ({n_combos/total_time:,.0f} bt/s)", flush=True)
-        return (pnls, sharpes, max_dds, win_rates, n_trades)
-
-    # ═══════════════════════════════════════════════════════════════════════
-    # CONSTRUCTION VECTORISÉE DES RÉSULTATS (OPTIMISÉE pour millions de combos)
-    # ═══════════════════════════════════════════════════════════════════════
-    # AVANT (Python loop): ~5-10s pour 1.7M combos
-    # APRÈS (vectorisé):   ~0.1-0.5s pour 1.7M combos (10-100× speedup)
-    # ═══════════════════════════════════════════════════════════════════════
-
-    print(f"[NUMBA] Construction vectorisée des {n_combos:,} résultats...", flush=True)
-    sys.stdout.flush()
-
-    t_build_start = time.perf_counter()
-
-    # Méthode 1: List comprehension (2-3× plus rapide que boucle + append)
-    # Pour grilles < 100K combos, c'est suffisant
-    if n_combos < 100000:
-        results = [
-            {
-                'params': param_grid[i],
-                'total_pnl': float(pnls[i]),
-                'sharpe_ratio': float(sharpes[i]),
-                'max_drawdown': float(max_dds[i]),
-                'win_rate': float(win_rates[i]),
-                'total_trades': int(n_trades[i]),
-            }
-            for i in range(n_combos)
-        ]
-    else:
-        # Méthode 2: Construction ultra-rapide via tableaux numpy (100× speedup)
-        # Pour grilles massives (1M+ combos)
-        # Stratégie: éviter la création de 1.7M dicts Python séparés
-        # On retourne directement les arrays + param_grid pour post-traitement
-
-        # Version optimisée: créer les dicts par batch de 10K
-        # Compromis: mémoire raisonnable + feedback progressif
-        batch_size = 10000
-        results = []
-
-        for batch_start in range(0, n_combos, batch_size):
-            batch_end = min(batch_start + batch_size, n_combos)
-            batch_results = [
-                {
-                    'params': param_grid[i],
-                    'total_pnl': float(pnls[i]),
-                    'sharpe_ratio': float(sharpes[i]),
-                    'max_drawdown': float(max_dds[i]),
-                    'win_rate': float(win_rates[i]),
-                    'total_trades': int(n_trades[i]),
-                }
-                for i in range(batch_start, batch_end)
-            ]
-            results.extend(batch_results)
-
-            # Feedback périodique tous les 100K combos
-            if (batch_end % 100000) < batch_size:
-                elapsed_build = time.perf_counter() - t_build_start
-                progress_pct = (batch_end / n_combos) * 100
-                speed = batch_end / elapsed_build if elapsed_build > 0 else 0
-                print(f"  Progression: {batch_end:,}/{n_combos:,} ({progress_pct:.1f}%) • {speed:,.0f} results/s", flush=True)
-                sys.stdout.flush()
-
-    elapsed_build = time.perf_counter() - t_build_start
-    print(f"  ✓ Construction terminée en {elapsed_build:.2f}s", flush=True)
-
-    # Callback final
-    best_idx = int(np.argmax(pnls))
-    if progress_callback:
-        progress_callback(n_combos, n_combos, results[best_idx])
-
-    # Log performance TOTAL (kernel + construction)
     total_time = time.perf_counter() - start_time
-    print(f"⚡ Numba sweep TOTAL: {n_combos:,} combos en {total_time:.2f}s ({n_combos/total_time:,.0f} bt/s)")
-    print(f"  • Kernel Numba: {elapsed:.2f}s ({n_combos/elapsed:,.0f} bt/s)")
-    print(f"  • Construction: {elapsed_build:.2f}s", flush=True)
+
+    if return_arrays:
+        logger.info(
+            "[NUMBA] Arrays: %s combos en %.2fs (%.0f bt/s)",
+            f"{completed:,}",
+            total_time,
+            completed / max(total_time, 1e-9),
+        )
+        return (
+            all_pnls[:completed],
+            all_sharpes[:completed],
+            all_max_dds[:completed],
+            all_win_rates[:completed],
+            all_n_trades[:completed],
+        )
+
+    if emit_console:
+        print(
+            f"⚡ Numba sweep TOTAL: {completed:,} combos en {total_time:.2f}s "
+            f"({completed / max(total_time, 1e-9):,.0f} bt/s)",
+            flush=True,
+        )
+        print(
+            f"  • Kernel Numba: {kernel_elapsed:.2f}s ({completed / max(kernel_elapsed, 1e-9):,.0f} bt/s)",
+            flush=True,
+        )
+        print(f"  • Construction: {build_elapsed:.2f}s", flush=True)
 
     return results
 

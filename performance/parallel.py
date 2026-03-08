@@ -171,6 +171,87 @@ def _get_available_memory_gb() -> float:
     return 8.0  # Valeur par défaut
 
 
+def get_recommended_chunk_size(default: int = 100, total_tasks: Optional[int] = None) -> int:
+    """
+    Retourne une taille de chunk adaptée à la RAM disponible.
+
+    La logique existait déjà dans ParallelRunner, mais n'était pas facilement
+    réutilisable par les autres couches.
+    """
+    available_gb = _get_available_memory_gb()
+
+    if available_gb >= 32:
+        chunk_size = max(default, 200)
+    elif available_gb >= 16:
+        chunk_size = max(default, 100)
+    else:
+        chunk_size = default
+
+    if total_tasks is not None:
+        chunk_size = max(1, min(chunk_size, total_tasks))
+
+    return chunk_size
+
+
+def get_recommended_worker_count(max_cap: Optional[int] = None) -> int:
+    """
+    Retourne un nombre de workers cohérent avec CPU + RAM disponible.
+    """
+    cpu_count = _get_cpu_count()
+    available_ram = _get_available_memory_gb()
+
+    ram_per_worker = 0.3 if available_ram >= 32 else 0.5
+    ram_limited_workers = max(1, int(available_ram / ram_per_worker))
+    optimal = max(1, min(cpu_count, ram_limited_workers))
+
+    if max_cap is not None:
+        optimal = min(optimal, max_cap)
+
+    return max(1, optimal)
+
+
+def get_recommended_max_in_flight(
+    total_tasks: int,
+    worker_count: int,
+    memory_limit_gb: Optional[float] = None,
+) -> int:
+    """
+    Retourne un nombre de tâches en vol adapté à la mémoire disponible.
+
+    Le système avait déjà des heuristiques workers/chunks, mais le pool manuel UI
+    et certains chemins fallback restaient figés sur des multiplicateurs constants.
+    """
+    if total_tasks <= 0:
+        return 0
+
+    available_gb = memory_limit_gb if memory_limit_gb is not None else _get_available_memory_gb()
+
+    if available_gb >= 32:
+        tasks_per_worker = 8
+    elif available_gb >= 16:
+        tasks_per_worker = 6
+    elif available_gb >= 8:
+        tasks_per_worker = 4
+    else:
+        tasks_per_worker = 2
+
+    recommended = max(1, worker_count * tasks_per_worker)
+    return min(recommended, total_tasks)
+
+
+def get_recommended_joblib_batch_size(total_tasks: int, default_chunk_size: int = 100) -> int:
+    """
+    Retourne une taille de batch joblib alignée sur les chunks adaptatifs.
+    """
+    if total_tasks <= 0:
+        return 1
+
+    chunk_size = get_recommended_chunk_size(default=default_chunk_size, total_tasks=total_tasks)
+    min_feedback_batches = 10
+    feedback_bound = max(10, total_tasks // min_feedback_batches)
+    return max(1, min(chunk_size, feedback_bound, total_tasks))
+
+
 def generate_param_grid(param_ranges: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Génère toutes les combinaisons de paramètres.
@@ -363,29 +444,11 @@ class ParallelRunner:
 
         🚀 DDR5 60GB: chunks plus gros pour réduire l'overhead
         """
-        available_gb = _get_available_memory_gb()
-
-        if available_gb >= 32:
-            # Beaucoup de RAM: chunks de 200
-            return max(default, 200)
-        elif available_gb >= 16:
-            # RAM correcte: chunks de 100
-            return max(default, 100)
-        else:
-            # RAM limitée: garder défaut
-            return default
+        return get_recommended_chunk_size(default=default)
 
     def _calculate_optimal_workers(self) -> int:
         """Calcule le nombre optimal de workers."""
-        cpu_count = _get_cpu_count()
-        available_ram = _get_available_memory_gb()
-
-        # 🚀 Pour DDR5 60GB: estimation plus agressive (300MB/worker au lieu de 500MB)
-        ram_per_worker = 0.3 if available_ram >= 32 else 0.5
-        ram_limited_workers = int(available_ram / ram_per_worker)
-
-        optimal = min(cpu_count, ram_limited_workers)
-        return max(1, optimal)
+        return get_recommended_worker_count()
 
     def set_progress_callback(self, callback: Callable[[int, int], None]):
         """Définit un callback de progression: callback(completed, total)."""
@@ -493,10 +556,12 @@ class ParallelRunner:
             # verbose=0 pour pas de sortie, 10+ pour debug
             verbose_level = int(os.environ.get("JOBLIB_VERBOSE", "0"))
 
-            # Taille de batch pour callbacks périodiques (trade-off overhead vs feedback)
-            # Pour 1000+ tâches: batch de 100, sinon batch de 50
-            batch_size = 100 if self._total_tasks > 1000 else 50
-            batch_size = min(batch_size, max(10, self._total_tasks // 10))
+            # Réutiliser la logique de chunk_size adaptatif au lieu d'un second
+            # système hardcodé 50/100.
+            batch_size = get_recommended_joblib_batch_size(
+                total_tasks=self._total_tasks,
+                default_chunk_size=self.chunk_size,
+            )
 
             logger.info(f"Joblib mode batch: {self._total_tasks} tâches, batch_size={batch_size}")
 
@@ -609,7 +674,11 @@ class ParallelRunner:
 
         max_in_flight = self.max_in_flight
         if max_in_flight is None:
-            max_in_flight = max(1, self.max_workers * 2)
+            max_in_flight = get_recommended_max_in_flight(
+                total_tasks=self._total_tasks,
+                worker_count=self.max_workers,
+                memory_limit_gb=self.memory_limit_gb,
+            )
         max_in_flight = min(max_in_flight, self._total_tasks)
 
         fixed_kwargs = dict(fixed_kwargs)

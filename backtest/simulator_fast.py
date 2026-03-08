@@ -184,30 +184,83 @@ if HAS_NUMBA:
     @njit(cache=True, nogil=True, fastmath=True, boundscheck=False)
     def _calculate_equity_numba(
         n_bars: int,
+        entry_indices: np.ndarray,
         exit_indices: np.ndarray,
         pnls: np.ndarray,
-        initial_capital: float
+        entry_prices: np.ndarray,
+        sizes: np.ndarray,
+        side_signs: np.ndarray,
+        close_prices: np.ndarray,
+        initial_capital: float,
     ) -> np.ndarray:
         """
-        Calcul vectorisé ULTRA-RAPIDE de l'equity (100× speedup vs boucle manuelle).
+        Calcule l'equity mark-to-market en O(n_bars + n_trades).
 
-        Utilise np.cumsum natif au lieu d'une boucle Python pour performance maximale.
-        Complexité: O(n_trades + n_bars) avec opérations vectorisées.
-
-        Note: parallel=False car cumsum est séquentiel par nature.
+        Maintient une sémantique identique au moteur de référence:
+        - capital réalisé crédité à la barre de sortie
+        - P&L non réalisé des positions ouvertes sur l'intervalle [entry, exit)
         """
-        # Créer array des changements de capital aux indices de sortie des trades
         capital_changes = np.zeros(n_bars, dtype=np.float64)
+        long_size_delta = np.zeros(n_bars + 1, dtype=np.float64)
+        short_size_delta = np.zeros(n_bars + 1, dtype=np.float64)
+        long_entry_delta = np.zeros(n_bars + 1, dtype=np.float64)
+        short_entry_delta = np.zeros(n_bars + 1, dtype=np.float64)
 
-        # Placer les P&L aux indices de sortie (O(n_trades))
         for i in range(len(exit_indices)):
-            idx = exit_indices[i]
-            if 0 <= idx < n_bars:  # Sécurité bounds checking
-                capital_changes[idx] += pnls[i]
+            entry_idx = entry_indices[i]
+            exit_idx = exit_indices[i]
 
-        # Cumulative sum vectorisé (100× plus rapide que boucle manuelle!)
-        # NumPy cumsum est optimisé en C avec SIMD sur CPU moderne
-        equity = initial_capital + np.cumsum(capital_changes)
+            if entry_idx < 0:
+                entry_idx = 0
+            elif entry_idx > n_bars:
+                entry_idx = n_bars
+
+            if exit_idx < 0:
+                exit_idx = 0
+            elif exit_idx > n_bars:
+                exit_idx = n_bars
+
+            if 0 <= exit_idx < n_bars:
+                capital_changes[exit_idx] += pnls[i]
+
+            if entry_idx >= exit_idx:
+                continue
+
+            size = sizes[i]
+            entry_notional = entry_prices[i] * size
+
+            if side_signs[i] >= 0:
+                long_size_delta[entry_idx] += size
+                long_size_delta[exit_idx] -= size
+                long_entry_delta[entry_idx] += entry_notional
+                long_entry_delta[exit_idx] -= entry_notional
+            else:
+                short_size_delta[entry_idx] += size
+                short_size_delta[exit_idx] -= size
+                short_entry_delta[entry_idx] += entry_notional
+                short_entry_delta[exit_idx] -= entry_notional
+
+        equity = np.empty(n_bars, dtype=np.float64)
+        realized_pnl = 0.0
+        active_long_size = 0.0
+        active_short_size = 0.0
+        active_long_entry = 0.0
+        active_short_entry = 0.0
+
+        for i in range(n_bars):
+            realized_pnl += capital_changes[i]
+            active_long_size += long_size_delta[i]
+            active_short_size += short_size_delta[i]
+            active_long_entry += long_entry_delta[i]
+            active_short_entry += short_entry_delta[i]
+
+            unrealized_pnl = (
+                close_prices[i] * active_long_size
+                - active_long_entry
+                + active_short_entry
+                - close_prices[i] * active_short_size
+            )
+            equity[i] = initial_capital + realized_pnl + unrealized_pnl
 
         return equity
 
@@ -1017,15 +1070,13 @@ def calculate_equity_fast(
     """
     Calcule la courbe d'équité avec mark-to-market.
 
-    IMPORTANT: Inclut le P&L non réalisé des positions ouvertes.
-
     Args:
         df: DataFrame OHLCV (pour l'index)
         trades_df: DataFrame des trades
         initial_capital: Capital initial
 
     Returns:
-        pd.Series de l'équité avec mark-to-market
+        pd.Series de l'équité avec la même sémantique que calculate_equity_curve()
     """
     n_bars = len(df)
 
@@ -1067,46 +1118,62 @@ def calculate_equity_fast(
     entry_prices = trades_df["price_entry"].values.astype(np.float64)
     sizes = trades_df["size"].values.astype(np.float64)
     sides = trades_df.get("side", pd.Series(["LONG"] * len(trades_df))).values
+    side_signs = np.where(sides == "SHORT", -1, 1).astype(np.int8)
 
     # Prix close pour mark-to-market
     close_prices = df['close'].values.astype(np.float64)
 
-    # ═════════════════════════════════════════════════════════════════════════
-    # UTILISER VERSION NUMBA (Simplifiée: P&L réalisés uniquement, sans mark-to-market)
-    # ═════════════════════════════════════════════════════════════════════════
-    # IMPORTANT: La version Numba utilise P&L réalisés cumulés (sans mark-to-market)
-    # pour performance maximale. Le mark-to-market est coûteux (O(n_bars × n_trades))
-    # et apporte peu de valeur quand les trades sont courts.
     if HAS_NUMBA:
-        # Appel Numba JIT avec signature simplifiée
         equity_arr = _calculate_equity_numba(
             n_bars,
+            entry_indices,
             exit_indices,
             pnls,
+            entry_prices,
+            sizes,
+            side_signs,
+            close_prices,
             initial_capital
         )
     else:
-        # Fallback Python pur (lent mais fonctionne sans Numba)
-        equity_arr = np.full(n_bars, initial_capital, dtype=np.float64)
+        capital_changes = np.zeros(n_bars, dtype=np.float64)
+        np.add.at(capital_changes, exit_indices, pnls)
 
-        for bar_idx in range(n_bars):
-            # Capital réalisé (somme des P&L des trades clôturés)
-            closed_mask = exit_indices <= bar_idx
-            realized_pnl = pnls[closed_mask].sum() if np.any(closed_mask) else 0.0
+        long_mask = side_signs >= 0
+        short_mask = ~long_mask
 
-            # P&L non réalisé des positions ouvertes
-            open_mask = (entry_indices <= bar_idx) & (exit_indices > bar_idx)
-            unrealized_pnl = 0.0
+        long_size_delta = np.zeros(n_bars + 1, dtype=np.float64)
+        short_size_delta = np.zeros(n_bars + 1, dtype=np.float64)
+        long_entry_delta = np.zeros(n_bars + 1, dtype=np.float64)
+        short_entry_delta = np.zeros(n_bars + 1, dtype=np.float64)
 
-            if np.any(open_mask):
-                current_price = close_prices[bar_idx]
-                for i in np.where(open_mask)[0]:
-                    if sides[i] == 'LONG':
-                        unrealized_pnl += (current_price - entry_prices[i]) * sizes[i]
-                    else:  # SHORT
-                        unrealized_pnl += (entry_prices[i] - current_price) * sizes[i]
+        def _apply_open_trade_deltas(mask: np.ndarray, size_delta: np.ndarray, entry_delta: np.ndarray) -> None:
+            if not np.any(mask):
+                return
+            valid_mask = mask & (entry_indices < exit_indices)
+            if not np.any(valid_mask):
+                return
+            notionals = entry_prices[valid_mask] * sizes[valid_mask]
+            np.add.at(size_delta, entry_indices[valid_mask], sizes[valid_mask])
+            np.add.at(size_delta, exit_indices[valid_mask], -sizes[valid_mask])
+            np.add.at(entry_delta, entry_indices[valid_mask], notionals)
+            np.add.at(entry_delta, exit_indices[valid_mask], -notionals)
 
-            equity_arr[bar_idx] = initial_capital + realized_pnl + unrealized_pnl
+        _apply_open_trade_deltas(long_mask, long_size_delta, long_entry_delta)
+        _apply_open_trade_deltas(short_mask, short_size_delta, short_entry_delta)
+
+        realized = initial_capital + np.cumsum(capital_changes)
+        active_long_size = np.cumsum(long_size_delta[:-1])
+        active_short_size = np.cumsum(short_size_delta[:-1])
+        active_long_entry = np.cumsum(long_entry_delta[:-1])
+        active_short_entry = np.cumsum(short_entry_delta[:-1])
+        unrealized = (
+            close_prices * active_long_size
+            - active_long_entry
+            + active_short_entry
+            - close_prices * active_short_size
+        )
+        equity_arr = realized + unrealized
 
     return pd.Series(equity_arr, index=df.index, dtype=np.float64)
 

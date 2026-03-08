@@ -40,6 +40,7 @@ def run_backtest_multiprocess(args) -> Dict[str, Any]:
             symbol,
             timeframe,
             silent_mode=not debug_enabled,
+            fast_metrics=True,
         )
 
         params_native = {
@@ -94,12 +95,20 @@ def apply_thread_limit(thread_limit: int, label: str = "") -> None:
         "NUMEXPR_NUM_THREADS",
         "VECLIB_MAXIMUM_THREADS",
         "BLIS_NUM_THREADS",
+        "NUMBA_NUM_THREADS",
     ):
         os.environ[var] = str(thread_limit)
 
     try:
         from threadpoolctl import threadpool_limits
         threadpool_limits(thread_limit)
+    except Exception:
+        pass
+
+    try:
+        from numba import set_num_threads
+
+        set_num_threads(thread_limit)
     except Exception:
         pass
 

@@ -63,6 +63,33 @@ def _is_local_ollama_host(ollama_host: Optional[str] = None) -> bool:
     return hostname in {"127.0.0.1", "localhost", "::1"}
 
 
+def _fetch_tags_payload(
+    ollama_host: Optional[str] = None,
+    *,
+    timeout_s: float = 2.0,
+    max_attempts: int = 1,
+    retry_delay_s: float = 0.75,
+) -> tuple[Optional[dict], Optional[int], Optional[Exception]]:
+    tags_url = _ollama_url("/api/tags", ollama_host)
+    last_status: Optional[int] = None
+    last_exc: Optional[Exception] = None
+
+    for attempt in range(max_attempts):
+        try:
+            response = httpx.get(tags_url, timeout=timeout_s)
+            last_status = response.status_code
+            if response.status_code == 200:
+                return response.json(), response.status_code, None
+            last_exc = RuntimeError(f"status={response.status_code}")
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+
+        if attempt < max_attempts - 1:
+            time.sleep(retry_delay_s)
+
+    return None, last_status, last_exc
+
+
 # ==============================================================================
 # GPU Memory Manager - Déchargement/Rechargement intelligent des LLM
 # ==============================================================================
@@ -316,16 +343,20 @@ def ensure_ollama_running(ollama_host: Optional[str] = None) -> Tuple[bool, str]
         tuple[bool, str]: (succès, message)
     """
     ollama_host = _get_ollama_host(ollama_host)
-    tags_url = _ollama_url("/api/tags", ollama_host)
 
     # 1. Vérifier si Ollama répond
-    try:
-        response = httpx.get(tags_url, timeout=2.0)
-        if response.status_code == 200:
-            logger.info("✅ Ollama déjà actif (%s)", ollama_host)
-            return True, f"✅ Ollama actif ({ollama_host})"
-    except Exception:
-        pass  # Ollama pas actif, on va le démarrer
+    payload, _status_code, _exc = _fetch_tags_payload(
+        ollama_host,
+        timeout_s=2.0,
+        max_attempts=1,
+    )
+    if payload is not None:
+        model_count = len(payload.get("models", []) or [])
+        if model_count > 0:
+            logger.info("✅ Ollama déjà actif (%s) | %d modèle(s)", ollama_host, model_count)
+            return True, f"✅ Ollama actif ({ollama_host}) | {model_count} modele(s)"
+        logger.warning("⚠️ Ollama actif (%s) mais aucun modèle détecté", ollama_host)
+        return True, f"⚠️ Ollama actif ({ollama_host}) mais aucun modele detecte"
 
     # Hôte distant: impossible de le démarrer localement, signaler explicitement
     if not _is_local_ollama_host(ollama_host):
@@ -360,17 +391,30 @@ def ensure_ollama_running(ollama_host: Optional[str] = None) -> Tuple[bool, str]
         # 3. Attendre qu'Ollama soit prêt (max 10s)
         for i in range(10):
             time.sleep(1)
-            try:
-                response = httpx.get(tags_url, timeout=1.0)
-                if response.status_code == 200:
-                    logger.info(
-                        "✅ Ollama démarré avec succès (après %ss) sur %s",
-                        i + 1,
-                        ollama_host,
-                    )
-                    return True, f"✅ Ollama démarré ({i+1}s)"
-            except Exception:
+            payload, _status_code, _exc = _fetch_tags_payload(
+                ollama_host,
+                timeout_s=1.0,
+                max_attempts=1,
+            )
+            if payload is None:
                 continue
+
+            model_count = len(payload.get("models", []) or [])
+            if model_count > 0:
+                logger.info(
+                    "✅ Ollama démarré avec succès (après %ss) sur %s | %d modèle(s)",
+                    i + 1,
+                    ollama_host,
+                    model_count,
+                )
+                return True, f"✅ Ollama démarré ({i+1}s) | {model_count} modele(s)"
+
+            logger.warning(
+                "⚠️ Ollama démarré sur %s (après %ss) mais aucun modèle n'est détecté",
+                ollama_host,
+                i + 1,
+            )
+            return True, f"⚠️ Ollama démarré ({i+1}s) mais aucun modele detecte"
 
         return False, "⏱️ Timeout - Ollama n'a pas démarré en 10s"
 
@@ -449,28 +493,38 @@ def list_ollama_models(ollama_host: Optional[str] = None) -> List[str]:
     Returns:
         list[str]: Noms des modèles (ex: ["llama3.2", "mistral"])
     """
-    tags_url = _ollama_url("/api/tags", ollama_host)
-    try:
-        response = httpx.get(tags_url, timeout=3.0)
-        if response.status_code != 200:
+    payload, status_code, exc = _fetch_tags_payload(
+        ollama_host,
+        timeout_s=3.0,
+        max_attempts=3,
+        retry_delay_s=0.75,
+    )
+    if payload is None:
+        if status_code is not None:
             logger.warning(
-                f"⚠️ Impossible de lister les modèles Ollama (status={response.status_code})"
+                "⚠️ Impossible de lister les modèles Ollama sur %s (status=%s)",
+                _get_ollama_host(ollama_host),
+                status_code,
             )
-            return []
-
-        payload = response.json()
-        models = payload.get("models", []) or []
-
-        names: List[str] = []
-        for model in models:
-            name = model.get("name")
-            if isinstance(name, str) and name:
-                names.append(name)
-
-        return names
-    except Exception as e:
-        logger.warning(f"⚠️ Erreur lors de la récupération des modèles Ollama: {e}")
+        elif exc is not None:
+            logger.warning(f"⚠️ Erreur lors de la récupération des modèles Ollama: {exc}")
         return []
+
+    models = payload.get("models", []) or []
+
+    names: List[str] = []
+    for model in models:
+        name = model.get("name")
+        if isinstance(name, str) and name:
+            names.append(name)
+
+    if not names:
+        logger.warning(
+            "⚠️ Ollama répond sur %s mais aucun modèle installé n'est détecté",
+            _get_ollama_host(ollama_host),
+        )
+
+    return names
 
 
 def is_ollama_available(ollama_host: Optional[str] = None) -> bool:
@@ -480,11 +534,12 @@ def is_ollama_available(ollama_host: Optional[str] = None) -> bool:
     Returns:
         bool: True si Ollama répond
     """
-    try:
-        response = httpx.get(_ollama_url("/api/tags", ollama_host), timeout=2.0)
-        return response.status_code == 200
-    except Exception:
-        return False
+    payload, _status_code, _exc = _fetch_tags_payload(
+        ollama_host,
+        timeout_s=2.0,
+        max_attempts=1,
+    )
+    return payload is not None
 
 
 def prepare_for_llm_run(ollama_host: Optional[str] = None) -> Tuple[bool, str]:

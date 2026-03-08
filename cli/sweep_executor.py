@@ -332,6 +332,11 @@ def run_sweep(
         SweepResult avec tous les résultats
     """
     from backtest.engine import BacktestEngine
+    from backtest.sweep_numba import (
+        normalize_numba_metric_name,
+        normalize_numba_strategy_key,
+        run_numba_sweep_items_if_supported,
+    )
     from utils.config import Config
 
     # Configuration
@@ -362,6 +367,79 @@ def run_sweep(
         progress.best_score = float('inf')
 
     results = []
+    strategy_key = normalize_numba_strategy_key(config.strategy_name)
+    metric_key = normalize_numba_metric_name(config.metric)
+
+    def consume_numba_chunk(
+        chunk_items: List[Dict[str, Any]],
+        completed: int,
+        total: int,
+        _best_result: Optional[Dict[str, Any]],
+    ) -> None:
+        for item_data in chunk_items:
+            metrics = item_data.get("metrics", {})
+            score = item_data.get("score", metrics.get(metric_key, 0))
+            result_item = {
+                "params": item_data.get("params", {}),
+                "metrics": metrics,
+                "score": score,
+            }
+            results.append(result_item)
+
+            is_better = (
+                (score < progress.best_score) if minimize else (score > progress.best_score)
+            )
+            if is_better:
+                progress.best_score = score
+                progress.best_params = result_item["params"].copy()
+                progress.best_metrics = metrics.copy()
+
+            if checkpoint_mgr:
+                checkpoint_mgr.add_result(result_item)
+
+            if on_result:
+                on_result(result_item)
+
+        progress.completed = completed
+        progress.total = total
+
+        if on_progress:
+            on_progress(progress)
+
+        if checkpoint_mgr and checkpoint_mgr.should_checkpoint(progress.completed + progress.failed):
+            checkpoint_mgr.save_checkpoint(progress, config)
+
+    numba_items = run_numba_sweep_items_if_supported(
+        df=df,
+        strategy_key=strategy_key,
+        param_grid=param_grid,
+        metric=metric_key,
+        initial_capital=config.initial_capital,
+        fees_bps=config.fees_bps,
+        slippage_bps=config.slippage_bps,
+        result_chunk_callback=consume_numba_chunk,
+    )
+
+    if numba_items is not None:
+        if numba_items and not results:
+            consume_numba_chunk(numba_items, len(numba_items), len(param_grid), None)
+
+        if checkpoint_mgr:
+            checkpoint_mgr.save_checkpoint(progress, config, status="completed")
+
+        return SweepResult(
+            results=results,
+            best_params=progress.best_params,
+            best_metrics=progress.best_metrics,
+            best_score=progress.best_score,
+            total_combinations=len(param_grid),
+            completed=progress.completed,
+            failed=progress.failed,
+            total_time=progress.elapsed,
+            strategy=config.strategy_name,
+            symbol=config.symbol,
+            timeframe=config.timeframe,
+        )
 
     for params in param_grid:
         engine = BacktestEngine(
@@ -379,7 +457,7 @@ def run_sweep(
             )
 
             metrics = result.metrics.to_dict() if hasattr(result.metrics, 'to_dict') else result.metrics
-            score = metrics.get(config.metric, 0)
+            score = metrics.get(metric_key, metrics.get(config.metric, 0))
 
             result_item = {
                 "params": params,

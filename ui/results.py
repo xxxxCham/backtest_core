@@ -22,6 +22,7 @@ Skip-if: Pas de résultats à afficher
 
 from __future__ import annotations
 
+import traceback
 from typing import Optional
 
 import pandas as pd
@@ -36,8 +37,13 @@ from ui.components.charts import (
     render_walk_forward_results,
 )
 from ui.context import resolve_latest_version, save_versioned_preset
-from ui.helpers import build_indicator_overlays, generate_strategies_table
+from ui.helpers import (
+    build_indicator_overlays,
+    generate_strategies_table,
+    get_partial_result_notice,
+)
 from ui.log_taps import BestPnlTracker
+from ui.results_hub import render_results_hub
 from ui.state import SidebarState
 
 
@@ -50,6 +56,9 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
 
     if result is not None:
         st.header("📊 Résultats du Backtest")
+        partial_notice = get_partial_result_notice(result)
+        if partial_notice:
+            st.warning(partial_notice)
 
         col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -373,6 +382,15 @@ def render_results(state: SidebarState, best_pnl_tracker: Optional[BestPnlTracke
 
     else:
         render_home(state)
+
+    st.markdown("---")
+    with st.expander("📚 Hub résultats, sauvegardes et catalogue", expanded=False):
+        try:
+            render_results_hub(embedded=True)
+        except Exception as exc:
+            st.warning(f"Hub résultats temporairement indisponible: {exc}")
+            if bool(st.session_state.get("debug_mode", False)):
+                st.code(traceback.format_exc())
 
 
 def render_home(state: SidebarState) -> None:

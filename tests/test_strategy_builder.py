@@ -21,6 +21,7 @@ import pytest
 
 import agents.strategy_builder as strategy_builder_module
 from agents.strategy_builder import (
+    CatalogObjective,
     GENERATED_CLASS_NAME,
     SANDBOX_ROOT,
     BuilderIteration,
@@ -32,10 +33,13 @@ from agents.strategy_builder import (
     compute_continuous_builder_score,
     _is_accept_candidate,
     _policy_change_type_override,
+    _objective_complexity_score,
     _ranking_sharpe,
+    _select_session_recovery_anchor,
     _extract_json_from_response,
     _extract_python_from_response,
     generate_llm_objective,
+    generate_llm_objective_from_seed,
     normalize_variant_for_builder,
     recommend_market_context,
     sanitize_objective_text,
@@ -106,6 +110,139 @@ def sample_ohlcv():
         "close": close,
         "volume": np.random.randint(100, 10000, n).astype(float),
     })
+
+
+def test_emit_completed_backtest_forwards_raw_result_to_callback():
+    saved = []
+    builder = StrategyBuilder(
+        llm_client=SimpleNamespace(),
+        backtest_completed_callback=lambda raw_result: saved.append(raw_result),
+    )
+    raw_result = SimpleNamespace(meta={})
+    wrapped_result = SimpleNamespace(run_result=raw_result)
+    session = SimpleNamespace(session_id="sess-1", objective="test objective")
+
+    builder._emit_completed_backtest(
+        wrapped_result,
+        session=session,
+        iteration_num=3,
+    )
+
+    assert saved == [raw_result]
+    assert raw_result.meta["builder_session_id"] == "sess-1"
+    assert raw_result.meta["builder_iteration"] == 3
+    assert raw_result.meta["builder_objective"] == "test objective"
+
+
+def test_builder_run_emits_progress_events(
+    monkeypatch,
+    tmp_path,
+    sample_ohlcv,
+    valid_strategy_code,
+):
+    progress_events = []
+    builder = StrategyBuilder(
+        llm_client=SimpleNamespace(),
+        progress_callback=lambda payload: progress_events.append(payload),
+    )
+    builder.available_indicators = ["rsi", "atr"]
+
+    monkeypatch.setattr(
+        StrategyBuilder,
+        "create_session_id",
+        staticmethod(lambda objective: "builder_progress_test"),
+    )
+    monkeypatch.setattr(
+        StrategyBuilder,
+        "get_session_dir",
+        staticmethod(lambda session_id: tmp_path / session_id),
+    )
+    monkeypatch.setattr(
+        strategy_builder_module,
+        "_validate_builder_dataset_exploitability",
+        lambda *args, **kwargs: (True, ""),
+    )
+    monkeypatch.setattr(
+        strategy_builder_module,
+        "_build_deterministic_strategy_code",
+        lambda proposal, logic_block: valid_strategy_code,
+    )
+
+    builder._save_session_summary = lambda session: None
+    builder._safe_save_session_summary = lambda session: None
+    builder._ask_proposal = lambda session, last_iteration: (
+        {
+            "hypothesis": "RSI reversal simple",
+            "used_indicators": ["rsi", "atr"],
+            "change_type": "logic",
+            "default_params": {"rsi_period": 14, "atr_period": 14},
+        },
+        {"phase": "proposal", "final_valid": True},
+    )
+    builder._ask_code = lambda session, proposal, last_iteration: (
+        "signals[:] = 0.0",
+        {"phase": "code", "final_valid": True},
+    )
+    builder._save_and_load = lambda session, code, iteration_num: object
+    builder._auto_fix_required_indicators = lambda strategy_cls, code: strategy_cls
+    builder._precheck_signal_counts = lambda *args, **kwargs: {
+        "ok": True,
+        "total_signals": 2,
+        "long_signals": 1,
+        "short_signals": 1,
+    }
+    builder._ask_pre_reflection = lambda *args, **kwargs: ""
+    builder._run_backtest = lambda *args, **kwargs: SimpleNamespace(
+        metrics={
+            "total_return_pct": 12.5,
+            "sharpe_ratio": 1.42,
+            "sortino_ratio": 1.8,
+            "calmar_ratio": 1.1,
+            "max_drawdown_pct": -8.0,
+            "total_trades": 28,
+            "win_rate_pct": 41.0,
+            "profit_factor": 1.35,
+            "expectancy": 0.12,
+        },
+        meta={},
+    )
+    builder._ask_analysis = lambda *args, **kwargs: ("Analyse stable", "accept")
+
+    session = builder.run(
+        objective="Tester la progression Builder",
+        data=sample_ohlcv,
+        max_iterations=1,
+        target_sharpe=1.0,
+        symbol="BTCUSDC",
+        timeframe="1h",
+    )
+
+    assert session.status == "success"
+    assert [event["event"] for event in progress_events] == [
+        "session_start",
+        "iteration_start",
+        "phase_start",
+        "phase_done",
+        "phase_start",
+        "phase_start",
+        "phase_done",
+        "phase_start",
+        "iteration_done",
+        "session_done",
+    ]
+    assert [event.get("phase") for event in progress_events if event["event"] == "phase_start"] == [
+        "proposal",
+        "code",
+        "backtest",
+        "analysis",
+    ]
+    assert any(
+        event["event"] == "phase_done"
+        and event.get("phase") == "backtest"
+        and event.get("sharpe") == 1.42
+        for event in progress_events
+    )
+    assert not any(event["event"] == "iteration_error" for event in progress_events)
 
 
 # ─── Tests validate_generated_code ───────────────────────────────────────
@@ -590,6 +727,33 @@ class TestObjectiveGenerationIndicatorSanitization:
         assert "{timeframe}" in objective
         assert "fear_greed" not in lower
 
+    def test_generate_llm_objective_from_seed_keeps_placeholders_and_sanitizes(self):
+        llm = _DummyLLMClient(
+            (
+                "Breakout adaptatif sur BTCUSDC 5m. "
+                "Indicateurs : FEAR_GREED + DONCHIAN + ATR. "
+                "Entrées : cassure confirmée. "
+                "Sorties : invalidation. "
+                "Risk management : stop ATR."
+            )
+        )
+        objective = generate_llm_objective_from_seed(
+            llm,
+            seed_objective=(
+                "Strategie de Breakout sur {symbol} {timeframe}. "
+                "Indicateurs : DONCHIAN + ADX + ATR. "
+                "Entree long sur cassure du range avec confirmation ADX."
+            ),
+            symbol=None,
+            timeframe=None,
+            available_indicators=["donchian", "adx", "atr", "ema"],
+        )
+        lower = objective.lower()
+        assert "{symbol}" in objective
+        assert "{timeframe}" in objective
+        assert "fear_greed" not in lower
+        assert "donchian" in lower
+
 
 # ─── Tests session ─────────────────────────────────────────────────────────
 
@@ -660,6 +824,72 @@ class TestObjectiveSanitizer:
         """)
         cleaned = sanitize_objective_text(raw)
         assert cleaned == ""
+
+
+class TestSessionRecovery:
+    def test_select_session_recovery_anchor_prefers_best_iteration(self):
+        session = BuilderSession(
+            session_id="recovery_anchor",
+            objective="test",
+            session_dir=Path("/tmp/recovery_anchor"),
+        )
+        stable_best = BuilderIteration(
+            iteration=1,
+            backtest_result=SimpleNamespace(metrics={"sharpe_ratio": 1.2}),
+        )
+        stable_fallback = BuilderIteration(
+            iteration=2,
+            backtest_result=SimpleNamespace(metrics={"sharpe_ratio": 0.4}),
+            is_fallback=True,
+        )
+        broken = BuilderIteration(iteration=3, error="boom")
+        session.iterations = [stable_best, stable_fallback, broken]
+        session.best_iteration = stable_best
+
+        anchor, source = _select_session_recovery_anchor(session, broken)
+
+        assert anchor is stable_best
+        assert source == "best_iteration"
+
+    def test_attempt_session_auto_reset_records_recovery_event(self, tmp_path):
+        builder = StrategyBuilder.__new__(StrategyBuilder)
+        checkpoint_calls: list[int] = []
+        builder._save_session_summary = lambda session: checkpoint_calls.append(
+            session.auto_reset_count
+        )
+
+        session = BuilderSession(
+            session_id="recovery_reset",
+            objective="test",
+            session_dir=tmp_path / "recovery_reset",
+        )
+        stable_best = BuilderIteration(
+            iteration=1,
+            backtest_result=SimpleNamespace(metrics={"sharpe_ratio": 1.1}),
+        )
+        session.iterations = [stable_best]
+        session.best_iteration = stable_best
+
+        ok, anchor, consecutive_failures, fallback_count, event = (
+            builder._attempt_session_auto_reset(
+                session,
+                iteration_num=3,
+                trigger="consecutive_failures",
+                reason="3 erreurs",
+                last_iteration=None,
+                consecutive_failures=3,
+                fallback_count=1,
+            )
+        )
+
+        assert ok is True
+        assert anchor is stable_best
+        assert consecutive_failures == 0
+        assert fallback_count == 0
+        assert event["anchor_source"] == "best_iteration"
+        assert session.auto_reset_count == 1
+        assert session.recovery_events[0]["trigger"] == "consecutive_failures"
+        assert checkpoint_calls == [1]
 
 
 class TestBuilderRobustnessGate:
@@ -1061,6 +1291,14 @@ class TestBuilderSummaryLeaderboard:
             target_sharpe=1.0,
         )["score"]
         session.status = "success"
+        session.auto_reset_count = 1
+        session.recovery_events = [
+            {
+                "iteration": 2,
+                "trigger": "consecutive_failures",
+                "reason": "test",
+            }
+        ]
 
         try:
             builder._save_session_summary(session)
@@ -1077,8 +1315,40 @@ class TestBuilderSummaryLeaderboard:
             assert "leaderboard" in payload
             assert len(payload["leaderboard"]) == 2
             assert payload["leaderboard"][0]["iteration"] == 2
+            assert payload["auto_reset_count"] == 1
+            assert payload["recovery_events"][0]["trigger"] == "consecutive_failures"
         finally:
             shutil.rmtree(session_dir, ignore_errors=True)
+
+
+class TestObjectiveComplexity:
+    def test_objective_complexity_score_prefers_richer_setups(self):
+        simple = CatalogObjective(
+            id="simple",
+            family="momentum",
+            indicators=["ema", "atr"],
+            direction="long_only",
+            risk_profile="tight",
+            novelty_angle="curated",
+            description="simple",
+            sl_mult=1.0,
+            tp_mult=2.0,
+            tags=["cross"],
+        )
+        complex_obj = CatalogObjective(
+            id="complex",
+            family="breakout",
+            indicators=["donchian", "adx", "obv", "atr"],
+            direction="long_short",
+            risk_profile="wide",
+            novelty_angle="curated",
+            description="complex",
+            sl_mult=2.0,
+            tp_mult=5.0,
+            tags=["multi_tf_proxy", "volatility", "confirmation"],
+        )
+
+        assert _objective_complexity_score(complex_obj) > _objective_complexity_score(simple)
 
 
 class TestParametricCatalogRandomization:

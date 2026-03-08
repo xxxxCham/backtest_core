@@ -31,6 +31,8 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 
+from . import formatters as _shared_formatters
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
@@ -70,67 +72,43 @@ class Colors:
         """Désactive les couleurs."""
         cls.RESET = cls.BOLD = cls.RED = cls.GREEN = ""
         cls.YELLOW = cls.BLUE = cls.MAGENTA = cls.CYAN = ""
+        # Garder le formatteur partagé cohérent avec --no-color.
+        _shared_formatters.Colors.disable()
 
 
 def print_header(text: str, char: str = "="):
-    """Affiche un en-tête formaté."""
-    print(f"\n{Colors.BOLD}{Colors.CYAN}{text}{Colors.RESET}")
-    print(Colors.CYAN + char * len(text) + Colors.RESET)
+    """Affiche un en-tête formaté (source partagée: cli.formatters)."""
+    _shared_formatters.print_header(text, char=char)
 
 
 def print_success(text: str):
-    """Affiche un message de succès."""
-    print(f"{Colors.GREEN}✓{Colors.RESET} {text}")
+    """Affiche un message de succès (source partagée: cli.formatters)."""
+    _shared_formatters.print_success(text)
 
 
 def print_error(text: str):
-    """Affiche un message d'erreur."""
-    print(f"{Colors.RED}✗{Colors.RESET} {text}")
+    """Affiche un message d'erreur (source partagée: cli.formatters)."""
+    _shared_formatters.print_error(text)
 
 
 def print_warning(text: str):
-    """Affiche un avertissement."""
-    print(f"{Colors.YELLOW}⚠{Colors.RESET} {text}")
+    """Affiche un avertissement (source partagée: cli.formatters)."""
+    _shared_formatters.print_warning(text)
 
 
 def print_info(text: str):
-    """Affiche une information."""
-    print(f"{Colors.BLUE}ℹ{Colors.RESET} {text}")
+    """Affiche une information (source partagée: cli.formatters)."""
+    _shared_formatters.print_info(text)
 
 
 def format_table(headers: List[str], rows: List[List[str]], padding: int = 2) -> str:
-    """Formate une table en texte."""
-    if not rows:
-        return "  (aucune donnée)"
-
-    # Calculer largeurs
-    widths = [len(h) for h in headers]
-    for row in rows:
-        for i, cell in enumerate(row):
-            if i < len(widths):
-                widths[i] = max(widths[i], len(str(cell)))
-
-    # Header
-    lines = []
-    header_line = "  ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
-    lines.append(f"  {Colors.BOLD}{header_line}{Colors.RESET}")
-    lines.append("  " + "  ".join("-" * w for w in widths))
-
-    # Rows
-    for row in rows:
-        row_line = "  ".join(str(cell).ljust(widths[i]) for i, cell in enumerate(row))
-        lines.append(f"  {row_line}")
-
-    return "\n".join(lines)
+    """Formate une table en texte (source partagée: cli.formatters)."""
+    return _shared_formatters.format_table(headers, rows, indent=2, padding=padding)
 
 
 def format_bytes(bytes_count: float) -> str:
-    """Formate un nombre de bytes en unité lisible."""
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes_count < 1024.0:
-            return f"{bytes_count:.2f} {unit}"
-        bytes_count /= 1024.0
-    return f"{bytes_count:.2f} PB"
+    """Formate un nombre de bytes en unité lisible (source partagée: cli.formatters)."""
+    return _shared_formatters.format_bytes(bytes_count)
 
 
 def _apply_date_filter(df: pd.DataFrame, start: str | None, end: str | None) -> pd.DataFrame:
@@ -175,6 +153,47 @@ def _resolve_output_format(output_path: Path, requested_format: str | None, defa
     if suffix in {"json", "csv", "parquet"}:
         return suffix
     return default
+
+
+def _resolve_symbol_timeframe_from_path(
+    data_path: Path,
+    *,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+) -> tuple[str, str]:
+    from data.loader import _extract_symbol_timeframe_from_stem
+
+    parsed = _extract_symbol_timeframe_from_stem(data_path.stem)
+    parsed_symbol = parsed[0] if parsed else None
+    parsed_timeframe = parsed[1] if parsed else None
+    resolved_symbol = str(symbol or parsed_symbol or "UNKNOWN").upper()
+    resolved_timeframe = str(timeframe or parsed_timeframe or "1h")
+    return resolved_symbol, resolved_timeframe
+
+
+def _load_cli_dataset(
+    data_path: Path,
+    *,
+    symbol: Optional[str] = None,
+    timeframe: Optional[str] = None,
+    start: Optional[str] = None,
+    end: Optional[str] = None,
+):
+    from data.loader import load_ohlcv_file
+
+    resolved_symbol, resolved_timeframe = _resolve_symbol_timeframe_from_path(
+        data_path,
+        symbol=symbol,
+        timeframe=timeframe,
+    )
+    df, report = load_ohlcv_file(
+        data_path,
+        symbol=resolved_symbol,
+        timeframe=resolved_timeframe,
+        start=start,
+        end=end,
+    )
+    return df, report, resolved_symbol, resolved_timeframe
 
 
 def _split_multi_args(values: Optional[List[str]]) -> List[str]:
@@ -1039,23 +1058,25 @@ def _cmd_backtest_single(args, strategy_name: str) -> int:
     if not args.quiet:
         print_info("Chargement des données...")
 
-    # Utiliser les fonctions internes pour charger directement depuis le fichier
-    from data.loader import _mark_data_quality, _normalize_ohlcv, _read_file, _trim_launch_period
-    df = _read_file(data_path)
-    df = _normalize_ohlcv(df)
-    # timeframe résolu plus bas (ligne ~689), on a besoin ici du stem
-    _stem = data_path.stem
-    _tf = args.timeframe or (_stem.split("_")[1] if len(_stem.split("_")) > 1 else "1h")
-    df = _trim_launch_period(df, _tf)
-    df = _mark_data_quality(df)
     try:
-        df = _apply_date_filter(df, args.start, args.end)
+        df, report, symbol, timeframe = _load_cli_dataset(
+            data_path,
+            symbol=args.symbol,
+            timeframe=args.timeframe,
+            start=args.start,
+            end=args.end,
+        )
     except ValueError as e:
         print_error(str(e))
         return 1
 
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
+        print_info(
+            "Qualité dataset: "
+            f"trim={report.launch_trim_bars}, couverture={report.coverage_ratio * 100.0:.1f}%, "
+            f"gaps={report.gap_count}, volume=0={report.zero_volume_ratio * 100.0:.1f}%"
+        )
 
     # Exécution backtest
     if not args.quiet:
@@ -1072,12 +1093,6 @@ def _cmd_backtest_single(args, strategy_name: str) -> int:
         initial_capital=args.capital,
         config=config,
     )
-
-    # Extraire symbol et timeframe du nom de fichier (ex: BTCUSDC_1h.parquet)
-    stem = data_path.stem
-    parts = stem.split("_")
-    symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
-    timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
 
     result = engine.run(
         df=df,
@@ -1248,6 +1263,13 @@ def cmd_catalog(args) -> int:
     return 1
 
 
+def cmd_cross_token(args) -> int:
+    """Valide les sessions Builder sur un panier cross-token."""
+    from .cross_token import run_cross_token_command
+
+    return run_cross_token_command(args)
+
+
 def _print_metrics(metrics):
     """Affiche les métriques de performance."""
     m = metrics.to_dict() if hasattr(metrics, "to_dict") else metrics
@@ -1279,6 +1301,65 @@ def _print_metrics(metrics):
 # =============================================================================
 # COMMANDE: SWEEP
 # =============================================================================
+
+
+def _run_cli_numba_sweep_if_possible(
+    *,
+    df: pd.DataFrame,
+    strategy_name: str,
+    grid: list[dict],
+    metric: str,
+    capital: float,
+    fees_bps: float,
+    slippage_bps: float,
+    quiet: bool,
+    thread_override: Optional[int] = None,
+) -> Optional[list[dict]]:
+    """Exécute un sweep Numba si stratégie + métrique sont compatibles."""
+    from backtest.sweep_numba import run_numba_sweep_items_if_supported
+
+    metric_key = normalize_metric_name(metric)
+    numba_items = run_numba_sweep_items_if_supported(
+        df=df,
+        strategy_key=strategy_name,
+        param_grid=grid,
+        metric=metric_key,
+        initial_capital=capital,
+        fees_bps=fees_bps,
+        slippage_bps=slippage_bps,
+        thread_override=thread_override,
+    )
+    if numba_items is None:
+        return None
+
+    if not quiet:
+        print_info("Backend Numba activé pour ce sweep")
+
+    results: list[dict] = []
+    for item in numba_items:
+        clean_params = {
+            k: _to_native_value(v)
+            for k, v in (item.get("params", {}) or {}).items()
+        }
+        metrics = {
+            key: _to_native_value(value)
+            for key, value in (item.get("metrics", {}) or {}).items()
+        }
+        metrics["sharpe"] = metrics.get("sharpe_ratio", 0)
+        metrics["max_drawdown"] = metrics.get("max_drawdown_pct", 0)
+        metrics["win_rate"] = metrics.get("win_rate_pct", 0)
+        metrics["n_trades"] = metrics.get("total_trades", 0)
+        metrics["total_return"] = metrics.get("total_return_pct", 0) / 100.0
+        results.append(
+            {
+                "params": clean_params,
+                "metrics": metrics,
+                "score": _to_native_value(item.get("score", metrics.get(metric_key, 0))),
+            }
+        )
+
+    return results
+
 
 def cmd_sweep(args) -> int:
     """Exécute une optimisation paramétrique."""
@@ -1384,26 +1465,27 @@ def _cmd_sweep_single(args, strategy_name: str) -> int:
         for pname, pcount in stats.per_param_counts.items():
             print(f"    {pname}: {pcount} valeurs")
 
-    # Charger données avec les fonctions internes
-    from data.loader import _normalize_ohlcv, _read_file
-    df = _read_file(data_path)
-    df = _normalize_ohlcv(df)
     try:
-        df = _apply_date_filter(df, args.start, args.end)
+        df, report, symbol, timeframe = _load_cli_dataset(
+            data_path,
+            symbol=args.symbol,
+            timeframe=args.timeframe,
+            start=args.start,
+            end=args.end,
+        )
     except ValueError as e:
         print_error(str(e))
         return 1
 
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
+        print_info(
+            "Qualité dataset: "
+            f"trim={report.launch_trim_bars}, couverture={report.coverage_ratio * 100.0:.1f}%, "
+            f"gaps={report.gap_count}, volume=0={report.zero_volume_ratio * 100.0:.1f}%"
+        )
         print_info("Lancement de l'optimisation...")
         print()
-
-    # Extraire symbol et timeframe du nom de fichier
-    stem = data_path.stem
-    parts = stem.split("_")
-    symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
-    timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
 
     # Créer la configuration avec les frais
     from utils.config import Config
@@ -1413,45 +1495,58 @@ def _cmd_sweep_single(args, strategy_name: str) -> int:
     config = Config(**config_kwargs)
 
     # Exécuter le sweep
-    results = []
+    results = _run_cli_numba_sweep_if_possible(
+        df=df,
+        strategy_name=strategy_name,
+        grid=grid,
+        metric=args.metric,
+        capital=args.capital,
+        fees_bps=float(config.fees_bps),
+        slippage_bps=float(config.slippage_bps),
+        quiet=args.quiet,
+        thread_override=max(1, int(args.parallel)) if getattr(args, "parallel", None) else None,
+    )
 
-    for i, params in enumerate(grid):
-        engine = BacktestEngine(
-            initial_capital=args.capital,
-            config=config,
-        )
+    if results is None:
+        results = []
 
-        try:
-            result = engine.run(
-                df=df,
-                strategy=strategy_name,
-                params=params,
-                symbol=symbol,
-                timeframe=timeframe
+        for i, params in enumerate(grid):
+            engine = BacktestEngine(
+                initial_capital=args.capital,
+                config=config,
             )
-            # Gérer les métriques qui peuvent être un dict ou un objet avec to_dict()
-            if hasattr(result.metrics, 'to_dict'):
-                metrics = result.metrics.to_dict()
-            else:
-                metrics = dict(result.metrics)
-            metrics = {k: _to_native_value(v) for k, v in metrics.items()}
-            clean_params = {k: _to_native_value(v) for k, v in params.items()}
 
-            # Normaliser le nom de la métrique
-            metric_key = normalize_metric_name(args.metric)
+            try:
+                result = engine.run(
+                    df=df,
+                    strategy=strategy_name,
+                    params=params,
+                    symbol=symbol,
+                    timeframe=timeframe
+                )
+                # Gérer les métriques qui peuvent être un dict ou un objet avec to_dict()
+                if hasattr(result.metrics, 'to_dict'):
+                    metrics = result.metrics.to_dict()
+                else:
+                    metrics = dict(result.metrics)
+                metrics = {k: _to_native_value(v) for k, v in metrics.items()}
+                clean_params = {k: _to_native_value(v) for k, v in params.items()}
 
-            results.append({
-                "params": clean_params,
-                "metrics": metrics,
-                "score": _to_native_value(metrics.get(metric_key, 0)),
-            })
-        except Exception as e:
-            if args.verbose:
-                print_warning(f"Erreur avec {params}: {e}")
+                # Normaliser le nom de la métrique
+                metric_key = normalize_metric_name(args.metric)
 
-        # Progress
-        if not args.quiet and (i + 1) % 10 == 0:
-            print(f"\r  Progress: {i+1}/{len(grid)} ({100*(i+1)/len(grid):.1f}%)", end="", flush=True)
+                results.append({
+                    "params": clean_params,
+                    "metrics": metrics,
+                    "score": _to_native_value(metrics.get(metric_key, 0)),
+                })
+            except Exception as e:
+                if args.verbose:
+                    print_warning(f"Erreur avec {params}: {e}")
+
+            # Progress
+            if not args.quiet and (i + 1) % 10 == 0:
+                print(f"\r  Progress: {i+1}/{len(grid)} ({100*(i+1)/len(grid):.1f}%)", end="", flush=True)
 
     if not args.quiet:
         print("\r" + " " * 50 + "\r", end="")
@@ -1602,7 +1697,7 @@ def cmd_validate(args) -> int:
     if args.all or args.data:
         from pathlib import Path
 
-        from data.loader import _normalize_ohlcv, _read_file
+        from data.loader import load_ohlcv_file
 
         print(f"\n{Colors.BOLD}Données:{Colors.RESET}")
 
@@ -1614,15 +1709,19 @@ def cmd_validate(args) -> int:
 
         for f in data_files:
             try:
-                df = _read_file(Path(f))
-                df = _normalize_ohlcv(df)
+                df, report = load_ohlcv_file(Path(f), enforce_quality=False)
                 required = ["open", "high", "low", "close", "volume"]
                 missing = [c for c in required if c not in df.columns]
                 if missing:
                     print_warning(f"  {f}: colonnes manquantes {missing}")
                     warnings.append(f"{f}: colonnes manquantes {missing}")
+                elif not report.is_valid:
+                    print_error(f"  {f}: dataset invalide ({', '.join(report.blocking_reasons)})")
+                    errors.append(f"{f}: dataset invalide ({', '.join(report.blocking_reasons)})")
                 else:
-                    print_success(f"  {f} ({len(df)} barres)")
+                    print_success(
+                        f"  {f} ({len(df)} barres, couverture {report.coverage_ratio * 100.0:.1f}%, trim {report.launch_trim_bars})"
+                    )
             except Exception as e:
                 print_error(f"  {f}: {e}")
                 errors.append(f"{f}: {e}")
@@ -1762,6 +1861,7 @@ __all__ = [
     "cmd_backtest",
     "cmd_sweep",
     "cmd_catalog",
+    "cmd_cross_token",
     "cmd_validate",
     "cmd_export",
     "cmd_optuna",
@@ -1857,18 +1957,25 @@ def _cmd_optuna_single(args, strategy_name: str) -> int:
             print("  Mode: Multi-objectif (Pareto)")
         print()
 
-    # Charger données
-    from data.loader import _normalize_ohlcv, _read_file
-    df = _read_file(data_path)
-    df = _normalize_ohlcv(df)
     try:
-        df = _apply_date_filter(df, args.start, args.end)
+        df, report, symbol, timeframe = _load_cli_dataset(
+            data_path,
+            symbol=args.symbol,
+            timeframe=args.timeframe,
+            start=args.start,
+            end=args.end,
+        )
     except ValueError as e:
         print_error(str(e))
         return 1
 
     if not args.quiet:
         print_success(f"Données chargées: {len(df)} barres")
+        print_info(
+            "Qualité dataset: "
+            f"trim={report.launch_trim_bars}, couverture={report.coverage_ratio * 100.0:.1f}%, "
+            f"gaps={report.gap_count}, volume=0={report.zero_volume_ratio * 100.0:.1f}%"
+        )
 
     # Construire le param_space
     strat = strat_class()
@@ -1907,12 +2014,6 @@ def _cmd_optuna_single(args, strategy_name: str) -> int:
             parts = c.split(",")
             if len(parts) == 3:
                 constraints.append((parts[0], parts[1], parts[2]))
-
-    # Extraire symbol et timeframe
-    stem = data_path.stem
-    parts = stem.split("_")
-    symbol = args.symbol or (parts[0] if parts else "UNKNOWN")
-    timeframe = args.timeframe or (parts[1] if len(parts) > 1 else "1h")
 
     # Créer l'optimiseur
     from utils.config import Config
@@ -2229,22 +2330,15 @@ def cmd_visualize(args) -> int:
                         print_info("Exécution du backtest avec les meilleurs paramètres...")
 
                     from backtest import BacktestEngine
-                    from data.loader import _normalize_ohlcv, _read_file
                     from utils.config import Config
 
-                    df = _read_file(data_path)
-                    df = _normalize_ohlcv(df)
+                    df, _, symbol, timeframe = _load_cli_dataset(data_path)
 
                     config = Config(fees_bps=args.fees_bps)
                     engine = BacktestEngine(
                         initial_capital=args.capital or 10000,
                         config=config,
                     )
-
-                    stem = data_path.stem
-                    parts = stem.split("_")
-                    symbol = parts[0] if parts else "UNKNOWN"
-                    timeframe = parts[1] if len(parts) > 1 else "1m"
 
                     result = engine.run(
                         df=df,
@@ -2847,42 +2941,62 @@ def _cmd_grid_backtest_single(args, strategy_name: str) -> int:
         print_info("Lancement des backtests...")
         print()
 
-    results = []
+    grid = [dict(zip(param_names, param_combination)) for param_combination in all_combinations]
+    numba_results = _run_cli_numba_sweep_if_possible(
+        df=df,
+        strategy_name=strategy_name,
+        grid=grid,
+        metric=args.metric,
+        capital=args.capital,
+        fees_bps=float(config.fees_bps),
+        slippage_bps=float(config.slippage_bps),
+        quiet=args.quiet,
+        thread_override=None,
+    )
 
-    for i, param_combination in enumerate(all_combinations):
-        params = dict(zip(param_names, param_combination))
+    if numba_results is not None:
+        results = [
+            {
+                "params": item["params"],
+                "metrics": item["metrics"],
+            }
+            for item in numba_results
+        ]
+    else:
+        results = []
 
-        engine = BacktestEngine(
-            initial_capital=args.capital,
-            config=config,
-        )
-
-        try:
-            result = engine.run(
-                df=df,
-                strategy=strategy_name,
-                params=params,
-                symbol=args.symbol,
-                timeframe=args.timeframe
+        for i, params in enumerate(grid):
+            engine = BacktestEngine(
+                initial_capital=args.capital,
+                config=config,
             )
 
-            # Gérer les métriques
-            if hasattr(result.metrics, 'to_dict'):
-                metrics = result.metrics.to_dict()
-            else:
-                metrics = dict(result.metrics)
+            try:
+                result = engine.run(
+                    df=df,
+                    strategy=strategy_name,
+                    params=params,
+                    symbol=args.symbol,
+                    timeframe=args.timeframe
+                )
 
-            results.append({
-                "params": params,
-                "metrics": metrics,
-            })
-        except Exception as e:
-            if args.verbose:
-                print_warning(f"Erreur avec {params}: {e}")
+                # Gérer les métriques
+                if hasattr(result.metrics, 'to_dict'):
+                    metrics = result.metrics.to_dict()
+                else:
+                    metrics = dict(result.metrics)
 
-        # Progress
-        if not args.quiet and (i + 1) % 10 == 0:
-            print(f"\r  Progress: {i+1}/{len(all_combinations)} ({100*(i+1)/len(all_combinations):.1f}%)", end="", flush=True)
+                results.append({
+                    "params": params,
+                    "metrics": metrics,
+                })
+            except Exception as e:
+                if args.verbose:
+                    print_warning(f"Erreur avec {params}: {e}")
+
+            # Progress
+            if not args.quiet and (i + 1) % 10 == 0:
+                print(f"\r  Progress: {i+1}/{len(grid)} ({100*(i+1)/len(grid):.1f}%)", end="", flush=True)
 
     if not args.quiet:
         print("\r" + " " * 50 + "\r", end="")
@@ -3700,9 +3814,15 @@ def _cmd_cycle_single(args, strategy_name: str) -> int:
     run_name = args.run_name or f"cycle_{strategy_name}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
 
     # Charger données pour calcul de fenêtre/split
-    from data.loader import _normalize_ohlcv, _read_file
-
-    df_all = _normalize_ohlcv(_read_file(data_path))
+    try:
+        df_all, quality_report, _, _ = _load_cli_dataset(
+            data_path,
+            symbol=args.symbol,
+            timeframe=args.timeframe,
+        )
+    except ValueError as exc:
+        print_error(str(exc))
+        return 1
     if len(df_all) < 50:
         print_error(f"Données insuffisantes pour un cycle fiable: {len(df_all)} barres")
         return 1
@@ -3731,6 +3851,12 @@ def _cmd_cycle_single(args, strategy_name: str) -> int:
         print_header("Cycle Complet")
         print(f"  Stratégie: {strategy_name}")
         print(f"  Données: {data_path}")
+        print(
+            "  Qualité dataset: "
+            f"trim={quality_report.launch_trim_bars}, "
+            f"couverture={quality_report.coverage_ratio * 100.0:.1f}%, "
+            f"gaps={quality_report.gap_count}"
+        )
         print(f"  Train: {train_start} -> {train_end}")
         print(f"  Test:  {test_start} -> {test_end}")
         print(f"  Metric sweep: {args.metric}")

@@ -45,6 +45,11 @@ from performance.parallel import (
     generate_param_grid,
 )
 from performance.profiler import Profiler
+from backtest.sweep_numba import (
+    normalize_numba_strategy_key,
+    run_numba_sweep_items_if_supported,
+    should_use_numba_backend,
+)
 from utils.parameters import compute_search_space_stats
 
 logger = logging.getLogger(__name__)
@@ -315,9 +320,11 @@ class SweepEngine:
 
         logger.info(f"Démarrage sweep: {n_combos} combinaisons")
 
-        # Résoudre la stratégie si c'est un nom
+        # Résoudre la stratégie si c'est un nom, en conservant la clé canonique
+        strategy_key = strategy if isinstance(strategy, str) else getattr(strategy, "name", "")
         if isinstance(strategy, str):
             strategy = self._get_strategy_by_name(strategy)
+        strategy_name = normalize_numba_strategy_key(strategy_key)
 
         # Tracker de ressources
         tracker = ResourceTracker(interval=1.0)
@@ -334,80 +341,135 @@ class SweepEngine:
             profiler.start()
 
         try:
-            # Callback de progression pour intégration avec ProgressBar
-            pbar = None
-            if show_progress:
-                pbar = ProgressBar(total=n_combos, description="Sweep")
-                pbar.__enter__()
+            used_numba_backend = False
 
-            def progress_callback(current: int, total: int):
-                """Callback appelé par ParallelRunner pour mettre à jour la progress bar."""
-                if pbar:
-                    pbar.update(current)
+            if should_use_numba_backend(
+                strategy_name,
+                metric=optimize_for,
+                total_combos=n_combos,
+            ):
+                logger.info("SweepEngine: backend Numba activé pour %s (%s combos)", strategy_name, n_combos)
 
-            # Exécution parallèle via ParallelRunner
-            parallel_result = self._runner.run_sweep(
-                run_func=_run_single_backtest_wrapper,
-                param_grid=combinations,
-                progress_callback=progress_callback if show_progress else None,
-                # Fixed kwargs passés à chaque appel de _run_single_backtest_wrapper
-                df=df,
-                strategy=strategy,
-                initial_capital=self.initial_capital,
-                silent_mode=silent_mode,
-                fast_metrics=fast_metrics,
-            )
-
-            if pbar:
-                pbar.__exit__(None, None, None)
-
-            # Traiter les résultats du ParallelRunner
-            for item_data in parallel_result.results:
-                # Vérifier si un arrêt d'urgence a été demandé
-                if self._stop_requested:
-                    logger.warning("🛑 Arrêt d'urgence détecté - Interruption du sweep")
-                    break
-
-                if item_data.get("success"):
-                    result = item_data["result"]
-                    metrics = _normalize_metrics_pct(result.get("metrics", {}))
-                    item = SweepResultItem(
-                        params=result["params"],
-                        metrics=metrics,
-                        success=result["success"],
-                        error=result.get("error"),
-                    )
+                if show_progress:
+                    pbar = ProgressBar(total=n_combos, description="Sweep")
+                    pbar.__enter__()
                 else:
-                    # Cas d'erreur
+                    pbar = None
+
+                def progress_callback_numba(current: int, total: int, _best: Dict[str, Any]) -> None:
+                    if pbar:
+                        pbar.update(current)
+
+                numba_items = run_numba_sweep_items_if_supported(
+                    df=df,
+                    strategy_key=strategy_name,
+                    param_grid=combinations,
+                    metric=optimize_for,
+                    initial_capital=self.initial_capital,
+                    progress_callback=progress_callback_numba if show_progress else None,
+                    should_stop=lambda: self._stop_requested,
+                )
+
+                if pbar:
+                    pbar.__exit__(None, None, None)
+
+                for item_data in numba_items or []:
+                    metrics = _normalize_metrics_pct(item_data["metrics"])
                     item = SweepResultItem(
                         params=item_data["params"],
-                        metrics={},
-                        success=False,
-                        error=item_data.get("error", "Unknown error"),
+                        metrics=metrics,
+                        success=True,
                     )
+                    results.append(item)
 
-                results.append(item)
+                    if optimize_for in item.metrics:
+                        value = item.metrics[optimize_for]
+                        is_better = (
+                            (not minimize and value > best_value) or
+                            (minimize and value < best_value)
+                        )
+                        if is_better:
+                            best_value = value
+                            best_params = item.params.copy()
+                            best_metrics = item.metrics.copy()
 
-                # Mise à jour du meilleur
-                if item.success and optimize_for in item.metrics:
-                    value = item.metrics[optimize_for]
-                    is_better = (
-                        (not minimize and value > best_value) or
-                        (minimize and value < best_value)
-                    )
-                    if is_better:
-                        best_value = value
-                        best_params = item.params.copy()
-                        best_metrics = item.metrics.copy()
+                used_numba_backend = numba_items is not None
 
-                        # Early stopping (post-traitement)
-                        if early_stop_threshold is not None:
-                            if (not minimize and best_value >= early_stop_threshold) or \
-                               (minimize and best_value <= early_stop_threshold):
-                                logger.info(f"Early stop: {optimize_for}={best_value:.4f}")
-                                # Note: avec ParallelRunner, les tâches restantes sont déjà lancées
-                                # mais on arrête le traitement des résultats
-                                break
+            if not used_numba_backend:
+                # Callback de progression pour intégration avec ProgressBar
+                pbar = None
+                if show_progress:
+                    pbar = ProgressBar(total=n_combos, description="Sweep")
+                    pbar.__enter__()
+
+                def progress_callback(current: int, total: int):
+                    """Callback appelé par ParallelRunner pour mettre à jour la progress bar."""
+                    if pbar:
+                        pbar.update(current)
+
+                # Exécution parallèle via ParallelRunner
+                parallel_result = self._runner.run_sweep(
+                    run_func=_run_single_backtest_wrapper,
+                    param_grid=combinations,
+                    progress_callback=progress_callback if show_progress else None,
+                    # Fixed kwargs passés à chaque appel de _run_single_backtest_wrapper
+                    df=df,
+                    strategy=strategy,
+                    initial_capital=self.initial_capital,
+                    silent_mode=silent_mode,
+                    fast_metrics=fast_metrics,
+                )
+
+                if pbar:
+                    pbar.__exit__(None, None, None)
+
+                # Traiter les résultats du ParallelRunner
+                for item_data in parallel_result.results:
+                    # Vérifier si un arrêt d'urgence a été demandé
+                    if self._stop_requested:
+                        logger.warning("🛑 Arrêt d'urgence détecté - Interruption du sweep")
+                        break
+
+                    if item_data.get("success"):
+                        result = item_data["result"]
+                        metrics = _normalize_metrics_pct(result.get("metrics", {}))
+                        item = SweepResultItem(
+                            params=result["params"],
+                            metrics=metrics,
+                            success=result["success"],
+                            error=result.get("error"),
+                        )
+                    else:
+                        # Cas d'erreur
+                        item = SweepResultItem(
+                            params=item_data["params"],
+                            metrics={},
+                            success=False,
+                            error=item_data.get("error", "Unknown error"),
+                        )
+
+                    results.append(item)
+
+                    # Mise à jour du meilleur
+                    if item.success and optimize_for in item.metrics:
+                        value = item.metrics[optimize_for]
+                        is_better = (
+                            (not minimize and value > best_value) or
+                            (minimize and value < best_value)
+                        )
+                        if is_better:
+                            best_value = value
+                            best_params = item.params.copy()
+                            best_metrics = item.metrics.copy()
+
+                            # Early stopping (post-traitement)
+                            if early_stop_threshold is not None:
+                                if (not minimize and best_value >= early_stop_threshold) or \
+                                   (minimize and best_value <= early_stop_threshold):
+                                    logger.info(f"Early stop: {optimize_for}={best_value:.4f}")
+                                    # Note: avec ParallelRunner, les tâches restantes sont déjà lancées
+                                    # mais on arrête le traitement des résultats
+                                    break
 
         finally:
             # Arrêter le tracking

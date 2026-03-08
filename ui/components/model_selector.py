@@ -17,15 +17,19 @@ Dependencies: agents.ollama_manager (optionnel), utils.model_loader, httpx
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 try:
-    from agents.ollama_manager import list_ollama_models
+    from agents.ollama_manager import is_ollama_available, list_ollama_models
 except ImportError:
     def list_ollama_models() -> List[str]:
         return []
+
+    def is_ollama_available(ollama_host: Optional[str] = None) -> bool:
+        return False
 from utils.log import get_logger
 from utils.model_loader import get_model_info_for_ui, get_ollama_model_names, load_models_json
 
@@ -128,18 +132,82 @@ def _get_total_vram_gb() -> float:
 # Cache Ollama model details
 # ---------------------------------------------------------------------------
 
-_ollama_details_cache: Optional[Dict[str, Dict]] = None
+_ollama_details_cache: Optional[Dict[Tuple[str, str], Dict]] = None
 _ollama_details_ts: float = 0.0
 
 
-def _fetch_ollama_details() -> Dict[str, Dict]:
+def _normalize_host(ollama_host: Optional[str] = None) -> str:
+    host = str(
+        ollama_host
+        or os.environ.get("OLLAMA_HOST")
+        or "http://127.0.0.1:11434"
+    ).strip()
+    if not host.startswith(("http://", "https://")):
+        host = f"http://{host}"
+    return host.rstrip("/")
+
+
+def _resolve_selector_current_value(
+    key: str,
+    explicit_current_value: Optional[str] = None,
+) -> str:
+    import streamlit as st
+
+    return str(
+        st.session_state.get(key)
+        or explicit_current_value
+        or st.session_state.get(f"{key}_manual")
+        or ""
+    ).strip()
+
+
+def _build_empty_models_warning(
+    ollama_host: Optional[str],
+    *,
+    service_available: bool,
+) -> str:
+    host = _normalize_host(ollama_host)
+    if service_available:
+        return (
+            f"Ollama répond sur `{host}`, mais aucun modèle installé n'a été détecté "
+            "sur cette instance."
+        )
+    return (
+        f"Aucun modèle Ollama détecté sur `{host}`. "
+        "Le service est indisponible ou encore en démarrage."
+    )
+
+
+def _resolve_selectbox_value(
+    models: Sequence[str],
+    current_value: str,
+    stored_value: str,
+) -> str:
+    normalized_current = _normalize_model_name(str(current_value or "").strip())
+    normalized_stored = _normalize_model_name(str(stored_value or "").strip())
+
+    for candidate in models:
+        normalized_candidate = _normalize_model_name(str(candidate))
+        if normalized_candidate == normalized_current and normalized_current:
+            return str(candidate)
+    for candidate in models:
+        normalized_candidate = _normalize_model_name(str(candidate))
+        if normalized_candidate == normalized_stored and normalized_stored:
+            return str(candidate)
+    return str(models[0]) if models else ""
+
+
+def _fetch_ollama_details(ollama_host: Optional[str] = None) -> Dict[str, Dict]:
     """Charge les details de tous les modeles Ollama (cache 30s)."""
     global _ollama_details_cache, _ollama_details_ts
+    host = _normalize_host(ollama_host)
     if _ollama_details_cache is not None and (time.time() - _ollama_details_ts) < 30:
-        return _ollama_details_cache
+        cached = _ollama_details_cache.get((host, "details"))
+        if cached is not None:
+            return cached
     try:
         import httpx
-        resp = httpx.get("http://127.0.0.1:11434/api/tags", timeout=3)
+        resp = httpx.get(f"{host}/api/tags", timeout=3)
         data = resp.json()
         result = {}
         for m in data.get("models", []):
@@ -155,11 +223,15 @@ def _fetch_ollama_details() -> Dict[str, Dict]:
                 "family": details.get("family", "?"),
                 "format": details.get("format", "?"),
             }
-        _ollama_details_cache = result
+        if _ollama_details_cache is None:
+            _ollama_details_cache = {}
+        _ollama_details_cache[(host, "details")] = result
         _ollama_details_ts = time.time()
         return result
     except Exception:
-        _ollama_details_cache = {}
+        if _ollama_details_cache is None:
+            _ollama_details_cache = {}
+        _ollama_details_cache[(host, "details")] = {}
         _ollama_details_ts = time.time()
         return {}
 
@@ -173,7 +245,7 @@ def _estimate_vram_gb(size_gb: float) -> float:
 # Enrichissement des infos modele
 # ---------------------------------------------------------------------------
 
-def get_model_details(model_name: str) -> Dict:
+def get_model_details(model_name: str, ollama_host: Optional[str] = None) -> Dict:
     """
     Retourne des informations detaillees sur un modele.
 
@@ -183,7 +255,7 @@ def get_model_details(model_name: str) -> Dict:
         Dict avec: name, size_gb, vram_gb, parameters, quantization,
                    family, use_case, description, backup_path, fits_gpu
     """
-    ollama_data = _fetch_ollama_details().get(model_name, {})
+    ollama_data = _fetch_ollama_details(ollama_host).get(model_name, {})
 
     # Chercher dans models.json
     json_data = {}
@@ -258,10 +330,15 @@ def _normalize_model_name(name: str) -> str:
 def get_available_models_for_ui(
     preferred_order: Sequence[str] | None = None,
     fallback: Sequence[str] | None = None,
+    ollama_host: Optional[str] = None,
+    include_library_models: bool = False,
+    current_value: Optional[str] = None,
 ) -> List[str]:
     """Retourne la liste dedupliquee des modeles LLM pour l'UI."""
-    installed = [_normalize_model_name(n) for n in list_ollama_models() if n]
-    library_models = _get_library_models()
+    installed = [
+        _normalize_model_name(n) for n in list_ollama_models(ollama_host) if n
+    ]
+    library_models = _get_library_models() if include_library_models else []
     available = sorted(set(installed) | set(library_models))
 
     if available:
@@ -269,8 +346,18 @@ def get_available_models_for_ui(
             return _sort_with_preferred(available, preferred_order)
         return available
 
-    models = list(fallback or FALLBACK_LLM_MODELS)
-    logger.warning("Ollama ne renvoie aucun modele, fallback UI: %s", models[:3])
+    current_model = _normalize_model_name(str(current_value or "").strip())
+    if current_model:
+        logger.warning(
+            "Ollama ne renvoie aucun modele sur %s, conservation de la valeur courante UI: %s",
+            _normalize_host(ollama_host),
+            current_model,
+        )
+        return [current_model]
+
+    models = list(fallback or [])
+    if models:
+        logger.warning("Ollama ne renvoie aucun modele, fallback UI explicite: %s", models[:3])
     return models
 
 
@@ -331,6 +418,10 @@ def render_model_selector(
     show_details: bool = True,
     show_filter: bool = False,
     compact: bool = False,
+    ollama_host: Optional[str] = None,
+    include_library_models: bool = False,
+    fallback: Sequence[str] | None = None,
+    current_value: Optional[str] = None,
 ) -> str:
     """
     Selecteur de modele Streamlit avec affichage riche.
@@ -349,7 +440,47 @@ def render_model_selector(
     """
     import streamlit as st
 
-    models = get_available_models_for_ui(preferred_order=preferred_order)
+    current_value = _resolve_selector_current_value(
+        key,
+        explicit_current_value=current_value,
+    )
+    installed_models = {
+        _normalize_model_name(str(name or "").strip())
+        for name in list_ollama_models(ollama_host)
+        if str(name or "").strip()
+    }
+    models = get_available_models_for_ui(
+        preferred_order=preferred_order,
+        fallback=fallback,
+        ollama_host=ollama_host,
+        include_library_models=include_library_models,
+        current_value=current_value,
+    )
+
+    if not models:
+        service_available = False
+        try:
+            service_available = bool(is_ollama_available(ollama_host))
+        except Exception:
+            service_available = False
+        manual_key = f"{key}_manual"
+        selected = st.text_input(
+            label,
+            value=current_value,
+            key=manual_key,
+            help=(
+                help_text
+                or (
+                    "Ollama répond mais aucun modèle installé n'a été détecté. "
+                    "Saisissez le nom exact si vous voulez quand même le tenter."
+                    if service_available
+                    else "Aucun modele Ollama detecte. Saisissez le nom exact si vous voulez le tenter manuellement."
+                )
+            ),
+        ).strip()
+        st.warning(_build_empty_models_warning(ollama_host, service_available=service_available))
+        st.caption("La valeur saisie n'est pas verifiee localement.")
+        return selected
 
     # Filtre par categorie
     if show_filter and not compact:
@@ -365,17 +496,25 @@ def render_model_selector(
         if use_case_filter:
             filtered = []
             for m in models:
-                d = get_model_details(m)
+                d = get_model_details(m, ollama_host=ollama_host)
                 if d["use_case"] == use_case_filter:
                     filtered.append(m)
             if filtered:
                 models = filtered
 
     # Pre-charger les details pour le format_func
-    details_map = {m: get_model_details(m) for m in models}
+    details_map = {m: get_model_details(m, ollama_host=ollama_host) for m in models}
 
     if not help_text:
         help_text = "Selectionnez un modele LLM Ollama"
+
+    desired_value = _resolve_selectbox_value(
+        models,
+        current_value=current_value,
+        stored_value=str(st.session_state.get(key, "") or "").strip(),
+    )
+    if desired_value and st.session_state.get(key) != desired_value:
+        st.session_state[key] = desired_value
 
     selected = st.selectbox(
         label,
@@ -387,8 +526,13 @@ def render_model_selector(
 
     # Fiche detaillee
     if selected and show_details:
-        d = details_map.get(selected) or get_model_details(selected)
+        d = details_map.get(selected) or get_model_details(selected, ollama_host=ollama_host)
         _render_model_card(d, compact=compact)
+        if include_library_models and selected not in installed_models:
+            st.caption(
+                "ℹ️ Modèle issu du catalogue local, non vérifié sur l'instance Ollama courante. "
+                "Il sera utilisé tel quel, avec erreur explicite s'il est absent côté serveur."
+            )
 
     return selected
 

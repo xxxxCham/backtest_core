@@ -41,6 +41,31 @@ _worker_gpu_request_queue = None
 _worker_gpu_response_queue = None
 
 
+def _apply_numba_thread_limit(thread_limit: int, debug_enabled: bool = False) -> None:
+    """Applique une limite réelle aux kernels Numba CPU parallèles."""
+    if thread_limit <= 0:
+        return
+
+    try:
+        from numba import get_num_threads, set_num_threads
+
+        set_num_threads(thread_limit)
+
+        if debug_enabled:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.debug("Numba thread limit applied: %d", get_num_threads())
+    except ImportError:
+        return
+    except Exception as e:
+        if debug_enabled:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning("numba thread configuration failed: %s", e)
+
+
 def init_worker_with_dataframe(
     df_or_path,
     strategy_key: str,
@@ -192,6 +217,9 @@ def _init_worker_with_dataframe_impl(
     ):
         os.environ[var] = str(effective_limit)
 
+    # 1bis️⃣ Numba CPU - appliquer la limite après import pour qu'elle soit réellement active
+    _apply_numba_thread_limit(effective_limit, debug_enabled=debug_enabled)
+
     # 2️⃣ threadpoolctl - APPLICATION PROGRAMMATIQUE (priorité haute)
     # C'est LA méthode robuste pour contrôler BLAS même sans env vars
     threadpoolctl_applied = False
@@ -290,6 +318,12 @@ def run_backtest_worker(param_combo: Dict[str, Any]) -> Dict[str, Any]:
     if _worker_sweep_ready and _worker_engine is not None:
         try:
             metrics = _worker_engine.run_sweep_iteration(param_combo)
+            fast_error = metrics.get("_error")
+            if fast_error:
+                return {
+                    "params_dict": param_combo,
+                    "error": f"[sweep_fast] {fast_error}",
+                }
 
             total_trades = metrics.get("total_trades", 0)
             return {
@@ -349,25 +383,31 @@ def run_backtest_worker(param_combo: Dict[str, Any]) -> Dict[str, Any]:
             _worker_engine = BacktestEngine(initial_capital=initial_capital)
         engine = _worker_engine
 
-        # Import local pour éviter les dépendances circulaires
-        from ui.helpers import safe_run_backtest
-
-        # IMPORTANT: ordre des arguments = (engine, df, strategy, params, symbol, timeframe)
-        result_i, msg_i = safe_run_backtest(
-            engine,
-            df,
-            strategy_key,
-            param_combo,
-            symbol=symbol,
-            timeframe=timeframe,
-            silent_mode=True,
-            fast_metrics=fast_metrics,
-        )
-
-        if result_i is None:
+        try:
+            result_i = engine.run(
+                df=df,
+                strategy=strategy_key,
+                params=param_combo,
+                symbol=symbol,
+                timeframe=timeframe,
+                silent_mode=True,
+                fast_metrics=fast_metrics,
+            )
+        except ValueError as exc:
             return {
                 "params_dict": param_combo,
-                "error": msg_i or "Backtest failed",
+                "error": f"Paramètres invalides: {exc}",
+            }
+        except Exception as exc:
+            if debug_enabled:
+                import traceback
+
+                error_msg = f"Erreur: {exc}\n{traceback.format_exc()}"
+            else:
+                error_msg = f"Erreur: {exc}"
+            return {
+                "params_dict": param_combo,
+                "error": error_msg,
             }
 
         # Extraire les métriques avec fallback robuste

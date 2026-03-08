@@ -143,3 +143,19 @@ class TestBackendConfig:
         reset_backend()
         backend = get_backend()
         assert backend == BackendType.CPU
+
+
+def test_worker_numba_thread_limit_is_applied_programmatically():
+    """Les workers CPU doivent limiter Numba même si le module est déjà importé."""
+    numba = pytest.importorskip("numba")
+
+    from backtest.worker import _apply_numba_thread_limit
+
+    original_threads = numba.get_num_threads()
+    target_threads = 1 if original_threads != 1 else min(numba.config.NUMBA_NUM_THREADS, 2)
+
+    try:
+        _apply_numba_thread_limit(target_threads, debug_enabled=True)
+        assert numba.get_num_threads() == target_threads
+    finally:
+        _apply_numba_thread_limit(original_threads, debug_enabled=False)

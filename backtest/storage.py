@@ -27,7 +27,7 @@ import os
 import shutil
 import tempfile
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -49,6 +49,17 @@ logger = get_logger(__name__)
 DEFAULT_STORAGE_DIR = Path("backtest_results")
 MAX_RESULTS_TO_KEEP = 1000  # Nombre maximum de résultats à garder
 _TEMPDIR_READY = False
+_NATIVE_EXTRA_METADATA_KEYS = (
+    "origin",
+    "ui_partial_run",
+    "ui_partial_reason",
+    "ui_completed_runs",
+    "ui_planned_runs",
+    "ui_completion_pct",
+    "builder_session_id",
+    "builder_iteration",
+    "builder_objective",
+)
 
 
 # =============================================================================
@@ -141,6 +152,47 @@ def _write_dataframe_csv(df: pd.DataFrame, path: Path) -> None:
     df.to_csv(path, index=False, encoding="utf-8")
 
 
+def _load_json_file(path: Path) -> Dict[str, Any]:
+    with open(path, "r", encoding="utf-8") as f:
+        payload = json.load(f)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _extract_result_extra_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
+    extra: Dict[str, Any] = {}
+    for key in _NATIVE_EXTRA_METADATA_KEYS:
+        value = meta.get(key)
+        if value is None or value == "":
+            continue
+        extra[key] = value
+    return extra
+
+
+def _has_any_child_metadata(directory: Path) -> bool:
+    try:
+        next(directory.rglob("metadata.json"))
+        return True
+    except StopIteration:
+        return False
+
+
+def _is_native_stored_metadata(meta: Dict[str, Any]) -> bool:
+    return "timestamp" in meta and isinstance(meta.get("metrics"), dict)
+
+
+def _native_run_missing_files(run_dir: Path) -> List[str]:
+    missing: List[str] = []
+    if not (run_dir / "metadata.json").exists():
+        missing.append("metadata.json")
+    if not ((run_dir / "equity.parquet").exists() or (run_dir / "equity.csv").exists()):
+        missing.append("equity.(parquet|csv)")
+    if not ((run_dir / "trades.parquet").exists() or (run_dir / "trades.csv").exists()):
+        missing.append("trades.(parquet|csv)")
+    if not ((run_dir / "returns.parquet").exists() or (run_dir / "returns.csv").exists()):
+        missing.append("returns.(parquet|csv)")
+    return missing
+
+
 # =============================================================================
 # DATACLASSES
 # =============================================================================
@@ -160,6 +212,9 @@ class StoredResultMetadata:
     period_start: str
     period_end: str
     duration_sec: float
+    mode: str = "backtest"
+    status: str = "ok"
+    extra_metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit en dict pour sérialisation."""
@@ -184,6 +239,9 @@ class StoredResultMetadata:
             period_start=data.get("period_start", ""),
             period_end=data.get("period_end", ""),
             duration_sec=data.get("duration_sec", 0.0),
+            mode=str(data.get("mode", "backtest") or "backtest"),
+            status=str(data.get("status", "ok") or "ok"),
+            extra_metadata=dict(data.get("extra_metadata", {}) or {}),
         )
 
 
@@ -292,6 +350,10 @@ class ResultStorage:
             except (TypeError, ValueError):
                 n_trades = int(len(result.trades))
 
+            extra_metadata = _extract_result_extra_metadata(result.meta)
+            mode = str(result.meta.get("mode") or result.meta.get("origin") or "backtest")
+            status = "partial" if extra_metadata.get("ui_partial_run") else str(result.meta.get("status") or "ok")
+
             metadata = StoredResultMetadata(
                 run_id=run_id,
                 timestamp=datetime.now().isoformat(),
@@ -305,6 +367,9 @@ class ResultStorage:
                 period_start=result.meta.get("period_start", ""),
                 period_end=result.meta.get("period_end", ""),
                 duration_sec=result.meta.get("duration_sec", 0.0),
+                mode=mode,
+                status=status,
+                extra_metadata=extra_metadata,
             )
 
             metadata_path = run_dir / "metadata.json"
@@ -357,6 +422,9 @@ class ResultStorage:
                 "period_start": metadata.period_start,
                 "period_end": metadata.period_end,
                 "duration_sec": metadata.duration_sec,
+                "mode": metadata.mode,
+                "status": metadata.status,
+                "extra_metadata": metadata.extra_metadata,
             }
             report_json_path = run_dir / "report.json"
             with open(report_json_path, "w", encoding="utf-8") as f:
@@ -531,10 +599,14 @@ class ResultStorage:
                     "period_start": metadata.period_start,
                     "period_end": metadata.period_end,
                     "duration_sec": metadata.duration_sec,
+                    "mode": metadata.mode,
+                    "status": metadata.status,
                     "loaded_from_storage": True,
                     "loaded_at": datetime.now().isoformat(),
                 }
             )
+            if metadata.extra_metadata:
+                result.meta.update(metadata.extra_metadata)
 
             logger.info(f"✅ Résultat chargé: {run_id}")
             return result
@@ -855,8 +927,9 @@ class ResultStorage:
                 continue
 
             try:
-                with open(metadata_path, "r", encoding="utf-8") as f:
-                    meta_dict = json.load(f)
+                meta_dict = _load_json_file(metadata_path)
+                if not _is_native_stored_metadata(meta_dict):
+                    continue
 
                 metadata = StoredResultMetadata.from_dict(meta_dict)
                 self._index[metadata.run_id] = metadata
@@ -870,53 +943,158 @@ class ResultStorage:
 
         return count
 
+    def _iter_metadata_dirs(self):
+        for metadata_path in self.storage_dir.rglob("metadata.json"):
+            rel_parts = metadata_path.relative_to(self.storage_dir).parts
+            if "_catalog" in rel_parts or "__pycache__" in rel_parts:
+                continue
+            yield metadata_path.parent
+
+    def _build_unified_entry(self, run_dir: Path) -> Dict[str, Any]:
+        rel_path = str(run_dir.relative_to(self.storage_dir)).replace("\\", "/")
+        parent_scope = rel_path.split("/", 1)[0] if "/" in rel_path else "."
+        metadata_path = run_dir / "metadata.json"
+        meta_dict = _load_json_file(metadata_path)
+
+        if _is_native_stored_metadata(meta_dict):
+            metadata = StoredResultMetadata.from_dict(meta_dict)
+            issues = _native_run_missing_files(run_dir)
+            return {
+                "artifact_type": "saved_run",
+                "schema": "native_saved_run",
+                "path": rel_path,
+                "parent_scope": parent_scope,
+                "run_id": metadata.run_id,
+                "timestamp": metadata.timestamp,
+                "mode": metadata.mode,
+                "status": metadata.status,
+                "strategy": metadata.strategy,
+                "symbol": metadata.symbol,
+                "timeframe": metadata.timeframe,
+                "n_bars": metadata.n_bars,
+                "n_trades": metadata.n_trades,
+                "duration_sec": metadata.duration_sec,
+                "period_start": metadata.period_start,
+                "period_end": metadata.period_end,
+                "params": metadata.params,
+                "metrics": metadata.metrics,
+                "extra_metadata": metadata.extra_metadata,
+                "loadable": len(issues) == 0,
+                "issues": issues,
+            }
+
+        metrics_path = run_dir / "metrics.json"
+        metrics = _load_json_file(metrics_path) if metrics_path.exists() else {}
+        extra_metadata = dict(meta_dict.get("extra", {}) or {})
+        n_trades = meta_dict.get("n_trades", metrics.get("total_trades", 0))
+        try:
+            n_trades = int(n_trades)
+        except (TypeError, ValueError):
+            n_trades = 0
+
+        issues: List[str] = []
+        if not metrics_path.exists():
+            issues.append("metrics.json")
+
+        return {
+            "artifact_type": "external_run",
+            "schema": "runner_manifest",
+            "path": rel_path,
+            "parent_scope": parent_scope,
+            "run_id": str(meta_dict.get("run_id", run_dir.name)),
+            "timestamp": str(meta_dict.get("created_at", "")),
+            "mode": str(meta_dict.get("mode", "unknown") or "unknown"),
+            "status": str(meta_dict.get("status", "unknown") or "unknown"),
+            "strategy": str(meta_dict.get("strategy", "unknown") or "unknown"),
+            "symbol": str(meta_dict.get("symbol", "unknown") or "unknown"),
+            "timeframe": str(meta_dict.get("timeframe", "unknown") or "unknown"),
+            "n_bars": int(meta_dict.get("n_bars", 0) or 0),
+            "n_trades": n_trades,
+            "duration_sec": float(meta_dict.get("duration_sec", 0.0) or 0.0),
+            "period_start": str(meta_dict.get("period_start", "")),
+            "period_end": str(meta_dict.get("period_end", "")),
+            "params": dict(meta_dict.get("params", {}) or {}),
+            "metrics": dict(metrics or {}),
+            "extra_metadata": extra_metadata,
+            "loadable": False,
+            "issues": issues,
+        }
+
+    def audit_storage(self, write_report: bool = True) -> Dict[str, Any]:
+        catalog_dir = self.storage_dir / "_catalog"
+        catalog_dir.mkdir(parents=True, exist_ok=True)
+
+        entries = [self._build_unified_entry(run_dir) for run_dir in self._iter_metadata_dirs()]
+        containers: List[str] = []
+        unknown_directories: List[str] = []
+
+        for item in self.storage_dir.iterdir():
+            if not item.is_dir() or item.name in {"_catalog", "__pycache__"}:
+                continue
+            if (item / "metadata.json").exists():
+                continue
+            if _has_any_child_metadata(item):
+                containers.append(item.name)
+            else:
+                unknown_directories.append(item.name)
+
+        invalid_entries = [entry for entry in entries if entry.get("issues")]
+        report = {
+            "summary": {
+                "entries": len(entries),
+                "loadable_entries": sum(1 for entry in entries if entry.get("loadable")),
+                "native_entries": sum(1 for entry in entries if entry.get("schema") == "native_saved_run"),
+                "external_entries": sum(1 for entry in entries if entry.get("schema") == "runner_manifest"),
+                "invalid_entries": len(invalid_entries),
+                "containers": len(containers),
+                "unknown_directories": len(unknown_directories),
+            },
+            "containers": sorted(containers),
+            "unknown_directories": sorted(unknown_directories),
+            "invalid_entries": invalid_entries,
+            "entries": entries,
+        }
+
+        if write_report:
+            report_path = catalog_dir / "storage_audit.json"
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+
+        return report
+
     def build_catalogs(self, force: bool = False) -> Path:
         """
-        Génère un catalogue CSV pour exploration rapide des résultats.
+        Génère des catalogues CSV pour exploration rapide des résultats.
 
-        IMPORTANT: Cette méthode est coûteuse et N'EST PAS appelée automatiquement
-        pendant save_result() pour préserver les performances des backtests.
-
-        Appels recommandés:
-        - Manuellement via CLI: storage.build_catalogs()
-        - Via UI avec bouton "Refresh"
-        - Périodiquement (ex: toutes les 100 sauvegardes)
-
-        Args:
-            force: Forcer la régénération même si le catalogue est à jour
-
-        Returns:
-            Path du fichier overview.csv généré
-
-        Example:
-            >>> storage = get_storage()
-            >>> catalog_path = storage.build_catalogs()
-            >>> print(f"Catalogue: {catalog_path}")
+        `overview.csv` couvre les runs natifs chargeables via `ResultStorage`.
+        `unified_overview.csv` consolide aussi les artefacts trouvés récursivement
+        (ex: `backtest_results/runs/*`) pour offrir une vue transversale du stock.
         """
         catalog_dir = self.storage_dir / "_catalog"
         catalog_dir.mkdir(parents=True, exist_ok=True)
 
         overview_path = catalog_dir / "overview.csv"
+        unified_path = catalog_dir / "unified_overview.csv"
 
-        # Lazy update: vérifier si le catalogue est déjà à jour
-        if not force and overview_path.exists():
-            catalog_mtime = overview_path.stat().st_mtime
+        if not force and overview_path.exists() and unified_path.exists():
+            catalog_mtime = min(overview_path.stat().st_mtime, unified_path.stat().st_mtime)
             index_mtime = self.index_path.stat().st_mtime if self.index_path.exists() else 0
-
             if catalog_mtime > index_mtime:
-                logger.info("✅ Catalogue déjà à jour (lazy skip)")
+                logger.info("✅ Catalogues déjà à jour (lazy skip)")
                 return overview_path
 
-        logger.info("📊 Génération du catalogue CSV...")
+        logger.info("📊 Génération des catalogues CSV...")
 
-        # Construire le DataFrame depuis l'index
         rows = []
         for run_id, metadata in self._index.items():
             row = {
                 "type": "run",
                 "id": run_id,
                 "run_id": run_id,
+                "path": run_id,
                 "timestamp": metadata.timestamp,
+                "mode": metadata.mode,
+                "status": metadata.status,
                 "strategy": metadata.strategy,
                 "symbol": metadata.symbol,
                 "timeframe": metadata.timeframe,
@@ -927,45 +1105,84 @@ class ResultStorage:
                 "period_end": metadata.period_end,
             }
 
-            # Params -> params_*
             for key, value in (metadata.params or {}).items():
                 row[f"params_{key}"] = value
 
-            # Metrics -> metrics_*
             for key, value in (metadata.metrics or {}).items():
                 row[f"metrics_{key}"] = value
 
-            # Flags -> flags_*
-            account_ruined = bool(metadata.metrics.get("account_ruined", False))
-            row["flags_account_ruined"] = account_ruined
+            for key, value in (metadata.extra_metadata or {}).items():
+                row[f"extra_{key}"] = value
+
+            row["flags_account_ruined"] = bool(metadata.metrics.get("account_ruined", False))
             rows.append(row)
 
-        if not rows:
-            logger.warning("⚠️ Aucun résultat à cataloguer")
-            # Créer un CSV vide avec headers
+        if rows:
+            df = pd.DataFrame(rows)
+            if "timestamp" in df.columns:
+                df = df.sort_values("timestamp", ascending=False)
+        else:
+            logger.warning("⚠️ Aucun résultat natif à cataloguer")
             df = pd.DataFrame(
                 columns=[
                     "type",
                     "id",
                     "run_id",
                     "timestamp",
+                    "mode",
+                    "status",
                     "strategy",
                     "symbol",
                     "timeframe",
                     "flags_account_ruined",
                 ]
             )
-        else:
-            df = pd.DataFrame(rows)
 
-            # Tri par timestamp décroissant
-            if "timestamp" in df.columns:
-                df = df.sort_values("timestamp", ascending=False)
-
-        # Sauvegarder
         df.to_csv(overview_path, index=False, encoding="utf-8")
 
-        logger.info(f"✅ Catalogue généré: {overview_path} ({len(rows)} résultats)")
+        audit_report = self.audit_storage(write_report=True)
+        unified_rows = []
+        for entry in audit_report["entries"]:
+            row = {
+                "artifact_type": entry.get("artifact_type"),
+                "schema": entry.get("schema"),
+                "path": entry.get("path"),
+                "parent_scope": entry.get("parent_scope"),
+                "run_id": entry.get("run_id"),
+                "timestamp": entry.get("timestamp"),
+                "mode": entry.get("mode"),
+                "status": entry.get("status"),
+                "strategy": entry.get("strategy"),
+                "symbol": entry.get("symbol"),
+                "timeframe": entry.get("timeframe"),
+                "loadable": entry.get("loadable"),
+                "n_bars": entry.get("n_bars"),
+                "n_trades": entry.get("n_trades"),
+                "duration_sec": entry.get("duration_sec"),
+                "period_start": entry.get("period_start"),
+                "period_end": entry.get("period_end"),
+                "issues": "; ".join(entry.get("issues", [])),
+            }
+            for key, value in (entry.get("params", {}) or {}).items():
+                row[f"params_{key}"] = value
+            for key, value in (entry.get("metrics", {}) or {}).items():
+                row[f"metrics_{key}"] = value
+            for key, value in (entry.get("extra_metadata", {}) or {}).items():
+                row[f"extra_{key}"] = value
+            unified_rows.append(row)
+
+        unified_df = pd.DataFrame(unified_rows)
+        if not unified_df.empty and "timestamp" in unified_df.columns:
+            unified_df = unified_df.sort_values("timestamp", ascending=False, na_position="last")
+        unified_df.to_csv(unified_path, index=False, encoding="utf-8")
+
+        logger.info(
+            "✅ Catalogues générés: %s (%s natifs) | %s (%s entrées unifiées)",
+            overview_path,
+            len(rows),
+            unified_path,
+            len(unified_rows),
+        )
 
         return overview_path
 
@@ -1006,11 +1223,25 @@ class ResultStorage:
                 self._save_index()
                 fixed.append("Index.json créé")
 
-        # 2. Scanner les dossiers réels
+        # 2. Scanner les dossiers racine réellement gérés par ResultStorage
         actual_dirs = set()
+        container_dirs = set()
         for item in self.storage_dir.iterdir():
-            if item.is_dir() and item.name not in ["_catalog", "__pycache__"]:
-                actual_dirs.add(item.name)
+            if not item.is_dir() or item.name in ["_catalog", "__pycache__"]:
+                continue
+            metadata_path = item / "metadata.json"
+            if metadata_path.exists():
+                try:
+                    meta_dict = _load_json_file(metadata_path)
+                except Exception as e:
+                    errors.append(f"Impossible de lire metadata.json dans {item.name}: {e}")
+                    continue
+                if _is_native_stored_metadata(meta_dict):
+                    actual_dirs.add(item.name)
+                else:
+                    container_dirs.add(item.name)
+            elif _has_any_child_metadata(item):
+                container_dirs.add(item.name)
 
         # 3. Comparer index vs dossiers réels
         indexed_runs = set(self._index.keys())
@@ -1032,8 +1263,7 @@ class ResultStorage:
                 try:
                     metadata_path = self.storage_dir / dir_name / "metadata.json"
                     if metadata_path.exists():
-                        with open(metadata_path, "r", encoding="utf-8") as f:
-                            meta_dict = json.load(f)
+                        meta_dict = _load_json_file(metadata_path)
                         metadata = StoredResultMetadata.from_dict(meta_dict)
                         self._index[metadata.run_id] = metadata
                         fixed.append(f"Ajouté à l'index: {dir_name}")
@@ -1043,17 +1273,14 @@ class ResultStorage:
                     errors.append(f"Impossible d'indexer {dir_name}: {e}")
 
         # 4. Vérifier les fichiers requis pour chaque run indexé
-        required_files = ["metadata.json", "equity.parquet", "trades.parquet", "returns.parquet"]
-
         for run_id in list(self._index.keys()):
             run_dir = self.storage_dir / run_id
             if not run_dir.exists():
                 continue  # Déjà traité ci-dessus
 
-            for filename in required_files:
-                file_path = run_dir / filename
-                if not file_path.exists():
-                    warnings.append(f"{run_id}: Fichier manquant {filename}")
+            missing_files = _native_run_missing_files(run_dir)
+            for filename in missing_files:
+                warnings.append(f"{run_id}: Fichier manquant {filename}")
 
         # 5. Sauvegarder l'index si des corrections ont été apportées
         if fixed and auto_fix:

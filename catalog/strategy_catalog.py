@@ -19,7 +19,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 
 CATALOG_SCHEMA_VERSION = 1
@@ -28,6 +28,7 @@ DEFAULT_CATALOG_PATH = Path("config/strategy_catalog.json")
 CATEGORY_ORDER = [
     "p1_builder_inbox",
     "p2_auto_shortlist",
+    "p2_cross_token_survivors",
     "p3_watchlist",
     "p4_paper_candidate",
     "p5_live_active",
@@ -43,6 +44,8 @@ AUTO_SHORTLIST_MIN_RETURN_PCT = float(os.getenv("CATALOG_AUTO_MIN_RETURN_PCT", "
 AUTO_SHORTLIST_MAX_DD_PCT = float(os.getenv("CATALOG_AUTO_MAX_DD_PCT", "35"))
 AUTO_SHORTLIST_MIN_PROFIT_FACTOR = float(os.getenv("CATALOG_AUTO_MIN_PF", "1.05"))
 AUTO_SHORTLIST_MIN_SCORE = float(os.getenv("CATALOG_AUTO_MIN_SCORE", "45"))
+CROSS_TOKEN_SURVIVOR_CATEGORY = "p2_cross_token_survivors"
+CROSS_TOKEN_SURVIVOR_TAG = "cross_token_survivor"
 
 
 @dataclass
@@ -124,6 +127,74 @@ def build_entry_id(strategy_name: str, symbol: str, timeframe: str, params_hash:
 def _sha1(text: str) -> str:
     import hashlib
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+def _is_missing(value: Any) -> bool:
+    if value is None or value == "":
+        return True
+    try:
+        return bool(value != value)
+    except Exception:
+        return False
+
+
+def _first_non_empty(mapping: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key not in mapping:
+            continue
+        value = mapping.get(key)
+        if _is_missing(value):
+            continue
+        return value
+    return None
+
+
+def _collect_prefixed_mapping(mapping: Mapping[str, Any], prefix: str) -> Dict[str, Any]:
+    collected: Dict[str, Any] = {}
+    for key, value in mapping.items():
+        if not isinstance(key, str) or not key.startswith(prefix):
+            continue
+        if _is_missing(value):
+            continue
+        name = key[len(prefix):].strip()
+        if not name:
+            continue
+        collected[name] = _normalize_value(value)
+    return collected
+
+
+def _merge_tags(*tag_groups: Iterable[str]) -> List[str]:
+    merged: List[str] = []
+    for group in tag_groups:
+        for tag in group or []:
+            value = str(tag or "").strip()
+            if not value or value in merged:
+                continue
+            merged.append(value)
+    return merged
+
+
+def _fallback_params_hash(params: Optional[Dict[str, Any]], fallback_key: Optional[str] = None) -> str:
+    params_hash = compute_params_hash(params)
+    if params_hash != "none":
+        return params_hash
+    seed = str(fallback_key or "").strip()
+    if seed:
+        return _sha1(seed)[:12]
+    return "none"
+
+
+def _coerce_boolish(value: Any) -> Optional[bool]:
+    if _is_missing(value):
+        return None
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off"}:
+        return False
+    return bool(value)
 
 
 def _ensure_catalog_shape(raw: Dict[str, Any]) -> Dict[str, Any]:
@@ -394,6 +465,257 @@ def _float(value: Any, default: float) -> float:
         return default
 
 
+def build_entry_from_saved_run(
+    saved_run: Mapping[str, Any],
+    *,
+    category: str = "p3_watchlist",
+) -> Dict[str, Any]:
+    """Normalise un run sauvegardé/artefact en entrée du strategy catalog."""
+    if category not in CATEGORY_ORDER:
+        raise ValueError(f"Invalid category: {category}")
+
+    payload = dict(saved_run or {})
+    strategy_name = str(_first_non_empty(payload, "strategy", "strategy_name") or "").strip()
+    symbol = str(_first_non_empty(payload, "symbol") or "UNKNOWN").strip() or "UNKNOWN"
+    timeframe = str(_first_non_empty(payload, "timeframe") or "unknown").strip() or "unknown"
+    run_id = str(_first_non_empty(payload, "run_id", "id") or "").strip()
+    source_path = str(_first_non_empty(payload, "path") or "").strip()
+    artifact_type = str(_first_non_empty(payload, "artifact_type") or "saved_run").strip()
+    schema = str(_first_non_empty(payload, "schema") or "").strip()
+    mode = str(
+        _first_non_empty(payload, "mode") or _first_non_empty(payload, "origin") or "backtest"
+    ).strip() or "backtest"
+    source_status = str(_first_non_empty(payload, "status") or "unknown").strip().lower() or "unknown"
+
+    if source_status in {"partial", "failed", "error", "stopped", "interrupted"}:
+        raise ValueError(f"Incomplete run cannot be promoted: status={source_status}")
+
+    params_raw = payload.get("params")
+    params = dict(params_raw or {}) if isinstance(params_raw, dict) else _collect_prefixed_mapping(payload, "params_")
+    metrics_raw = payload.get("metrics")
+    metrics = dict(metrics_raw or {}) if isinstance(metrics_raw, dict) else _collect_prefixed_mapping(payload, "metrics_")
+    extra_raw = payload.get("extra_metadata")
+    extra_metadata = (
+        dict(extra_raw or {})
+        if isinstance(extra_raw, dict)
+        else _collect_prefixed_mapping(payload, "extra_")
+    )
+
+    params_hash = _fallback_params_hash(
+        params,
+        fallback_key=run_id or extra_metadata.get("builder_session_id") or source_path,
+    )
+    entry_id = build_entry_id(strategy_name or "saved_run_candidate", symbol, timeframe, params_hash)
+
+    loadable = _coerce_boolish(payload.get("loadable"))
+
+    tags = ["promoted_run", "replay_candidate"]
+    if artifact_type == "external_run":
+        tags.append("external_artifact")
+    else:
+        tags.append("saved_run")
+    if mode:
+        tags.append(f"mode_{mode}")
+    origin = str(extra_metadata.get("origin") or "").strip()
+    if origin == "builder" or mode == "builder":
+        tags.append("builder_out")
+
+    note_parts = []
+    if run_id:
+        note_parts.append(f"source_run_id: {run_id}")
+    if source_path:
+        note_parts.append(f"path: {source_path}")
+    note_parts.append(f"source_mode: {mode}")
+    note_parts.append(f"artifact: {artifact_type}")
+
+    meta: Dict[str, Any] = {
+        "source_run_id": run_id or None,
+        "source_path": source_path or None,
+        "source_artifact_type": artifact_type,
+        "source_schema": schema or None,
+        "source_mode": mode,
+        "source_status": source_status,
+        "source_parent_scope": _first_non_empty(payload, "parent_scope"),
+        "loadable": loadable,
+    }
+    for key in ("builder_session_id", "builder_iteration", "builder_objective", "origin"):
+        value = extra_metadata.get(key)
+        if _is_missing(value):
+            continue
+        meta[key] = _normalize_value(value)
+
+    return {
+        "id": entry_id,
+        "strategy_name": strategy_name or "saved_run_candidate",
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "params_hash": params_hash,
+        "category": category,
+        "status": "active",
+        "tags": tags,
+        "note": " | ".join(note_parts),
+        "source": "saved_run" if artifact_type == "saved_run" else "external_run",
+        "last_metrics_snapshot": metrics or None,
+        "meta": meta,
+    }
+
+
+def upsert_from_saved_run(
+    saved_run: Mapping[str, Any],
+    *,
+    target_category: str = "p3_watchlist",
+    path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Promeut un run sauvegardé vers le strategy catalog existant."""
+    entry = build_entry_from_saved_run(saved_run, category=target_category)
+    existing = get_entry(entry["id"], path=path)
+    if existing:
+        existing_category = existing.get("category")
+        if existing_category in CATEGORY_ORDER:
+            if CATEGORY_ORDER.index(existing_category) > CATEGORY_ORDER.index(target_category):
+                entry["category"] = existing_category
+        entry["tags"] = _merge_tags(existing.get("tags") or [], entry.get("tags") or [])
+        if existing.get("note"):
+            entry["note"] = existing["note"]
+        existing_meta = existing.get("meta") or {}
+        merged_meta = dict(existing_meta) if isinstance(existing_meta, dict) else {}
+        merged_meta.update(entry.get("meta") or {})
+        entry["meta"] = merged_meta
+        if existing.get("builder_state"):
+            entry["builder_state"] = existing.get("builder_state")
+        if existing.get("last_metrics_snapshot") and not entry.get("last_metrics_snapshot"):
+            entry["last_metrics_snapshot"] = existing.get("last_metrics_snapshot")
+    return upsert_entry(entry, path=path)
+
+
+def build_entry_from_cross_token_result(
+    result: Mapping[str, Any],
+    *,
+    category: str = CROSS_TOKEN_SURVIVOR_CATEGORY,
+) -> Dict[str, Any]:
+    """Construit une entrée catalogue dédiée à une validation cross-token."""
+    if category not in CATEGORY_ORDER:
+        raise ValueError(f"Invalid category: {category}")
+
+    payload = dict(result or {})
+    strategy_name = str(
+        _first_non_empty(payload, "strategy_id", "strategy_name") or "builder_generated"
+    ).strip() or "builder_generated"
+    source_symbol = str(_first_non_empty(payload, "source_symbol", "symbol") or "UNKNOWN").strip() or "UNKNOWN"
+    timeframe = str(_first_non_empty(payload, "timeframe") or "unknown").strip() or "unknown"
+    session_id = str(_first_non_empty(payload, "session_id") or "").strip()
+    params_raw = payload.get("source_params")
+    params = dict(params_raw or {}) if isinstance(params_raw, dict) else {}
+    params_hash = _fallback_params_hash(params, fallback_key=session_id or payload.get("strategy_path"))
+    entry_id = build_entry_id(strategy_name, source_symbol, timeframe, params_hash)
+
+    robust_count = int(_first_non_empty(payload, "robust_count") or 0)
+    tested = int(_first_non_empty(payload, "tested") or 0)
+    robust_ratio = _float(_first_non_empty(payload, "robust_ratio") or 0.0, 0.0)
+    alive_count = int(_first_non_empty(payload, "alive_count") or 0)
+    alive_ratio = _float(_first_non_empty(payload, "alive_ratio") or 0.0, 0.0)
+    avg_return = _first_non_empty(payload, "avg_return")
+    best_iteration = _first_non_empty(payload, "best_iteration")
+    strategy_path = str(_first_non_empty(payload, "strategy_path") or "").strip()
+    token_results = payload.get("token_results") or []
+
+    source_metrics_raw = payload.get("source_metrics")
+    source_metrics = dict(source_metrics_raw or {}) if isinstance(source_metrics_raw, dict) else {}
+    snapshot = dict(source_metrics)
+    snapshot["cross_token_tested"] = tested
+    snapshot["cross_token_robust_count"] = robust_count
+    snapshot["cross_token_robust_ratio"] = robust_ratio
+    snapshot["cross_token_alive_count"] = alive_count
+    snapshot["cross_token_alive_ratio"] = alive_ratio
+    if avg_return is not None:
+        snapshot["cross_token_avg_return_pct"] = _float(avg_return, 0.0)
+
+    robust_tokens = [
+        str(item.get("token") or "").strip()
+        for item in token_results
+        if isinstance(item, dict) and item.get("robust")
+    ]
+    alive_tokens = [
+        str(item.get("token") or "").strip()
+        for item in token_results
+        if isinstance(item, dict) and item.get("alive")
+    ]
+
+    tags = [
+        "builder_out",
+        CROSS_TOKEN_SURVIVOR_TAG,
+        f"cross_token_tf_{timeframe}",
+        f"cross_token_ratio_{int(round(robust_ratio * 100.0))}",
+    ]
+    if payload.get("strategy_id"):
+        tags.append("canonical_strategy")
+
+    note_parts = [
+        f"cross_token robust={robust_count}/{tested} ({robust_ratio:.1%})",
+        f"alive={alive_count}/{tested} ({alive_ratio:.1%})",
+    ]
+    if best_iteration is not None:
+        note_parts.append(f"best_iteration={best_iteration}")
+    if robust_tokens:
+        note_parts.append(f"robust_tokens={','.join(robust_tokens)}")
+
+    meta: Dict[str, Any] = {
+        "session_id": session_id or None,
+        "best_iteration": best_iteration,
+        "strategy_path": strategy_path or None,
+        "source_status": str(_first_non_empty(payload, "status") or "").strip() or None,
+        "source_params": params or None,
+        "token_results": _normalize_value(token_results),
+        "robust_tokens": robust_tokens,
+        "alive_tokens": alive_tokens,
+        "tested_tokens": tested,
+    }
+
+    return {
+        "id": entry_id,
+        "strategy_name": strategy_name,
+        "symbol": source_symbol,
+        "timeframe": timeframe,
+        "params_hash": params_hash,
+        "category": category,
+        "status": "active",
+        "tags": tags,
+        "note": " | ".join(part for part in note_parts if part),
+        "source": "builder_cross_token",
+        "last_metrics_snapshot": snapshot or None,
+        "meta": meta,
+    }
+
+
+def upsert_from_cross_token_result(
+    result: Mapping[str, Any],
+    *,
+    target_category: str = CROSS_TOKEN_SURVIVOR_CATEGORY,
+    path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Promeut un survivant cross-token dans une catégorie dédiée du catalog."""
+    entry = build_entry_from_cross_token_result(result, category=target_category)
+    existing = get_entry(entry["id"], path=path)
+    if existing:
+        existing_category = existing.get("category")
+        if existing_category in CATEGORY_ORDER:
+            if CATEGORY_ORDER.index(existing_category) > CATEGORY_ORDER.index(target_category):
+                entry["category"] = existing_category
+        entry["tags"] = _merge_tags(existing.get("tags") or [], entry.get("tags") or [])
+        existing_meta = existing.get("meta") or {}
+        merged_meta = dict(existing_meta) if isinstance(existing_meta, dict) else {}
+        merged_meta.update(entry.get("meta") or {})
+        entry["meta"] = merged_meta
+        if existing.get("note"):
+            entry["note"] = existing["note"]
+        existing_snapshot = existing.get("last_metrics_snapshot") or {}
+        if isinstance(existing_snapshot, dict):
+            merged_snapshot = dict(existing_snapshot)
+            merged_snapshot.update(entry.get("last_metrics_snapshot") or {})
+            entry["last_metrics_snapshot"] = merged_snapshot
+    return upsert_entry(entry, path=path)
+
+
 def upsert_from_builder_session(session: Any, *, path: Optional[Path] = None) -> Dict[str, Any]:
     """Create or update a catalog entry from a builder session object."""
     session_id = str(getattr(session, "session_id", "") or "").strip()
@@ -419,7 +741,7 @@ def upsert_from_builder_session(session: Any, *, path: Optional[Path] = None) ->
         if isinstance(meta, dict):
             best_params = meta.get("params", {}) or {}
 
-    params_hash = compute_params_hash(best_params)
+    params_hash = _fallback_params_hash(best_params, fallback_key=session_id)
     entry_id = build_entry_id("builder_generated", symbol, timeframe, params_hash)
 
     category = "p1_builder_inbox"
@@ -430,7 +752,7 @@ def upsert_from_builder_session(session: Any, *, path: Optional[Path] = None) ->
     if existing:
         existing_category = existing.get("category")
         if existing_category in CATEGORY_ORDER:
-            if CATEGORY_ORDER.index(existing_category) >= CATEGORY_ORDER.index("p3_watchlist"):
+            if CATEGORY_ORDER.index(existing_category) >= CATEGORY_ORDER.index(CROSS_TOKEN_SURVIVOR_CATEGORY):
                 category = existing_category
 
     entry = {

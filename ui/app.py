@@ -52,6 +52,13 @@ from utils.observability import init_logging  # noqa: E402
 init_logging()
 
 
+def _clear_execution_lock() -> None:
+    """Clear UI execution lock flags to avoid stuck disabled controls."""
+    st.session_state.is_running = False
+    st.session_state.run_backtest_requested = False
+    st.session_state.stop_requested = False
+
+
 def configure_page() -> None:
     st.set_page_config(
         page_title="Backtest Core",
@@ -92,6 +99,7 @@ def main() -> None:
     best_pnl_tracker = install_best_pnl_tracker()
 
     if not BACKEND_AVAILABLE:
+        _clear_execution_lock()
         st.error("❌ Backend non disponible")
         st.code(IMPORT_ERROR)
         st.stop()
@@ -102,11 +110,13 @@ def main() -> None:
         sidebar_state = render_sidebar()
     except Exception as e:
         import traceback
+        _clear_execution_lock()
         st.error(f"❌ Exception sidebar: {e}")
         st.code(traceback.format_exc())
         st.stop()
 
     if sidebar_state is None:
+        _clear_execution_lock()
         st.error("❌ Erreur sidebar - rechargez la page")
         st.stop()
 

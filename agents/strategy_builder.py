@@ -87,6 +87,7 @@ MIN_RETURN_PCT_FOR_ACCEPT = 0.0
 MIN_PROFIT_FACTOR_FOR_ACCEPT = 1.05
 # Nombre max de fallbacks déterministes avant arrêt de la session
 MAX_DETERMINISTIC_FALLBACKS = 4
+MAX_SESSION_AUTO_RESETS = int(os.getenv("BACKTEST_BUILDER_MAX_SESSION_RESETS", "2"))
 PROPOSAL_REALIGN_ATTEMPTS = 1
 MIN_BUILDER_BARS = 300
 
@@ -320,6 +321,8 @@ class BuilderSession:
     best_sharpe: float = float("-inf")
     best_score: float = float("-inf")
     status: str = "running"  # "running", "success", "failed", "max_iterations"
+    auto_reset_count: int = 0
+    recovery_events: List[Dict[str, Any]] = field(default_factory=list)
 
     # Configuration
     max_iterations: int = 10
@@ -335,6 +338,48 @@ class BuilderSession:
     fees_bps: float = 10.0
     slippage_bps: float = 5.0
     initial_capital: float = 10000.0
+
+
+def _iteration_is_recovery_anchor(
+    iteration: Optional[BuilderIteration],
+    *,
+    allow_fallback: bool = False,
+) -> bool:
+    """Retourne True si l'itération peut servir de point de reprise."""
+    if iteration is None:
+        return False
+    if iteration.error is not None:
+        return False
+    if iteration.backtest_result is None:
+        return False
+    if iteration.is_fallback and not allow_fallback:
+        return False
+    return True
+
+
+def _select_session_recovery_anchor(
+    session: BuilderSession,
+    last_iteration: Optional[BuilderIteration] = None,
+) -> tuple[Optional[BuilderIteration], str]:
+    """Choisit le meilleur ancrage disponible pour un auto-reset de session."""
+    if _iteration_is_recovery_anchor(session.best_iteration):
+        return session.best_iteration, "best_iteration"
+
+    if _iteration_is_recovery_anchor(last_iteration):
+        return last_iteration, "last_iteration"
+
+    for candidate in reversed(session.iterations):
+        if _iteration_is_recovery_anchor(candidate):
+            return candidate, "history_non_fallback"
+
+    if _iteration_is_recovery_anchor(last_iteration, allow_fallback=True):
+        return last_iteration, "last_iteration_fallback"
+
+    for candidate in reversed(session.iterations):
+        if _iteration_is_recovery_anchor(candidate, allow_fallback=True):
+            return candidate, "history_fallback"
+
+    return None, "none"
 
 
 def _err(code: str, message: str) -> str:
@@ -3690,6 +3735,8 @@ class StrategyBuilder:
         llm_config: Optional[LLMConfig] = None,
         llm_client: Optional[LLMClient] = None,
         stream_callback: Optional[Callable[[str, str], None]] = None,
+        backtest_completed_callback: Optional[Callable[[Any], None]] = None,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ):
         if llm_client is not None:
             self.llm = llm_client
@@ -3700,6 +3747,56 @@ class StrategyBuilder:
 
         self.available_indicators = list_indicators()
         self.stream_callback = stream_callback
+        self.backtest_completed_callback = backtest_completed_callback
+        self.progress_callback = progress_callback
+
+    def _emit_completed_backtest(
+        self,
+        bt_result: Any,
+        *,
+        session: Any = None,
+        iteration_num: Optional[int] = None,
+    ) -> None:
+        """Notifie un backtest terminé proprement pour persistance immédiate."""
+        callback = self.backtest_completed_callback
+        if callback is None:
+            return
+
+        raw_result = getattr(bt_result, "run_result", None)
+        if raw_result is None:
+            return
+
+        meta = getattr(raw_result, "meta", None)
+        if isinstance(meta, dict) and session is not None:
+            meta.setdefault("origin", "builder")
+            meta.setdefault("mode", "builder")
+            meta.setdefault("builder_session_id", getattr(session, "session_id", ""))
+            meta.setdefault("builder_iteration", iteration_num)
+            meta.setdefault("builder_objective", getattr(session, "objective", ""))
+
+        try:
+            callback(raw_result)
+        except Exception:
+            logger.exception(
+                "builder_backtest_completed_callback_failed iteration=%s session=%s",
+                iteration_num,
+                getattr(session, "session_id", "unknown"),
+            )
+
+    def _emit_progress(self, event: str, **payload: Any) -> None:
+        """Notifie l'UI de l'état courant d'une session Builder."""
+        callback = self.progress_callback
+        if callback is None:
+            return
+        message = {"event": event, **payload}
+        try:
+            callback(message)
+        except Exception:
+            logger.debug(
+                "builder_progress_callback_failed event=%s",
+                event,
+                exc_info=True,
+            )
 
     # ------------------------------------------------------------------
     # LLM call helper (streaming si callback défini)
@@ -3794,6 +3891,67 @@ class StrategyBuilder:
     def get_session_dir(session_id: str) -> Path:
         """Retourne le chemin du dossier sandbox pour une session."""
         return SANDBOX_ROOT / session_id
+
+    def _safe_save_session_summary(self, session: BuilderSession) -> None:
+        """Checkpoint best-effort pour survivre aux arrêts anormaux."""
+        try:
+            self._save_session_summary(session)
+        except Exception as exc:
+            logger.warning(
+                "builder_session_checkpoint_failed session=%s error=%s",
+                getattr(session, "session_id", "unknown"),
+                exc,
+            )
+
+    def _attempt_session_auto_reset(
+        self,
+        session: BuilderSession,
+        *,
+        iteration_num: int,
+        trigger: str,
+        reason: str,
+        last_iteration: Optional[BuilderIteration],
+        consecutive_failures: int,
+        fallback_count: int,
+    ) -> tuple[bool, Optional[BuilderIteration], int, int, Dict[str, Any]]:
+        """Réinitialise proprement la session autour du meilleur ancrage disponible."""
+        if session.auto_reset_count >= MAX_SESSION_AUTO_RESETS:
+            return False, last_iteration, consecutive_failures, fallback_count, {
+                "trigger": trigger,
+                "reason": reason,
+                "recovered": False,
+                "reset_budget_exhausted": True,
+                "reset_count": session.auto_reset_count,
+            }
+
+        anchor, anchor_source = _select_session_recovery_anchor(session, last_iteration)
+        session.auto_reset_count += 1
+        event = {
+            "iteration": iteration_num,
+            "trigger": trigger,
+            "reason": reason,
+            "recovered": True,
+            "reset_count": session.auto_reset_count,
+            "anchor_source": anchor_source,
+            "anchor_iteration": anchor.iteration if anchor else None,
+            "preserved_best_iteration": (
+                session.best_iteration.iteration if session.best_iteration else None
+            ),
+            "consecutive_failures_before_reset": consecutive_failures,
+            "fallback_count_before_reset": fallback_count,
+            "timestamp": datetime.now().isoformat(),
+        }
+        session.recovery_events.append(event)
+        logger.warning(
+            "builder_session_auto_reset session=%s reset=%d trigger=%s anchor=%s anchor_iter=%s",
+            session.session_id,
+            session.auto_reset_count,
+            trigger,
+            anchor_source,
+            anchor.iteration if anchor else None,
+        )
+        self._safe_save_session_summary(session)
+        return True, anchor, 0, 0, event
 
     # ------------------------------------------------------------------
     # LLM interactions
@@ -4833,6 +4991,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
             max_drawdown_pct=metrics_pct.get("max_drawdown_pct", 0.0),
             total_trades=metrics_pct.get("total_trades", 0),
             execution_time_ms=getattr(result, "execution_time_ms", 0),
+            run_result=result,
         )
 
     # ------------------------------------------------------------------
@@ -4917,6 +5076,12 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
             slippage_bps=slippage_bps,
             initial_capital=initial_capital,
         )
+        self._emit_progress(
+            "session_start",
+            max_iterations=max_iterations,
+            symbol=symbol,
+            timeframe=timeframe,
+        )
 
         dataset_ok, dataset_msg = _validate_builder_dataset_exploitability(
             data,
@@ -4935,6 +5100,12 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
             iteration.error = dataset_msg
             session.iterations.append(iteration)
             self._save_session_summary(session)
+            self._emit_progress(
+                "session_done",
+                status=session.status,
+                total_iterations=len(session.iterations),
+                best_sharpe=session.best_sharpe,
+            )
             return session
 
         logger.info(
@@ -4952,34 +5123,86 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
 
         for i in range(1, max_iterations + 1):
             iteration = BuilderIteration(iteration=i)
+            self._emit_progress(
+                "iteration_start",
+                iteration=i,
+                max_iterations=max_iterations,
+            )
             ts.iteration_start(i, max_iterations)
 
             # ── Circuit breaker ──
             if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                ts.circuit_breaker(consecutive_failures, MAX_CONSECUTIVE_FAILURES)
-                logger.warning(
-                    "builder_circuit_breaker consecutive=%d",
-                    consecutive_failures,
+                recovered, last_iteration, consecutive_failures, fallback_count, reset_event = (
+                    self._attempt_session_auto_reset(
+                        session,
+                        iteration_num=i,
+                        trigger="consecutive_failures",
+                        reason=(
+                            f"{consecutive_failures} échecs consécutifs "
+                            f"(seuil={MAX_CONSECUTIVE_FAILURES})"
+                        ),
+                        last_iteration=last_iteration,
+                        consecutive_failures=consecutive_failures,
+                        fallback_count=fallback_count,
+                    )
                 )
-                session.status = "failed"
-                break
+                if recovered:
+                    iteration.phase_feedback.setdefault("session_reset", {}).update(
+                        reset_event
+                    )
+                    ts.warning(
+                        "Auto-reset Builder: reprise sur le meilleur ancrage stable "
+                        "disponible avant nouvelle tentative."
+                    )
+                else:
+                    ts.circuit_breaker(consecutive_failures, MAX_CONSECUTIVE_FAILURES)
+                    logger.warning(
+                        "builder_circuit_breaker consecutive=%d",
+                        consecutive_failures,
+                    )
+                    session.status = "failed"
+                    break
 
             # ── Circuit breaker fallback ──
             if fallback_count >= MAX_DETERMINISTIC_FALLBACKS:
-                ts.warning(
-                    f"Arrêt: {fallback_count} fallbacks déterministes utilisés. "
-                    "Le LLM ne parvient pas à générer du code valide pour cette API."
+                recovered, last_iteration, consecutive_failures, fallback_count, reset_event = (
+                    self._attempt_session_auto_reset(
+                        session,
+                        iteration_num=i,
+                        trigger="deterministic_fallbacks",
+                        reason=(
+                            f"{fallback_count} fallbacks déterministes "
+                            f"(seuil={MAX_DETERMINISTIC_FALLBACKS})"
+                        ),
+                        last_iteration=last_iteration,
+                        consecutive_failures=consecutive_failures,
+                        fallback_count=fallback_count,
+                    )
                 )
-                logger.warning(
-                    "builder_fallback_circuit_breaker count=%d",
-                    fallback_count,
-                )
-                session.status = "failed"
-                break
+                if recovered:
+                    iteration.phase_feedback.setdefault("session_reset", {}).update(
+                        reset_event
+                    )
+                    ts.warning(
+                        "Auto-reset Builder: saturation fallback détectée, "
+                        "redémarrage sur une base plus saine."
+                    )
+                else:
+                    ts.warning(
+                        f"Arrêt: {fallback_count} fallbacks déterministes utilisés. "
+                        "Le LLM ne parvient pas à générer du code valide pour cette API."
+                    )
+                    logger.warning(
+                        "builder_fallback_circuit_breaker count=%d",
+                        fallback_count,
+                    )
+                    session.status = "failed"
+                    break
 
             try:
                 # ── Phase 1 : Proposition ──
                 logger.info("builder_iter_%d_proposal", i)
+                self._emit_progress("phase_start", iteration=i, phase="proposal")
                 ts.proposal_sent(has_previous=last_iteration is not None)
                 t0 = time.perf_counter()
                 proposal, proposal_feedback = self._ask_proposal(
@@ -5039,6 +5262,12 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     )
                     proposal["change_type"] = policy_ct
                 iteration.change_type = proposal["change_type"]
+                self._emit_progress(
+                    "phase_done",
+                    iteration=i,
+                    phase="proposal",
+                    hypothesis=iteration.hypothesis,
+                )
                 ts.proposal_received(proposal, dt_proposal)
 
                 # Valider que les indicateurs demandés existent
@@ -5058,6 +5287,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
 
                 # ── Phase 2 : Génération de code ──
                 logger.info("builder_iter_%d_codegen", i)
+                self._emit_progress("phase_start", iteration=i, phase="code")
                 ts.codegen_sent()
                 t0 = time.perf_counter()
                 change_type = _normalize_change_type(
@@ -5167,6 +5397,13 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                                 iteration.phase_feedback["code"] = code_feedback
                                 consecutive_failures += 1
                                 session.iterations.append(iteration)
+                                self._safe_save_session_summary(session)
+                                self._emit_progress(
+                                    "iteration_error",
+                                    iteration=i,
+                                    phase="code",
+                                    error=iteration.error,
+                                )
                                 last_iteration = iteration
                                 continue
                         else:
@@ -5290,6 +5527,13 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     logger.warning("builder_iter_%d_invalid_final code=%s", i, error_msg)
                     consecutive_failures += 1
                     session.iterations.append(iteration)
+                    self._safe_save_session_summary(session)
+                    self._emit_progress(
+                        "iteration_error",
+                        iteration=i,
+                        phase="validation",
+                        error=iteration.error,
+                    )
                     last_iteration = iteration
                     continue
 
@@ -5304,6 +5548,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
 
                 # ── Phase 5 : Backtest + Pre-reflection (parallel) ──
                 logger.info("builder_iter_%d_backtest", i)
+                self._emit_progress("phase_start", iteration=i, phase="backtest")
                 ts.backtest_start()
                 default_params = proposal.get("default_params", {})
 
@@ -5367,7 +5612,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                         )
                     except Exception:
                         pass
-    
+
                     try:
                         bt_result = self._run_backtest(
                             strategy_cls, data, default_params, initial_capital,
@@ -5396,13 +5641,13 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                         logger.warning(
                             "builder_iter_%d_backtest_runtime_error: %s", i, bt_error
                         )
-    
+
                         runtime_error_for_llm = bt_error
                         if tb_tail:
                             runtime_error_for_llm = (
                                 f"{bt_error}\n\nTraceback (tail):\n{tb_tail}"
                             )
-    
+
                         retry_code = self._retry_code_runtime_fix(
                             proposal=proposal,
                             failing_code=code,
@@ -5434,7 +5679,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                             iteration.phase_feedback.setdefault("code", {})[
                                 "source"
                             ] = "deterministic_fallback"
-    
+
                         retry_cls = self._save_and_load(session, retry_code, i)
                         retry_cls = self._auto_fix_required_indicators(
                             retry_cls, retry_code
@@ -5489,6 +5734,18 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                             "runtime_fix_applied"
                         ] = True
                     iteration.backtest_result = bt_result
+                    self._emit_progress(
+                        "phase_done",
+                        iteration=i,
+                        phase="backtest",
+                        sharpe=bt_result.metrics.get("sharpe_ratio", 0.0),
+                        total_return_pct=bt_result.metrics.get("total_return_pct", 0.0),
+                    )
+                    self._emit_completed_backtest(
+                        bt_result,
+                        session=session,
+                        iteration_num=i,
+                    )
                 ts.backtest_result(bt_result.metrics)
 
                 # Collect pre-reflection result (ran in parallel with backtest)
@@ -5642,9 +5899,16 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                             f"at iteration {i}: {positive_count}/{positive_required}."
                         )
                         iteration.decision = "stop"
-                        session.iterations.append(iteration)
-                        last_iteration = iteration
                         session.status = "failed"
+                        session.iterations.append(iteration)
+                        self._safe_save_session_summary(session)
+                        self._emit_progress(
+                            "iteration_done",
+                            iteration=i,
+                            decision=iteration.decision,
+                            status=session.status,
+                        )
+                        last_iteration = iteration
                         break
                     logger.info(
                         "builder_iter_%d_positive_gate_pass observed=%d required=%d",
@@ -5657,6 +5921,7 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     "builder_iter_%d_analysis diag=%s sev=%s",
                     i, diag["category"], diag["severity"],
                 )
+                self._emit_progress("phase_start", iteration=i, phase="analysis")
                 ts.analysis_sent()
                 t0 = time.perf_counter()
                 analysis, decision = self._ask_analysis(
@@ -5736,6 +6001,14 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                 )
 
                 session.iterations.append(iteration)
+                self._safe_save_session_summary(session)
+                self._emit_progress(
+                    "iteration_done",
+                    iteration=i,
+                    decision=decision,
+                    status="success" if decision == "accept" else "running",
+                    best_sharpe=session.best_sharpe,
+                )
                 last_iteration = iteration
 
                 logger.info(
@@ -5789,6 +6062,12 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
                     i, e, _safe_format_exception(e),
                 )
                 session.iterations.append(iteration)
+                self._safe_save_session_summary(session)
+                self._emit_progress(
+                    "iteration_error",
+                    iteration=i,
+                    error=iteration.error,
+                )
                 last_iteration = iteration
 
         else:
@@ -5805,6 +6084,12 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
             "strategy_builder_end session=%s status=%s best_sharpe=%.3f iters=%d",
             session.session_id, session.status,
             session.best_sharpe, len(session.iterations),
+        )
+        self._emit_progress(
+            "session_done",
+            status=session.status,
+            total_iterations=len(session.iterations),
+            best_sharpe=session.best_sharpe,
         )
 
         return session
@@ -5874,6 +6159,8 @@ The logic block must be ready to execute inside generate_signals with ZERO modif
             "status": session.status,
             "best_sharpe": session.best_sharpe,
             "best_score": session.best_score,
+            "auto_reset_count": session.auto_reset_count,
+            "recovery_events": session.recovery_events,
             "total_iterations": len(session.iterations),
             "available_indicators": session.available_indicators,
             "iterations": iteration_rows,
@@ -6497,6 +6784,180 @@ def generate_llm_objective(
     return objective
 
 
+def generate_llm_objective_from_seed(
+    llm_client: Any,
+    *,
+    seed_objective: str,
+    symbol: "str | List[str]" = "BTCUSDC",
+    timeframe: "str | List[str]" = "1h",
+    available_indicators: Optional[List[str]] = None,
+    family: str = "",
+    direction: str = "",
+    risk_profile: str = "",
+    novelty_angle: str = "",
+    tags: Optional[List[str]] = None,
+    stream_callback: Optional[Callable[[str, str], None]] = None,
+    recent_markets: Optional[List[Tuple[str, str]]] = None,
+) -> str:
+    """Raffine une piste catalogue en objectif LLM plus adapté au setup étudié."""
+    if available_indicators is None:
+        available_indicators = list_indicators()
+
+    seed_text = sanitize_objective_text(seed_objective)
+    if not seed_text:
+        return generate_llm_objective(
+            llm_client,
+            symbol=symbol,
+            timeframe=timeframe,
+            available_indicators=available_indicators,
+            stream_callback=stream_callback,
+            recent_markets=recent_markets,
+        )
+
+    indicators_list = ", ".join(sorted(available_indicators))
+    market_auto_selection = (symbol is None or timeframe is None)
+
+    if market_auto_selection:
+        market_instruction = (
+            "Le marché (token + timeframe) est sélectionné automatiquement par une étape dédiée.\n"
+            "Tu DOIS utiliser exactement les placeholders `{symbol}` et `{timeframe}` dans l'objectif final.\n"
+            "N'écris AUCUN token réel ni timeframe réel.\n\n"
+        )
+        symbols_list: List[str] = []
+        timeframes_list: List[str] = []
+    else:
+        symbols_list = symbol if isinstance(symbol, list) else [symbol]
+        timeframes_list = timeframe if isinstance(timeframe, list) else [timeframe]
+        symbols_list = [s for s in symbols_list if s] or ["BTCUSDC"]
+        timeframes_list = [t for t in timeframes_list if t] or ["1h"]
+        if len(symbols_list) > 1 or len(timeframes_list) > 1:
+            shuffled_symbols = symbols_list.copy()
+            random.shuffle(shuffled_symbols)
+            shuffled_timeframes = timeframes_list.copy()
+            random.shuffle(shuffled_timeframes)
+            market_instruction = (
+                f"Symboles disponibles (SEULS autorisés) : {', '.join(shuffled_symbols)}\n"
+                f"Timeframes disponibles (SEULS autorisés) : {', '.join(shuffled_timeframes)}\n"
+                "Choisis le couple le plus pertinent pour étudier cette stratégie. "
+                "N'utilise QUE ces symboles/timeframes.\n\n"
+            )
+            if recent_markets:
+                recent_str = ", ".join(f"{s} {tf}" for s, tf in recent_markets[-6:])
+                market_instruction += (
+                    f"Les marchés suivants ont déjà été testés récemment : {recent_str}. "
+                    "Privilégie un couple différent si cela reste cohérent.\n\n"
+                )
+        else:
+            market_instruction = f"Marché à étudier : {symbols_list[0]} {timeframes_list[0]}.\n\n"
+
+    seed_context = [
+        f"Piste catalogue de départ : {seed_text}",
+        f"Famille cible : {family or 'n/a'}",
+        f"Direction visée : {direction or 'n/a'}",
+        f"Profil de risque : {risk_profile or 'n/a'}",
+        f"Angle de nouveauté : {novelty_angle or 'n/a'}",
+    ]
+    clean_tags = [str(tag or "").strip() for tag in (tags or []) if str(tag or "").strip()]
+    if clean_tags:
+        seed_context.append(f"Tags utiles : {', '.join(clean_tags)}")
+
+    format_hint = (
+        "Format attendu :\n"
+        "[Style] sur {symbol} {timeframe}. "
+        "Indicateurs : [ind1] + [ind2] + [ind3]. "
+        "Entrées : [conditions]. "
+        "Sorties : [conditions]. "
+        "Risk management : [SL/TP]."
+        if market_auto_selection
+        else
+        "Format attendu :\n"
+        "[Style] sur [marché] [timeframe]. "
+        "Indicateurs : [ind1] + [ind2] + [ind3]. "
+        "Entrées : [conditions]. "
+        "Sorties : [conditions]. "
+        "Risk management : [SL/TP]."
+    )
+
+    system_msg = LLMMessage(
+        role="system",
+        content=(
+            "Tu es un quant designer. On te donne une piste issue d'un catalogue brut. "
+            "Ta tâche est de la transformer en UN objectif de recherche plus précis, plus robuste, "
+            "et mieux adapté à la stratégie réellement étudiée. "
+            "Tu peux reformuler, renforcer les filtres, ajuster la logique d'entrée/sortie et le risk management, "
+            "mais tu dois conserver l'intention stratégique générale. "
+            "Réponds UNIQUEMENT avec l'objectif final, sans markdown ni commentaire."
+        ),
+    )
+    user_msg = LLMMessage(
+        role="user",
+        content=(
+            f"{market_instruction}"
+            f"{chr(10).join(seed_context)}\n\n"
+            f"Indicateurs disponibles : {indicators_list}\n\n"
+            "Contraintes :\n"
+            "- Pars de la piste catalogue, mais reformule-la pour en faire une hypothèse testable et falsifiable.\n"
+            "- Choisis les indicateurs les plus cohérents avec cette stratégie.\n"
+            "- N'utilise QUE des indicateurs disponibles.\n"
+            "- Evite les formulations génériques et les signaux trop triviaux.\n"
+            "- L'objectif doit rester en 2-4 phrases.\n\n"
+            f"{format_hint}"
+        ),
+    )
+
+    if stream_callback and hasattr(llm_client, "chat_stream"):
+        result = llm_client.chat_stream(
+            [system_msg, user_msg],
+            on_chunk=lambda c: stream_callback("objective_gen", c),
+            max_tokens=320,
+        )
+    else:
+        result = llm_client.chat([system_msg, user_msg], max_tokens=320)
+
+    objective = str(getattr(result, "content", result) or "").strip()
+    objective = re.sub(r"<think>.*?</think>", "", objective, flags=re.DOTALL).strip()
+    objective = re.sub(r"<think>.*", "", objective, flags=re.DOTALL).strip()
+    objective = sanitize_objective_text(objective)
+    if not objective or len(objective) < 20:
+        logger.warning("generate_llm_objective_from_seed: résultat LLM vide, fallback seed")
+        objective = seed_text
+
+    if market_auto_selection:
+        objective = _remove_hardcoded_tokens(objective)
+        objective = _remove_hardcoded_timeframes(objective)
+        if "{symbol}" not in objective or "{timeframe}" not in objective:
+            objective = f"Stratégie sur {{symbol}} {{timeframe}}. {objective}"
+        objective = _sanitize_objective_indicators_section(
+            objective,
+            available_indicators,
+        )
+        return sanitize_objective_text(objective)
+
+    tf_pattern = re.compile(r"\b(\d{1,2}[mhdwM])\b")
+    found_tfs = tf_pattern.findall(objective)
+    for found_tf in found_tfs:
+        if found_tf not in timeframes_list:
+            replacement = random.choice(timeframes_list)
+            objective = objective.replace(found_tf, replacement, 1)
+
+    sym_upper_set = {s.upper() for s in symbols_list}
+    sym_pattern = re.compile(r"\b([A-Z]{2,10}USDC)\b")
+    found_syms = sym_pattern.findall(objective.upper())
+    for found_sym in found_syms:
+        if found_sym not in sym_upper_set:
+            replacement = random.choice(symbols_list)
+            objective = re.sub(
+                re.escape(found_sym), replacement, objective,
+                count=1, flags=re.IGNORECASE,
+            )
+
+    objective = _sanitize_objective_indicators_section(
+        objective,
+        available_indicators,
+    )
+    return objective
+
+
 # ---------------------------------------------------------------------------
 # Catalogue d'objectifs pré-construits pour exploration systématique
 # ---------------------------------------------------------------------------
@@ -6515,6 +6976,51 @@ class CatalogObjective:
     sl_mult: float
     tp_mult: float
     tags: List[str] = field(default_factory=list)
+
+
+_OBJECTIVE_COMPLEXITY_TAG_WEIGHTS: Dict[str, float] = {
+    "stat_arb": 1.4,
+    "zscore": 1.2,
+    "multi_tf_proxy": 1.1,
+    "double_rsi": 1.0,
+    "volatility": 0.9,
+    "volume_surge": 0.9,
+    "momentum_filter": 0.85,
+    "support_resistance": 0.75,
+    "adx_filter": 0.7,
+    "trend_filter": 0.55,
+    "retrace": 0.45,
+    "pullback": 0.45,
+    "confirmation": 0.35,
+    "cross": 0.2,
+}
+
+
+def _objective_complexity_score(obj: CatalogObjective) -> float:
+    """Score simple de complexité exploitable pour piloter l'exploration."""
+    indicators = [str(ind).strip().lower() for ind in obj.indicators if str(ind).strip()]
+    core_indicators = {ind for ind in indicators if ind != "atr"}
+    score = 0.95 * float(len(core_indicators))
+    if "atr" in indicators:
+        score += 0.15
+
+    direction_bonus = {
+        "long_short": 0.7,
+        "long_only": 0.15,
+        "short_only": 0.15,
+    }
+    score += direction_bonus.get(obj.direction, 0.2)
+    score += {
+        "tight": 0.0,
+        "balanced": 0.15,
+        "wide": 0.25,
+        "neutral": 0.1,
+    }.get(obj.risk_profile, 0.1)
+
+    for tag in {str(tag).strip().lower() for tag in obj.tags if str(tag).strip()}:
+        score += _OBJECTIVE_COMPLEXITY_TAG_WEIGHTS.get(tag, 0.0)
+
+    return round(score, 4)
 
 
 _CURATED_RISK_SL_TP = {
@@ -7532,6 +8038,16 @@ class ExplorationTracker:
         }
         cfg = mode_cfg.get(selection_mode, mode_cfg["hybrid"])
 
+        complexity_bias = 0.0
+        if positive_count <= 0 and len(explored) < 6:
+            complexity_bias = -0.18
+        elif positive_count >= 2:
+            complexity_bias = 0.55
+        elif positive_count >= 1:
+            complexity_bias = 0.32
+        elif selection_mode == "wildcard":
+            complexity_bias = 0.12
+
         pos_family = cast(Dict[str, float], positive_profiles.get("family", {}))
         pos_direction = cast(Dict[str, float], positive_profiles.get("direction", {}))
         pos_risk = cast(Dict[str, float], positive_profiles.get("risk", {}))
@@ -7554,6 +8070,7 @@ class ExplorationTracker:
         scored_candidates: List[Tuple[int, str, float]] = []
         for pos, obj_id in candidates:
             obj = self.catalog_by_id[obj_id]
+            complexity_score = _objective_complexity_score(obj)
 
             diversity_score = 0.0
             diversity_score += 2.8 / (1.0 + family_counts.get(obj.family, 0))
@@ -7599,7 +8116,11 @@ class ExplorationTracker:
 
             score = cfg["diversity_w"] * diversity_score
             score += cfg["positive_w"] * positive_score
+            score += complexity_bias * complexity_score
             score -= 0.002 * max(pos - idx, 0)
+
+            if positive_count <= 0 and complexity_score >= 3.8:
+                score -= 0.25
 
             if selection_mode == "wildcard" and obj.novelty_angle != "classic":
                 score += 0.15 + random.random() * 0.25
@@ -7966,6 +8487,20 @@ def recommend_market_context(
         timeframes = _unique_non_empty([default_timeframe or "1h"], upper=False)
     timeframes = [tf for tf in timeframes if timeframe_re.match(tf)]
 
+    # Fallback contractuel: prioriser le couple par défaut quand il est valide.
+    # Utilisé pour les cas "réponse LLM invalide / hors univers" afin de garder
+    # un comportement déterministe et prévisible côté tests et UI.
+    strict_fallback_symbol = (
+        str(default_symbol).strip().upper()
+        if str(default_symbol).strip().upper() in symbols
+        else (symbols[0] if symbols else "BTCUSDC")
+    )
+    strict_fallback_timeframe = (
+        str(default_timeframe).strip()
+        if str(default_timeframe).strip() in timeframes
+        else (timeframes[0] if timeframes else "1h")
+    )
+
     # Fallback initial (sera recalculé après détection du type de stratégie)
     _initial_fallback_symbol = (
         str(default_symbol).strip().upper()
@@ -7980,8 +8515,8 @@ def recommend_market_context(
 
     if not symbols or not timeframes:
         return {
-            "symbol": _initial_fallback_symbol,
-            "timeframe": _initial_fallback_timeframe,
+            "symbol": strict_fallback_symbol,
+            "timeframe": strict_fallback_timeframe,
             "confidence": 0.0,
             "reason": "Univers marché incomplet, fallback par défaut.",
             "source": "fallback_no_candidates",
@@ -8274,15 +8809,15 @@ def recommend_market_context(
     source = "llm"
     if symbol not in symbols:
         source = "fallback_out_of_universe"
-        symbol = fallback_symbol
+        symbol = strict_fallback_symbol
     if timeframe not in timeframes:
         source = "fallback_out_of_universe"
-        timeframe = fallback_timeframe
+        timeframe = strict_fallback_timeframe
 
     if not payload:
         source = "fallback_invalid_json"
-        symbol = fallback_symbol
-        timeframe = fallback_timeframe
+        symbol = strict_fallback_symbol
+        timeframe = strict_fallback_timeframe
         confidence = 0.0
         if not reason:
             reason = "Réponse LLM non parseable en JSON. Fallback appliqué."
